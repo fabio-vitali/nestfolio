@@ -183,10 +183,64 @@ sequenced **last**.
    aggregate owner in Execution/Ledger; versioned lifecycle events; investor-bff
    deposit/withdrawal → P1 projections; `initiateDeposit` → intent event +
    optimistic UI. Cross-domain; last.
+6. **Governance / freeze (cross-cutting)** — enforcement layers 3 + 4 from
+   "Freezing the model": update `event-processor-patterns`, `create-service`,
+   `create-feature`, `create-event`, `testing-patterns`, the `CLAUDE.md` router,
+   and add drift checks to `audit-service`/`audit-domain`/`audit-system`
+   (+ CI lint). Lands after the pattern is real; updated incrementally as each
+   BFF migrates. (Layers 1 + 2 — the types + canonical doc — ship inside
+   workstream 0.)
 
 Each workstream gets its own backlog item + worktree + spec/plan. This design
 item's done-definition is **this spec + the decomposition** (doc-layer); the
 numbered workstreams are downstream Complex work.
+
+## Freezing the model (enforcement — non-negotiable)
+
+This redesign exists *because* the prior model was implicit and rotted into the
+four-faced bug class. A clean model that is not enforced rots identically.
+Freezing therefore uses four layers, strongest first. The actual edits land
+**with the workstreams** (never ahead of the code they describe — a doc/skill
+that references an unbuilt primitive is itself rot).
+
+1. **Type-level (compile-time) — `event-processor`, workstream 0.** The strongest
+   "cannot deviate."
+   - `projectVersioned(typename, fullState, { version })` is the only blessed P1
+     write; `version` is a **required, typed** parameter — a versioned projection
+     cannot be created without a version.
+   - Row ownership encoded as a **type tag** (`CommandOwned` | `Projection<'P1'|'P2'|'P3'>`)
+     so the intent API steers each typename to its allowed writers: `accumulate`
+     on a `Projection`, or a direct command write to a `Projection` typename,
+     **fails to typecheck**.
+   - Reserved `__version` attribute as a typed convention.
+   - The footgun (`project`, unconditional full overwrite) is restricted to
+     seed/command paths — not usable for ongoing projection.
+
+2. **Canonical doc — single source of truth.** A standing architecture doc
+   (`docs/architecture/READ-MODEL-OWNERSHIP.md`) stating the ownership rule, the
+   discriminator, the P1/P2/P3 variants, and the command-side rules — referenced
+   by every skill below. Ships with workstream 0.
+
+3. **Skill guidance — the default path for devs and Claude Code agents.**
+   - `event-processor-patterns`: documents `projectVersioned` + variants + "never
+     `accumulate` a cross-event projection."
+   - `create-service` / `create-feature` / `create-event`: add the
+     **ownership-classification step** ("who is the boss of this row? command-owned
+     or projection?") so new code starts correct.
+   - `testing-patterns`: version-guard + stale-drop test patterns.
+   - `CLAUDE.md` router: pointer to the canonical doc.
+
+4. **Audit checks — catch drift in review (the backstop).**
+   `audit-service` / `audit-domain` / `audit-system` flag: a `Projection` row
+   written by `accumulate`; a typename written by **both** a command and an event;
+   a `Projection` with no version guard; a schema field never written (structural
+   zero). Ideally also a CI lint.
+
+Layers 1 + 2 ship inside workstream 0. Layers 3 + 4 are a cross-cutting
+**governance workstream** (rollout step 6) that lands after the pattern is real
+and is updated incrementally as each BFF migrates, so skills/audits always
+describe true code. Enforcement is part of this program's done-definition, not an
+afterthought.
 
 ## Out of scope
 - The numbered workstreams' implementation detail (each gets its own plan).
