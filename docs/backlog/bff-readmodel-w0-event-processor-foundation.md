@@ -1,13 +1,16 @@
 ---
 id: bff-readmodel-w0-event-processor-foundation
-status: queued
-rank: 1
+status: active
 type: refactor
 notes: "Workstream 0 of bff-read-model-materialization-redesign: add the projectVersioned WriteIntent + reserved __version convention + type-level ownership tags (CommandOwned | Projection<'P1'|'P2'|'P3'>) to event-processor, plus the canonical READ-MODEL-OWNERSHIP.md doc and the event-processor-patterns skill update (enforcement layers 1+2). Foundation for the whole rollout; no consumer behavior change yet."
 references:
   - "docs/superpowers/specs/2026-05-29-bff-read-model-materialization-redesign-design.md"
   - "services/ledger/ledger-ctrl/src/transforms/snapshot-to-events.ts"
-out_of_scope: []
+out_of_scope:
+  - "Migrating any BFF read model (workstreams 1-5) — no consumer behavior change in w0."
+  - "Skill/audit updates to create-* / audit-* (enforcement layers 3+4 = governance workstream 6)."
+  - "Live-push transport (deferred dashboard-live-push-* items)."
+  - "Event sourcing on the write side — not adopted."
 spec: docs/superpowers/specs/2026-05-29-bff-read-model-materialization-redesign-design.md
 plan: null
 topic_memory: []
