@@ -9,6 +9,8 @@ type VersionResolver = number | ((payload: EventPayload, ctx: EventContext) => n
  * P1 versioned-snapshot projection. Writes the FULL row guarded by
  * `attribute_not_exists(pk) OR #__version < :version`; a stale/duplicate
  * version is dropped (deduplicated), NOT redriven. `version` is required.
+ *
+ * @remarks Ownership enforcement requires a string-literal `typename`; a widened `string` bypasses it. See types/ownership.ts.
  */
 export function projectVersioned<K extends string>(
   typename: RejectNonP1<K>,

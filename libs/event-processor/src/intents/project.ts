@@ -3,6 +3,9 @@ import type { HandlerFn, EventPayload } from '../types/handler-config';
 import type { EventContext } from '../types/event-context';
 import type { RejectProjection } from '../types/ownership';
 
+/**
+ * @remarks Ownership enforcement requires a string-literal `typename`; a widened `string` bypasses it. See types/ownership.ts.
+ */
 export function project<K extends string>(typename: RejectProjection<K>, fieldsOrMapper: Record<string, unknown>, overrides?: KeyOverrides): ProjectIntent;
 export function project<K extends string>(typename: RejectProjection<K>, fieldsOrMapper: (payload: EventPayload, ctx: EventContext) => Record<string, unknown>, overrides?: KeyOverrides): HandlerFn;
 export function project<K extends string>(

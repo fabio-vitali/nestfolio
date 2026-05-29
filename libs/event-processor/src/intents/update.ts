@@ -1,6 +1,9 @@
 import type { UpdateIntent, KeyOverrides } from '../types/write-intent';
 import type { RejectProjection } from '../types/ownership';
 
+/**
+ * @remarks Ownership enforcement requires a string-literal `typename`; a widened `string` bypasses it. See types/ownership.ts.
+ */
 export function update<K extends string>(
   typename: RejectProjection<K>,
   updates: Record<string, unknown>,
@@ -12,9 +15,10 @@ export function update<K extends string>(
     overrides?: KeyOverrides;
   },
 ): UpdateIntent {
+  const name = typename as string;
   return {
     _tag: 'update',
-    typename: typename as string,
+    typename: name,
     updates,
     ...(options?.removes ? { removes: options.removes } : {}),
     ...(options?.condition ? { condition: options.condition } : {}),

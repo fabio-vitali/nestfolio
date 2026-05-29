@@ -39,6 +39,10 @@ record('TestP2', { a: 1 });
 // @ts-expect-error — projectVersioned on a P2 projection must not typecheck
 projectVersioned('TestP2', { a: 1 }, { version: 1 });
 
+// command-owned is a valid record() target (seed-by-one-idempotent-event) and accumulate() target
+record('TestCmd', { a: 1 });
+accumulate('TestCmd', { field: 'count', increment: 1 });
+
 // Command-owned: update ok; projectVersioned rejected.
 update('TestCmd', { a: 1 });
 // @ts-expect-error — projectVersioned on a command-owned row must not typecheck

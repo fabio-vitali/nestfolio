@@ -12,6 +12,8 @@ import type { RejectProjection } from '../types/ownership';
  * wait for DECISION_PACKET_CREATED to land before applying.
  *
  * For the dedup / skip-if-not-X semantic, keep using update({condition}).
+ *
+ * @remarks Ownership enforcement requires a string-literal `typename`; a widened `string` bypasses it. See types/ownership.ts.
  */
 export function updateOrRetry<K extends string>(
   typename: RejectProjection<K>,
@@ -24,9 +26,10 @@ export function updateOrRetry<K extends string>(
     overrides?: KeyOverrides;
   },
 ): UpdateIntent {
+  const name = typename as string;
   return {
     _tag: 'update',
-    typename: typename as string,
+    typename: name,
     updates,
     condition: options.condition,
     onConditionFail: 'retry',

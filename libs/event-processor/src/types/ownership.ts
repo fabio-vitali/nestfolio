@@ -7,6 +7,15 @@
  * `never`, so an empty registry rejects nothing and all `typename: string`
  * call sites compile unchanged. A service opts a typename into enforcement by
  * augmenting `ReadModelOwnership` via `declare module '@nestfolio/event-processor'`.
+ *
+ * IMPORTANT — enforcement requires a string LITERAL. These reject-helpers only
+ * fire when the `typename` argument is a string literal (or a literal-typed
+ * `const`). A value widened to plain `string` (e.g. `const t: string = ...`)
+ * bypasses the constraint silently, because `string extends <literal union>` is
+ * `false`, so the conditional resolves to the input type unchanged. Passing
+ * literals is the established call-site convention, so this is acceptable — but
+ * callers and migration authors must know that enforcement is compile-time only
+ * and depends on the typename being a literal.
  */
 export type ProjectionVariant = 'P1' | 'P2' | 'P3';
 
