@@ -12,7 +12,7 @@ out_of_scope:
   - "Live-push TRANSPORT (broadcast/subscription/client-merge/shared subscribe-then-reconcile helper) — deferred to the re-scoped dashboard-live-push-portfolio-summary + dashboard-live-push-position-snapshots items; this workstream fixes materialization correctness only, on top of which transport is later rebuilt."
   - "Per-BFF IMPLEMENTATION commits — this item's done-definition is the design + decomposition spec (canonical pattern + rollout order). Each BFF's migration becomes its own Complex implementation workstream with its own worktree."
   - "Client-side weightPercent recomputation — a transport-item concern, not a materialization-pattern concern."
-spec: null
+spec: docs/superpowers/specs/2026-05-29-bff-read-model-materialization-redesign-design.md
 plan: null
 topic_memory: []
 validation_gate: null
@@ -83,12 +83,15 @@ subscribe-before-query + reconnect, and the per-symbol-delta `weightPercent`
 flicker. Those sit *on top of* the read model and are rebuilt on the clean
 foundation afterward.
 
-## On ship — promote deferred dependents (closing step)
+## Promote deferred dependents (closing step — belongs to rollout step 2)
 
 `dashboard-live-push-portfolio-summary` and `dashboard-live-push-position-snapshots`
-are committed-but-blocked: they are parked only because this redesign is their
-hard predecessor (live-push must be rebuilt on the clean read model, not the
-fragile one). When this workstream ships, the boundary review MUST promote both
-from `parking` → `queued` (remove the "after the refactoring" trigger sentence,
-assign ranks) so they re-enter the ready queue. This is part of this item's
-done-definition, not a separate decision.
+are committed-but-blocked: they are parked only because the clean read model is
+their hard predecessor (live-push must be rebuilt on it, not the fragile one).
+
+**This design item ships when the spec + decomposition exist (doc-layer) — that
+is NOT the promotion trigger.** The live-push items depend on the **dashboard-bff
+implementation workstream (rollout step 2 of this spec)**, not on the spec. When
+that step-2 workstream ships, its boundary review MUST promote both from
+`parking` → `queued` (remove the "after the refactoring" trigger, assign ranks).
+The step-2 backlog item (created when picked up) carries this closing step.
