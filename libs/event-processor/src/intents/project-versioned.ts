@@ -7,8 +7,11 @@ type VersionResolver = number | ((payload: EventPayload, ctx: EventContext) => n
 
 /**
  * P1 versioned-snapshot projection. Writes the FULL row guarded by
- * `attribute_not_exists(pk) OR #__version < :version`; a stale/duplicate
- * version is dropped (deduplicated), NOT redriven. `version` is required.
+ * `attribute_not_exists(pk) OR attribute_not_exists(#v) OR #v < :version`
+ * (`#v` = `__version`); the middle clause self-heals a legacy row that has no
+ * `__version` yet (first versioned write of a row previously written by plain
+ * `project()`). A stale/duplicate version is dropped (deduplicated), NOT
+ * redriven. `version` is required.
  *
  * @remarks Ownership enforcement requires a string-literal `typename`; a widened `string` bypasses it. See types/ownership.ts.
  */

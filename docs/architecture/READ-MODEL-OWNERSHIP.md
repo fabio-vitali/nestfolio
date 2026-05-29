@@ -57,8 +57,11 @@ Projecting consumers read it from the event and pass it to `projectVersioned` as
 `ledger-ctrl` is the **reference implementation**: `SnapshotRecord` exposes `lastEventSequence`
 as its monotonic sequence, and `snapshotToEvents.ts` carries it in emitted events
 (see `services/ledger/ledger-ctrl/src/transforms/snapshot-to-events.ts` —
-`const { …, lastEventSequence } = current`). Producers that do not yet stamp a `__version`
-adopt the convention as their BFF migrates in workstreams w1–w5.
+`const { …, lastEventSequence } = current`). Note that ledger-ctrl today emits
+`lastEventSequence` (its monotonic sequence) in events but does **not** yet stamp a
+top-level `__version` attribute on emitted events; adopting the `__version` carriage
+convention is part of each producer's BFF-migration workstream (w1–5). Producers that do
+not yet stamp a `__version` adopt the convention as their BFF migrates in workstreams w1–w5.
 
 ---
 
@@ -194,10 +197,12 @@ declare module '@nestfolio/event-processor' {
 
 ### Empty-registry behavior
 
-When `ReadModelOwnership` is empty (no augmentations), **all reject-helpers resolve to
-`never`**, so the constraint condition `K extends never` is always false — the input type
-passes through unchanged. Every existing `typename: string` call site compiles unmodified.
-Enforcement activates only once a typename is registered.
+When `ReadModelOwnership` is empty (no augmentations), the **key unions** (`P1Key`,
+`AnyProjectionKey`, `CommandOwnedKey`, etc.) are all `never`. Each reject-helper's
+condition `K extends <never union>` is therefore always false, so the helper reduces to
+`K` (pass-through) and every `typename` compiles as a plain string. Every existing
+`typename: string` call site compiles unmodified. Enforcement activates only once a
+typename is registered.
 
 ### String-literal caveat
 
