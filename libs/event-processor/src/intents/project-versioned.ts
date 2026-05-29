@@ -42,6 +42,11 @@ export function projectVersioned<K extends string>(
     typename: name,
     fields: fieldsOrMapper,
     version: opts.version as number,
+    // Intentional divergence from record.ts/project.ts: the `overrides` key is
+    // OMITTED (not set to `undefined`) when none are passed. Safe downstream
+    // because the executor reads `intent.overrides?.pk` (optional chaining) and
+    // `stripUndefinedDeep` strips undefined leaves — so an absent key and an
+    // `undefined` value behave identically.
     ...(opts.overrides ? { overrides: opts.overrides } : {}),
   };
 }

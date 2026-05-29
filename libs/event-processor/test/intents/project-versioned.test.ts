@@ -33,4 +33,19 @@ describe('projectVersioned()', () => {
       version: 9,
     });
   });
+
+  it('mapper mode with a static version number', () => {
+    const fn = projectVersioned(
+      'PortfolioSummary',
+      (payload) => ({ totalValueCents: (payload as { v: number }).v }),
+      { version: 4 },
+    );
+    const intent = (fn as (p: unknown, c: unknown) => unknown)({ v: 30 }, {});
+    expect(intent).toEqual({
+      _tag: 'projectVersioned',
+      typename: 'PortfolioSummary',
+      fields: { totalValueCents: 30 },
+      version: 4,
+    });
+  });
 });
