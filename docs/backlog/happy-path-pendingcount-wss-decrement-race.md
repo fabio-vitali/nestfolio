@@ -1,8 +1,8 @@
 ---
 id: happy-path-pendingcount-wss-decrement-race
-status: shipped
+status: active
 type: bug
-notes: "new-investor-happy-path Step 8 WSS counter assertion races real DECISION_APPROVED -1 within 30s; post-2026-05-09 inc/dec semantics broke the monotonic-up invariant."
+notes: "REOPENED 2026-05-29 — the 2026-05-29 Activity-broadcast fix closed the decrement race but a residual remains: Step 8 still fails on first try / passes on rerun. Leading hypothesis: WSS subscription-establishment race with no feed backfill (onActivityUpdate frame dropped if broadcast fires before subscribe_success; feed never reconciles). Original symptom: WSS counter assertion raced real DECISION_APPROVED -1 within 30s; post-2026-05-09 inc/dec semantics broke the monotonic-up invariant."
 references:
   - path: apps/nestfolio-e2e/src/journeys/new-investor-happy-path.spec.ts
     anchor: L138-L162
@@ -10,6 +10,12 @@ references:
   - path: services/investor/dashboard-bff/src/handlers/event-listener.ts
   - path: services/investor/dashboard-bff/src/handlers/dashboard-publisher.ts
   - path: apps/nestfolio-e2e/src/fixtures/inject-advisory-update.ts
+  - path: apps/dashboard-mfe/src/app/dashboard/dashboard-container.component.ts
+    anchor: L162-L197
+  - path: apps/dashboard-mfe/src/app/services/dashboard.service.ts
+    anchor: L60-L94
+  - path: apps/nestfolio-e2e/src/pages/dashboard.page.ts
+    anchor: L56-L60
 out_of_scope:
   - Modifying the existing AdvisoryStatus pendingDecisionsCount inc/dec semantics (counter stays as-is; assertion target moves to Activity).
   - Live-push for PortfolioSummary or PositionSnapshot — separately filed as dashboard-live-push-portfolio-summary and dashboard-live-push-position-snapshots.
@@ -17,7 +23,7 @@ out_of_scope:
   - Investigating sub-100ms DOM render coalescing of the pendingDecisionsCount value — moot once the assertion target moves to the append-only Activity row.
   - Touching the sister fixture injectAdvisoryBffTriggerEvent (different surface — advisory-bff).
   - Adding a new getRecentActivity-style query surface; the existing query stays as the on-mount loader.
-spec: docs/superpowers/specs/2026-05-28-activity-live-broadcast-design.md
+spec: docs/superpowers/specs/2026-05-29-activity-feed-subscribe-before-query-design.md
 plan: docs/superpowers/plans/2026-05-28-activity-live-broadcast.md
 topic_memory: []
 validation_gate: |
@@ -83,3 +89,73 @@ Option 1 is the cleanest end-to-end WSS proof. Option 3 is the smallest test-sid
 ## Cheapest next step
 
 Brainstorm the three options in a short spec, then a single-file edit to `apps/nestfolio-e2e/src/journeys/new-investor-happy-path.spec.ts:138-162`. No production code change required.
+
+---
+
+## REOPENED 2026-05-29 — residual after the Activity-broadcast fix
+
+The 2026-05-28/29 fix (commits `61bff352..9725a528`, shipped) moved the Step 8
+assertion off the racing `pendingDecisionsCount` counter onto the append-only
+`Activity#<eventId>` row delivered via the new `onActivityUpdate` broadcast.
+That correctly eliminated the **decrement race**. Validation passed 4/4 twice
+(`/tmp/pw-run-1.log`, `/tmp/pw-run-2.log`).
+
+**But the gate has since failed on first try and passed on rerun** (user
+report, 2026-05-29). Per `feedback_flake_means_broken.md`, a rerun-pass after a
+first-try fail means the system genuinely drops live Activity sometimes — it is
+NOT a flake to wave away, and "cold start" is NOT an acceptable diagnosis (Node
+Lambda cold starts are 200–1500ms and cannot produce a 30s-window miss —
+`feedback_node_lambda_cold_starts.md`).
+
+### Leading hypothesis (NOT yet reproduced — needs the failing-run evidence)
+
+A **WSS subscription-establishment race with no feed backfill**, distinct from
+the decrement race:
+
+1. `dashboard-container.component.ts:162-165` — `ngOnInit` does
+   `await loadDashboard()` **then** `subscribeToUpdates()` fire-and-forget. The
+   AppSync/Amplify WS handshake (`connection_init` → `subscribe` →
+   `subscribe_success`) takes real wall-clock time and is never awaited.
+2. The test's only pre-inject barriers are `waitForLoaded()` (cta-deposit) and
+   `waitForPendingDecisionsAtLeast(1)` — and the POM documents
+   (`dashboard.page.ts:26-29`) that the latter passes off the initial
+   `getDashboard` query, **not** a WSS frame. So the test reaches the inject
+   (`spec.ts:152`) while `onActivityUpdate` may still be mid-handshake.
+3. AppSync `@aws_subscribe` does **not** replay events published before the
+   subscription registers. If `publishActivityUpdate` fires before
+   `subscribe_success`, the frame is dropped.
+4. The feed has **no reconciliation**: `getRecentActivity` is queried once at
+   mount (`dashboard-container.component.ts:207`); thereafter the store only
+   `addActivity` per live frame (`:193`). No refetch, no poll, no
+   refetch-on-reconnect. With no reload in Step 8, the dropped row never reaches
+   the DOM → `waitForActivityByEventId` times out at 30s (`spec.ts:153`).
+
+"Cold" only widens the handshake-vs-broadcast window; it is not the cause.
+
+### Why this is a product bug, not a test bug
+
+Per `feedback_bff_state_completeness.md` and CLAUDE.md ("if the POM polls for
+state a real user could not observe, the UI is the bug"): a real user whose
+Activity event fires in the mount→subscribe gap, or across any transient WS
+reconnect, silently loses that row until a manual refresh. The correct fix —
+reconcile the feed (re-query + merge after `subscribe_success`, and on
+reconnect) — fixes the user AND the test simultaneously. This is the
+"handle eventual consistency gracefully" requirement, applied to the live feed.
+
+### Out of scope for this residual
+
+- Re-introducing the decrement-race counter assertion (already correctly retired).
+- Broadening to PortfolioSummary / PositionSnapshot live-push (separate dossiers
+  `dashboard-live-push-portfolio-summary`, `dashboard-live-push-position-snapshots`)
+  — though the same reconcile-after-subscribe pattern likely applies and should be
+  noted as a candidate generalisation.
+
+### Next step
+
+Brainstorm (`superpowers:brainstorming`) the reconcile design, then TDD: first
+reproduce by capturing the attempt-1 failing run (`waitForActivityByEventId`
+locator timeout at `spec.ts:153`) to confirm the hypothesis before any fix.
+Candidate fix shape: after the activity subscription's first delivery / on
+`subscribe_success`, re-run `getRecentActivity` and merge (dedupe by
+`activityId`); add reconnect handling. Belongs in production code
+(`dashboard-container.component.ts` / `dashboard.service.ts`), not the POM.
