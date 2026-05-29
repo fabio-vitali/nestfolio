@@ -24,7 +24,7 @@ out_of_scope:
   - Touching the sister fixture injectAdvisoryBffTriggerEvent (different surface — advisory-bff).
   - Adding a new getRecentActivity-style query surface; the existing query stays as the on-mount loader.
 spec: docs/superpowers/specs/2026-05-29-activity-feed-subscribe-before-query-design.md
-plan: docs/superpowers/plans/2026-05-28-activity-live-broadcast.md
+plan: docs/superpowers/plans/2026-05-29-activity-feed-subscribe-before-query.md
 topic_memory: []
 validation_gate: |
   - nx affected -t test,lint --base=origin/main: GREEN (30 projects, 51 dashboard-bff unit tests pass with Activity dispatch logs)
