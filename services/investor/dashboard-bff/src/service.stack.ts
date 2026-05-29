@@ -20,7 +20,7 @@ export class DashboardBffStack extends ServiceStack {
       state,
       enableIamAuth: true,
       jsResolvers: discoverJsResolvers(__dirname, {
-        noneDataSource: ['publishDashboardUpdate'],
+        noneDataSource: ['publishDashboardUpdate', 'publishActivityUpdate'],
       }),
     });
 

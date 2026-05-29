@@ -18,7 +18,7 @@ The post-collapse subscription list replaces the legacy 6 per-entity events (GOA
   - Increments (+1) on trigger events: MANDATE_ISSUED, INVESTOR_PROFILE_UPDATED, PORTFOLIO_DRIFT_DETECTED, ORDER_FILLED, ORDER_REJECTED, ORDER_CANCELLED, DEPOSIT_DETECTED
   - Decrements (−1) on DECISION_APPROVED, DECISION_BLOCKED
   - DECISION_PACKET_CREATED and USER_CONFIRMATION_REQUESTED no longer affect pendingDecisionsCount (repurposed to recent-activity.ts)
-- recent-activity.ts — dispatches DECISION_PACKET_CREATED and USER_CONFIRMATION_REQUESTED to the activity feed (phase 2 dispatch)
+- recent-activity.ts — dispatches DECISION_PACKET_CREATED and USER_CONFIRMATION_REQUESTED (and other activity-relevant events) to the activity feed; rows are LIVE-broadcast via publishActivityUpdate → onActivityUpdate (phase 2 dispatch)
 - investor-snapshot.ts — reads goal, riskProfile, operatingMode from composite INVESTOR_PROFILE_* payload
 - portfolio-summary.ts, position-snapshot.ts, time-travel-availability.ts — unchanged
 
@@ -38,6 +38,7 @@ The post-collapse subscription list replaces the legacy 6 per-entity events (GOA
 
 ## Handlers
 - event-listener.ts — Ingress event handler
+- dashboard-publisher.ts — DDB-stream-driven broadcaster: fires publishDashboardUpdate on AdvisoryStatus mutation and publishActivityUpdate on Activity insert (keyed by __typename)
 
 ## Tests
 - handlers/event-listener.test.ts

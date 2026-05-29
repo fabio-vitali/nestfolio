@@ -129,4 +129,11 @@ describe('DashboardService', () => {
 
     expect(graphql.query).toHaveBeenCalledTimes(2);
   });
+
+  it('subscribeToActivityUpdates calls graphql.subscribe with ON_ACTIVITY_UPDATE + tenantId', () => {
+    service.subscribeToActivityUpdates('tenant-42');
+    expect(graphql.subscribe).toHaveBeenCalledTimes(1);
+    expect(graphql.subscribe.mock.calls[0][0]).toContain('subscription OnActivityUpdate');
+    expect(graphql.subscribe.mock.calls[0][1]).toEqual({ tenantId: 'tenant-42' });
+  });
 });

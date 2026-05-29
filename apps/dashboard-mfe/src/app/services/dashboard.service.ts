@@ -7,6 +7,7 @@ import {
   GET_RECENT_ACTIVITY,
   GET_SIMULATION_SUMMARY,
   ON_DASHBOARD_UPDATE,
+  ON_ACTIVITY_UPDATE,
 } from '../graphql/dashboard-bff.queries';
 import { LogoutOrchestrator } from '@nestfolio/shell';
 import type {
@@ -80,5 +81,15 @@ export class DashboardService {
     tenantId: string,
   ): Observable<{ onDashboardUpdate: { advisoryStatus: AdvisoryStatus | null } | null }> {
     return this.graphql.subscribe(ON_DASHBOARD_UPDATE, { tenantId });
+  }
+
+  /**
+   * Live activity feed: dashboard-bff fires `publishActivityUpdate` IAM-signed
+   * after each Activity row insert. Frame shape: `{ activity: ActivityEntry }`.
+   */
+  subscribeToActivityUpdates(
+    tenantId: string,
+  ): Observable<{ onActivityUpdate: { activity: ActivityEntry } | null }> {
+    return this.graphql.subscribe(ON_ACTIVITY_UPDATE, { tenantId });
   }
 }

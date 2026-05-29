@@ -15,8 +15,8 @@ import type { ActivityEntry } from '../stores/dashboard.store';
         <div class="no-data">{{ i18n.t('dashboard.activity.noActivity') }}</div>
       } @else {
         <div class="activity-list">
-          @for (activity of activities; track activity.createdAt) {
-            <div class="activity-item">
+          @for (activity of activities; track activity.activityId) {
+            <div class="activity-item" [attr.data-activity-id]="activity.activityId">
               <span class="activity-icon" [class]="getIconClass(activity.activityType)"></span>
               <div class="activity-content">
                 <div class="activity-desc">{{ activity.description }}</div>

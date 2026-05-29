@@ -213,3 +213,42 @@ describe('DashboardStore', () => {
     expect(store.loading()).toBe(false);
   });
 });
+
+function entry(id: string, ts = '2026-05-28T00:00:00Z'): ActivityEntry {
+  return {
+    activityId: id,
+    activityType: 'DEPOSIT_DETECTED',
+    description: `Deposit ${id}`,
+    createdAt: ts,
+    metadata: null,
+  };
+}
+
+describe('DashboardStore.addActivity', () => {
+  let store: InstanceType<typeof DashboardStore>;
+  beforeEach(() => {
+    TestBed.configureTestingModule({});
+    store = TestBed.inject(DashboardStore);
+  });
+
+  it('prepends the new entry to activities', () => {
+    store.setActivities([entry('a'), entry('b')]);
+    store.addActivity(entry('c'));
+    expect(store.activities().map((a) => a.activityId)).toEqual(['c', 'a', 'b']);
+  });
+
+  it('dedupes by activityId', () => {
+    store.setActivities([entry('a')]);
+    store.addActivity(entry('a'));
+    expect(store.activities()).toHaveLength(1);
+    expect(store.activities()[0].activityId).toBe('a');
+  });
+
+  it('caps the list at 50 entries', () => {
+    store.setActivities(Array.from({ length: 50 }, (_, i) => entry(`a${i}`)));
+    store.addActivity(entry('new'));
+    expect(store.activities()).toHaveLength(50);
+    expect(store.activities()[0].activityId).toBe('new');
+    expect(store.activities().at(-1)?.activityId).toBe('a48'); // a49 dropped
+  });
+});

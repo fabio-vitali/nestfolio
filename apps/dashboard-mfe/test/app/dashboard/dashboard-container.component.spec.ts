@@ -1,7 +1,9 @@
 import { TestBed } from '@angular/core/testing';
+import { Subject } from 'rxjs';
 import { DashboardContainerComponent } from '../../../src/app/dashboard/dashboard-container.component';
-import { DashboardStore } from '../../../src/app/stores/dashboard.store';
+import { DashboardStore, type ActivityEntry } from '../../../src/app/stores/dashboard.store';
 import { DashboardService } from '../../../src/app/services/dashboard.service';
+import { AuthStore } from '@nestfolio/shell';
 import { I18nService } from '@nestfolio/shell/i18n';
 import { setupComponentTest, createMockI18nService } from '@nestfolio/shell/testing';
 
@@ -20,6 +22,8 @@ describe('DashboardContainerComponent', () => {
       getPositionSnapshots: jest.fn().mockResolvedValue([]),
       getRecentActivity: jest.fn().mockResolvedValue([]),
       getSimulationSummary: jest.fn().mockResolvedValue(null),
+      subscribeToDashboardUpdates: jest.fn(() => new Subject()),
+      subscribeToActivityUpdates: jest.fn(() => new Subject()),
       invalidateCaches: jest.fn(),
     } as unknown as jest.Mocked<DashboardService>;
 
@@ -71,5 +75,35 @@ describe('DashboardContainerComponent', () => {
     await component.ngOnInit();
 
     expect(store.error()).toBe('errors.dashboard');
+  });
+
+  it('subscribes to onActivityUpdate on init and dispatches to store', async () => {
+    const activityFrame$ = new Subject<{ onActivityUpdate: { activity: ActivityEntry } | null }>();
+    mockService.subscribeToActivityUpdates = jest.fn(() => activityFrame$);
+    const authStore = TestBed.inject(AuthStore);
+    authStore.setAuthenticated({
+      userId: 'user-1',
+      username: 'user-1',
+      email: 'user@example.com',
+      tenantId: 'tenant-1',
+      onboardingCompletedAt: '2026-01-01T00:00:00Z',
+    });
+    const addSpy = jest.spyOn(store, 'addActivity');
+
+    await component.ngOnInit();
+    activityFrame$.next({
+      onActivityUpdate: {
+        activity: {
+          activityId: 'evt-42',
+          activityType: 'DEPOSIT_DETECTED',
+          description: 'Deposit detected: 1000 USD',
+          createdAt: '2026-05-28T12:48:03Z',
+          metadata: null,
+        },
+      },
+    });
+
+    expect(mockService.subscribeToActivityUpdates).toHaveBeenCalledWith('tenant-1');
+    expect(addSpy).toHaveBeenCalledWith(expect.objectContaining({ activityId: 'evt-42' }));
   });
 });

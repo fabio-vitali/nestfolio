@@ -1,7 +1,6 @@
 ---
 id: happy-path-pendingcount-wss-decrement-race
-status: queued
-rank: 1
+status: shipped
 type: bug
 notes: "new-investor-happy-path Step 8 WSS counter assertion races real DECISION_APPROVED -1 within 30s; post-2026-05-09 inc/dec semantics broke the monotonic-up invariant."
 references:
@@ -11,11 +10,25 @@ references:
   - path: services/investor/dashboard-bff/src/handlers/event-listener.ts
   - path: services/investor/dashboard-bff/src/handlers/dashboard-publisher.ts
   - path: apps/nestfolio-e2e/src/fixtures/inject-advisory-update.ts
-out_of_scope: []
-spec: null
-plan: null
+out_of_scope:
+  - Modifying the existing AdvisoryStatus pendingDecisionsCount inc/dec semantics (counter stays as-is; assertion target moves to Activity).
+  - Live-push for PortfolioSummary or PositionSnapshot — separately filed as dashboard-live-push-portfolio-summary and dashboard-live-push-position-snapshots.
+  - Refactoring dashboard-publisher.ts beyond adding the new Activity broadcast entry.
+  - Investigating sub-100ms DOM render coalescing of the pendingDecisionsCount value — moot once the assertion target moves to the append-only Activity row.
+  - Touching the sister fixture injectAdvisoryBffTriggerEvent (different surface — advisory-bff).
+  - Adding a new getRecentActivity-style query surface; the existing query stays as the on-mount loader.
+spec: docs/superpowers/specs/2026-05-28-activity-live-broadcast-design.md
+plan: docs/superpowers/plans/2026-05-28-activity-live-broadcast.md
 topic_memory: []
-validation_gate: null
+validation_gate: |
+  - nx affected -t test,lint --base=origin/main: GREEN (30 projects, 51 dashboard-bff unit tests pass with Activity dispatch logs)
+  - dev-dashboard-bff deploy UPDATE_COMPLETE 2026-05-28T23:53:35 (CFN stack; DashboardPublisher Lambda + AppSync Schema both UPDATE_COMPLETE)
+  - dev-investor-web deploy UPDATE_COMPLETE 2026-05-28T23:52:30 (CFN stack; investor-web shell + dashboard-mfe bundle redeployed)
+  - dashboard-bff:test-integration: 21/21 GREEN on warm rerun (250s); first run had 1 pre-existing cold-start flake matching integration-deep-coldstart-flakes-post-trap-hardening; new T7 case "broadcasts publishActivityUpdate on DEPOSIT_DETECTED" passed both runs.
+  - nestfolio-e2e:e2e run 1: 4/4 PASS (4.8m total; new-investor-happy-path 2.8m) — /tmp/pw-run-1.log
+  - nestfolio-e2e:e2e run 2: 4/4 PASS (4.5m total; new-investor-happy-path 2.7m) — /tmp/pw-run-2.log
+  - Final code review: APPROVED (no Critical/Important issues; minor items pre-existing parity)
+  - Implementation: commits 61bff352..9725a528 (15 commits) on worktree-activity-live-broadcast
 ---
 
 # new-investor-happy-path Step 8 WSS counter assertion races real DECISION_APPROVED decrement

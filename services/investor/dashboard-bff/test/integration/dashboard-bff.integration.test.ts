@@ -415,6 +415,48 @@ describe('dashboard-bff', () => {
       expect(activityItem!['activityType']).toBe('DECISION_BLOCKED');
       expect(activityItem!['description']).toContain('Integration test block');
     }, 120_000);
+
+    it('broadcasts publishActivityUpdate on DEPOSIT_DETECTED (Activity row carries inbound eventId)', async () => {
+      // dashboard-publisher dispatches on DDB stream INSERT of an Activity row
+      // and fires publishActivityUpdate (NONE data source → onActivityUpdate
+      // subscribers). The Activity row's activityId is set by recent-activity.ts
+      // from the inbound EventBridge envelope's `event.id`, which is what
+      // EventBridgeClient.putEvent stores in `detail.id` when passed `eventId`.
+      //
+      // Integration scope here is the outcome: the Activity row materializes
+      // with the EXACT activityId we supplied. That linkage is what the e2e
+      // layer (DashboardPage.waitForActivityByEventId) uses to deterministically
+      // match the broadcast frame to the originating event in step-9 of the
+      // happy-path journey. The AppSync subscription frame itself is asserted
+      // at the Playwright/e2e layer, not here.
+      const eventId = `integ-activity-broadcast-${Date.now()}`;
+
+      await eb.putEvent({
+        bus: 'investor',
+        targetService: 'dashboard-bff',
+        detailType: 'DEPOSIT_DETECTED',
+        eventId,
+        detail: { tenantId: ctx.tenantId, amountCents: 250_00, currency: 'USD' },
+      });
+
+      let activityItem: Record<string, unknown> | undefined;
+      const deadline = Date.now() + 60_000;
+      while (Date.now() < deadline && !activityItem) {
+        const items = await table.queryItems({
+          table: 'dashboard-bff',
+          pk: `T#${ctx.tenantId}`,
+          skPrefix: 'Activity#',
+        });
+        activityItem = items.find(i => i['activityId'] === eventId);
+        if (!activityItem) await new Promise(r => setTimeout(r, 2_000));
+      }
+
+      expect(activityItem).toBeDefined();
+      expect(activityItem!['__typename']).toBe('Activity');
+      expect(activityItem!['activityId']).toBe(eventId);
+      expect(activityItem!['activityType']).toBe('DEPOSIT_DETECTED');
+      expect(activityItem!['tenantId']).toBe(ctx.tenantId);
+    }, 120_000);
   });
 
   // ── AppSync Queries ─────────────────────────────────────────────────

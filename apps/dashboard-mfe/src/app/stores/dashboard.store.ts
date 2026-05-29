@@ -29,6 +29,7 @@ export interface PositionSnapshot {
 }
 
 export interface ActivityEntry {
+  activityId: string;
   activityType: string;
   description: string;
   createdAt: string;
@@ -126,6 +127,12 @@ export const DashboardStore = signalStore(
     },
     setActivities(activities: ActivityEntry[]): void {
       patchState(store, { activities });
+    },
+    addActivity(entry: ActivityEntry): void {
+      const current = store.activities();
+      if (current.some((a) => a.activityId === entry.activityId)) return; // dedupe
+      const next = [entry, ...current].slice(0, 50);                       // cap
+      patchState(store, { activities: next });
     },
     setSimulationSummary(simulationSummary: SimulationSummary | null): void {
       patchState(store, { simulationSummary });

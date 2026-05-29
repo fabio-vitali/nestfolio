@@ -81,10 +81,10 @@ describe('dashboard-publisher', () => {
     });
   });
 
-  it('skips records whose sk is not AdvisoryStatus', async () => {
+  it('skips records whose typename has no broadcast entry', async () => {
     await handler(streamEvent({
       eventName: 'INSERT',
-      newImage: { pk: 'T#tenant1', sk: 'InvestorSnapshot', pendingDecisionsCount: 1 },
+      newImage: { pk: 'T#tenant1', sk: 'PortfolioSummary', __typename: 'PortfolioSummary', totalValueCents: 1 },
     }), {} as never, () => {});
     expect(postAppSyncMutation).not.toHaveBeenCalled();
   });
@@ -97,5 +97,51 @@ describe('dashboard-publisher', () => {
     expect(postAppSyncMutation).toHaveBeenCalledTimes(1);
     const call = (postAppSyncMutation as jest.Mock).mock.calls[0][0];
     expect(call.variables.tenantId).toBe('my-tenant-42');
+  });
+
+  it('broadcasts publishActivityUpdate on Activity row INSERT (key by __typename)', async () => {
+    await handler(streamEvent({
+      eventName: 'INSERT',
+      newImage: {
+        pk: 'T#tenant1',
+        sk: 'Activity#2026-05-28T12:48:03Z#evt-42',
+        __typename: 'Activity',
+        activityId: 'evt-42',
+        activityType: 'DEPOSIT_DETECTED',
+        description: 'Deposit detected: 1000 USD',
+        createdAt: '2026-05-28T12:48:03Z',
+        metadata: '{"amountCents":100000}',
+      },
+    }), {} as never, () => {});
+    expect(postAppSyncMutation).toHaveBeenCalledTimes(1);
+    const call = (postAppSyncMutation as jest.Mock).mock.calls[0][0];
+    expect(call.variables).toMatchObject({
+      tenantId: 'tenant1',
+      activity: {
+        activityId: 'evt-42',
+        activityType: 'DEPOSIT_DETECTED',
+        description: 'Deposit detected: 1000 USD',
+        createdAt: '2026-05-28T12:48:03Z',
+        metadata: '{"amountCents":100000}',
+      },
+    });
+  });
+
+  it('Activity broadcast handles null metadata', async () => {
+    await handler(streamEvent({
+      eventName: 'INSERT',
+      newImage: {
+        pk: 'T#tenant1',
+        sk: 'Activity#2026-05-28T12:48:03Z#evt-43',
+        __typename: 'Activity',
+        activityId: 'evt-43',
+        activityType: 'DECISION_APPROVED',
+        description: 'Decision approved: dec-1',
+        createdAt: '2026-05-28T12:48:03Z',
+      },
+    }), {} as never, () => {});
+    expect(postAppSyncMutation).toHaveBeenCalledTimes(1);
+    const call = (postAppSyncMutation as jest.Mock).mock.calls[0][0];
+    expect(call.variables.activity.metadata).toBeNull();
   });
 });

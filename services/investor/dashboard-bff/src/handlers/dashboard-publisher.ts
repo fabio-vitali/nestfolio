@@ -18,6 +18,21 @@ const PUBLISH_DASHBOARD_UPDATE = `
   }
 `;
 
+const PUBLISH_ACTIVITY_UPDATE = `
+  mutation PublishActivityUpdate($tenantId: ID!, $activity: ActivityEntryInput!) {
+    publishActivityUpdate(tenantId: $tenantId, activity: $activity) {
+      tenantId
+      activity {
+        activityId
+        activityType
+        description
+        createdAt
+        metadata
+      }
+    }
+  }
+`;
+
 const APPSYNC_URL = process.env['APPSYNC_URL'];
 if (!APPSYNC_URL) {
   throw new Error('dashboard-publisher: APPSYNC_URL is required');
@@ -43,6 +58,24 @@ export const handler = broadcastFromStream({
             lastRecommendationAt: item['lastRecommendationAt'] ?? null,
             lastDecisionStatus: item['lastDecisionStatus'] ?? null,
             updatedAt: String(item['updatedAt'] ?? new Date().toISOString()),
+          },
+        };
+      },
+    },
+    Activity: {
+      mutation: PUBLISH_ACTIVITY_UPDATE,
+      // skipInsert default false — Activity rows are INSERT-only; the first
+      // emit IS the signal. No whenChanged: every Activity insert broadcasts.
+      mapImage: (item) => {
+        const tenantId = String(item['pk'] ?? '').slice(2); // 'T#<id>' → '<id>'
+        return {
+          tenantId,
+          activity: {
+            activityId: String(item['activityId']),
+            activityType: String(item['activityType']),
+            description: String(item['description']),
+            createdAt: String(item['createdAt']),
+            metadata: item['metadata'] != null ? String(item['metadata']) : null,
           },
         };
       },

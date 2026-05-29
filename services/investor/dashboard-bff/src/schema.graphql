@@ -12,11 +12,18 @@ type Mutation {
     advisoryStatus: AdvisoryStatusInput
   ): Dashboard!
     @aws_iam
+  publishActivityUpdate(
+    tenantId: ID!
+    activity: ActivityEntryInput!
+  ): ActivityBroadcast!
+    @aws_iam
 }
 
 type Subscription {
   onDashboardUpdate(tenantId: ID!): Dashboard
     @aws_subscribe(mutations: ["publishDashboardUpdate"])
+  onActivityUpdate(tenantId: ID!): ActivityBroadcast
+    @aws_subscribe(mutations: ["publishActivityUpdate"])
 }
 
 input AdvisoryStatusInput {
@@ -60,6 +67,7 @@ type PositionSnapshot @aws_cognito_user_pools @aws_iam {
 }
 
 type ActivityEntry @aws_cognito_user_pools @aws_iam {
+  activityId: ID!
   activityType: String!
   description: String!
   createdAt: String!
@@ -95,4 +103,19 @@ type SimulationSummary @aws_cognito_user_pools @aws_iam {
   simulatedReturnPercent: Float!
   returnDifferencePercent: Float!
   updatedAt: String!
+}
+
+input ActivityEntryInput {
+  activityId: ID!
+  activityType: String!
+  description: String!
+  createdAt: String!
+  metadata: String
+}
+
+# @aws_subscribe filter pivot — tenantId MUST be in the mutation RESPONSE
+# (not just the input args). Without this the broadcast silently drops.
+type ActivityBroadcast @aws_cognito_user_pools @aws_iam {
+  tenantId: ID
+  activity: ActivityEntry!
 }
