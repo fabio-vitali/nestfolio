@@ -106,4 +106,39 @@ describe('DashboardContainerComponent', () => {
     expect(mockService.subscribeToActivityUpdates).toHaveBeenCalledWith('tenant-1');
     expect(addSpy).toHaveBeenCalledWith(expect.objectContaining({ activityId: 'evt-42' }));
   });
+
+  it('preserves a live activity frame that arrives during the initial load', async () => {
+    const activityFrame$ = new Subject<{ onActivityUpdate: { activity: ActivityEntry } | null }>();
+    mockService.subscribeToActivityUpdates = jest.fn(() => activityFrame$);
+
+    const authStore = TestBed.inject(AuthStore);
+    authStore.setAuthenticated({
+      userId: 'user-1', username: 'user-1', email: 'user@example.com',
+      tenantId: 'tenant-1', onboardingCompletedAt: '2026-01-01T00:00:00Z',
+    });
+
+    // getRecentActivity resolves AFTER we emit a live frame — simulating the
+    // snapshot read completing later than a concurrently-arriving live event.
+    let resolveActivity!: (v: ActivityEntry[]) => void;
+    mockService.getRecentActivity = jest.fn(
+      () => new Promise<ActivityEntry[]>((res) => { resolveActivity = res; }),
+    );
+
+    const init = component.ngOnInit();           // subscribe happens first now
+    activityFrame$.next({                          // live frame during the load
+      onActivityUpdate: {
+        activity: {
+          activityId: 'live-during-load',
+          activityType: 'DEPOSIT_DETECTED',
+          description: 'Deposit detected: 1000 USD',
+          createdAt: '2026-05-28T12:48:03Z',
+          metadata: null,
+        },
+      },
+    });
+    resolveActivity([]);                           // snapshot returns empty (row not yet visible)
+    await init;
+
+    expect(store.activities().map((a) => a.activityId)).toContain('live-during-load');
+  });
 });

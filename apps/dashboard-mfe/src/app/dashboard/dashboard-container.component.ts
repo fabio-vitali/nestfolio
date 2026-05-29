@@ -160,8 +160,8 @@ export class DashboardContainerComponent implements OnInit, OnDestroy {
   private activitySubscription: Subscription | null = null;
 
   async ngOnInit(): Promise<void> {
-    await this.loadDashboard();
-    this.subscribeToUpdates();
+    this.subscribeToUpdates();   // establish subscriptions BEFORE the snapshot query
+    await this.loadDashboard();  // merge() absorbs any frame that arrived meanwhile
   }
 
   ngOnDestroy(): void {
