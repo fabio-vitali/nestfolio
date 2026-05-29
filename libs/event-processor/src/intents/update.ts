@@ -1,7 +1,8 @@
 import type { UpdateIntent, KeyOverrides } from '../types/write-intent';
+import type { RejectProjection } from '../types/ownership';
 
-export function update(
-  typename: string,
+export function update<K extends string>(
+  typename: RejectProjection<K>,
   updates: Record<string, unknown>,
   options?: {
     removes?: string[];
@@ -13,7 +14,7 @@ export function update(
 ): UpdateIntent {
   return {
     _tag: 'update',
-    typename,
+    typename: typename as string,
     updates,
     ...(options?.removes ? { removes: options.removes } : {}),
     ...(options?.condition ? { condition: options.condition } : {}),

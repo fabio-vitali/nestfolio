@@ -1,4 +1,5 @@
 import type { UpdateIntent, KeyOverrides } from '../types/write-intent';
+import type { RejectProjection } from '../types/ownership';
 
 /**
  * Like update() but throws ConditionalCheckFailedException instead of
@@ -12,8 +13,8 @@ import type { UpdateIntent, KeyOverrides } from '../types/write-intent';
  *
  * For the dedup / skip-if-not-X semantic, keep using update({condition}).
  */
-export function updateOrRetry(
-  typename: string,
+export function updateOrRetry<K extends string>(
+  typename: RejectProjection<K>,
   updates: Record<string, unknown>,
   options: {
     condition: string;
@@ -25,7 +26,7 @@ export function updateOrRetry(
 ): UpdateIntent {
   return {
     _tag: 'update',
-    typename,
+    typename: typename as string,
     updates,
     condition: options.condition,
     onConditionFail: 'retry',

@@ -1,21 +1,23 @@
 import type { RecordIntent, KeyOverrides } from '../types/write-intent';
 import type { HandlerFn, EventPayload } from '../types/handler-config';
 import type { EventContext } from '../types/event-context';
+import type { RejectNonAppend } from '../types/ownership';
 
-export function record(typename: string, fieldsOrMapper: Record<string, unknown>, overrides?: KeyOverrides): RecordIntent;
-export function record(typename: string, fieldsOrMapper: (payload: EventPayload, ctx: EventContext) => Record<string, unknown>, overrides?: KeyOverrides): HandlerFn;
-export function record(
-  typename: string,
+export function record<K extends string>(typename: RejectNonAppend<K>, fieldsOrMapper: Record<string, unknown>, overrides?: KeyOverrides): RecordIntent;
+export function record<K extends string>(typename: RejectNonAppend<K>, fieldsOrMapper: (payload: EventPayload, ctx: EventContext) => Record<string, unknown>, overrides?: KeyOverrides): HandlerFn;
+export function record<K extends string>(
+  typename: RejectNonAppend<K>,
   fieldsOrMapper: Record<string, unknown> | ((payload: EventPayload, ctx: EventContext) => Record<string, unknown>),
   overrides?: KeyOverrides,
 ): RecordIntent | HandlerFn {
+  const name = typename as string;
   if (typeof fieldsOrMapper === 'function') {
     return (payload: EventPayload, ctx: EventContext) => ({
       _tag: 'record' as const,
-      typename,
+      typename: name,
       fields: fieldsOrMapper(payload, ctx),
       overrides,
     });
   }
-  return { _tag: 'record', typename, fields: fieldsOrMapper, overrides };
+  return { _tag: 'record', typename: name, fields: fieldsOrMapper, overrides };
 }
