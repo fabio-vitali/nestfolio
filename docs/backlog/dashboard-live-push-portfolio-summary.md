@@ -1,9 +1,8 @@
 ---
 id: dashboard-live-push-portfolio-summary
-status: queued
-rank: 1
+status: parking
 type: bug
-notes: "PortfolioSummary KPI cards stale after BALANCE_UPDATED / PORTFOLIO_UPDATED until refresh; dashboard-publisher.ts only broadcasts AdvisoryStatus."
+notes: "TRANSPORT-ONLY (re-scoped 2026-05-29): live-push broadcast for PortfolioSummary KPI cards. The materialization half — cashBalanceCents/positionCount never written to the PortfolioSummary row, totalValueCents double-counted via accumulate — is absorbed by bff-read-model-materialization-redesign. Revisit the transport on the clean read model after that lands."
 references: []
 out_of_scope: []
 spec: null
@@ -36,3 +35,36 @@ subscribe-before-query ordering and reconnect re-query still apply, otherwise
 this path inherits the exact mount→subscribe gap the Activity feed fixed.
 Consider extracting a shared `subscribe-then-reconcile` helper at that point
 (rule-of-three: Activity + PortfolioSummary + PositionSnapshot).
+
+## Re-scoped 2026-05-29 — deferred behind read-model redesign
+
+Brainstorming (2026-05-29) found this is **two gaps, not one**. The broadcast gap
+is real, but the dossier's canonical "where's my money after deposit" scenario is
+blocked first at the **materialization** layer: `cashBalanceCents` and
+`positionCount` are *never written* to the `PortfolioSummary` row (only the
+`StreamSnapshot` simulation row), and `totalValueCents` is `accumulate`-d (a
+latent double-count across the `BALANCE_UPDATED` + `PORTFOLIO_UPDATED` pair one
+fill emits). That is the same structural-zero / out-of-order / sparse-row class
+that motivated the systemic **`bff-read-model-materialization-redesign`** (now
+ACTIVE). Fixing the read model there dissolves the materialization half; this
+item is deferred to the **transport-only** remainder, to be done on the clean
+read model afterward.
+
+**Transport decisions already resolved in the 2026-05-29 brainstorming** (carry
+forward when reactivated, do not re-litigate):
+- **Topology = grouped by state shape (Approach A):** scalars
+  (`portfolioSummary` + `advisoryStatus` + `investorSnapshot`) ride the existing
+  `onDashboardUpdate` / `Dashboard` channel (PortfolioSummary needs no new
+  subscription — the field already exists); keyed collections get dedicated
+  channels. A single unified subscription was rejected (atomic-frame benefit is
+  illusory under the per-row stream model; couples surfaces; loses failure
+  isolation; would force re-working the shipped `onActivityUpdate`).
+- **Client:** `setPortfolioSummary` last-write-wins by `updatedAt`; add the same
+  LWW guard to `setAdvisoryStatus`; route the dashboard channel through the
+  shared `subscribe-then-reconcile` helper; `setDashboard` must apply the live
+  surfaces via the guarded setters so a backfill snapshot can't clobber a newer
+  live frame.
+- Backend: add `PortfolioSummaryInput` + `portfolioSummary` arg on
+  `publishDashboardUpdate`; `publish-dashboard-update.fn.js` already returns a
+  hardcoded `portfolioSummary: null` ready to wire; add a `PortfolioSummary`
+  entry to the `dashboard-publisher.ts` broadcasts map.

@@ -6,14 +6,11 @@
 
 ## ACTIVE
 
-_(none)_
-
+- [bff-read-model-materialization-redesign](backlog/bff-read-model-materialization-redesign.md) [design] — Systemic redesign of BFF read-model materialization across investor/ledger/advisory/dashboard BFFs. Replace field-by-field projection from overlapping event types (no version guard) with a canonical versioned atomic snapshot projection. Dissolves the structural-zero, totalValueCents double-count, out-of-order field clobber, and sparse-item-race bug class at the source. Dev-phase, breaking changes free.
 
 ## QUEUED
 
-1. [dashboard-live-push-portfolio-summary](backlog/dashboard-live-push-portfolio-summary.md) [bug] — PortfolioSummary KPI cards stale after BALANCE_UPDATED / PORTFOLIO_UPDATED until refresh; dashboard-publisher.ts only broadcasts AdvisoryStatus.
-2. [dashboard-live-push-position-snapshots](backlog/dashboard-live-push-position-snapshots.md) [bug] — PositionSnapshot list stale after PORTFOLIO_UPDATED until refresh; dashboard-publisher.ts only broadcasts AdvisoryStatus.
-3. [weight-drift-detector](backlog/weight-drift-detector.md) [design] — Production-feature gap: no service emits PORTFOLIO_DRIFT_DETECTED on the weight-vs-target axis (the kind that motivates a rebalance). reconciliation-ctrl only handles Intent-vs-Settlement drift (broker errors). DWC SF reacts to the event correctly but no producer exists on the user-driven path. Surfaced 2026-05-27 during playwright-rebalance-real-agents-maxvms-remediation brainstorming.
+1. [weight-drift-detector](backlog/weight-drift-detector.md) [design] — Production-feature gap: no service emits PORTFOLIO_DRIFT_DETECTED on the weight-vs-target axis (the kind that motivates a rebalance). reconciliation-ctrl only handles Intent-vs-Settlement drift (broker errors). DWC SF reacts to the event correctly but no producer exists on the user-driven path. Surfaced 2026-05-27 during playwright-rebalance-real-agents-maxvms-remediation brainstorming.
 
 ## LATER
 
@@ -30,6 +27,8 @@ _(none)_
 - [c4-frontend-representation](backlog/c4-frontend-representation.md) [tooling] — MFEs in C4 diagrams at C1 + C2 level (planned, not started).
 - [cdk-bundle-staleness-deploy-integrity](backlog/cdk-bundle-staleness-deploy-integrity.md) [tooling] — Hypothesis: 2026-05-13 dev-investor-bff deploy produced a Lambda bundle whose change-data-capture.ts logic lagged behind source. Surfaced via update-operating-mode-cdc-silent. Need a deploy-time integrity check that the bundle's resolveEmissions actually matches the EVENT_TYPE_MAP shape it'll be asked to process.
 - [ci-pipeline-bring-up](backlog/ci-pipeline-bring-up.md) [infra] — Bring all 5 GitHub workflows green for the first time — OIDC role deploy, secrets, charter check, security policy, no-Pro gating model.
+- [dashboard-live-push-portfolio-summary](backlog/dashboard-live-push-portfolio-summary.md) [bug] — TRANSPORT-ONLY (re-scoped 2026-05-29): live-push broadcast for PortfolioSummary KPI cards. The materialization half — cashBalanceCents/positionCount never written to the PortfolioSummary row, totalValueCents double-counted via accumulate — is absorbed by bff-read-model-materialization-redesign. Revisit the transport on the clean read model after that lands.
+- [dashboard-live-push-position-snapshots](backlog/dashboard-live-push-position-snapshots.md) [bug] — TRANSPORT-ONLY (re-scoped 2026-05-29): live-push broadcast for the holdings list. Position-row materialization correctness is covered by bff-read-model-materialization-redesign. Revisit transport on the clean read model after that lands; paired with dashboard-live-push-portfolio-summary.
 - [detect-doc-derivation-two-level-services-path](backlog/detect-doc-derivation-two-level-services-path.md) [bug] — detect-doc-derivation.mjs misparses services/<domain>/<service>/...; extracts the domain (e.g. 'advisory') as svc and reports it as a 'new service' on every workstream touching an existing service.
 - [event-processor-explicit-idempotency-api](backlog/event-processor-explicit-idempotency-api.md) [refactor] — event-processor `record()` defaults to event-id-scoped idempotency silently; misuse is a common source of at-least-once bugs (reconciliation-ctrl content-key fix, ledger-ctrl version drift hint at the pattern). Add explicit API distinction to make the choice harder to miss.
 - [execution-ctrl-mandate-recheck-order-boundary](backlog/execution-ctrl-mandate-recheck-order-boundary.md) [refactor] — Defense-in-depth — re-read mandate before broker submission on L1 auto-execute.

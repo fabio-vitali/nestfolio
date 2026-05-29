@@ -1,9 +1,8 @@
 ---
 id: dashboard-live-push-position-snapshots
-status: queued
-rank: 2
+status: parking
 type: bug
-notes: "PositionSnapshot list stale after PORTFOLIO_UPDATED until refresh; dashboard-publisher.ts only broadcasts AdvisoryStatus."
+notes: "TRANSPORT-ONLY (re-scoped 2026-05-29): live-push broadcast for the holdings list. Position-row materialization correctness is covered by bff-read-model-materialization-redesign. Revisit transport on the clean read model after that lands; paired with dashboard-live-push-portfolio-summary."
 references: []
 out_of_scope: []
 spec: null
@@ -36,3 +35,21 @@ to PortfolioSummary's single-value case. Without subscribe-before-query +
 reconnect re-query, this path inherits the same mount→subscribe gap. Consider
 extracting a shared `subscribe-then-reconcile` helper at that point
 (rule-of-three: Activity + PortfolioSummary + PositionSnapshot).
+
+## Re-scoped 2026-05-29 — deferred behind read-model redesign
+
+Deferred alongside `dashboard-live-push-portfolio-summary` pending
+`bff-read-model-materialization-redesign` (ACTIVE). **Transport decision already
+resolved in the 2026-05-29 brainstorming** (carry forward, do not re-litigate):
+**per-symbol delta**, not full-list. The publisher is DDB-stream-driven (one
+changed row per stream record), so a delta maps 1:1 to a frame exactly like
+Activity; full-list would force a fan-in re-query of all rows per single-row
+change and collapse the client merge back to wholesale-replace (the clobber the
+Activity fix removed). Surface: new `publishPositionUpdate` mutation +
+`onPositionUpdate` subscription + `PositionBroadcast { tenantId, position }`
+(mirrors `ActivityBroadcast`); client `mergePositions` keyed by `symbol`,
+newest-`lastUpdatedAt` wins, routed through the shared `subscribe-then-reconcile`
+helper. **Known limitation:** `weightPercent` is relative, so a per-symbol delta
+leaves sibling weights transiently stale; clean mitigation is to derive weights
+client-side from `marketValueCents` — relevant only to the transport item, not
+the read-model redesign.
