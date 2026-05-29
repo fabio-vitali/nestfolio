@@ -141,4 +141,27 @@ describe('DashboardContainerComponent', () => {
 
     expect(store.activities().map((a) => a.activityId)).toContain('live-during-load');
   });
+
+  it('backfills via getRecentActivity when the activity subscription reconnects', async () => {
+    const activityFrame$ = new Subject<{ onActivityUpdate: { activity: ActivityEntry } | null }>();
+    mockService.subscribeToActivityUpdates = jest.fn(() => activityFrame$);
+    mockService.getRecentActivity = jest.fn().mockResolvedValue([]);
+
+    const authStore = TestBed.inject(AuthStore);
+    authStore.setAuthenticated({
+      userId: 'user-1', username: 'user-1', email: 'user@example.com',
+      tenantId: 'tenant-1', onboardingCompletedAt: '2026-01-01T00:00:00Z',
+    });
+
+    await component.ngOnInit();
+    expect(mockService.getRecentActivity).toHaveBeenCalledTimes(1); // initial load
+
+    activityFrame$.error(new Error('ws dropped'));                  // simulate reconnect
+    await Promise.resolve();                                        // flush the backfill microtask
+    await Promise.resolve();                                        // second flush in case of chained microtasks
+
+    expect(mockService.getRecentActivity).toHaveBeenCalledTimes(2); // backfill on reconnect
+
+    component.ngOnDestroy();                                        // cancel pending retry timer
+  });
 });

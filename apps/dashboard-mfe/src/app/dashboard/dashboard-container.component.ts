@@ -1,5 +1,5 @@
 import { Component, inject, OnDestroy, OnInit } from '@angular/core';
-import type { Subscription } from 'rxjs';
+import { retry, timer, type Subscription } from 'rxjs';
 import { CommonModule } from '@angular/common';
 import { MessageModule } from 'primeng/message';
 import { I18nService } from '@nestfolio/shell/i18n';
@@ -14,6 +14,8 @@ import { ActivityFeedComponent } from './activity-feed.component';
 import { AdvisoryAlertBarComponent } from './advisory-alert-bar.component';
 import { ComparisonCardComponent } from './comparison-card.component';
 import { ExecutionModeBadgeComponent } from './execution-mode-badge.component';
+
+const ACTIVITY_RECONNECT_BACKOFF_MS = 2_000;
 
 @Component({
   selector: 'app-dashboard-container',
@@ -186,6 +188,16 @@ export class DashboardContainerComponent implements OnInit, OnDestroy {
       });
     this.activitySubscription = this.dashboardService
       .subscribeToActivityUpdates(tenantId)
+      .pipe(
+        retry({
+          delay: () => {
+            // WS dropped: re-query to recover rows missed while disconnected,
+            // then re-subscribe after a short backoff.
+            void this.backfillActivities();
+            return timer(ACTIVITY_RECONNECT_BACKOFF_MS);
+          },
+        }),
+      )
       .subscribe({
         next: (data) => {
           const activity = data?.onActivityUpdate?.activity;
@@ -216,6 +228,15 @@ export class DashboardContainerComponent implements OnInit, OnDestroy {
       this.store.setError(parseError(e, 'errors.dashboard'));
     } finally {
       this.store.setLoading(false);
+    }
+  }
+
+  private async backfillActivities(): Promise<void> {
+    try {
+      const activities = await this.dashboardService.getRecentActivity(20);
+      this.store.mergeActivities(activities);
+    } catch {
+      // best-effort; the next reconnect or a manual reload recovers
     }
   }
 }
