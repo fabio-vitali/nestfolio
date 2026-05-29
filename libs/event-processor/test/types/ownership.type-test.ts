@@ -11,6 +11,7 @@ accumulate('AnyUnregistered', { field: 'count', increment: 1 });
 project('AnyUnregistered', { a: 1 });
 record('AnyUnregistered', { a: 1 });
 update('AnyUnregistered', { a: 1 });
+updateOrRetry('AnyUnregistered', { a: 1 }, { condition: 'attribute_exists(pk)' });
 projectVersioned('AnyUnregistered', { a: 1 }, { version: 1 });
 
 // --- local augmentation turns on enforcement for these typenames ---

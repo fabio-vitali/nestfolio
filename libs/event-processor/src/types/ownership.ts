@@ -21,6 +21,7 @@ export interface Projection<V extends ProjectionVariant = ProjectionVariant> {
   readonly __variant: V;
 }
 
+/** The value type a `ReadModelOwnership` registry entry must be: `CommandOwned` or a `Projection` variant. */
 export type OwnershipTag = CommandOwned | Projection;
 
 /**
@@ -60,5 +61,14 @@ export type RejectNonP1<K extends string> = K extends CommandOwnedKey | P2Key | 
 /** project / accumulate / update / updateOrRetry: reject ANY projection. */
 export type RejectProjection<K extends string> = K extends AnyProjectionKey ? never : K;
 
-/** record: reject P1 + P3 (P2 append-log is the legitimate record() target). */
+/**
+ * record: reject P1 + P3 (P2 append-log is the legitimate record() target).
+ *
+ * Command-owned typenames are intentionally ALSO allowed because owned rows are
+ * created by exactly one idempotent creation event via `record()` (the spec's
+ * "seed-by-one-idempotent-event" path, e.g. InvestorProfile/Mandate ←
+ * ONBOARDING_COMPLETED, Notification ← NOTIFICATION_CREATED). So `record()` is
+ * valid for P2 append-logs AND for command-owned seed creation; only P1/P3
+ * projections are rejected.
+ */
 export type RejectNonAppend<K extends string> = K extends P1Key | P3Key ? never : K;
