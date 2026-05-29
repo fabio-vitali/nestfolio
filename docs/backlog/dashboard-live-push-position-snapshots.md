@@ -23,3 +23,16 @@ Surfaced 2026-05-28 during `happy-path-pendingcount-wss-decrement-race` brainsto
 Promoted to QUEUED (rank 2) on 2026-05-29 boundary review alongside `dashboard-live-push-portfolio-summary` (rank 1): the gating dependency — the Activity live-broadcast workstream — shipped 2026-05-29, making its per-surface pattern concrete. Same file (`dashboard-publisher.ts`) and same fix shape as rank 1; intended to be executed as a pair.
 
 Next step: pick (a) vs (b) via brainstorming, then mirror the Activity-broadcast surface design (separate `publishPositionUpdate` mutation + `onPositionUpdate` subscription if delta, or extend `publishDashboardUpdate` if full-list).
+
+## Candidate generalisation — subscribe-before-query + merge
+
+When this is implemented, apply the self-healing client pattern designed for the
+Activity feed in `happy-path-pendingcount-wss-decrement-race` (spec
+`docs/superpowers/specs/2026-05-29-activity-feed-subscribe-before-query-design.md`):
+subscribe BEFORE the initial query, and reconcile on reconnect. PositionSnapshot
+is a keyed collection (by `symbol`), so the merge is a dedupe-union by symbol
+with newest-`lastUpdatedAt` wins — closer to the Activity feed's list-merge than
+to PortfolioSummary's single-value case. Without subscribe-before-query +
+reconnect re-query, this path inherits the same mount→subscribe gap. Consider
+extracting a shared `subscribe-then-reconcile` helper at that point
+(rule-of-three: Activity + PortfolioSummary + PositionSnapshot).
