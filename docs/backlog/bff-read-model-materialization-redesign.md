@@ -82,3 +82,13 @@ live-push broadcast wiring, AppSync subscriptions, client-side merge reducers,
 subscribe-before-query + reconnect, and the per-symbol-delta `weightPercent`
 flicker. Those sit *on top of* the read model and are rebuilt on the clean
 foundation afterward.
+
+## On ship — promote deferred dependents (closing step)
+
+`dashboard-live-push-portfolio-summary` and `dashboard-live-push-position-snapshots`
+are committed-but-blocked: they are parked only because this redesign is their
+hard predecessor (live-push must be rebuilt on the clean read model, not the
+fragile one). When this workstream ships, the boundary review MUST promote both
+from `parking` → `queued` (remove the "after the refactoring" trigger sentence,
+assign ranks) so they re-enter the ready queue. This is part of this item's
+done-definition, not a separate decision.
