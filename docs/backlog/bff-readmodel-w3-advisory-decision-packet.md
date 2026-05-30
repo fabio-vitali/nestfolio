@@ -17,7 +17,7 @@ references:
   - "docs/superpowers/specs/2026-05-30-bff-readmodel-w3-advisory-decision-packet-design.md"
   - "docs/superpowers/specs/2026-05-29-bff-read-model-materialization-redesign-design.md"
 spec: docs/superpowers/specs/2026-05-30-bff-readmodel-w3-advisory-decision-packet-design.md
-plan: null
+plan: docs/superpowers/plans/2026-05-30-bff-readmodel-w3-advisory-decision-packet.md
 topic_memory: [project_read_model_redesign.md]
 validation_gate: null
 ---
