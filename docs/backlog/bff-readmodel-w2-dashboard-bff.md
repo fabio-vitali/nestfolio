@@ -15,7 +15,7 @@ notes: "Workstream 2 of bff-read-model-materialization-redesign: dashboard-bff P
 references:
   - "docs/superpowers/specs/2026-05-29-bff-read-model-materialization-redesign-design.md"
 spec: docs/superpowers/specs/2026-05-29-bff-read-model-materialization-redesign-design.md
-plan: null
+plan: docs/superpowers/plans/2026-05-30-bff-readmodel-w2-dashboard-bff.md
 topic_memory: [project_read_model_redesign.md]
 validation_gate: null
 ---
