@@ -350,6 +350,44 @@ describe('Decision SF state machine (post-precomputation rewire)', () => {
     expect(definition.States.RequestUserConfirmation).toBeDefined();
   });
 
+  // ---- Workstream 3 (Task 1.3): RequestUserConfirmation writes the L2 token --
+  // The fragment USER_CONFIRMATION_REQUESTED event is eliminated. Instead the SF
+  // writes the user-confirmation task token directly onto the DecisionPacket row
+  // via aws-sdk:dynamodb:updateItem.waitForTaskToken — in one atomic write that
+  // also sets status=AWAITING_CONFIRMATION and bumps __version. The token rides
+  // the versioned CDC snapshot (DECISION_PACKET_UPDATED) to advisory-bff.
+
+  it('RequestUserConfirmation writes token + AWAITING + version via aws-sdk:dynamodb:updateItem.waitForTaskToken', () => {
+    const state = definition.States['RequestUserConfirmation'];
+    expect(state.Resource).toBe('arn:aws:states:::aws-sdk:dynamodb:updateItem.waitForTaskToken');
+    expect(state.Parameters.UpdateExpression).toContain('ADD #v :one');
+    expect(state.Parameters.UpdateExpression).toContain('SET #s = :awaiting');
+    expect(state.Parameters.UpdateExpression).toContain('taskToken = :tok');
+    expect(state.Parameters.ExpressionAttributeValues[':tok']['S.$']).toBe('$$.Task.Token');
+  });
+
+  it('RequestUserConfirmation keys the DecisionPacket row + sets AWAITING_CONFIRMATION + keeps the 72h timeout + $.userResponse ResultPath', () => {
+    const state = definition.States['RequestUserConfirmation'];
+    expect(state.Type).toBe('Task');
+    expect(state.Parameters.Key.pk['S.$']).toBe(
+      "States.Format('DecisionPacket#{}#{}', $.tenantId, $.decisionId)",
+    );
+    expect(state.Parameters.Key.sk.S).toBe('DecisionPacket');
+    expect(state.Parameters.ExpressionAttributeNames['#v']).toBe('__version');
+    expect(state.Parameters.ExpressionAttributeNames['#s']).toBe('status');
+    expect(state.Parameters.ExpressionAttributeValues[':awaiting'].S).toBe('AWAITING_CONFIRMATION');
+    expect(state.Parameters.ExpressionAttributeValues[':one'].N).toBe('1');
+    expect(state.Parameters.ExpressionAttributeValues[':now']['S.$']).toBe('$$.State.EnteredTime');
+    expect(state.TimeoutSeconds).toBe(72 * 60 * 60);
+    expect(state.ResultPath).toBe('$.userResponse');
+  });
+
+  it('RequestUserConfirmation no longer emits USER_CONFIRMATION_REQUESTED via putEvents.waitForTaskToken (fragment event eliminated)', () => {
+    const state = definition.States['RequestUserConfirmation'];
+    expect(state.Resource).not.toBe('arn:aws:states:::events:putEvents.waitForTaskToken');
+    expect(state.Parameters.Entries).toBeUndefined();
+  });
+
   // ---- decision-pipeline-units-calibration-suitability workstream ----------
 
   it('UnpackTriggerEnvelope does NOT include triggerAmountCents (resolved by ResolveTriggerAmountCents Choice)', () => {

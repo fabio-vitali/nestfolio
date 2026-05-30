@@ -258,30 +258,30 @@ export class DecisionWorkflowDefinition extends Construct {
     const requestUserConfirmation = new sfn.CustomState(this, 'RequestUserConfirmation', {
       stateJson: {
         Type: 'Task',
-        Resource: 'arn:aws:states:::events:putEvents.waitForTaskToken',
+        // AWS SDK service integration (NOT the optimized dynamodb integration,
+        // which does not support .waitForTaskToken). Writes the user-confirmation
+        // task token onto the DecisionPacket row so it flows through the versioned
+        // CDC snapshot (DECISION_PACKET_UPDATED) to advisory-bff; the confirm/reject
+        // resolver reads it back to resume this SF. This is the single atomic write
+        // that also sets status=AWAITING_CONFIRMATION and bumps __version — the SF
+        // is now the sole writer of the AWAITING_CONFIRMATION status.
+        // Replaces the prior putEvents(USER_CONFIRMATION_REQUESTED).waitForTaskToken
+        // fragment event (Workstream 3, Task 1.3).
+        Resource: 'arn:aws:states:::aws-sdk:dynamodb:updateItem.waitForTaskToken',
         Parameters: {
-          Entries: [
-            {
-              EventBusName: eventBus.eventBusName,
-              Source: serviceName,
-              DetailType: 'USER_CONFIRMATION_REQUESTED',
-              Detail: {
-                'id.$': 'States.UUID()',
-                'type': 'USER_CONFIRMATION_REQUESTED',
-                'timestamp.$': '$$.State.EnteredTime',
-                'subject': {
-                  'decisionId.$': '$.decisionId',
-                  'tenantId.$': '$.tenantId',
-                  'taskToken.$': '$$.Task.Token',
-                },
-                'context': {
-                  'tenantId.$': '$.tenantId',
-                  'userId.$': '$.userId',
-                  'region.$': '$.region',
-                },
-              },
-            },
-          ],
+          TableName: props.tableName,
+          Key: {
+            pk: { 'S.$': "States.Format('DecisionPacket#{}#{}', $.tenantId, $.decisionId)" },
+            sk: { S: 'DecisionPacket' },
+          },
+          UpdateExpression: 'ADD #v :one SET #s = :awaiting, taskToken = :tok, updatedAt = :now',
+          ExpressionAttributeNames: { '#v': '__version', '#s': 'status' },
+          ExpressionAttributeValues: {
+            ':one': { N: '1' },
+            ':awaiting': { S: 'AWAITING_CONFIRMATION' },
+            ':tok': { 'S.$': '$$.Task.Token' },
+            ':now': { 'S.$': '$$.State.EnteredTime' },
+          },
         },
         TimeoutSeconds: Duration.hours(72).toSeconds(),
         ResultPath: '$.userResponse',
