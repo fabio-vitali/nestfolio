@@ -1,6 +1,6 @@
 ---
 id: bff-readmodel-w2-dashboard-bff
-status: active
+status: shipped
 rank: 2
 type: refactor
 requires_deploy: true
@@ -17,7 +17,22 @@ references:
 spec: docs/superpowers/specs/2026-05-29-bff-read-model-materialization-redesign-design.md
 plan: docs/superpowers/plans/2026-05-30-bff-readmodel-w2-dashboard-bff.md
 topic_memory: [project_read_model_redesign.md]
-validation_gate: null
+validation_gate: |
+  Shipped 2026-05-30 on branch worktree-bff-readmodel-w2-dashboard-bff (commits 6cedf2d3..HEAD).
+  PortfolioSummary + PositionSnapshot migrated to version-guarded P1 projectVersioned from the
+  authoritative ledger snapshot (cashBalanceCents/positionCount structural zeros + totalValueCents
+  double-count dissolved by construction); ReadModelOwnership registers both P1 + Activity P2;
+  dead SimulationSummary/StreamSnapshot writers deleted; driftPercent + `|| 0` read-resolver
+  papering removed (bff schema/resolver + dashboard-mfe KPI card).
+  - Unit: dashboard-bff 50/50, dashboard-mfe 75/75; `pnpm nx affected -t test,lint --base=origin/main` green.
+  - Deploy: `deploy.sh sandbox --prefix=dev --services=dashboard-bff` exit 0.
+  - Integration: `dashboard-bff:test-integration` 24/24 across both files, 2 consecutive runs, no flakes
+    (projection math verified: 80000 + 10*$160*100 = 240000 @ __version 42; 50000 + 20*$320*100 = 690000).
+  - Scoped e2e (deployed dev): `e2e-feature-tests withdraw-cash` 1/1 (68s) — only Jest scenario routing
+    through deployed dashboard-bff. Playwright happy-path (KPI-card UI surface) intentionally not run
+    per closing-phase rule + user decision; pure-projection render path, low risk.
+  Carry-overs: InvestorSnapshot→P1 deferred to w4, AdvisoryStatus→P3 deferred to w3 (both documented in
+  their dossiers + unregistered); orphan-position-on-sell filed (dashboard-position-orphan-on-sell).
 ---
 
 # Workstream 2 — dashboard-bff
