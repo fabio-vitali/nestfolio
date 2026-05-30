@@ -71,11 +71,20 @@ function createHandlers() {
       return {
         output: { decision, authorityLevel, ...(reason ? { reason } : {}) },
         intents: decisionId ? [update('DecisionPacket', {
-          status: isApproved ? (authorityLevel === 'L1' ? 'APPROVED' : 'AWAITING_CONFIRMATION') : 'BLOCKED',
+          // L2 AWAITING_CONFIRMATION is written solely by the SF
+          // updateItem.waitForTaskToken state (single writer, Task 1.3). Here, for L2
+          // we record only the compliance verdict; for L1 we set terminal APPROVED;
+          // BLOCKED is terminal for both.
+          ...(isApproved
+            ? (authorityLevel === 'L1' ? { status: 'APPROVED' } : {})
+            : { status: 'BLOCKED' }),
           complianceResult: decision,
           authorityLevel,
           ...(reason ? { blockReason: reason } : {}),
-        }, { overrides: { pk: `DecisionPacket#${tenantId}#${decisionId}`, sk: 'DecisionPacket' } })] : [],
+        }, {
+          add: { __version: 1 },
+          overrides: { pk: `DecisionPacket#${tenantId}#${decisionId}`, sk: 'DecisionPacket' },
+        })] : [],
       };
     };
   }
@@ -88,14 +97,19 @@ function createHandlers() {
       const tenantId = (subject.tenantId as string) ?? ctx.tenantId;
       const decisionId = subject.decisionId as string;
       const reason = subject.reason as string | undefined;
+      const now = ctx.timestamp;
 
       return {
         output: { decision, ...(reason ? { reason } : {}) },
         intents: decisionId ? [update('DecisionPacket', {
           status: decision,
           userDecision: decision,
+          ...(isConfirmed ? { confirmedAt: now } : { rejectedAt: now }),
           ...(reason ? { rejectionReason: reason } : {}),
-        }, { overrides: { pk: `DecisionPacket#${tenantId}#${decisionId}`, sk: 'DecisionPacket' } })] : [],
+        }, {
+          add: { __version: 1 },
+          overrides: { pk: `DecisionPacket#${tenantId}#${decisionId}`, sk: 'DecisionPacket' },
+        })] : [],
       };
     };
   }
@@ -230,7 +244,7 @@ describe('decision-workflow-ctrl sfn-callback (resumeStateMachine)', () => {
   // --- Compliance events ---
 
   describe('compliance events', () => {
-    it('should return APPROVED output and update intent for DECISION_APPROVED L1', async () => {
+    it('(a) DECISION_APPROVED L1 → status APPROVED + add:{ __version:1 }', async () => {
       const payload: EventPayload = {
         subject: {
           decisionId: 'dp-1',
@@ -244,19 +258,19 @@ describe('decision-workflow-ctrl sfn-callback (resumeStateMachine)', () => {
 
       expect(result.output).toEqual({ decision: 'APPROVED', authorityLevel: 'L1' });
       expect(result.intents).toHaveLength(1);
-      expect(result.intents[0]).toEqual({
-        _tag: 'update',
-        typename: 'DecisionPacket',
-        updates: {
-          status: 'APPROVED',
-          complianceResult: 'APPROVED',
-          authorityLevel: 'L1',
-        },
-        overrides: { pk: 'DecisionPacket#t1#dp-1', sk: 'DecisionPacket' },
+      const intent = result.intents[0];
+      expect(intent._tag).toBe('update');
+      expect(intent.typename).toBe('DecisionPacket');
+      expect(intent.updates).toEqual({
+        status: 'APPROVED',
+        complianceResult: 'APPROVED',
+        authorityLevel: 'L1',
       });
+      expect(intent.add).toEqual({ __version: 1 });
+      expect(intent.overrides).toEqual({ pk: 'DecisionPacket#t1#dp-1', sk: 'DecisionPacket' });
     });
 
-    it('should return AWAITING_CONFIRMATION for DECISION_APPROVED L2', async () => {
+    it('(b) DECISION_APPROVED L2 → NO status key in updates + add:{ __version:1 }', async () => {
       const payload: EventPayload = {
         subject: {
           decisionId: 'dp-1',
@@ -268,10 +282,16 @@ describe('decision-workflow-ctrl sfn-callback (resumeStateMachine)', () => {
 
       const result = await handlers.DECISION_APPROVED(payload, baseCtx('DECISION_APPROVED'));
 
-      expect(result.intents[0].updates.status).toBe('AWAITING_CONFIRMATION');
+      const intent = result.intents[0];
+      expect('status' in intent.updates).toBe(false);
+      expect(intent.updates).toEqual({
+        complianceResult: 'APPROVED',
+        authorityLevel: 'L2',
+      });
+      expect(intent.add).toEqual({ __version: 1 });
     });
 
-    it('should return BLOCKED output for DECISION_BLOCKED', async () => {
+    it('(c) DECISION_BLOCKED L2 → status BLOCKED + blockReason + add:{ __version:1 }', async () => {
       const payload: EventPayload = {
         subject: {
           decisionId: 'dp-1',
@@ -288,11 +308,13 @@ describe('decision-workflow-ctrl sfn-callback (resumeStateMachine)', () => {
         authorityLevel: 'L2',
         reason: 'Exceeds risk limits',
       });
-      expect(result.intents[0].updates).toEqual(expect.objectContaining({
+      const intent = result.intents[0];
+      expect(intent.updates).toEqual(expect.objectContaining({
         status: 'BLOCKED',
         complianceResult: 'BLOCKED',
         blockReason: 'Exceeds risk limits',
       }));
+      expect(intent.add).toEqual({ __version: 1 });
     });
 
     it('should return empty intents when decisionId is missing', async () => {
@@ -311,7 +333,7 @@ describe('decision-workflow-ctrl sfn-callback (resumeStateMachine)', () => {
   // --- User response events ---
 
   describe('user response events', () => {
-    it('should return CONFIRMED output and update intent for USER_CONFIRMED', async () => {
+    it('(d) USER_CONFIRMED → confirmedAt=ctx.timestamp + add:{ __version:1 }, no rejectedAt', async () => {
       const payload: EventPayload = {
         subject: {
           decisionId: 'dp-1',
@@ -319,23 +341,25 @@ describe('decision-workflow-ctrl sfn-callback (resumeStateMachine)', () => {
           taskToken: 'token-user',
         },
       };
-
-      const result = await handlers.USER_CONFIRMED(payload, baseCtx('USER_CONFIRMED'));
+      const ctx = baseCtx('USER_CONFIRMED');
+      const result = await handlers.USER_CONFIRMED(payload, ctx);
 
       expect(result.output).toEqual({ decision: 'CONFIRMED' });
       expect(result.intents).toHaveLength(1);
-      expect(result.intents[0]).toEqual({
-        _tag: 'update',
-        typename: 'DecisionPacket',
-        updates: {
-          status: 'CONFIRMED',
-          userDecision: 'CONFIRMED',
-        },
-        overrides: { pk: 'DecisionPacket#t1#dp-1', sk: 'DecisionPacket' },
+      const intent = result.intents[0];
+      expect(intent._tag).toBe('update');
+      expect(intent.typename).toBe('DecisionPacket');
+      expect(intent.updates).toEqual({
+        status: 'CONFIRMED',
+        userDecision: 'CONFIRMED',
+        confirmedAt: ctx.timestamp,
       });
+      expect('rejectedAt' in intent.updates).toBe(false);
+      expect(intent.add).toEqual({ __version: 1 });
+      expect(intent.overrides).toEqual({ pk: 'DecisionPacket#t1#dp-1', sk: 'DecisionPacket' });
     });
 
-    it('should return REJECTED output with reason for USER_REJECTED', async () => {
+    it('(e) USER_REJECTED with reason → rejectedAt=ctx.timestamp + rejectionReason + add:{ __version:1 }, no confirmedAt', async () => {
       const payload: EventPayload = {
         subject: {
           decisionId: 'dp-1',
@@ -344,15 +368,19 @@ describe('decision-workflow-ctrl sfn-callback (resumeStateMachine)', () => {
           reason: 'Too risky',
         },
       };
-
-      const result = await handlers.USER_REJECTED(payload, baseCtx('USER_REJECTED'));
+      const ctx = baseCtx('USER_REJECTED');
+      const result = await handlers.USER_REJECTED(payload, ctx);
 
       expect(result.output).toEqual({ decision: 'REJECTED', reason: 'Too risky' });
-      expect(result.intents[0].updates).toEqual(expect.objectContaining({
+      const intent = result.intents[0];
+      expect(intent.updates).toEqual({
         status: 'REJECTED',
         userDecision: 'REJECTED',
+        rejectedAt: ctx.timestamp,
         rejectionReason: 'Too risky',
-      }));
+      });
+      expect('confirmedAt' in intent.updates).toBe(false);
+      expect(intent.add).toEqual({ __version: 1 });
     });
 
     it('should return empty intents when decisionId is missing', async () => {

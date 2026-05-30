@@ -71,11 +71,20 @@ const createHandlers = () => {
       return {
         output: { decision, authorityLevel, ...(reason ? { reason } : {}) },
         intents: decisionId ? [update('DecisionPacket', {
-          status: isApproved ? (authorityLevel === 'L1' ? 'APPROVED' : 'AWAITING_CONFIRMATION') : 'BLOCKED',
+          // L2 AWAITING_CONFIRMATION is written solely by the SF
+          // updateItem.waitForTaskToken state (single writer, Task 1.3). Here, for L2
+          // we record only the compliance verdict; for L1 we set terminal APPROVED;
+          // BLOCKED is terminal for both.
+          ...(isApproved
+            ? (authorityLevel === 'L1' ? { status: 'APPROVED' } : {})
+            : { status: 'BLOCKED' }),
           complianceResult: decision,
           authorityLevel,
           ...(reason ? { blockReason: reason } : {}),
-        }, { overrides: { pk: `DecisionPacket#${tenantId}#${decisionId}`, sk: 'DecisionPacket' } })] : [],
+        }, {
+          add: { __version: 1 },
+          overrides: { pk: `DecisionPacket#${tenantId}#${decisionId}`, sk: 'DecisionPacket' },
+        })] : [],
       };
     };
   }
@@ -90,13 +99,18 @@ const createHandlers = () => {
       const decisionId = subject.decisionId as string;
       const reason = subject.reason as string | undefined;
 
+      const now = ctx.timestamp;
       return {
         output: { decision, ...(reason ? { reason } : {}) },
         intents: decisionId ? [update('DecisionPacket', {
           status: decision,
           userDecision: decision,
+          ...(isConfirmed ? { confirmedAt: now } : { rejectedAt: now }),
           ...(reason ? { rejectionReason: reason } : {}),
-        }, { overrides: { pk: `DecisionPacket#${tenantId}#${decisionId}`, sk: 'DecisionPacket' } })] : [],
+        }, {
+          add: { __version: 1 },
+          overrides: { pk: `DecisionPacket#${tenantId}#${decisionId}`, sk: 'DecisionPacket' },
+        })] : [],
       };
     };
   }
