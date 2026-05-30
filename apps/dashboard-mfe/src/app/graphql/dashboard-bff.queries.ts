@@ -5,7 +5,6 @@ const PORTFOLIO_SUMMARY_FIELDS = `
     totalValueCents
     cashBalanceCents
     positionCount
-    driftPercent
     updatedAt
   }
 `;

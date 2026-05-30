@@ -25,7 +25,6 @@ describe('DashboardStore', () => {
     totalValueCents: 1000000,
     cashBalanceCents: 200000,
     positionCount: 5,
-    driftPercent: 2.5,
     updatedAt: '2026-03-01T00:00:00Z',
   };
 

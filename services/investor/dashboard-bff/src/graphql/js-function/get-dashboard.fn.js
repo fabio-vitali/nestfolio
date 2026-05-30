@@ -17,18 +17,15 @@ export function request(ctx) {
 export function response(ctx) {
   if (ctx.error) util.error(ctx.error.message, ctx.error.type);
   const items = ctx.result.items || [];
-  // Read models are sparse — a freshly-onboarded tenant may have a
-  // PortfolioSummary row written by accumulate() that lacks fields the schema
-  // declares non-null. Coerce defaults so AppSync doesn't null-coerce the
-  // parent object.
   const rawPs = items[0];
-  const portfolioSummary = rawPs ? {
-    totalValueCents: rawPs.totalValueCents || 0,
-    cashBalanceCents: rawPs.cashBalanceCents || 0,
-    positionCount: rawPs.positionCount || 0,
-    driftPercent: rawPs.driftPercent || 0,
-    updatedAt: rawPs.updatedAt || util.time.nowISO8601(),
-  } : null;
+  const portfolioSummary = (rawPs && rawPs.sk)
+    ? {
+        totalValueCents: rawPs.totalValueCents,
+        cashBalanceCents: rawPs.cashBalanceCents,
+        positionCount: rawPs.positionCount,
+        updatedAt: rawPs.updatedAt,
+      }
+    : null;
   const rawAs = items[1];
   const advisoryStatus = rawAs ? {
     pendingDecisionsCount: rawAs.pendingDecisionsCount || 0,

@@ -6,7 +6,7 @@ import { CardModule } from 'primeng/card';
 import { TooltipModule } from 'primeng/tooltip';
 import { I18nService } from '@nestfolio/shell/i18n';
 import { FeatureFlagsStore } from '@nestfolio/ui/feature-flags';
-import { CurrencyFormatPipe, PercentFormatPipe } from '@nestfolio/ui';
+import { CurrencyFormatPipe } from '@nestfolio/ui';
 import type { PortfolioSummary, AdvisoryStatus } from '../stores/dashboard.store';
 
 const DEPOSIT_FLAG = 'initiateDeposit';
@@ -14,7 +14,7 @@ const DEPOSIT_FLAG = 'initiateDeposit';
 @Component({
   selector: 'app-kpi-cards',
   standalone: true,
-  imports: [CommonModule, CardModule, ButtonModule, TooltipModule, CurrencyFormatPipe, PercentFormatPipe],
+  imports: [CommonModule, CardModule, ButtonModule, TooltipModule, CurrencyFormatPipe],
   template: `
     <div class="kpi-cards">
       <p-card styleClass="kpi-card">
@@ -43,11 +43,6 @@ const DEPOSIT_FLAG = 'initiateDeposit';
       </p-card>
 
       <p-card styleClass="kpi-card">
-        <div class="kpi-label">{{ i18n.t('dashboard.overview.drift') }}</div>
-        <div class="kpi-value" [attr.aria-label]="i18n.t('dashboard.overview.drift') + ': ' + ((portfolioSummary?.driftPercent ?? 0) | percentFormat)">{{ (portfolioSummary?.driftPercent ?? 0) | percentFormat }}</div>
-      </p-card>
-
-      <p-card styleClass="kpi-card">
         <div class="kpi-label">{{ i18n.t('dashboard.overview.pendingDecisions') }}</div>
         <div class="kpi-value" [class.alert]="(advisoryStatus?.pendingDecisionsCount ?? 0) > 0" [attr.aria-label]="i18n.t('dashboard.overview.pendingDecisions') + ': ' + (advisoryStatus?.pendingDecisionsCount ?? 0)">
           {{ advisoryStatus?.pendingDecisionsCount ?? 0 }}
@@ -58,7 +53,7 @@ const DEPOSIT_FLAG = 'initiateDeposit';
   styles: [`
     .kpi-cards {
       display: grid;
-      grid-template-columns: repeat(5, 1fr);
+      grid-template-columns: repeat(4, 1fr);
       gap: 0.75rem;
     }
 

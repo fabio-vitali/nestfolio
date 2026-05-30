@@ -12,7 +12,6 @@ export interface PortfolioSummary {
   totalValueCents: number;
   cashBalanceCents: number;
   positionCount: number;
-  driftPercent: number;
   updatedAt: string;
 }
 

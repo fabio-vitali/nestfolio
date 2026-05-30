@@ -50,7 +50,6 @@ type PortfolioSummary @aws_cognito_user_pools @aws_iam {
   totalValueCents: Int!
   cashBalanceCents: Int!
   positionCount: Int!
-  driftPercent: Float!
   updatedAt: String!
 }
 

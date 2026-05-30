@@ -42,7 +42,6 @@ describe('KpiCardsComponent', () => {
       totalValueCents: 500000,
       cashBalanceCents: 100000,
       positionCount: 3,
-      driftPercent: 1.5,
       updatedAt: '2026-03-01T00:00:00Z',
     };
     expect(component.portfolioSummary.totalValueCents).toBe(500000);
