@@ -14,8 +14,9 @@ out_of_scope:
   - "Re-architecting the L1/L2 authority split or the compliance↔decision-workflow task-token handshake beyond what is needed to emit one authoritative versioned DecisionPacket snapshot. If consolidating the multi-writer status path requires an aggregate-owner promotion (spec §Command-side rules escalation), that is surfaced as a decision, not silently expanded."
 notes: "Workstream 3 of bff-read-model-materialization-redesign: decision-workflow-ctrl emits versioned DecisionPacket snapshots; advisory-bff + dashboard project them as P1; retire the advisory-bff attribute_exists sparse-item band-aid + status-fragment events; AdvisoryStatus count → P3."
 references:
+  - "docs/superpowers/specs/2026-05-30-bff-readmodel-w3-advisory-decision-packet-design.md"
   - "docs/superpowers/specs/2026-05-29-bff-read-model-materialization-redesign-design.md"
-spec: docs/superpowers/specs/2026-05-29-bff-read-model-materialization-redesign-design.md
+spec: docs/superpowers/specs/2026-05-30-bff-readmodel-w3-advisory-decision-packet-design.md
 plan: null
 topic_memory: [project_read_model_redesign.md]
 validation_gate: null
