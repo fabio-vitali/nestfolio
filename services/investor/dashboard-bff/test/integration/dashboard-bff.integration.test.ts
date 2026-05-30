@@ -93,56 +93,59 @@ describe('dashboard-bff', () => {
       expect(item!['operatingMode']).toBe('AGGRESSIVE');
     }, 120_000);
 
-    it('should materialize PortfolioSummary on PORTFOLIO_UPDATED (driftPercent)', async () => {
+    it('should materialize PortfolioSummary on PORTFOLIO_UPDATED (ledger snapshot)', async () => {
+      // w2: portfolioSummary is now a P1 version-guarded projection from the ledger snapshot.
+      // The transform reads event.subject.snapshot and requires snapshot.cashBalanceCents.
       await eb.putEvent({
         bus: 'investor',
         targetService: 'dashboard-bff',
         detailType: 'PORTFOLIO_UPDATED',
         detail: {
-          driftPercent: 3.5,
+          cashBalanceCents: 80000,
+          snapshot: {
+            cashBalanceCents: 80000,
+            lastEventSequence: 42,
+            positions: {
+              AAPL: { symbol: 'AAPL', quantity: 10, averageCostBasis: 150, totalCostBasis: 1500, lastFillPrice: 160 },
+            },
+          },
         },
       });
 
-      // project('PortfolioSummary', ...) → pk: T#<tenantId>, sk: PortfolioSummary
+      // projectVersioned('PortfolioSummary', ...) → pk: T#<tenantId>, sk: PortfolioSummary
       const item = await table.waitForItem({
         table: 'dashboard-bff',
         pk: `T#${ctx.tenantId}`,
         sk: 'PortfolioSummary',
         timeoutMs: 60_000,
+        predicate: (i) => i['__version'] === 42,
       });
 
       expect(item['__typename']).toBe('PortfolioSummary');
       expect(item['tenantId']).toBe(ctx.tenantId);
-      expect(item['driftPercent']).toBe(3.5);
+      // cashBalanceCents: from snapshot
+      expect(item['cashBalanceCents']).toBe(80000);
+      // positionCount: Object.keys(positions).length = 1
+      expect(item['positionCount']).toBe(1);
+      // totalValueCents: cashBalanceCents + round(10 * 160 * 100) = 80000 + 160000 = 240000
+      expect(item['totalValueCents']).toBe(240000);
+      // __version: Number(lastEventSequence) = 42
+      expect(item['__version']).toBe(42);
     }, 120_000);
 
-    it('should materialize PositionSnapshot on PORTFOLIO_UPDATED (with symbol)', async () => {
+    it('should materialize PositionSnapshot on PORTFOLIO_UPDATED (with symbol in snapshot.positions)', async () => {
+      // w2: positionSnapshot is now a P1 version-guarded projection from snapshot.positions.
+      // One row per holding; dollar-denominated fields converted to cents.
+      // Reuses the same snapshot published in the PortfolioSummary test above (seq=42, AAPL).
       const symbol = 'AAPL';
 
-      await eb.putEvent({
-        bus: 'investor',
-        targetService: 'dashboard-bff',
-        detailType: 'PORTFOLIO_UPDATED',
-        detail: {
-          symbol,
-          filledQuantity: 10,
-          averageFillPrice: 150,
-          quantity: 10,
-          avgCostBasis: 150,
-          currentPrice: 160,
-          marketValue: 1600,
-          weightPercent: 15,
-          unrealizedPnl: 100,
-          assetClass: 'EQUITY',
-        },
-      });
-
-      // project('PositionSnapshot', ...) → pk: T#<tenantId>, sk: PositionSnapshot#<symbol>
+      // The prior test already sent the AAPL snapshot (seq=42). Wait for that row to appear.
       const item = await table.waitForItem({
         table: 'dashboard-bff',
         pk: `T#${ctx.tenantId}`,
         sk: `PositionSnapshot#${symbol}`,
         timeoutMs: 60_000,
+        predicate: (i) => i['__version'] === 42,
       });
 
       expect(item['__typename']).toBe('PositionSnapshot');
@@ -150,12 +153,24 @@ describe('dashboard-bff', () => {
       expect(item['symbol']).toBe(symbol);
       expect(item['assetClass']).toBe('EQUITY');
       expect(item['quantity']).toBe(10);
+      // avgCostBasisCents: round(150 * 100) = 15000
+      expect(item['avgCostBasisCents']).toBe(15000);
+      // currentPriceCents: round(160 * 100) = 16000
+      expect(item['currentPriceCents']).toBe(16000);
+      // marketValueCents: round(10 * 160 * 100) = 160000
+      expect(item['marketValueCents']).toBe(160000);
+      // unrealizedPnlCents: 160000 - round(1500 * 100) = 160000 - 150000 = 10000
+      expect(item['unrealizedPnlCents']).toBe(10000);
+      // weightPercent: 100 (only position)
+      expect(item['weightPercent']).toBe(100);
+      // __version: 42
+      expect(item['__version']).toBe(42);
     }, 120_000);
 
-    it('should handle RECONCILIATION_COMPLETED via portfolioSummary (no-op without drift/fill data)', async () => {
+    it('should handle RECONCILIATION_COMPLETED via portfolioSummary (no-op without snapshot)', async () => {
       // RECONCILIATION_COMPLETED goes through portfolioSummary transform.
-      // Without filledQuantity/averageFillPrice or driftPercent, portfolioSummary returns undefined.
-      // Verify no new PortfolioSummary is created for a bare reconciliation event.
+      // Without snapshot.cashBalanceCents the transform returns undefined → no write.
+      // Verify the PortfolioSummary row from the prior test is not overwritten.
       await eb.putEvent({
         bus: 'investor',
         targetService: 'dashboard-bff',
@@ -169,8 +184,8 @@ describe('dashboard-bff', () => {
       // Wait briefly, then verify PortfolioSummary was not modified
       await new Promise(r => setTimeout(r, 10_000));
 
-      // Prior PORTFOLIO_UPDATED test created PortfolioSummary with driftPercent=3.5.
-      // RECONCILIATION_COMPLETED should NOT have overwritten it.
+      // Prior PORTFOLIO_UPDATED test (seq=42) wrote PortfolioSummary with __version=42.
+      // RECONCILIATION_COMPLETED (no snapshot) should NOT have overwritten it.
       const item = await table.waitForItem({
         table: 'dashboard-bff',
         pk: `T#${ctx.tenantId}`,
@@ -179,7 +194,9 @@ describe('dashboard-bff', () => {
       }).catch(() => undefined);
 
       if (item) {
-        expect(item['driftPercent']).toBe(3.5);
+        // If the row exists it must still be the snapshot-projected row (version=42)
+        expect(item['__version']).toBe(42);
+        expect(item['cashBalanceCents']).toBe(80000);
       }
     }, 30_000);
 
@@ -502,28 +519,27 @@ describe('dashboard-bff', () => {
       }
 
       // 2. Independent events in parallel — each writes to a distinct sk
+      // w2: PortfolioSummary + PositionSnapshot now use snapshot-shaped events.
+      // MSFT snapshot: qty=20, averageCostBasis=300, totalCostBasis=6000, lastFillPrice=320
+      //   → avgCostBasisCents=30000, currentPriceCents=32000, marketValueCents=640000
+      //   → unrealizedPnlCents=640000-600000=40000, weightPercent=100 (only holding)
+      // PortfolioSummary (same event): cashBalanceCents=50000, positionCount=1,
+      //   totalValueCents=50000+640000=690000, __version=50
       await Promise.all([
-        // PortfolioSummary (driftPercent via project)
-        eb.putEvent({
-          bus: 'investor',
-          targetService: 'dashboard-bff',
-          detailType: 'PORTFOLIO_UPDATED',
-          detail: { driftPercent: 2.5 },
-        }),
-        // PositionSnapshot#MSFT via project
+        // PortfolioSummary + PositionSnapshot#MSFT from one snapshot event (P1)
         eb.putEvent({
           bus: 'investor',
           targetService: 'dashboard-bff',
           detailType: 'PORTFOLIO_UPDATED',
           detail: {
-            symbol: 'MSFT',
-            quantity: 20,
-            avgCostBasis: 300,
-            currentPrice: 320,
-            marketValue: 6400,
-            weightPercent: 25,
-            unrealizedPnl: 400,
-            assetClass: 'EQUITY',
+            cashBalanceCents: 50000,
+            snapshot: {
+              cashBalanceCents: 50000,
+              lastEventSequence: 50,
+              positions: {
+                MSFT: { symbol: 'MSFT', quantity: 20, averageCostBasis: 300, totalCostBasis: 6000, lastFillPrice: 320 },
+              },
+            },
           },
         }),
         // TimeTravelAvailability via project
@@ -570,21 +586,28 @@ describe('dashboard-bff', () => {
 
       // Wait for all parallel items to materialize
       await Promise.all([
-        // PortfolioSummary
+        // PortfolioSummary — wait for the snapshot-projected row (__version=50)
         (async () => {
           const d = Date.now() + 60_000;
           while (Date.now() < d) {
             const item = await table.waitForItem({
               table: 'dashboard-bff', pk: `T#${ctx.tenantId}`, sk: 'PortfolioSummary', timeoutMs: 5_000,
             });
-            if (item['driftPercent'] === 2.5) return;
+            if (item['__version'] === 50) return;
             await new Promise(r => setTimeout(r, 2_000));
           }
         })(),
-        // PositionSnapshot#MSFT
-        table.waitForItem({
-          table: 'dashboard-bff', pk: `T#${ctx.tenantId}`, sk: 'PositionSnapshot#MSFT', timeoutMs: 60_000,
-        }),
+        // PositionSnapshot#MSFT — wait for the snapshot-projected row (__version=50)
+        (async () => {
+          const d = Date.now() + 60_000;
+          while (Date.now() < d) {
+            const item = await table.waitForItem({
+              table: 'dashboard-bff', pk: `T#${ctx.tenantId}`, sk: 'PositionSnapshot#MSFT', timeoutMs: 5_000,
+            }).catch(() => undefined);
+            if (item && item['__version'] === 50) return;
+            await new Promise(r => setTimeout(r, 2_000));
+          }
+        })(),
         // TimeTravelAvailability
         (async () => {
           const d = Date.now() + 60_000;
@@ -611,20 +634,18 @@ describe('dashboard-bff', () => {
       ]);
     }, 300_000);
 
-    it('should default missing PortfolioSummary Int! fields to 0 (regression: e2e step-8 fresh tenant)', async () => {
-      // PortfolioSummary row exists with only driftPercent + updatedAt populated
-      // (a freshly-onboarded tenant who has not yet had any orders filled). The
-      // schema declares totalValueCents/cashBalanceCents/positionCount as Int!,
-      // so a naive resolver that returns the raw DDB item would cause AppSync
-      // to null-coerce the parent object — failing getDashboard for the e2e.
-      // get-dashboard.fn.js fills 0 defaults for the missing Int!/Float! fields.
+    it('should return real PortfolioSummary fields from snapshot projection', async () => {
+      // w2: PortfolioSummary is now a full-row P1 snapshot projection — no structural zeros.
+      // The beforeAll published a snapshot with cashBalanceCents=50000, 1 MSFT position
+      // (marketValueCents=640000), so totalValueCents=690000, positionCount=1.
+      // get-dashboard.fn.js returns the actual projected values (no || 0 papering).
+      // driftPercent was removed from the schema in w2 — no longer selectable.
       const result = await appsync.query<{
         getDashboard: {
           portfolioSummary: {
             totalValueCents: number;
             cashBalanceCents: number;
             positionCount: number;
-            driftPercent: number;
             updatedAt: string;
           } | null;
         };
@@ -635,7 +656,6 @@ describe('dashboard-bff', () => {
               totalValueCents
               cashBalanceCents
               positionCount
-              driftPercent
               updatedAt
             }
           }
@@ -644,25 +664,25 @@ describe('dashboard-bff', () => {
 
       expect(result.getDashboard.portfolioSummary).not.toBeNull();
       const ps = result.getDashboard.portfolioSummary!;
-      expect(ps.totalValueCents).toBe(0);
-      expect(ps.cashBalanceCents).toBe(0);
-      expect(ps.positionCount).toBe(0);
-      expect(ps.driftPercent).toBe(2.5);
+      // Real snapshot-projected values, not zeros
+      expect(ps.cashBalanceCents).toBe(50000);
+      expect(ps.positionCount).toBe(1);
+      // totalValueCents: cashBalanceCents + round(20 * 320 * 100) = 50000 + 640000 = 690000
+      expect(ps.totalValueCents).toBe(690000);
       expect(typeof ps.updatedAt).toBe('string');
       expect(ps.updatedAt.length).toBeGreaterThan(0);
     }, 60_000);
 
     it('should return Dashboard via getDashboard', async () => {
-      // portfolioSummary: project() writes driftPercent + updatedAt (no totalValueCents/cashBalanceCents/positionCount)
-      // advisoryStatus: accumulate() writes pendingDecisions only (field name != schema pendingDecisionsCount)
+      // portfolioSummary: w2 snapshot projection writes totalValueCents/cashBalanceCents/positionCount
+      // advisoryStatus: accumulate() writes pendingDecisions
       // investorSnapshot: project() writes goalType, riskLevel, operatingMode + updatedAt
-      //
-      // Query only fields that exist in DDB. Requesting Int! fields absent from
-      // the item causes AppSync to null-coerce the parent object.
       const result = await appsync.query<{
         getDashboard: {
           portfolioSummary: {
-            driftPercent: number;
+            totalValueCents: number;
+            cashBalanceCents: number;
+            positionCount: number;
           } | null;
           advisoryStatus: Record<string, unknown> | null;
           investorSnapshot: {
@@ -675,7 +695,9 @@ describe('dashboard-bff', () => {
         query GetDashboard {
           getDashboard {
             portfolioSummary {
-              driftPercent
+              totalValueCents
+              cashBalanceCents
+              positionCount
             }
             investorSnapshot {
               goalType
@@ -688,9 +710,11 @@ describe('dashboard-bff', () => {
 
       expect(result.getDashboard).toBeDefined();
 
-      // portfolioSummary — only driftPercent is populated by the event
+      // portfolioSummary — snapshot-projected values from beforeAll (seq=50, MSFT)
       expect(result.getDashboard.portfolioSummary).not.toBeNull();
-      expect(result.getDashboard.portfolioSummary!.driftPercent).toBe(2.5);
+      expect(result.getDashboard.portfolioSummary!.cashBalanceCents).toBe(50000);
+      expect(result.getDashboard.portfolioSummary!.positionCount).toBe(1);
+      expect(result.getDashboard.portfolioSummary!.totalValueCents).toBe(690000);
 
       // investorSnapshot — project() uses PutItem (full replace), so only the last
       // event's fields survive. INVESTOR_PROFILE_UPDATED was sent last.
@@ -703,7 +727,10 @@ describe('dashboard-bff', () => {
     }, 60_000);
 
     it('should return PositionSnapshots via getPositionSnapshots', async () => {
-      // Transform converts float prices to cents: avgCostBasis=300 → 30000, etc.
+      // beforeAll published MSFT snapshot: qty=20, averageCostBasis=300, totalCostBasis=6000, lastFillPrice=320
+      // Transform (dollar → cents): avgCostBasisCents=30000, currentPriceCents=32000,
+      //   marketValueCents=round(20*320*100)=640000, unrealizedPnlCents=640000-round(6000*100)=40000
+      // weightPercent=100 (MSFT is the only holding in this snapshot).
       const result = await appsync.query<{
         getPositionSnapshots: Array<{
           symbol: string;
@@ -734,11 +761,11 @@ describe('dashboard-bff', () => {
       const msftPosition = result.getPositionSnapshots.find(p => p.symbol === 'MSFT');
       expect(msftPosition).toBeDefined();
       expect(msftPosition!.quantity).toBe(20);
-      expect(msftPosition!.avgCostBasisCents).toBe(30000);   // 300 * 100
-      expect(msftPosition!.currentPriceCents).toBe(32000);   // 320 * 100
-      expect(msftPosition!.marketValueCents).toBe(640000);    // 6400 * 100
-      expect(msftPosition!.weightPercent).toBe(25);
-      expect(msftPosition!.unrealizedPnlCents).toBe(40000);  // 400 * 100
+      expect(msftPosition!.avgCostBasisCents).toBe(30000);    // round(300 * 100)
+      expect(msftPosition!.currentPriceCents).toBe(32000);    // round(320 * 100)
+      expect(msftPosition!.marketValueCents).toBe(640000);    // round(20 * 320 * 100)
+      expect(msftPosition!.weightPercent).toBe(100);          // MSFT is the sole holding
+      expect(msftPosition!.unrealizedPnlCents).toBe(40000);   // 640000 - round(6000 * 100)
       expect(msftPosition!.assetClass).toBe('EQUITY');
     }, 60_000);
 
