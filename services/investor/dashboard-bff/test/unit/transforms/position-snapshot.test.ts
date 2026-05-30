@@ -1,65 +1,63 @@
-import { project } from '@nestfolio/event-processor';
-import type { UnitOfWork, BusEvent } from '@nestfolio/event-processor';
 import { positionSnapshot } from '../../../src/transforms/position-snapshot';
+import type { UnitOfWork, BusEvent } from '@nestfolio/event-processor';
 
 type TestUow = UnitOfWork<BusEvent<Record<string, unknown>>>;
 
+const makeUow = (subject: Record<string, unknown>): TestUow => ({
+  event: {
+    id: 'e1',
+    type: 'PORTFOLIO_UPDATED',
+    timestamp: '2026-01-01T00:00:00.000Z',
+    subject,
+    context: { tenantId: 't1', userId: 'u1', region: 'us-east-1' },
+  },
+  payload: {},
+  record: {},
+}) as unknown as TestUow;
+
+// AAPL: 10 @ $150 → 150000c market (75%); MSFT: 5 @ $100 → 50000c market (25%).
+const snapshot = {
+  lastEventSequence: 9,
+  positions: {
+    AAPL: { symbol: 'AAPL', quantity: 10, averageCostBasis: 100, totalCostBasis: 1000, lastFillPrice: 150 },
+    MSFT: { symbol: 'MSFT', quantity: 5, averageCostBasis: 200, totalCostBasis: 1000, lastFillPrice: 100 },
+  },
+};
+
 describe('positionSnapshot transform', () => {
-  const makeUow = (subject: Record<string, unknown>): TestUow => ({
-    event: {
-      id: 'e1',
-      type: 'PORTFOLIO_UPDATED',
-      timestamp: '2026-01-01T00:00:00.000Z',
-      subject,
-      context: { tenantId: 't1' },
-    },
-    payload: {},
-    record: {},
-  }) as unknown as TestUow;
+  it('emits one versioned PositionSnapshot intent per holding with computed cents + weight', () => {
+    const intents = positionSnapshot(makeUow({ snapshot }));
+    expect(intents).toHaveLength(2);
 
-  it('should return project intent for a position with symbol', () => {
-    const result = positionSnapshot(makeUow({
-      orderId: 'o1',
-      symbol: 'VTI',
-      filledQuantity: 10,
-      averageFillPrice: 250,
-    }));
-
-    expect(result).toEqual(
-      project('PositionSnapshot', {
+    const aapl = intents.find((i) => (i as { overrides?: { sk?: string } }).overrides?.sk === 'PositionSnapshot#AAPL');
+    expect(aapl).toEqual({
+      _tag: 'projectVersioned',
+      typename: 'PositionSnapshot',
+      fields: {
         tenantId: 't1',
-        symbol: 'VTI',
-        assetClass: undefined,
+        userId: 'u1',
+        region: 'us-east-1',
+        symbol: 'AAPL',
+        assetClass: 'EQUITY',
         quantity: 10,
-        avgCostBasisCents: 25_000,
-        currentPriceCents: 25_000,
-        marketValueCents: 250_000,
-        weightPercent: 0,
-        unrealizedPnlCents: 0,
-      }, { pk: 'T#t1', sk: 'PositionSnapshot#VTI' }),
-    );
+        avgCostBasisCents: 10000,   // 100 * 100
+        currentPriceCents: 15000,   // 150 * 100
+        marketValueCents: 150000,   // 10 * 150 * 100
+        weightPercent: 75,          // 150000 / 200000 * 100
+        unrealizedPnlCents: 50000,  // 150000 - (1000 * 100)
+      },
+      version: 9,
+      overrides: { pk: 'T#t1', sk: 'PositionSnapshot#AAPL' },
+    });
+
+    const msft = intents.find((i) => (i as { overrides?: { sk?: string } }).overrides?.sk === 'PositionSnapshot#MSFT');
+    expect(msft).toMatchObject({
+      fields: { marketValueCents: 50000, weightPercent: 25, unrealizedPnlCents: -50000 },
+      version: 9,
+    });
   });
 
-  it('should return undefined when no symbol or instrument', () => {
-    expect(positionSnapshot(makeUow({
-      orderId: 'o1',
-      filledQuantity: 10,
-      averageFillPrice: 250,
-    }))).toBeUndefined();
-  });
-
-  it('should use instrument as fallback for symbol', () => {
-    const result = positionSnapshot(makeUow({
-      orderId: 'o1',
-      instrument: 'BND',
-      filledQuantity: 5,
-      averageFillPrice: 80,
-    }));
-
-    expect(result).toEqual(
-      project('PositionSnapshot', expect.objectContaining({
-        symbol: 'BND',
-      }), { pk: 'T#t1', sk: 'PositionSnapshot#BND' }),
-    );
+  it('returns an empty array when the snapshot has no positions', () => {
+    expect(positionSnapshot(makeUow({ snapshot: { positions: {}, lastEventSequence: 1 } }))).toEqual([]);
   });
 });

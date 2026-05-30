@@ -1,47 +1,57 @@
-import { accumulate, project } from '@nestfolio/event-processor';
-import type { UnitOfWork, BusEvent } from '@nestfolio/event-processor';
 import { portfolioSummary } from '../../../src/transforms/portfolio-summary';
+import type { UnitOfWork, BusEvent } from '@nestfolio/event-processor';
 
 type TestUow = UnitOfWork<BusEvent<Record<string, unknown>>>;
 
+const makeUow = (type: string, subject: Record<string, unknown>): TestUow => ({
+  event: {
+    id: 'e1',
+    type,
+    timestamp: '2026-01-01T00:00:00.000Z',
+    subject,
+    context: { tenantId: 't1', userId: 'u1', region: 'us-east-1' },
+  },
+  payload: {},
+  record: {},
+}) as unknown as TestUow;
+
+// AAPL: 10 @ $150 → 150000c market; MSFT: 5 @ $100 → 50000c market. Σ market = 200000c.
+const snapshot = {
+  cashBalanceCents: 5000,
+  lastEventSequence: 7,
+  positions: {
+    AAPL: { symbol: 'AAPL', quantity: 10, averageCostBasis: 100, totalCostBasis: 1000, lastFillPrice: 150 },
+    MSFT: { symbol: 'MSFT', quantity: 5, averageCostBasis: 200, totalCostBasis: 1000, lastFillPrice: 100 },
+  },
+};
+
 describe('portfolioSummary transform', () => {
-  const makeUow = (subject: Record<string, unknown>): TestUow => ({
-    event: {
-      id: 'e1',
-      type: 'PORTFOLIO_UPDATED',
-      timestamp: '2026-01-01T00:00:00.000Z',
-      subject,
-      context: { tenantId: 't1' },
-    },
-    payload: {},
-    record: {},
-  }) as unknown as TestUow;
-
-  it('should return accumulate intent when filledQuantity and averageFillPrice exist', () => {
-    expect(portfolioSummary(makeUow({
-      filledQuantity: 10,
-      averageFillPrice: 250,
-    }))).toEqual(
-      accumulate('PortfolioSummary', {
-        field: 'totalValueCents',
-        increment: 250_000,
-        overrides: { pk: 'T#t1', sk: 'PortfolioSummary' },
-      }),
-    );
-  });
-
-  it('should return project intent when only driftPercent exists', () => {
-    expect(portfolioSummary(makeUow({
-      driftPercent: 3.5,
-    }))).toEqual(
-      project('PortfolioSummary', {
+  it('projects a versioned full PortfolioSummary row from a ledger snapshot', () => {
+    expect(portfolioSummary(makeUow('PORTFOLIO_UPDATED', { snapshot }))).toEqual({
+      _tag: 'projectVersioned',
+      typename: 'PortfolioSummary',
+      fields: {
         tenantId: 't1',
-        driftPercent: 3.5,
-      }, { pk: 'T#t1', sk: 'PortfolioSummary' }),
-    );
+        userId: 'u1',
+        region: 'us-east-1',
+        cashBalanceCents: 5000,
+        positionCount: 2,
+        totalValueCents: 205000, // 5000 cash + 150000 + 50000 market
+      },
+      version: 7,
+      overrides: { pk: 'T#t1', sk: 'PortfolioSummary' },
+    });
   });
 
-  it('should return undefined when no relevant fields', () => {
-    expect(portfolioSummary(makeUow({}))).toBeUndefined();
+  it('accepts a bare snapshot payload (no `snapshot` wrapper)', () => {
+    expect(portfolioSummary(makeUow('BALANCE_UPDATED', { ...snapshot }))).toMatchObject({
+      _tag: 'projectVersioned',
+      version: 7,
+      fields: { cashBalanceCents: 5000, positionCount: 2, totalValueCents: 205000 },
+    });
+  });
+
+  it('returns undefined when no snapshot/cashBalance is present', () => {
+    expect(portfolioSummary(makeUow('RECONCILIATION_COMPLETED', { foo: 'bar' }))).toBeUndefined();
   });
 });

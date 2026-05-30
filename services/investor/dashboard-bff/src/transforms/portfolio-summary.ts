@@ -1,42 +1,50 @@
-import { accumulate, project, type WriteIntent } from '@nestfolio/event-processor';
+import { projectVersioned, type WriteIntent } from '@nestfolio/event-processor';
 import type { UnitOfWork, BusEvent } from '@nestfolio/event-processor';
 
-type OrderFilledPayload = {
-  orderId: string;
-  brokerOrderId: string;
-  filledQuantity: number;
-  averageFillPrice: number;
-  filledAt: string;
-  driftPercent?: number;
+type LedgerPosition = { quantity?: number; lastFillPrice?: number };
+type LedgerSnapshot = {
+  cashBalanceCents?: number;
+  positions?: Record<string, LedgerPosition>;
+  lastEventSequence?: number;
 };
 
+/**
+ * Projects the PortfolioSummary read row from the authoritative ledger snapshot
+ * carried on BALANCE_UPDATED / PORTFOLIO_UPDATED. Full-row, version-guarded write
+ * keyed on `lastEventSequence` — fixes the cashBalanceCents/positionCount
+ * structural zeros and the totalValueCents double-count by construction (no more
+ * `accumulate`). Position values are dollar-denominated in the snapshot, so
+ * market value is computed here. See docs/architecture/READ-MODEL-OWNERSHIP.md.
+ */
 export const portfolioSummary = (
   uow: UnitOfWork<BusEvent<Record<string, unknown>>>,
 ): WriteIntent | undefined => {
   const { event } = uow;
   const { tenantId, userId, region } = event.context;
-  const payload = event.subject as OrderFilledPayload & Record<string, unknown>;
-  const overrides = { pk: `T#${tenantId}`, sk: 'PortfolioSummary' };
+  const subject = event.subject as Record<string, unknown>;
+  const snapshot = (subject?.snapshot ?? subject) as LedgerSnapshot | undefined;
 
-  if (payload.filledQuantity !== undefined && payload.averageFillPrice !== undefined) {
-    const tradeValueCents = Math.round(
-      payload.filledQuantity * payload.averageFillPrice * 100,
-    );
-    return accumulate('PortfolioSummary', {
-      field: 'totalValueCents',
-      increment: tradeValueCents,
-      overrides,
-    });
-  }
+  if (!snapshot || snapshot.cashBalanceCents === undefined) return undefined;
 
-  if (payload.driftPercent !== undefined) {
-    return project('PortfolioSummary', {
+  const positions = snapshot.positions ?? {};
+  const positionMarketValueCents = Object.values(positions).reduce(
+    (sum, p) => sum + Math.round((p.quantity ?? 0) * (p.lastFillPrice ?? 0) * 100),
+    0,
+  );
+
+  return projectVersioned(
+    'PortfolioSummary',
+    {
       tenantId,
       userId,
       region,
-      driftPercent: payload.driftPercent,
-    }, overrides);
-  }
-
-  return undefined;
+      cashBalanceCents: snapshot.cashBalanceCents,
+      positionCount: Object.keys(positions).length,
+      totalValueCents: snapshot.cashBalanceCents + positionMarketValueCents,
+    },
+    {
+      version: Number(snapshot.lastEventSequence ?? 0),
+      overrides: { pk: `T#${tenantId}`, sk: 'PortfolioSummary' },
+    },
+  );
 };

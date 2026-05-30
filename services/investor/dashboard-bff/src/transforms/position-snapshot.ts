@@ -1,59 +1,57 @@
-import { project, type WriteIntent } from '@nestfolio/event-processor';
+import { projectVersioned, type WriteIntent } from '@nestfolio/event-processor';
 import type { UnitOfWork, BusEvent } from '@nestfolio/event-processor';
 
-type PositionPayload = {
-  orderId: string;
+type LedgerPosition = {
   symbol?: string;
-  instrument?: string;
-  filledQuantity: number;
-  averageFillPrice: number;
   quantity?: number;
-  avgCostBasis?: number;
-  currentPrice?: number;
-  marketValue?: number;
-  weightPercent?: number;
-  unrealizedPnl?: number;
-  assetClass?: string;
+  averageCostBasis?: number;
+  totalCostBasis?: number;
+  lastFillPrice?: number;
 };
+type LedgerSnapshot = { positions?: Record<string, LedgerPosition>; lastEventSequence?: number };
 
+/**
+ * Projects one PositionSnapshot row per holding from the authoritative ledger
+ * snapshot. Full-row, version-guarded writes keyed on `lastEventSequence`.
+ * Snapshot positions are dollar-denominated, so cents/market-value are computed
+ * here; `assetClass` defaults to EQUITY (absent from the snapshot) and
+ * `weightPercent` is each holding's share of total market value.
+ * See docs/architecture/READ-MODEL-OWNERSHIP.md.
+ */
 export const positionSnapshot = (
   uow: UnitOfWork<BusEvent<Record<string, unknown>>>,
-): WriteIntent | undefined => {
+): WriteIntent[] => {
   const { event } = uow;
   const { tenantId, userId, region } = event.context;
-  const payload = event.subject as PositionPayload;
+  const subject = event.subject as Record<string, unknown>;
+  const snapshot = (subject?.snapshot ?? subject) as LedgerSnapshot | undefined;
+  const entries = Object.entries(snapshot?.positions ?? {});
+  if (entries.length === 0) return [];
 
-  const symbol = payload.symbol ?? payload.instrument;
-  if (!symbol) return undefined;
+  const version = Number(snapshot?.lastEventSequence ?? 0);
+  const marketValueCentsOf = (p: LedgerPosition) =>
+    Math.round((p.quantity ?? 0) * (p.lastFillPrice ?? 0) * 100);
+  const totalMarketValueCents = entries.reduce((sum, [, p]) => sum + marketValueCentsOf(p), 0);
 
-  const quantity = payload.quantity ?? payload.filledQuantity ?? 0;
-  const avgCostCents = payload.avgCostBasis
-    ? Math.round(payload.avgCostBasis * 100)
-    : Math.round((payload.averageFillPrice ?? 0) * 100);
-  const currentPriceCents = payload.currentPrice
-    ? Math.round(payload.currentPrice * 100)
-    : avgCostCents;
-  const marketValueCents = payload.marketValue
-    ? Math.round(payload.marketValue * 100)
-    : quantity * currentPriceCents;
-  const unrealizedPnlCents = payload.unrealizedPnl
-    ? Math.round(payload.unrealizedPnl * 100)
-    : marketValueCents - quantity * avgCostCents;
-
-  return project('PositionSnapshot', {
-    tenantId,
-    userId,
-    region,
-    symbol,
-    assetClass: payload.assetClass,
-    quantity,
-    avgCostBasisCents: avgCostCents,
-    currentPriceCents,
-    marketValueCents,
-    weightPercent: payload.weightPercent ?? 0,
-    unrealizedPnlCents,
-  }, {
-    pk: `T#${tenantId}`,
-    sk: `PositionSnapshot#${symbol}`,
+  return entries.map(([key, pos]) => {
+    const symbol = pos.symbol ?? key;
+    const marketValueCents = marketValueCentsOf(pos);
+    return projectVersioned(
+      'PositionSnapshot',
+      {
+        tenantId,
+        userId,
+        region,
+        symbol,
+        assetClass: 'EQUITY',
+        quantity: pos.quantity ?? 0,
+        avgCostBasisCents: Math.round((pos.averageCostBasis ?? 0) * 100),
+        currentPriceCents: Math.round((pos.lastFillPrice ?? 0) * 100),
+        marketValueCents,
+        weightPercent: totalMarketValueCents > 0 ? (marketValueCents / totalMarketValueCents) * 100 : 0,
+        unrealizedPnlCents: marketValueCents - Math.round((pos.totalCostBasis ?? 0) * 100),
+      },
+      { version, overrides: { pk: `T#${tenantId}`, sk: `PositionSnapshot#${symbol}` } },
+    );
   });
 };
