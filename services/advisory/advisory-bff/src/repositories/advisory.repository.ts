@@ -101,6 +101,36 @@ export class AdvisoryRepository extends TableRepository {
     };
   });
 
+  /** Non-terminal decision statuses for the in-flight count (P3 derived aggregate). */
+  static readonly IN_FLIGHT_STATUSES = ['PENDING', 'AWAITING_CONFIRMATION'] as const;
+
+  /** Count this tenant's DecisionReadModel rows in a non-terminal status. Paginates the COUNT. */
+  readonly countInFlightDecisions = this.log('countInFlightDecisions', async (
+    tenantId: string,
+  ): Promise<number> => {
+    const statuses = AdvisoryRepository.IN_FLIGHT_STATUSES;
+    let total = 0;
+    let lastKey: Record<string, unknown> | undefined;
+    do {
+      const result = await this.docClient.send(new QueryCommand({
+        TableName: this.tableName,
+        IndexName: 'tenantId-index',
+        Select: 'COUNT',
+        KeyConditionExpression: 'tenantId = :tenantId AND #typ = :typename',
+        FilterExpression: `#status IN (${statuses.map((_, i) => `:s${i}`).join(', ')})`,
+        ExpressionAttributeNames: { '#status': 'status', '#typ': '__typename' },
+        ExpressionAttributeValues: {
+          ':tenantId': tenantId, ':typename': 'DecisionReadModel',
+          ...Object.fromEntries(statuses.map((s, i) => [`:s${i}`, s])),
+        },
+        ...(lastKey ? { ExclusiveStartKey: lastKey } : {}),
+      }));
+      total += result.Count ?? 0;
+      lastKey = result.LastEvaluatedKey;
+    } while (lastKey);
+    return total;
+  });
+
   readonly getDecisionHistory = this.log('getDecisionHistory', async (
     tenantId: string,
     limit: number = 20,

@@ -1,30 +1,18 @@
-import { materializeToTable, toUow } from '@nestfolio/event-processor';
-import { DecisionWorkflowEventTypes, TRIGGER_EVENT_TYPES } from '@nestfolio/decision-workflow-ctrl/events';
-import { ComplianceEventTypes } from '@nestfolio/compliance-ctrl/events';
-import { decisionPacketCreated } from '../transforms/decision-packet-created';
-import { decisionStatusChanged } from '../transforms/decision-status-changed';
-import { decisionTriggerReceived } from '../transforms/decision-trigger-received';
+import '../read-model-ownership';
+import { materializeToTable, toUow, skip, type WriteIntent } from '@nestfolio/event-processor';
+import { DecisionWorkflowEventTypes } from '@nestfolio/decision-workflow-ctrl/events';
+import { decisionSnapshot } from '../transforms/decision-snapshot';
+
+// decisionSnapshot returns undefined for degraded snapshots (no explanation + no
+// trades). materializeToTable's HandlerFn must return a WriteIntent, so coerce the
+// drop to a skip() intent (terminal no-op) rather than undefined.
+const project = (payload: unknown, ctx: unknown): WriteIntent =>
+  decisionSnapshot(toUow(payload as never, ctx as never) as never) ?? skip();
 
 export function createHandlers() {
-  const triggerHandlers = Object.fromEntries(
-    TRIGGER_EVENT_TYPES.map((t) => [
-      t,
-      (payload: any, ctx: any) => decisionTriggerReceived(toUow(payload, ctx) as any),
-    ]),
-  );
-
   return {
-    ...triggerHandlers,
-    [DecisionWorkflowEventTypes.DECISION_PACKET_CREATED]: (payload: any, ctx: any) =>
-      decisionPacketCreated(toUow(payload, ctx) as any),
-    [DecisionWorkflowEventTypes.DECISION_PACKET_UPDATED]: (payload: any, ctx: any) =>
-      decisionStatusChanged(toUow(payload, ctx) as any),
-    [ComplianceEventTypes.DECISION_APPROVED]: (payload: any, ctx: any) =>
-      decisionStatusChanged(toUow(payload, ctx) as any),
-    [ComplianceEventTypes.DECISION_BLOCKED]: (payload: any, ctx: any) =>
-      decisionStatusChanged(toUow(payload, ctx) as any),
-    [DecisionWorkflowEventTypes.USER_CONFIRMATION_REQUESTED]: (payload: any, ctx: any) =>
-      decisionStatusChanged(toUow(payload, ctx) as any),
+    [DecisionWorkflowEventTypes.DECISION_PACKET_CREATED]: project,
+    [DecisionWorkflowEventTypes.DECISION_PACKET_UPDATED]: project,
   };
 }
 

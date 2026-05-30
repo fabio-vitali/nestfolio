@@ -10,6 +10,7 @@
   "include": [
     "src/**/*.test.ts",
     "test/**/*.test.ts",
+    "test/**/*.type-test.ts",
     "src/**/*.ts",
     "src/graphql/js-function/**/*.js",
     "test/unit/graphql/__mocks__/**/*.ts"

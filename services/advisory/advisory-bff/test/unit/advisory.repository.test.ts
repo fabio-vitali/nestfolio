@@ -263,6 +263,33 @@ describe('AdvisoryRepository', () => {
     });
   });
 
+  describe('countInFlightDecisions', () => {
+    it('counts non-terminal DecisionReadModel rows for a tenant', async () => {
+      mockSend.mockResolvedValueOnce({ Count: 2, Items: [], LastEvaluatedKey: undefined });
+
+      const n = await repo.countInFlightDecisions('t1');
+
+      const call = mockSend.mock.calls[0][0];
+      expect(call._type).toBe('Query');
+      expect(call.input.IndexName).toBe('tenantId-index');
+      expect(call.input.Select).toBe('COUNT');
+      expect(call.input.FilterExpression).toContain('#status IN');
+      expect(n).toBe(2);
+    });
+
+    it('paginates the COUNT across LastEvaluatedKey pages', async () => {
+      mockSend
+        .mockResolvedValueOnce({ Count: 2, LastEvaluatedKey: { pk: 'x' } })
+        .mockResolvedValueOnce({ Count: 3, LastEvaluatedKey: undefined });
+
+      const n = await repo.countInFlightDecisions('t1');
+
+      expect(mockSend).toHaveBeenCalledTimes(2);
+      expect(mockSend.mock.calls[1][0].input.ExclusiveStartKey).toEqual({ pk: 'x' });
+      expect(n).toBe(5);
+    });
+  });
+
   describe('putUserRejection', () => {
     it('should store a UserRejection record for Egress CDC', async () => {
       mockSend.mockResolvedValueOnce({});

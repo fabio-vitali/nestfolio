@@ -8,8 +8,7 @@ import { ServiceStack, ServiceStackProps, State, Ingress, Egress, Facade, discov
 import { MfeBucket } from '@nestfolio/cdk-constructs/extensions';
 import { defaultLambdaProps } from '@nestfolio/cdk-constructs/utils';
 import { AdvisoryBffEventTypes } from './domain/events';
-import { DecisionWorkflowEventTypes, TRIGGER_EVENT_TYPES } from '@nestfolio/decision-workflow-ctrl/events';
-import { ComplianceEventTypes } from '@nestfolio/compliance-ctrl/events';
+import { DecisionWorkflowEventTypes } from '@nestfolio/decision-workflow-ctrl/events';
 
 export class AdvisoryBffStack extends ServiceStack {
   constructor(scope: Construct, id: string, props: ServiceStackProps) {
@@ -19,13 +18,15 @@ export class AdvisoryBffStack extends ServiceStack {
 
     const ingress = new Ingress(this, 'Ingress', {
       state,
+      // Workstream 3: advisory-bff is now a P1 versioned projection of the single
+      // authoritative DecisionPacket producer. It subscribes ONLY to the full-row
+      // CDC snapshots (CREATED + UPDATED). The old status / trigger subscriptions
+      // (DECISION_APPROVED, DECISION_BLOCKED, USER_CONFIRMATION_REQUESTED, the SF
+      // trigger events) are gone — their effects now arrive inside the versioned
+      // snapshot, eliminating the cross-event races by construction.
       eventTypes: [
         DecisionWorkflowEventTypes.DECISION_PACKET_CREATED,
         DecisionWorkflowEventTypes.DECISION_PACKET_UPDATED,
-        ComplianceEventTypes.DECISION_APPROVED,
-        ComplianceEventTypes.DECISION_BLOCKED,
-        DecisionWorkflowEventTypes.USER_CONFIRMATION_REQUESTED,
-        ...TRIGGER_EVENT_TYPES,
       ],
     });
 
@@ -91,6 +92,21 @@ export class AdvisoryBffStack extends ServiceStack {
         resources: [`${facade.api.arn}/*`],
       }));
     }
+
+    // P3 derived aggregate: recompute AdvisoryStatus.inFlightCount post-commit by
+    // counting non-terminal DecisionReadModel rows. A second DDB-stream consumer
+    // (alongside DecisionPublisher) so the count is always a pure function of the
+    // projected rows — replacing the prior two-writer accumulate() race.
+    const advisoryStatusProjector = new NodejsFunction(this, 'AdvisoryStatusProjector', {
+      ...defaultLambdaProps(this),
+      entry: join(__dirname, 'handlers', 'advisory-status-projector.ts'),
+      environment: { TABLE_NAME: state.getTable().tableName },
+    });
+    advisoryStatusProjector.addEventSource(new DynamoEventSource(state.getTable(), {
+      startingPosition: StartingPosition.LATEST,
+      retryAttempts: 3,
+    }));
+    state.getTable().grantReadWriteData(advisoryStatusProjector);
 
     this.addObservability({ ingress, egress });
   }
