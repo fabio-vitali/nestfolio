@@ -19,8 +19,17 @@ The post-collapse subscription list replaces the legacy 6 per-entity events (GOA
   - Decrements (−1) on DECISION_APPROVED, DECISION_BLOCKED
   - DECISION_PACKET_CREATED and USER_CONFIRMATION_REQUESTED no longer affect pendingDecisionsCount (repurposed to recent-activity.ts)
 - recent-activity.ts — dispatches DECISION_PACKET_CREATED and USER_CONFIRMATION_REQUESTED (and other activity-relevant events) to the activity feed; rows are LIVE-broadcast via publishActivityUpdate → onActivityUpdate (phase 2 dispatch)
-- investor-snapshot.ts — reads goal, riskProfile, operatingMode from composite INVESTOR_PROFILE_* payload
-- portfolio-summary.ts, position-snapshot.ts, time-travel-availability.ts — unchanged
+- investor-snapshot.ts — reads goal, riskProfile, operatingMode from composite INVESTOR_PROFILE_* payload (still `project()`; P1 migration deferred to w4 — needs investor-bff `__version` + stable `onboardedAt`)
+- portfolio-summary.ts — version-guarded P1 projection (`projectVersioned`) from the authoritative ledger snapshot on BALANCE_UPDATED / PORTFOLIO_UPDATED: writes full row `cashBalanceCents`, `positionCount = Object.keys(positions).length`, `totalValueCents = cashBalanceCents + Σ round(quantity*lastFillPrice*100)`, keyed on `lastEventSequence` as `__version`. Replaced the old order-fill `accumulate`/`project` reconstruction — fixes the cashBalanceCents/positionCount structural zeros + totalValueCents double-count by construction. `driftPercent` removed (not in the ledger snapshot; single-producer P1).
+- position-snapshot.ts — version-guarded P1 projection, one `projectVersioned('PositionSnapshot', …)` per holding from `snapshot.positions` (cents computed from the dollar-denominated snapshot fields; `weightPercent` = share of total market value; `assetClass` defaults EQUITY). Handler spreads the per-position array.
+- time-travel-availability.ts — unchanged
+
+## Read model (ownership)
+- `ReadModelOwnership` registered in `src/read-model-ownership.ts` (side-effect-imported from `handlers/event-listener.ts`):
+  - P1 (versioned snapshots via `projectVersioned`, keyed on `lastEventSequence`): `PortfolioSummary`, `PositionSnapshot`
+  - P2 (append-only log via `record`): `Activity`
+- Intentional carry-overs (NOT registered yet): `InvestorSnapshot` → P1 in w4 (producer `__version`); `AdvisoryStatus` count → P3 in w3 (needs authoritative decision rows, stays `accumulate` for now); `TimeTravelAvailability` untouched.
+- Dead `SimulationSummary` / `StreamSnapshot` repository writers removed (no callers). The `getSimulationSummary` GraphQL query/resolver remains (returns null via its own GetItem).
 
 ## Facade
 - AppSync GraphQL API (JS Resolvers via discoverJsResolvers)

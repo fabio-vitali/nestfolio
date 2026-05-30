@@ -34,5 +34,13 @@ investor-bff rows are correctly classified and enforced (command-owned vs P1);
 CashBalance is a versioned projection; `event-processor:typecheck` + integration
 green; deploy + scoped investor e2e green.
 
+## Carry-over from w2
+dashboard-bff's `InvestorSnapshot` stays on `project()` and is unregistered in
+`ReadModelOwnership` until investor-bff stamps a `__version` on `INVESTOR_PROFILE_*`
+with a stable `onboardedAt` in the payload (a full-row P1 write would otherwise
+wipe `onboardedAt` on `INVESTOR_PROFILE_UPDATED`). This workstream adds that
+producer-side `__version`, then migrates dashboard-bff's `InvestorSnapshot` to
+`projectVersioned` P1 and registers it.
+
 ## Rollout context
 Rank 4 (see spec §"Decomposition"). See [[project_read_model_redesign]].

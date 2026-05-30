@@ -44,5 +44,12 @@ APPROVED→AWAITING_CONFIRMATION overwrite races are gone by construction;
 `event-processor:typecheck` + integration green; deploy + the advisory-flow
 Playwright/e2e scenarios green.
 
+## Carry-over from w2
+dashboard-bff's `AdvisoryStatus` in-flight count remains an `accumulate` counter
+(NOT registered in `ReadModelOwnership`) — a true P3 derivation needs the
+authoritative `DecisionPacket` rows. This workstream lands the real P3 count over
+the versioned `DecisionPacket` rows it projects, and registers `AdvisoryStatus`
+as `Projection<'P3'>` in dashboard-bff's ownership map.
+
 ## Rollout context
 Rank 3 (see spec §"Decomposition"). See [[project_read_model_redesign]].
