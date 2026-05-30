@@ -8,10 +8,10 @@ Stack: services/advisory/advisory-bff/src/service.stack.ts
 
 ## Ingress
 - advisoryBus → advisory-bff-ingress (SQS → Lambda)
-  Subscriptions: DECISION_PACKET_CREATED, DECISION_PACKET_UPDATED, DECISION_APPROVED, DECISION_BLOCKED, USER_CONFIRMATION_REQUESTED
-  + 7 SF trigger events (TRIGGER_EVENT_TYPES from decision-workflow-ctrl/events):
-    MANDATE_SNAPSHOT_CREATED, INVESTOR_PROFILE_UPDATED, PORTFOLIO_DRIFT_DETECTED,
-    ORDER_FILLED, ORDER_REJECTED, ORDER_CANCELLED, DEPOSIT_DETECTED
+  Subscriptions: DECISION_PACKET_CREATED, DECISION_PACKET_UPDATED
+  (Workstream 3: DECISION_APPROVED, DECISION_BLOCKED, USER_CONFIRMATION_REQUESTED, and all 7 SF
+  trigger events removed — their effects arrive inside the versioned CDC snapshot, eliminating
+  cross-event races by construction.)
 
 ## Egress
 - CDC: DynamoDB Streams → advisory-bff-egress (Lambda)
@@ -23,23 +23,29 @@ Stack: services/advisory/advisory-bff/src/service.stack.ts
   - AdvisoryStatus → insert: ADVISORY_STATUS_UPDATED, modify: ADVISORY_STATUS_UPDATED
 
 ## Facade
-- AppSync GraphQL API (Cognito auth via investor user pool SSM)
+- AppSync GraphQL API (Cognito auth via investor user pool SSM; IAM auth also enabled)
   JS Resolvers via discoverJsResolvers
-  Extra pipeline steps:
-  - confirmDecision → get-decision-readback.fn.js
-  - rejectDecision → get-decision-readback.fn.js
-  New resolvers (Tasks 9–10):
+  Pipeline steps:
+  - confirmDecision: preStep + extraStep → get-decision-readback.fn.js (reads existing DecisionReadModel to lift taskToken); confirm-decision.fn.js writes ONLY UserConfirmation intent row (PutItem) — no DecisionReadModel write
+  - rejectDecision: preStep + extraStep → get-decision-readback.fn.js; reject-decision.fn.js writes ONLY UserRejection intent row (PutItem) — no DecisionReadModel write
   - getAdvisoryStatus → get-advisory-status.fn.js (GetItem on AdvisoryStatus row)
-  - publishAdvisoryStatusUpdate → publish-advisory-status-update.fn.js (@aws_iam IAM-only mutation used by DDB-stream publisher)
+  - publishAdvisoryStatusUpdate → publish-advisory-status-update.fn.js (@aws_iam IAM-only mutation used by advisory-status-projector)
+  - publishDecisionUpdate → publish-decision-update.fn.js (@aws_iam IAM-only mutation used by decision-publisher)
 
 ## Handlers
-- event-listener.ts — Ingress event handler
-- event-publisher.ts — Egress CDC publisher (publishes AdvisoryStatus changes via publishAdvisoryStatusUpdate mutation)
+- event-listener.ts — Ingress handler; dispatches DECISION_PACKET_CREATED + DECISION_PACKET_UPDATED to decisionSnapshot; drops degraded snapshots (no explanation + no trades) via skip()
+- advisory-status-projector.ts — DDB-stream consumer (P3 derived aggregate); recomputes AdvisoryStatus.inFlightCount post-commit by counting non-terminal DecisionReadModel rows via countInFlightDecisions; writes via projectVersioned; loop-guarded to skip AdvisoryStatus records
+- decision-publisher.ts — DDB-stream consumer; broadcasts DecisionReadModel changes to MFE via AppSync publishDecisionUpdate mutation
+- event-publisher.ts — Egress CDC publisher
 
 ## Transforms
-- decision-packet-created.ts — materialises DecisionReadModel; also decrements AdvisoryStatus.inFlightCount (Task 3)
-- decision-status-changed.ts — materialises status changes for DECISION_APPROVED / DECISION_BLOCKED / USER_CONFIRMATION_REQUESTED
-- decision-trigger-received.ts — increments AdvisoryStatus.inFlightCount on any of the 7 trigger events; sets lastTriggerAt (Task 2)
+- decision-snapshot.ts — single transform for DECISION_PACKET_CREATED + DECISION_PACKET_UPDATED; projects the full CDC subject (DecisionPacket NewImage) into DecisionReadModel P1 via projectVersioned; returns undefined (→ skip()) for degraded snapshots (no explanation AND no proposedTrades)
+  (Removed: decision-packet-created.ts, decision-status-changed.ts, decision-trigger-received.ts)
+
+## Read model (ownership)
+- Registered in `src/read-model-ownership.ts` (side-effect-imported from both handlers):
+  - `DecisionReadModel: Projection<'P1'>` — sole writer is `projectVersioned` in decision-snapshot.ts; compile-time guard blocks record/update/accumulate
+  - `AdvisoryStatus: Projection<'P3'>` — derived aggregate recomputed by advisory-status-projector.ts; compile-time guard blocks accumulate
 
 ## Event Types (domain/events.ts)
 - AdvisoryBffEventTypes: ADVISORY_STATUS_UPDATED, USER_CONFIRMED, USER_REJECTED, USER_VIEWED_EXPLANATION,
@@ -65,10 +71,14 @@ Stack: services/advisory/advisory-bff/src/service.stack.ts
 ## Tests
 - advisory.repository.test.ts
 - handlers/event-listener.test.ts
-- transforms/decision-packet-created.test.ts
-- transforms/decision-status-changed.test.ts
-- transforms/decision-trigger-received.test.ts (Task 2)
-- test/integration/ (Task 11)
+- handlers/advisory-status-projector.test.ts
+- handlers/decision-publisher.test.ts
+- transforms/decision-snapshot.test.ts
+- graphql/mutation-region.test.ts
+- types/read-model-ownership.type-test.ts
+- service.stack.test.ts
+- test/integration/advisory-bff.integration.test.ts
+  (Removed: transforms/decision-packet-created.test.ts, transforms/decision-status-changed.test.ts, transforms/decision-trigger-received.test.ts)
 
 ## Dependencies
 - libs: cdk-constructs (core), event-processor

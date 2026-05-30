@@ -8,28 +8,25 @@ Stack: services/investor/dashboard-bff/src/service.stack.ts
 
 ## Ingress
 - investorBus → dashboard-bff-ingress (SQS → Lambda)
-  Subscriptions: BALANCE_UPDATED, PORTFOLIO_UPDATED, RECONCILIATION_COMPLETED, DECISION_PACKET_CREATED, USER_CONFIRMATION_REQUESTED, DECISION_APPROVED, DECISION_BLOCKED, LEDGER_ENTRY_RECORDED, INVESTOR_PROFILE_CREATED, INVESTOR_PROFILE_UPDATED, MANDATE_ISSUED
-  + Phase 2 additions: ORDER_FILLED, ORDER_REJECTED, ORDER_CANCELLED, PORTFOLIO_DRIFT_DETECTED, DEPOSIT_DETECTED
-
-The post-collapse subscription list replaces the legacy 6 per-entity events (GOAL_*, RISK_PROFILE_*, OPERATING_MODE_*) with the 2 composite events. The investor-snapshot transform reads goal, riskProfile, and operatingMode from the composite payload of INVESTOR_PROFILE_CREATED / INVESTOR_PROFILE_UPDATED. INVESTOR_PROFILE_CREATED stays subscribed for InvestorSnapshot materialization but no longer increments pendingDecisionsCount — the trigger-counting transform now uses MANDATE_ISSUED (the local investor-domain mandate-lifecycle signal). dashboard-bff intentionally tracks MANDATE_ISSUED rather than the advisory-domain MANDATE_SNAPSHOT_CREATED so the in-flight badge stays inside the investor domain (no cross-domain forwarding required).
+  Subscriptions: BALANCE_UPDATED, PORTFOLIO_UPDATED, RECONCILIATION_COMPLETED, DECISION_PACKET_CREATED, USER_CONFIRMATION_REQUESTED, DECISION_APPROVED, DECISION_BLOCKED, LEDGER_ENTRY_RECORDED, INVESTOR_PROFILE_CREATED, INVESTOR_PROFILE_UPDATED, DEPOSIT_DETECTED, WITHDRAWAL_COMPLETED, ADVISORY_STATUS_UPDATED
+  (Workstream 3: removed ORDER_FILLED, ORDER_REJECTED, ORDER_CANCELLED, PORTFOLIO_DRIFT_DETECTED, and MANDATE_ISSUED — these were the accumulate-based trigger events; replaced by ADVISORY_STATUS_UPDATED which receives advisory-bff's authoritative P3 announcement forwarded via investor-adpt.)
 
 ## Transforms
-- advisory-status.ts — maintains AdvisoryStatus.pendingDecisionsCount:
-  - Increments (+1) on trigger events: MANDATE_ISSUED, INVESTOR_PROFILE_UPDATED, PORTFOLIO_DRIFT_DETECTED, ORDER_FILLED, ORDER_REJECTED, ORDER_CANCELLED, DEPOSIT_DETECTED
-  - Decrements (−1) on DECISION_APPROVED, DECISION_BLOCKED
-  - DECISION_PACKET_CREATED and USER_CONFIRMATION_REQUESTED no longer affect pendingDecisionsCount (repurposed to recent-activity.ts)
-- recent-activity.ts — dispatches DECISION_PACKET_CREATED and USER_CONFIRMATION_REQUESTED (and other activity-relevant events) to the activity feed; rows are LIVE-broadcast via publishActivityUpdate → onActivityUpdate (phase 2 dispatch)
+- advisory-status.ts — (Workstream 3) P3 projection: on ADVISORY_STATUS_UPDATED, calls `projectVersioned('AdvisoryStatus', { pendingDecisionsCount: subject.inFlightCount }, { version: subject.__version, … })`. Maps producer field `inFlightCount` → read-model field `pendingDecisionsCount`. No `accumulate`. Returns undefined if `__version` is absent.
+- recent-activity.ts — dispatches DECISION_PACKET_CREATED and USER_CONFIRMATION_REQUESTED (and other activity-relevant events) to the activity feed; rows are LIVE-broadcast via publishActivityUpdate → onActivityUpdate
 - investor-snapshot.ts — reads goal, riskProfile, operatingMode from composite INVESTOR_PROFILE_* payload (still `project()`; P1 migration deferred to w4 — needs investor-bff `__version` + stable `onboardedAt`)
-- portfolio-summary.ts — version-guarded P1 projection (`projectVersioned`) from the authoritative ledger snapshot on BALANCE_UPDATED / PORTFOLIO_UPDATED: writes full row `cashBalanceCents`, `positionCount = Object.keys(positions).length`, `totalValueCents = cashBalanceCents + Σ round(quantity*lastFillPrice*100)`, keyed on `lastEventSequence` as `__version`. Replaced the old order-fill `accumulate`/`project` reconstruction — fixes the cashBalanceCents/positionCount structural zeros + totalValueCents double-count by construction. `driftPercent` removed (not in the ledger snapshot; single-producer P1).
-- position-snapshot.ts — version-guarded P1 projection, one `projectVersioned('PositionSnapshot', …)` per holding from `snapshot.positions` (cents computed from the dollar-denominated snapshot fields; `weightPercent` = share of total market value; `assetClass` defaults EQUITY). Handler spreads the per-position array.
+- portfolio-summary.ts — version-guarded P1 projection (`projectVersioned`) from the authoritative ledger snapshot on BALANCE_UPDATED / PORTFOLIO_UPDATED: writes full row `cashBalanceCents`, `positionCount`, `totalValueCents`, keyed on `lastEventSequence` as `__version`
+- position-snapshot.ts — version-guarded P1 projection, one `projectVersioned('PositionSnapshot', …)` per holding from `snapshot.positions`
 - time-travel-availability.ts — unchanged
 
 ## Read model (ownership)
 - `ReadModelOwnership` registered in `src/read-model-ownership.ts` (side-effect-imported from `handlers/event-listener.ts`):
-  - P1 (versioned snapshots via `projectVersioned`, keyed on `lastEventSequence`): `PortfolioSummary`, `PositionSnapshot`
+  - P1 (versioned snapshots via `projectVersioned`): `PortfolioSummary`, `PositionSnapshot`
   - P2 (append-only log via `record`): `Activity`
-- Intentional carry-overs (NOT registered yet): `InvestorSnapshot` → P1 in w4 (producer `__version`); `AdvisoryStatus` count → P3 in w3 (needs authoritative decision rows, stays `accumulate` for now); `TimeTravelAvailability` untouched.
+  - P3 (deferred projection of advisory-bff's authoritative aggregate via `projectVersioned`): `AdvisoryStatus` (registered in workstream 3; `accumulate` now fails typecheck)
+- Intentional carry-overs (NOT registered yet): `InvestorSnapshot` → P1 in w4 (producer `__version`); `TimeTravelAvailability` untouched.
 - Dead `SimulationSummary` / `StreamSnapshot` repository writers removed (no callers). The `getSimulationSummary` GraphQL query/resolver remains (returns null via its own GetItem).
+- `DashboardRepository.upsertAdvisoryStatus` is now unused dead code (superseded by the P3 projectVersioned path); a follow-up workstream will remove it.
 
 ## Facade
 - AppSync GraphQL API (JS Resolvers via discoverJsResolvers)
@@ -51,6 +48,7 @@ The post-collapse subscription list replaces the legacy 6 per-entity events (GOA
 
 ## Tests
 - handlers/event-listener.test.ts
+- handlers/dashboard-publisher.test.ts
 - repositories/dashboard.repository.test.ts
 - transforms/advisory-status.test.ts
 - transforms/investor-snapshot.test.ts
@@ -58,6 +56,8 @@ The post-collapse subscription list replaces the legacy 6 per-entity events (GOA
 - transforms/position-snapshot.test.ts
 - transforms/recent-activity.test.ts
 - transforms/time-travel-availability.test.ts
+- test/integration/dashboard-bff.integration.test.ts
+- test/integration/read-model-projection.integration.test.ts
 
 ## Dependencies
 - libs: cdk-constructs (core), event-processor
