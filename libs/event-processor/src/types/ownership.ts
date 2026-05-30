@@ -64,8 +64,14 @@ export type P3Key = ProjectionKeysOf<'P3'>;
 
 // --- factory constraints: reject known-bad, allow unregistered + ok ---
 
-/** projectVersioned: only P1 (or unregistered). Reject command-owned / P2 / P3. */
-export type RejectNonP1<K extends string> = K extends CommandOwnedKey | P2Key | P3Key ? never : K;
+/**
+ * projectVersioned: versioned snapshots — full-entity copies (P1) AND derived
+ * rollups (P3). Reject command-owned and P2 (append-log). A P3 derived aggregate
+ * is mechanically a versioned full-row write, identical to P1; the variant tag is
+ * semantic and still forbids accumulate/command-writes (RejectProjection). The
+ * name is kept for call-site stability.
+ */
+export type RejectNonP1<K extends string> = K extends CommandOwnedKey | P2Key ? never : K;
 
 /** project / accumulate / update / updateOrRetry: reject ANY projection. */
 export type RejectProjection<K extends string> = K extends AnyProjectionKey ? never : K;

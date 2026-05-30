@@ -19,6 +19,7 @@ declare module '../../src' {
   interface ReadModelOwnership {
     TestP1: Projection<'P1'>;
     TestP2: Projection<'P2'>;
+    TestP3: Projection<'P3'>;
     TestCmd: CommandOwned;
   }
 }
@@ -47,3 +48,14 @@ accumulate('TestCmd', { field: 'count', increment: 1 });
 update('TestCmd', { a: 1 });
 // @ts-expect-error — projectVersioned on a command-owned row must not typecheck
 projectVersioned('TestCmd', { a: 1 }, { version: 1 });
+
+// P3 derived aggregate: projectVersioned ok (mechanically identical to P1 full-row snapshot).
+projectVersioned('TestP3', { a: 1 }, { version: 1 });
+// @ts-expect-error — accumulate on a P3 projection must not typecheck
+accumulate('TestP3', { field: 'count', increment: 1 });
+// @ts-expect-error — unconditional project on a P3 projection must not typecheck
+project('TestP3', { a: 1 });
+// @ts-expect-error — command update on a P3 projection must not typecheck
+update('TestP3', { a: 1 });
+// @ts-expect-error — record (append) on a P3 projection must not typecheck
+record('TestP3', { a: 1 });

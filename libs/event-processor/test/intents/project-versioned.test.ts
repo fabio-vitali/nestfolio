@@ -1,4 +1,10 @@
 import { projectVersioned } from '../../src/intents/project-versioned';
+import type { Projection } from '../../src/types/ownership';
+
+// Register a probe P3 typename so RejectNonP1<'AdvisoryStatusProbe'> resolves to the literal.
+declare module '../../src' {
+  interface ReadModelOwnership { AdvisoryStatusProbe: Projection<'P3'> }
+}
 
 describe('projectVersioned()', () => {
   it('creates a ProjectVersionedIntent (inline fields + static version)', () => {
@@ -46,6 +52,21 @@ describe('projectVersioned()', () => {
       typename: 'PortfolioSummary',
       fields: { totalValueCents: 30 },
       version: 4,
+    });
+  });
+});
+
+describe('projectVersioned accepts P3 (derived aggregate) typenames', () => {
+  it('compiles + returns an intent for a P3-tagged typename', () => {
+    const intent = projectVersioned('AdvisoryStatusProbe', { inFlightCount: 3 }, {
+      version: 5, overrides: { pk: 'T#t1', sk: 'AdvisoryStatus' },
+    });
+    expect(intent).toEqual({
+      _tag: 'projectVersioned',
+      typename: 'AdvisoryStatusProbe',
+      fields: { inFlightCount: 3 },
+      version: 5,
+      overrides: { pk: 'T#t1', sk: 'AdvisoryStatus' },
     });
   });
 });
