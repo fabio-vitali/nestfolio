@@ -94,7 +94,7 @@ describe('DecisionPacketRepository', () => {
   });
 
   describe('createDecisionPacket', () => {
-    it('should create a DecisionPacket with status INITIATED and persist content fields', async () => {
+    it('should create a DecisionPacket with status PENDING and persist content fields', async () => {
       mockSend.mockResolvedValueOnce({});
 
       const created = await repo.createDecisionPacket({
@@ -118,7 +118,7 @@ describe('DecisionPacketRepository', () => {
         userId: 'u1',
         region: 'us-east-1',
         decisionId: 'dp-1',
-        status: 'INITIATED',
+        status: 'PENDING',
         trigger: 'MANDATE_CREATED',
         triggerEventId: 'evt-1',
         executionArn: 'arn:aws:states:us-east-1:123:execution:sm:exec-1',
@@ -126,6 +126,23 @@ describe('DecisionPacketRepository', () => {
         proposedTrades: [{ symbol: 'AAPL' }],
         confirmationRequired: true,
       });
+    });
+
+    it('stamps __version=1 and status=PENDING on create', async () => {
+      mockSend.mockResolvedValueOnce({});
+      await repo.createDecisionPacket({
+        decisionId: 'dp-1',
+        trigger: 'MANDATE_CREATED',
+        triggerEventId: 'evt-1',
+        executionArn: 'arn:aws:states:us-east-1:123:execution:sm:exec-1',
+        explanation: 'detailed reasoning',
+        proposedTrades: [{ symbol: 'AAPL' }],
+        confirmationRequired: true,
+      }, TEST_CTX as any);
+      const call = mockSend.mock.calls[0][0];
+      const item = call.input.Item;
+      expect(item.__version).toBe(1);
+      expect(item.status).toBe('PENDING');
     });
 
     it('should return false when conditional write fails (duplicate)', async () => {

@@ -1,5 +1,6 @@
 /** Status of a DecisionPacket through the Step Functions workflow. */
 export type WorkflowStatus =
+  | 'PENDING'
   | 'INITIATED'
   | 'PROFILING'
   | 'CONSTRUCTING'
