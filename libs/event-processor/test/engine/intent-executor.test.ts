@@ -351,5 +351,18 @@ describe('IntentExecutor', () => {
       await expect(executor.execute(intent, fakeCtx))
         .rejects.toThrow('throughput-exceeded');
     });
+
+    it('appends an ADD clause for the add option (atomic counter)', async () => {
+      const intent = update('DecisionPacket', { status: 'CONFIRMED' }, {
+        add: { __version: 1 },
+        overrides: { pk: 'DecisionPacket#t1#d1', sk: 'DecisionPacket' },
+      });
+      await executor.execute(intent, fakeCtx);
+      const cmd = ddbMock.commandCalls(UpdateCommand)[0].args[0].input;
+      expect(cmd.UpdateExpression).toContain('SET');
+      expect(cmd.UpdateExpression).toContain('ADD');
+      expect(cmd.ExpressionAttributeNames).toMatchObject({ '#a0': '__version' });
+      expect(cmd.ExpressionAttributeValues).toMatchObject({ ':a0': 1 });
+    });
   });
 });

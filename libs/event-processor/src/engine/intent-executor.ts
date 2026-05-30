@@ -187,6 +187,20 @@ export class IntentExecutor {
       updateExpr += ` REMOVE ${removeParts.join(', ')}`;
     }
 
+    if (intent.add && Object.keys(intent.add).length > 0) {
+      const addParts: string[] = [];
+      let a = 0;
+      for (const [field, inc] of Object.entries(intent.add)) {
+        const nameKey = `#a${a}`;
+        const valKey = `:a${a}`;
+        names[nameKey] = field;
+        values[valKey] = inc;
+        addParts.push(`${nameKey} ${valKey}`);
+        a++;
+      }
+      updateExpr += ` ADD ${addParts.join(', ')}`;
+    }
+
     if (intent.conditionNames) Object.assign(names, intent.conditionNames);
     if (intent.conditionValues) Object.assign(values, intent.conditionValues);
 

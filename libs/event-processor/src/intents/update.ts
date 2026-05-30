@@ -9,6 +9,7 @@ export function update<K extends string>(
   updates: Record<string, unknown>,
   options?: {
     removes?: string[];
+    add?: Record<string, number>;
     condition?: string;
     conditionNames?: Record<string, string>;
     conditionValues?: Record<string, unknown>;
@@ -21,6 +22,7 @@ export function update<K extends string>(
     typename: name,
     updates,
     ...(options?.removes ? { removes: options.removes } : {}),
+    ...(options?.add ? { add: options.add } : {}),
     ...(options?.condition ? { condition: options.condition } : {}),
     ...(options?.conditionNames ? { conditionNames: options.conditionNames } : {}),
     ...(options?.conditionValues ? { conditionValues: options.conditionValues } : {}),

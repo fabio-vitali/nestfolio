@@ -40,6 +40,13 @@ export interface UpdateIntent {
   readonly typename: string;
   readonly updates: Record<string, unknown>;
   readonly removes?: string[];
+  /**
+   * Fields to atomically increment using a DynamoDB ADD clause in the same
+   * UpdateExpression as the SET, without a prior read. Keys are attribute
+   * names; values are the numeric increment (typically 1). Use for monotonic
+   * counters such as `__version` on a command-owned row.
+   */
+  readonly add?: Record<string, number>;
   readonly condition?: string;
   readonly conditionNames?: Record<string, string>;
   readonly conditionValues?: Record<string, unknown>;
