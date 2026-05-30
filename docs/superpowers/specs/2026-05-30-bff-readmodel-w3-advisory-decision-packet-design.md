@@ -196,6 +196,25 @@ decision-workflow-ctrl (sole writer of the DecisionPacket aggregate, stamps __ve
   new-investor e2e scenarios. Confirm the L2 confirm/reject still resumes the SF
   (taskToken round-trip through the projected row).
 
+## Formalized rule (carry to w6 governance)
+
+**Intent-event + optimistic-UI rule.** A user action that mutates an entity this BFF
+does **not** own is emitted as an *intent event* — a write to an intent row (e.g.
+`UserConfirmation`/`UserRejection`) whose CDC announces it to the owning service —
+plus client-side optimistic UI. The BFF resolver **never** writes the action's result
+onto its own projection row; the authoritative terminal state arrives back through the
+owner's versioned projection. (Realized in w3 by confirm/reject: the resolver writes
+only the intent row carrying the SF task token; the advisory MFE flips the badge
+optimistically; the versioned `DecisionReadModel` snapshot reconciles.) This is the
+command-side companion to the program spec's "single writer per aggregate": the command
+side of a non-owned mutation is an event, not a projection write. To be enforced as a
+w6 layer (`event-processor-patterns` + `create-mfe` + the `audit-*` drift checks).
+
+A second rule established here: `projectVersioned` is the blessed write for **both**
+P1 full-entity copies and P3 derived aggregates (a P3 rollup is mechanically a
+versioned full-row snapshot); `accumulate` on a `Projection<*>` typename is forbidden
+by construction (`RejectProjection`) and now fails typecheck.
+
 ## Out of scope
 
 - investor-bff `CashBalance` P1 + command-row confirmation — **w4**.
