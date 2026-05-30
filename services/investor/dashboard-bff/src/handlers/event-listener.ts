@@ -1,3 +1,4 @@
+import '../read-model-ownership';
 import { materializeToTable, toUow } from '@nestfolio/event-processor';
 import type { EventPayload, EventContext } from '@nestfolio/event-processor';
 import { LedgerCrossDomainEventTypes } from '@nestfolio/ledger-adpt/domain';
