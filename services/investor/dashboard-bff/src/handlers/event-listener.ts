@@ -32,39 +32,24 @@ export function createHandlers() {
       recentActivity(toUow(payload, ctx)),
     [AdvisoryCrossDomainEventTypes.USER_CONFIRMATION_REQUESTED]: (payload: EventPayload, ctx: EventContext) =>
       recentActivity(toUow(payload, ctx)),
-    [AdvisoryCrossDomainEventTypes.DECISION_APPROVED]: (payload: EventPayload, ctx: EventContext) => [
-      advisoryStatus(toUow(payload, ctx)),
+    [AdvisoryCrossDomainEventTypes.DECISION_APPROVED]: (payload: EventPayload, ctx: EventContext) =>
       recentActivity(toUow(payload, ctx)),
-    ],
-    [AdvisoryCrossDomainEventTypes.DECISION_BLOCKED]: (payload: EventPayload, ctx: EventContext) => [
-      advisoryStatus(toUow(payload, ctx)),
+    [AdvisoryCrossDomainEventTypes.DECISION_BLOCKED]: (payload: EventPayload, ctx: EventContext) =>
       recentActivity(toUow(payload, ctx)),
-    ],
+    // advisory-bff is the authoritative owner of AdvisoryStatus; we project its
+    // announced aggregate (forwarded advisory→investor by investor-adpt, Task 4.1).
+    [InvestorIngestEventTypes.ADVISORY_STATUS_UPDATED]: (payload: EventPayload, ctx: EventContext) =>
+      advisoryStatus(toUow(payload, ctx)),
     [LedgerCrossDomainEventTypes.LEDGER_ENTRY_RECORDED]: (payload: EventPayload, ctx: EventContext) =>
       timeTravelAvailability(toUow(payload, ctx)),
-    [InvestorBffEventTypes.INVESTOR_PROFILE_CREATED]: (payload: EventPayload, ctx: EventContext) => [
+    [InvestorBffEventTypes.INVESTOR_PROFILE_CREATED]: (payload: EventPayload, ctx: EventContext) =>
       investorSnapshot(toUow(payload, ctx)),
-      advisoryStatus(toUow(payload, ctx)),
-    ].filter((i): i is NonNullable<typeof i> => i != null),
-    [InvestorBffEventTypes.INVESTOR_PROFILE_UPDATED]: (payload: EventPayload, ctx: EventContext) => [
+    [InvestorBffEventTypes.INVESTOR_PROFILE_UPDATED]: (payload: EventPayload, ctx: EventContext) =>
       investorSnapshot(toUow(payload, ctx)),
-      advisoryStatus(toUow(payload, ctx)),
-    ].filter((i): i is NonNullable<typeof i> => i != null),
-    [InvestorIngestEventTypes.DEPOSIT_DETECTED]: (payload: EventPayload, ctx: EventContext) => [
+    [InvestorIngestEventTypes.DEPOSIT_DETECTED]: (payload: EventPayload, ctx: EventContext) =>
       recentActivity(toUow(payload, ctx)),
-      advisoryStatus(toUow(payload, ctx)),
-    ].filter((i): i is NonNullable<typeof i> => i != null),
     [InvestorIngestEventTypes.WITHDRAWAL_COMPLETED]: (payload: EventPayload, ctx: EventContext) =>
       recentActivity(toUow(payload, ctx)),
-    // Phase 2 — additional triggers for in-flight projection
-    [InvestorIngestEventTypes.ORDER_FILLED]: (payload: EventPayload, ctx: EventContext) =>
-      advisoryStatus(toUow(payload, ctx)),
-    [InvestorIngestEventTypes.ORDER_REJECTED]: (payload: EventPayload, ctx: EventContext) =>
-      advisoryStatus(toUow(payload, ctx)),
-    [InvestorIngestEventTypes.ORDER_CANCELLED]: (payload: EventPayload, ctx: EventContext) =>
-      advisoryStatus(toUow(payload, ctx)),
-    [InvestorIngestEventTypes.PORTFOLIO_DRIFT_DETECTED]: (payload: EventPayload, ctx: EventContext) =>
-      advisoryStatus(toUow(payload, ctx)),
   };
 }
 

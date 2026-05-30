@@ -37,14 +37,12 @@ export class DashboardBffStack extends ServiceStack {
         InvestorIngestEventTypes.LEDGER_ENTRY_RECORDED,
         InvestorBffEventTypes.INVESTOR_PROFILE_CREATED,
         InvestorBffEventTypes.INVESTOR_PROFILE_UPDATED,
-        InvestorBffEventTypes.MANDATE_ISSUED,
         InvestorIngestEventTypes.DEPOSIT_DETECTED,
         InvestorIngestEventTypes.WITHDRAWAL_COMPLETED,
-        // Phase 2 — additional triggers for in-flight projection
-        InvestorIngestEventTypes.ORDER_FILLED,
-        InvestorIngestEventTypes.ORDER_REJECTED,
-        InvestorIngestEventTypes.ORDER_CANCELLED,
-        InvestorIngestEventTypes.PORTFOLIO_DRIFT_DETECTED,
+        // AdvisoryStatus is now projected from advisory-bff's authoritative
+        // announcement (forwarded advisory→investor by investor-adpt, Task 4.1)
+        // instead of accumulated from disparate trigger events.
+        InvestorIngestEventTypes.ADVISORY_STATUS_UPDATED,
       ],
     });
 
