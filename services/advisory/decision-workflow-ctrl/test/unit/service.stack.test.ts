@@ -301,8 +301,6 @@ describe('DecisionWorkflowCtrlStack', () => {
       const stateMachines = template.findResources('AWS::StepFunctions::StateMachine');
       const smLogicalId = Object.keys(stateMachines)[0];
 
-      // Find the IAM Role associated with the state machine (its RoleArn references the role logical ID).
-      const roles = template.findResources('AWS::IAM::Role');
       // The SF role logical ID is embedded in the RoleArn of the state machine resource.
       const smRoleArn = (stateMachines as any)[smLogicalId]?.Properties?.RoleArn;
       // smRoleArn is {Fn::GetAtt: [roleLogicalId, 'Arn']} or similar.
