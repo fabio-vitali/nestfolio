@@ -291,6 +291,43 @@ describe('DecisionWorkflowCtrlStack', () => {
     });
   });
 
+  describe('SF role has dynamodb:UpdateItem on State table (for token-write SF state)', () => {
+    // This test must scope to the SF execution role's policies only.
+    // CDK names the SF role logical ID containing 'DecisionStateMachine' + 'Role'.
+    // The AssemblePacket Lambda already has grantWriteData (so UpdateItem exists in
+    // Lambda policies too) — we must verify the SF role specifically, not any policy.
+    it('grants the state machine dynamodb:UpdateItem on the State table (for the RequestUserConfirmation aws-sdk:dynamodb:updateItem.waitForTaskToken state)', () => {
+      // Find the SF state machine logical ID.
+      const stateMachines = template.findResources('AWS::StepFunctions::StateMachine');
+      const smLogicalId = Object.keys(stateMachines)[0];
+
+      // Find the IAM Role associated with the state machine (its RoleArn references the role logical ID).
+      const roles = template.findResources('AWS::IAM::Role');
+      // The SF role logical ID is embedded in the RoleArn of the state machine resource.
+      const smRoleArn = (stateMachines as any)[smLogicalId]?.Properties?.RoleArn;
+      // smRoleArn is {Fn::GetAtt: [roleLogicalId, 'Arn']} or similar.
+      const smRoleLogicalId: string =
+        smRoleArn?.['Fn::GetAtt']?.[0] ?? smRoleArn?.Ref ?? '';
+      expect(smRoleLogicalId).toBeTruthy();
+
+      // Find IAM Policies that are attached to the SF role (Roles array contains the role logical id ref).
+      const policies = template.findResources('AWS::IAM::Policy');
+      const sfRolePolicies = Object.values(policies).filter((p: any) =>
+        (p.Properties?.Roles ?? []).some(
+          (r: any) => r?.Ref === smRoleLogicalId,
+        ),
+      );
+      expect(sfRolePolicies.length).toBeGreaterThan(0);
+
+      // Flatten all actions from the SF role's policies.
+      const sfRoleActions = sfRolePolicies
+        .flatMap((p: any) => p.Properties.PolicyDocument.Statement ?? [])
+        .flatMap((s: any) => (Array.isArray(s.Action) ? s.Action : [s.Action]));
+
+      expect(sfRoleActions).toContain('dynamodb:UpdateItem');
+    });
+  });
+
   it('SF definition contains the three dynamodb:getItem steps (LookupMandateSnapshot + LookupInvestorProfileSnapshot + LookupMarketSnapshot)', () => {
     // Post-precomputation rewire: in addition to the existing mandate lookup,
     // the SF now reads InvestorProfile + Market snapshot rows from its own table.
