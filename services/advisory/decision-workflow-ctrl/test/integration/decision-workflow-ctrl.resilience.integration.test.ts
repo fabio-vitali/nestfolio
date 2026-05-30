@@ -137,7 +137,14 @@ describe('decision-workflow-ctrl resilience: idempotency', () => {
         sk: 'DecisionPacket',
         timeoutMs: 60_000,
       });
-      expect(first['status']).toBe('AWAITING_CONFIRMATION');
+      // Post-w3 (bff-readmodel-w3): the L2 AWAITING_CONFIRMATION status is written
+      // SOLELY by the SF RequestUserConfirmation state (single writer). The
+      // compliance callback records only the verdict (complianceResult +
+      // authorityLevel) + a monotonic __version. No SF runs in this synthetic
+      // injection, so status stays absent — assert the verdict fields instead.
+      expect(first['complianceResult']).toBe('APPROVED');
+      expect(first['authorityLevel']).toBe('L2');
+      expect(first['status']).toBeUndefined();
 
       // Duplicate
       await eb.putEvent({
@@ -155,10 +162,15 @@ describe('decision-workflow-ctrl resilience: idempotency', () => {
         sk: 'DecisionPacket',
         timeoutMs: 5_000,
       });
-      // Same row, same status — UpdateItem upsert is idempotent under
-      // identical input (no compliance race conditions for this test).
-      expect(second['status']).toBe('AWAITING_CONFIRMATION');
+      // Same row, same verdict — UpdateItem upsert is idempotent under identical
+      // input. __version increments per delivery by design (D1: at-least-once
+      // redelivery bumps the version with identical content; the consumer's
+      // projectVersioned guard dedupes/orders), so assert verdict-content
+      // idempotency + an active counter, not a pinned version.
+      expect(second['complianceResult']).toBe('APPROVED');
       expect(second['authorityLevel']).toBe('L2');
+      expect(second['status']).toBeUndefined();
+      expect(typeof second['__version']).toBe('number');
 
       // Still exactly one DecisionPacket row for this decisionId
       const count = await countItems(
