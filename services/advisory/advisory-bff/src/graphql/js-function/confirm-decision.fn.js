@@ -13,9 +13,16 @@ export function request(ctx) {
 
   // get-decision-readback pre-step has placed the existing DecisionReadModel
   // in ctx.prev.result. Lift taskToken (stamped by SF on
-  // USER_CONFIRMATION_REQUESTED) onto the UserConfirmation row so CDC
+  // USER_CONFIRMATION_REQUESTED) onto the UserConfirmation intent row so CDC
   // re-emits USER_CONFIRMED with subject.taskToken. Without this, the SF
   // execution waiting at WaitForUserResponse cannot resume.
+  //
+  // This resolver writes ONLY the UserConfirmation intent row. It no longer
+  // echoes status onto the DecisionReadModel projection row — that row is a
+  // P1 projection whose sole writer is projectVersioned. The terminal status
+  // arrives via the versioned projection after the SF resumes and DWC updates
+  // the DecisionPacket. The MFE reflects the action optimistically (see
+  // advisory-mfe).
   const taskToken = ctx.prev?.result?.taskToken;
 
   const now = util.time.nowISO8601();
@@ -35,30 +42,9 @@ export function request(ctx) {
   }
 
   return {
-    operation: 'TransactWriteItems',
-    transactItems: [
-      {
-        table: ctx.stash.tableName,
-        operation: 'UpdateItem',
-        key: util.dynamodb.toMapValues({ pk, sk: 'DecisionReadModel' }),
-        update: {
-          expression: 'SET #status = :status, confirmedAt = :now, confirmedBy = :userId, version = version + :one',
-          expressionNames: { '#status': 'status' },
-          expressionValues: util.dynamodb.toMapValues({
-            ':status': 'CONFIRMED',
-            ':now': now,
-            ':userId': userId,
-            ':one': 1,
-          }),
-        },
-      },
-      {
-        table: ctx.stash.tableName,
-        operation: 'PutItem',
-        key: util.dynamodb.toMapValues({ pk, sk: `UserConfirmation#${util.autoId()}` }),
-        attributeValues: util.dynamodb.toMapValues(userConfirmationAttrs),
-      },
-    ],
+    operation: 'PutItem',
+    key: util.dynamodb.toMapValues({ pk, sk: `UserConfirmation#${util.autoId()}` }),
+    attributeValues: util.dynamodb.toMapValues(userConfirmationAttrs),
   };
 }
 

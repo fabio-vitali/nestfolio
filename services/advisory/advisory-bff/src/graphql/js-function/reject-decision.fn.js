@@ -17,8 +17,16 @@ export function request(ctx) {
     util.error('reason must be 2000 characters or less', 'ValidationError');
   }
 
-  // See confirm-decision.fn.js for the rationale on lifting taskToken from
-  // ctx.prev.result onto the UserRejection row.
+  // get-decision-readback pre-step has placed the existing DecisionReadModel
+  // in ctx.prev.result. Lift taskToken onto the UserRejection intent row so CDC
+  // re-emits USER_REJECTED with subject.taskToken and the SF can resume.
+  //
+  // This resolver writes ONLY the UserRejection intent row. It no longer
+  // echoes status onto the DecisionReadModel projection row — that row is a
+  // P1 projection whose sole writer is projectVersioned. The terminal status
+  // arrives via the versioned projection after the SF resumes and DWC updates
+  // the DecisionPacket. The MFE reflects the action optimistically (see
+  // advisory-mfe).
   const taskToken = ctx.prev?.result?.taskToken;
 
   const now = util.time.nowISO8601();
@@ -39,31 +47,9 @@ export function request(ctx) {
   }
 
   return {
-    operation: 'TransactWriteItems',
-    transactItems: [
-      {
-        table: ctx.stash.tableName,
-        operation: 'UpdateItem',
-        key: util.dynamodb.toMapValues({ pk, sk: 'DecisionReadModel' }),
-        update: {
-          expression: 'SET #status = :status, rejectedAt = :now, rejectionReason = :reason, rejectedBy = :userId, version = version + :one',
-          expressionNames: { '#status': 'status' },
-          expressionValues: util.dynamodb.toMapValues({
-            ':status': 'REJECTED',
-            ':now': now,
-            ':reason': reason,
-            ':userId': userId,
-            ':one': 1,
-          }),
-        },
-      },
-      {
-        table: ctx.stash.tableName,
-        operation: 'PutItem',
-        key: util.dynamodb.toMapValues({ pk, sk: `UserRejection#${util.autoId()}` }),
-        attributeValues: util.dynamodb.toMapValues(userRejectionAttrs),
-      },
-    ],
+    operation: 'PutItem',
+    key: util.dynamodb.toMapValues({ pk, sk: `UserRejection#${util.autoId()}` }),
+    attributeValues: util.dynamodb.toMapValues(userRejectionAttrs),
   };
 }
 

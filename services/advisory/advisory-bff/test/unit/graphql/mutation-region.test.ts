@@ -20,8 +20,8 @@ describe('advisory-bff mutation resolvers persist region', () => {
       arguments: { decisionId: 'decision-1' },
       prev: { result: {} },
     });
-    const putItem = op.transactItems.find((t: { operation: string }) => t.operation === 'PutItem');
-    expect(putItem.attributeValues.region).toEqual({ S: 'us-east-1' });
+    expect(op.operation).toBe('PutItem');
+    expect(op.attributeValues.region).toEqual({ S: 'us-east-1' });
   });
 
   it('reject-decision writes region on the UserRejection row', () => {
@@ -30,8 +30,8 @@ describe('advisory-bff mutation resolvers persist region', () => {
       arguments: { decisionId: 'decision-1', reason: 'not now' },
       prev: { result: {} },
     });
-    const putItem = op.transactItems.find((t: { operation: string }) => t.operation === 'PutItem');
-    expect(putItem.attributeValues.region).toEqual({ S: 'us-east-1' });
+    expect(op.operation).toBe('PutItem');
+    expect(op.attributeValues.region).toEqual({ S: 'us-east-1' });
   });
 
   it('record-explanation-view writes region on the UserInteraction row', () => {
