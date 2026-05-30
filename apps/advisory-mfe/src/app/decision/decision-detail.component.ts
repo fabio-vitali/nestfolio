@@ -430,16 +430,20 @@ export class DecisionDetailComponent implements OnInit, OnDestroy {
   }
 
   async onConfirm(): Promise<void> {
-    const decisionId = this.store.decision()?.decisionId;
-    if (!decisionId) return;
+    const current = this.store.decision();
+    if (!current) return;
 
     this.actionType = 'confirm';
     this.store.setLoading(true);
+    // Optimistic: flip the badge now; the authoritative CONFIRMED arrives via the
+    // onDecisionUpdate projection frame (version > current.version, so it lands).
+    // Keep current.version so the optimistic write never blocks the real frame.
+    this.store.setDecision({ ...current, status: 'CONFIRMED' });
     try {
-      const updated = await this.advisoryService.confirmDecision(decisionId);
-      this.store.setDecision(updated);
+      await this.advisoryService.confirmDecision(current.decisionId);
       this.store.setSuccess(this.translate.instant('advisory.detail.confirmSuccess'));
     } catch (e: unknown) {
+      this.store.setDecision(current); // revert optimistic update
       this.store.setError(parseError(e, 'errors.decision'));
     } finally {
       this.store.setLoading(false);
@@ -448,18 +452,19 @@ export class DecisionDetailComponent implements OnInit, OnDestroy {
   }
 
   async onReject(): Promise<void> {
-    const decisionId = this.store.decision()?.decisionId;
-    if (!decisionId) return;
+    const current = this.store.decision();
+    if (!current) return;
 
     this.actionType = 'reject';
     this.store.setLoading(true);
+    this.store.setDecision({ ...current, status: 'REJECTED' });
     try {
-      const updated = await this.advisoryService.rejectDecision(decisionId, this.rejectReason.trim());
-      this.store.setDecision(updated);
+      await this.advisoryService.rejectDecision(current.decisionId, this.rejectReason.trim());
       this.showRejectDialog = false;
       this.rejectReason = '';
       this.store.setSuccess(this.translate.instant('advisory.detail.rejectSuccess'));
     } catch (e: unknown) {
+      this.store.setDecision(current); // revert
       this.store.setError(parseError(e, 'errors.decision'));
     } finally {
       this.store.setLoading(false);

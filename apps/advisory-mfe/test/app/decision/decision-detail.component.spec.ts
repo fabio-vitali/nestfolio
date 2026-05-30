@@ -467,4 +467,64 @@ describe('DecisionDetailComponent', () => {
     expect(component.showRejectDialog).toBe(false);
     expect(component.rejectReason).toBe('');
   });
+
+  // ── Optimistic-update tests (intent-event model) ──────────────────────────
+  // The confirm/reject mutations now return the PRE-confirmation read-back row
+  // (status still AWAITING_CONFIRMATION). The component must flip the badge
+  // optimistically on click and NOT overwrite it with the stale resolve.
+
+  it('onConfirm: flips status to CONFIRMED optimistically despite stale mutation response', async () => {
+    const seeded = { ...mockDecision, status: 'AWAITING_CONFIRMATION', version: 5 };
+    advisoryService.getDecision.mockResolvedValue(seeded);
+    // confirmDecision returns the OLD row — same version, still AWAITING_CONFIRMATION
+    advisoryService.confirmDecision.mockResolvedValue({ ...seeded, status: 'AWAITING_CONFIRMATION' });
+    await component.ngOnInit();
+
+    await component.onConfirm();
+
+    expect(store.decision()?.status).toBe('CONFIRMED');
+    expect(store.successMessage()).toBeTruthy();
+  });
+
+  it('onConfirm: reverts status to AWAITING_CONFIRMATION on error', async () => {
+    const seeded = { ...mockDecision, status: 'AWAITING_CONFIRMATION', version: 5 };
+    advisoryService.getDecision.mockResolvedValue(seeded);
+    advisoryService.confirmDecision.mockRejectedValue(new Error('Network failure'));
+    await component.ngOnInit();
+
+    await component.onConfirm();
+
+    expect(store.decision()?.status).toBe('AWAITING_CONFIRMATION');
+    expect(store.error()).toBeTruthy();
+  });
+
+  it('onReject: flips status to REJECTED optimistically despite stale mutation response and clears dialog', async () => {
+    const seeded = { ...mockDecision, status: 'AWAITING_CONFIRMATION', version: 5 };
+    advisoryService.getDecision.mockResolvedValue(seeded);
+    // rejectDecision returns the OLD row — status still AWAITING_CONFIRMATION
+    advisoryService.rejectDecision.mockResolvedValue({ ...seeded, status: 'AWAITING_CONFIRMATION' });
+    await component.ngOnInit();
+
+    component.showRejectDialog = true;
+    component.rejectReason = 'Too risky';
+    await component.onReject();
+
+    expect(store.decision()?.status).toBe('REJECTED');
+    expect(store.successMessage()).toBeTruthy();
+    expect(component.showRejectDialog).toBe(false);
+    expect(component.rejectReason).toBe('');
+  });
+
+  it('onReject: reverts status to AWAITING_CONFIRMATION on error', async () => {
+    const seeded = { ...mockDecision, status: 'AWAITING_CONFIRMATION', version: 5 };
+    advisoryService.getDecision.mockResolvedValue(seeded);
+    advisoryService.rejectDecision.mockRejectedValue(new Error('Network failure'));
+    await component.ngOnInit();
+
+    component.rejectReason = 'Too risky';
+    await component.onReject();
+
+    expect(store.decision()?.status).toBe('AWAITING_CONFIRMATION');
+    expect(store.error()).toBeTruthy();
+  });
 });
