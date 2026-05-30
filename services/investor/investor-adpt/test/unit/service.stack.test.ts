@@ -27,6 +27,14 @@ describe('InvestorAdptStack', () => {
     });
   });
 
+  it('forwards ADVISORY_STATUS_UPDATED from advisory bus', () => {
+    template.hasResourceProperties('AWS::Events::Rule', {
+      EventPattern: Match.objectLike({
+        'detail-type': Match.arrayWith(['ADVISORY_STATUS_UPDATED']),
+      }),
+    });
+  });
+
   it('ingests from execution bus', () => {
     template.hasResourceProperties('AWS::Events::Rule', {
       EventPattern: Match.objectLike({

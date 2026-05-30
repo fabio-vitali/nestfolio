@@ -15,6 +15,7 @@ export const AdvisoryCrossDomainEventTypes = {
   ESCALATION_TRIGGERED: eventName('ESCALATION_TRIGGERED'),
   INCIDENT_DETECTED: eventName('INCIDENT_DETECTED'),
   INCIDENT_RESOLVED: eventName('INCIDENT_RESOLVED'),
+  ADVISORY_STATUS_UPDATED: eventName('ADVISORY_STATUS_UPDATED'),
   // → Execution only
   USER_CONFIRMED: eventName('USER_CONFIRMED'),
 } as const;
