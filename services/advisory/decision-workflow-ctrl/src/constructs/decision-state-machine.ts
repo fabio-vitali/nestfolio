@@ -265,8 +265,6 @@ export class DecisionWorkflowDefinition extends Construct {
         // resolver reads it back to resume this SF. This is the single atomic write
         // that also sets status=AWAITING_CONFIRMATION and bumps __version — the SF
         // is now the sole writer of the AWAITING_CONFIRMATION status.
-        // Replaces the prior putEvents(USER_CONFIRMATION_REQUESTED).waitForTaskToken
-        // fragment event (Workstream 3, Task 1.3).
         Resource: 'arn:aws:states:::aws-sdk:dynamodb:updateItem.waitForTaskToken',
         Parameters: {
           TableName: props.tableName,
