@@ -58,23 +58,6 @@ describe('broadcast-listener', () => {
     ]);
   });
 
-  it('on DEPOSIT_DETECTED fires publishDepositEvent with the inbound subject', async () => {
-    await handler(sqsEvent([{
-      type: 'DEPOSIT_DETECTED',
-      subject: {
-        tenantId: 't1', userId: 'u1', depositId: 'dep-1',
-        amountCents: 500000, currency: 'EUR',
-      },
-    }]), {} as never, () => {});
-    expect(postAppSyncMutation).toHaveBeenCalledTimes(1);
-    expect((postAppSyncMutation as jest.Mock).mock.calls[0][0].variables).toMatchObject({
-      input: {
-        depositId: 'dep-1', tenantId: 't1', userId: 'u1',
-        status: 'DETECTED', amountCents: 500000, currency: 'EUR',
-      },
-    });
-  });
-
   it('skips events with unconfigured types', async () => {
     await handler(sqsEvent([{ type: 'BALANCE_UPDATED', subject: {} }]), {} as never, () => {});
     expect(postAppSyncMutation).not.toHaveBeenCalled();

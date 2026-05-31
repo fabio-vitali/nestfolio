@@ -54,7 +54,6 @@ export class InvestorBffStack extends ServiceStack {
       eventTypes: [
         InvestorBffEventTypes.BROKER_CIRCUIT_OPEN,
         InvestorBffEventTypes.BROKER_CIRCUIT_CLOSED,
-        InvestorIngestEventTypes.DEPOSIT_DETECTED,
       ],
       environment: facade.graphqlUrl ? { APPSYNC_URL: facade.graphqlUrl } : {},
     });

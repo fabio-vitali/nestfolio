@@ -58,10 +58,13 @@ describe('onboardingCompleted transform', () => {
     expect(items.find((i: any) => i.Put?.Item.sk === 'MandateStatus')).toBeUndefined();
   });
 
-  it('writes Deposit when capitalAmount > 0', async () => {
+  it('writes a DepositIntent outbox row when capitalAmount > 0', async () => {
     await onboardingCompleted({ subject: baseSubject } as any, ctx as any);
     const items = (InvestorProfileRepository as any).prototype.transactWrite.mock.calls[0][0].TransactItems;
-    expect(items.some((i: any) => i.Put?.Item.__typename === 'Deposit')).toBe(true);
+    const intent = items.find((i: any) => i.Put?.Item.__typename === 'DepositIntent');
+    expect(intent).toBeDefined();
+    expect(String(intent.Put.Item.sk)).toMatch(/^DepositIntent#/);
+    expect(items.some((i: any) => i.Put?.Item.__typename === 'Deposit')).toBe(false);
   });
 
   it('e2e- tenant defaults mandate level to ADVISORY', async () => {

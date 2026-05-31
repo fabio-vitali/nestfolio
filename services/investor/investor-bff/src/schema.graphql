@@ -16,8 +16,6 @@ type Mutation {
   markNotificationRead(notificationId: ID!): Notification!
   updateFeatureFlag(name: String!, enabled: Boolean!, reason: String): FeatureFlag!
     @aws_iam
-  publishDepositEvent(input: DepositEventInput!): DepositEvent!
-    @aws_iam
 }
 
 type Subscription {
@@ -25,8 +23,6 @@ type Subscription {
     @aws_subscribe(mutations: ["markNotificationRead"])
   onFeatureFlagUpdate: FeatureFlag
     @aws_subscribe(mutations: ["updateFeatureFlag"])
-  onDepositEvent(depositId: ID!): DepositEvent
-    @aws_subscribe(mutations: ["publishDepositEvent"])
 }
 
 type FeatureFlag @aws_cognito_user_pools @aws_iam {
@@ -131,6 +127,7 @@ type Deposit @aws_cognito_user_pools {
   status: String!
   initiatedAt: String!
   detectedAt: String
+  settledAt: String
   failedAt: String
   reason: String
 }
@@ -141,6 +138,9 @@ type WithdrawalRequest {
   currency: String!
   status: String!
   requestedAt: String!
+  settledAt: String
+  failedAt: String
+  reason: String
 }
 
 type ClosureRequest {
@@ -188,33 +188,4 @@ input DepositInput {
 input WithdrawalInput {
   amountCents: Int!
   currency: String!
-}
-
-# --- Deposit event (real-time confirmation pipeline) ---
-
-enum DepositStatus {
-  INITIATED
-  DETECTED
-  FAILED
-}
-
-type DepositEvent @aws_cognito_user_pools @aws_iam {
-  depositId: ID!
-  tenantId: ID!
-  status: DepositStatus!
-  amountCents: Int!
-  currency: String!
-  occurredAt: String!
-  reason: String
-}
-
-input DepositEventInput {
-  depositId: ID!
-  tenantId: ID!
-  userId: String!
-  status: DepositStatus!
-  amountCents: Int!
-  currency: String!
-  occurredAt: String!
-  reason: String
 }

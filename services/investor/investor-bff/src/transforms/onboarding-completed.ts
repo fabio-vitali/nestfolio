@@ -102,8 +102,8 @@ export async function onboardingCompleted(
                 TableName: tableName,
                 Item: {
                   pk,
-                  sk: `Deposit#${depositId}`,
-                  __typename: 'Deposit',
+                  sk: `DepositIntent#${depositId}`,
+                  __typename: 'DepositIntent',
                   tenantId: s.tenantId,
                   userId: s.userId,
                   region: ctx.region,
