@@ -14,8 +14,8 @@
  * 4. Timeout / escalation: RouteOrder → no callback → taskToken already cleared
  *
  * Mode Listener: EXECUTION_MODE_CHANGED → ExecutionMode record in DDB
- * Deposit/Withdrawal Router: DEPOSIT_INITIATED / WITHDRAWAL_REQUESTED → routed by mode
- * Deposit/Withdrawal Normalizer: adapter results → NormalizedEvent records in DDB
+ * Deposit/Withdrawal Router: DEPOSIT_INITIATED / WITHDRAWAL_INITIATED → routed by mode + requested FundingEvent carrier
+ * Deposit/Withdrawal Normalizer: adapter results → FundingEvent carrier rows in DDB
  */
 
 // ── Mock setup (BEFORE any imports) ─────────────────────────────────────────
@@ -633,13 +633,13 @@ describe('Deposit/Withdrawal Router Integration', () => {
     });
   });
 
-  describe('WITHDRAWAL_REQUESTED routing', () => {
+  describe('WITHDRAWAL_INITIATED routing', () => {
     it('should route withdrawal to SIM_WITHDRAWAL_REQUESTED when mode=simulation', async () => {
       mockDdbSend.mockResolvedValueOnce({ Item: { mode: 'simulation' } });
 
       const event: SQSEvent = {
         Records: [
-          fakeSqsRecord('WITHDRAWAL_REQUESTED', { amount: 500, currency: 'USD' }, { tenantId: 't-3' }),
+          fakeSqsRecord('WITHDRAWAL_INITIATED', { amount: 500, currency: 'USD' }, { tenantId: 't-3' }),
         ],
       };
 
@@ -663,7 +663,7 @@ describe('Deposit/Withdrawal Router Integration', () => {
 
       const event: SQSEvent = {
         Records: [
-          fakeSqsRecord('WITHDRAWAL_REQUESTED', { amount: 2000, currency: 'USD' }, { tenantId: 't-4' }),
+          fakeSqsRecord('WITHDRAWAL_INITIATED', { amount: 2000, currency: 'USD' }, { tenantId: 't-4' }),
         ],
       };
 
@@ -711,7 +711,17 @@ describe('Deposit/Withdrawal Normalizer Integration', () => {
     mockDdbSend.mockResolvedValue({});
   });
 
-  it('should normalize SIM_DEPOSIT_COMPLETED to NormalizedEvent with sk=DEPOSIT_DETECTED', async () => {
+  /** Collect every Item written via a DDB PutCommand, in call order. */
+  function findPutItems(): Record<string, unknown>[] {
+    const items: Record<string, unknown>[] = [];
+    for (const call of mockDdbSend.mock.calls) {
+      const arg = call[0];
+      if (arg?._type === 'Put') items.push(arg.input?.Item as Record<string, unknown>);
+    }
+    return items;
+  }
+
+  it('should write [DEPOSIT_DETECTED v2, DEPOSIT_SETTLED v3] FundingEvent carriers on SIM_DEPOSIT_COMPLETED', async () => {
     const event: SQSEvent = {
       Records: [
         fakeSqsRecord('SIM_DEPOSIT_COMPLETED', {
@@ -725,25 +735,35 @@ describe('Deposit/Withdrawal Normalizer Integration', () => {
     const result = await depositWithdrawalNormalizer(event);
 
     expect(result.batchItemFailures).toHaveLength(0);
-    const item = findFirstPutItem();
-    expect(item).toBeDefined();
-    expect(item).toMatchObject({
-      __typename: 'NormalizedEvent',
+    const items = findPutItems();
+    expect(items.map((i) => i.sk)).toEqual(['DEPOSIT_DETECTED', 'DEPOSIT_SETTLED']);
+    expect(items[0]).toMatchObject({
+      __typename: 'FundingEvent',
       tenantId: 't-1',
       amountCents: 10000,
       currency: 'USD',
       executionMode: 'simulation',
-      pk: 'NormalizedEvent#t-1#dep-1',
+      direction: 'DEPOSIT',
+      status: 'detected',
+      __version: 2,
+      pk: 'Funding#t-1#dep-1',
       sk: 'DEPOSIT_DETECTED',
+    });
+    expect(items[1]).toMatchObject({
+      __typename: 'FundingEvent',
+      status: 'settled',
+      __version: 3,
+      pk: 'Funding#t-1#dep-1',
+      sk: 'DEPOSIT_SETTLED',
     });
   });
 
-  it('should normalize SIM_WITHDRAWAL_COMPLETED to NormalizedEvent with sk=WITHDRAWAL_COMPLETED', async () => {
+  it('should write [WITHDRAWAL_SETTLED v3] FundingEvent carrier on SIM_WITHDRAWAL_COMPLETED', async () => {
     const event: SQSEvent = {
       Records: [
         fakeSqsRecord('SIM_WITHDRAWAL_COMPLETED', {
           withdrawalId: 'wdl-1',
-          amount: 20000,
+          amountCents: 20000,
           currency: 'USD',
         }, { tenantId: 't-1' }),
       ],
@@ -755,22 +775,25 @@ describe('Deposit/Withdrawal Normalizer Integration', () => {
     const item = findFirstPutItem();
     expect(item).toBeDefined();
     expect(item).toMatchObject({
-      __typename: 'NormalizedEvent',
+      __typename: 'FundingEvent',
       tenantId: 't-1',
-      amount: 20000,
+      amountCents: 20000,
       currency: 'USD',
       executionMode: 'simulation',
-      pk: 'NormalizedEvent#t-1#wdl-1',
-      sk: 'WITHDRAWAL_COMPLETED',
+      direction: 'WITHDRAWAL',
+      status: 'settled',
+      __version: 3,
+      pk: 'Funding#t-1#wdl-1',
+      sk: 'WITHDRAWAL_SETTLED',
     });
   });
 
-  it('should normalize ALPACA_TRANSFER_COMPLETED INCOMING to sk=DEPOSIT_DETECTED', async () => {
+  it('should write live DEPOSIT carriers on ALPACA_TRANSFER_COMPLETED INCOMING', async () => {
     const event: SQSEvent = {
       Records: [
         fakeSqsRecord('ALPACA_TRANSFER_COMPLETED', {
           transferId: 'xfr-1',
-          amount: 50000,
+          amountCents: 50000,
           direction: 'INCOMING',
         }, { tenantId: 't-2' }),
       ],
@@ -779,24 +802,25 @@ describe('Deposit/Withdrawal Normalizer Integration', () => {
     const result = await depositWithdrawalNormalizer(event);
 
     expect(result.batchItemFailures).toHaveLength(0);
-    const item = findFirstPutItem();
-    expect(item).toBeDefined();
-    expect(item).toMatchObject({
-      __typename: 'NormalizedEvent',
+    const items = findPutItems();
+    expect(items.map((i) => i.sk)).toEqual(['DEPOSIT_DETECTED', 'DEPOSIT_SETTLED']);
+    expect(items[0]).toMatchObject({
+      __typename: 'FundingEvent',
       tenantId: 't-2',
-      amount: 50000,
+      amountCents: 50000,
       executionMode: 'live',
-      pk: 'NormalizedEvent#t-2#xfr-1',
+      direction: 'DEPOSIT',
+      pk: 'Funding#t-2#xfr-1',
       sk: 'DEPOSIT_DETECTED',
     });
   });
 
-  it('should normalize ALPACA_TRANSFER_COMPLETED OUTGOING to sk=WITHDRAWAL_COMPLETED', async () => {
+  it('should write live WITHDRAWAL_SETTLED carrier on ALPACA_TRANSFER_COMPLETED OUTGOING', async () => {
     const event: SQSEvent = {
       Records: [
         fakeSqsRecord('ALPACA_TRANSFER_COMPLETED', {
           transferId: 'xfr-2',
-          amount: 30000,
+          amountCents: 30000,
           direction: 'OUTGOING',
         }, { tenantId: 't-2' }),
       ],
@@ -808,21 +832,25 @@ describe('Deposit/Withdrawal Normalizer Integration', () => {
     const item = findFirstPutItem();
     expect(item).toBeDefined();
     expect(item).toMatchObject({
-      __typename: 'NormalizedEvent',
+      __typename: 'FundingEvent',
       tenantId: 't-2',
-      amount: 30000,
+      amountCents: 30000,
       executionMode: 'live',
-      pk: 'NormalizedEvent#t-2#xfr-2',
-      sk: 'WITHDRAWAL_COMPLETED',
+      direction: 'WITHDRAWAL',
+      status: 'settled',
+      __version: 3,
+      pk: 'Funding#t-2#xfr-2',
+      sk: 'WITHDRAWAL_SETTLED',
     });
   });
 
-  it('should normalize ALPACA_TRANSFER_FAILED to sk=TRANSFER_FAILED with failureReason', async () => {
+  it('should write [DEPOSIT_FAILED v3] carrier on ALPACA_TRANSFER_FAILED INCOMING with reason', async () => {
     const event: SQSEvent = {
       Records: [
         fakeSqsRecord('ALPACA_TRANSFER_FAILED', {
           transferId: 'xfr-fail-1',
-          amount: 15000,
+          amountCents: 15000,
+          direction: 'INCOMING',
           failureReason: 'Insufficient funds',
         }, { tenantId: 't-3' }),
       ],
@@ -834,22 +862,26 @@ describe('Deposit/Withdrawal Normalizer Integration', () => {
     const item = findFirstPutItem();
     expect(item).toBeDefined();
     expect(item).toMatchObject({
-      __typename: 'NormalizedEvent',
+      __typename: 'FundingEvent',
       tenantId: 't-3',
-      amount: 15000,
+      amountCents: 15000,
       executionMode: 'live',
-      failureReason: 'Insufficient funds',
-      pk: 'NormalizedEvent#t-3#xfr-fail-1',
-      sk: 'TRANSFER_FAILED',
+      direction: 'DEPOSIT',
+      status: 'failed',
+      __version: 3,
+      reason: 'Insufficient funds',
+      pk: 'Funding#t-3#xfr-fail-1',
+      sk: 'DEPOSIT_FAILED',
     });
   });
 
-  it('should default failureReason on ALPACA_TRANSFER_FAILED when missing', async () => {
+  it('should default reason on ALPACA_TRANSFER_FAILED OUTGOING when missing', async () => {
     const event: SQSEvent = {
       Records: [
         fakeSqsRecord('ALPACA_TRANSFER_FAILED', {
           transferId: 'xfr-fail-2',
-          amount: 10000,
+          amountCents: 10000,
+          direction: 'OUTGOING',
         }, { tenantId: 't-3' }),
       ],
     };
@@ -859,6 +891,7 @@ describe('Deposit/Withdrawal Normalizer Integration', () => {
     expect(result.batchItemFailures).toHaveLength(0);
     const item = findFirstPutItem();
     expect(item).toBeDefined();
-    expect(item!.failureReason).toBe('Transfer failed');
+    expect(item!.sk).toBe('WITHDRAWAL_FAILED');
+    expect(item!.reason).toBe('Transfer failed');
   });
 });
