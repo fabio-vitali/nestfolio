@@ -9,8 +9,10 @@
  *     authoritative aggregate (accumulate on it fails typecheck).
  *   - Activity : P2 append-log → record only.
  *
- * NOT registered (intentional carry-overs, see the w2 plan "Out of scope"):
- *   - InvestorSnapshot → P1 deferred to w4 (producer __version + stable onboardedAt).
+ *   - InvestorSnapshot : P1 → projectVersioned (workstream 4 — producer now
+ *     stamps __version and keeps onboardingCompletedAt stable).
+ *
+ * NOT registered (intentional):
  *   - TimeTravelAvailability → untouched.
  *
  * See docs/architecture/READ-MODEL-OWNERSHIP.md.
@@ -21,6 +23,7 @@ declare module '@nestfolio/event-processor' {
   interface ReadModelOwnership {
     PortfolioSummary: Projection<'P1'>;
     PositionSnapshot: Projection<'P1'>;
+    InvestorSnapshot: Projection<'P1'>;
     AdvisoryStatus: Projection<'P3'>;
     Activity: Projection<'P2'>;
   }
