@@ -124,10 +124,12 @@ describe('investor-bff', () => {
           tenantId: ctx.tenantId,
           userId,
           cashBalanceCents: 500_000,
+          snapshot: { positions: {}, cashBalanceCents: 500_000, lastEventSequence: 7 },
         },
       });
 
-      // project('CashBalance', ...) with overrides → pk: InvestorProfile#<tenantId>#<userId>, sk: CashBalance
+      // projectVersioned('CashBalance', ...) keyed on snapshot.lastEventSequence as
+      // __version → pk: InvestorProfile#<tenantId>#<userId>, sk: CashBalance
       const item = await table.waitForItem({
         table: 'investor-bff',
         pk,
@@ -137,6 +139,7 @@ describe('investor-bff', () => {
 
       expect(item['__typename']).toBe('CashBalance');
       expect(item['cashBalanceCents']).toBe(500_000);
+      expect(item['__version']).toBe(7);
     }, 120_000);
 
     it('should materialize Notification on NOTIFICATION_CREATED', async () => {
@@ -245,6 +248,9 @@ describe('investor-bff', () => {
       expect(profile['__typename']).toBe('InvestorProfile');
       expect(profile['operatingMode']).toBe('BALANCED');
       expect(profile['onboardingCompletedAt']).toBeDefined();
+      // Seed stamps __version: 1 so INVESTOR_PROFILE_CREATED carries a version
+      // for dashboard-bff's InvestorSnapshot P1 projection (w4).
+      expect(profile['__version']).toBe(1);
       // Post-resplit: InvestorProfile row mirrors mandateId + mandateLevel;
       // no nested mandate.{guardrail fields} — those live in the Mandate row.
       expect(profile['mandateId']).toBeDefined();
@@ -537,6 +543,8 @@ describe('investor-bff', () => {
       const goal = profile['goal'] as Record<string, unknown>;
       expect(goal['objective']).toBe('Updated objective');
       expect(goal['targetAmountCents']).toBe(750_000);
+      // updateGoal's if_not_exists(#v,:zero)+:one bumped __version past the seed's 1.
+      expect(Number(profile['__version'])).toBeGreaterThan(1);
 
       // Assert: CDC event — modify on InvestorProfile row → INVESTOR_PROFILE_UPDATED
       const event = await trap.waitForEvent({
