@@ -41,12 +41,16 @@ describe('dashboard-bff', () => {
         bus: 'investor',
         targetService: 'dashboard-bff',
         detailType: 'INVESTOR_PROFILE_CREATED',
+        // Mirrors investor-bff's full-row CDC subject: monotonic __version + the
+        // stable onboardingCompletedAt are present on every INVESTOR_PROFILE_* emit.
         detail: {
           tenantId: ctx.tenantId,
           userId: ctx.userId,
           goal: { objective: 'GROWTH', targetAmountCents: 500_000_00 },
           riskProfile: { score: 7 },
           operatingMode: 'BALANCED',
+          onboardingCompletedAt: '2026-01-01T00:00:00.000Z',
+          __version: 1,
         },
       });
 
@@ -70,12 +74,15 @@ describe('dashboard-bff', () => {
         bus: 'investor',
         targetService: 'dashboard-bff',
         detailType: 'INVESTOR_PROFILE_UPDATED',
+        // __version 2 > the CREATED row's 1 → the version guard accepts this update.
         detail: {
           tenantId: ctx.tenantId,
           userId: ctx.userId,
           goal: { objective: 'INCOME', targetAmountCents: 1_000_000_00 },
           riskProfile: { score: 9 },
           operatingMode: 'AGGRESSIVE',
+          onboardingCompletedAt: '2026-01-01T00:00:00.000Z',
+          __version: 2,
         },
       });
 
@@ -380,14 +387,17 @@ describe('dashboard-bff', () => {
     const querySnapshotAt = new Date().toISOString();
 
     beforeAll(async () => {
-      // 1. InvestorSnapshot — project() uses PutItem (full replace), so only the
-      //    LAST event's fields survive. Send INVESTOR_PROFILE_UPDATED as the final
-      //    InvestorSnapshot event; assert only its fields in the query test.
+      // 1. InvestorSnapshot — projectVersioned() does a version-guarded full-row
+      //    PutItem, so the HIGHEST-__version event's fields survive. Send
+      //    INVESTOR_PROFILE_UPDATED with __version 3 (> the event-materializations
+      //    block's 1/2 on the shared T#<tenant> row) as the final InvestorSnapshot
+      //    event; assert only its fields in the query test.
       // Detail shape mirrors the CDC envelope investor-bff emits — see
       // services/investor/dashboard-bff/src/transforms/investor-snapshot.ts:
       //   payload.goal.objective → goalType
       //   payload.riskProfile.score → riskLevel (stringified)
       //   payload.operatingMode (string) → operatingMode
+      //   payload.onboardingCompletedAt → onboardedAt; payload.__version → version guard
       await eb.putEvent({
         bus: 'investor',
         targetService: 'dashboard-bff',
@@ -396,6 +406,8 @@ describe('dashboard-bff', () => {
           goal: { objective: 'RETIREMENT' },
           riskProfile: { score: 6 },
           operatingMode: 'BALANCED',
+          onboardingCompletedAt: '2026-01-01T00:00:00.000Z',
+          __version: 3,
         },
       });
       const deadline = Date.now() + 60_000;
