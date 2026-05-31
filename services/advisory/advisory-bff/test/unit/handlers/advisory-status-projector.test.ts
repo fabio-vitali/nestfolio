@@ -1,7 +1,7 @@
 import type { DynamoDBStreamEvent } from 'aws-lambda';
 import { marshall } from '@aws-sdk/util-dynamodb';
 import { mockClient } from 'aws-sdk-client-mock';
-import { DynamoDBDocumentClient, PutCommand } from '@aws-sdk/lib-dynamodb';
+import { DynamoDBDocumentClient } from '@aws-sdk/lib-dynamodb';
 
 const ddbMock = mockClient(DynamoDBDocumentClient);
 
@@ -40,7 +40,15 @@ describe('advisory-status-projector', () => {
     await handler(streamEvent([{ __typename: 'DecisionReadModel', tenantId: 't1', pk: 'Decision#t1#d1' }]));
 
     expect(countMock).toHaveBeenCalledWith('t1');
-    const put = ddbMock.commandCalls(PutCommand).find((c) => c.args[0].input.Item?.sk === 'AdvisoryStatus');
+    // Match over ALL intercepted sends by row shape, NOT commandCalls(PutCommand):
+    // the write is built by IntentExecutor inside @nestfolio/event-processor, which
+    // constructs its PutCommand from event-processor's own copy of @aws-sdk/lib-dynamodb.
+    // onAnyCommand() still intercepts (the DynamoDBDocumentClient class is shared), but
+    // commandCalls(PutCommand) fails the instanceof identity check across the duplicate
+    // copy and returns [] on real (non-symlinked) node_modules — the symlinked worktree
+    // masked it. See feedback_worktree_symlink_masks_test_failures.
+    const put = (ddbMock.calls() as Array<{ args: [{ input: { Item?: Record<string, unknown> } }] }>)
+      .find((c) => c.args[0].input.Item?.sk === 'AdvisoryStatus');
     expect(put).toBeDefined();
     expect(put!.args[0].input.Item!.inFlightCount).toBe(3);
     expect(put!.args[0].input.Item!.__typename).toBe('AdvisoryStatus');
