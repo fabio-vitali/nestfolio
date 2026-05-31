@@ -194,6 +194,18 @@ parent spec prescribes for all intent-driven entities; no new transport. Exact M
   broker-ctrl on the `Funding` aggregate, carried in every lifecycle event.
 - **D6 — Onboarding deposit seed re-pointed to the intent path** so there is exactly one funding
   owner, including the onboarding-originated deposit.
+- **D7 — Resolve the withdrawal cash-debit double-count.** Today `request-withdrawal.fn.js`
+  debits `CashBalance` synchronously inside a `TransactWriteItems` at *request* time (with an
+  `attribute_exists(pk) AND cashBalanceCents >= :amount` guard for the insufficient-funds UX),
+  while §6 also has ledger-ctrl debit cash on `WITHDRAWAL_SETTLED`. That is a **double-debit**.
+  Chosen resolution: the resolver keeps an **optimistic client-side hold only** and stops writing
+  the authoritative debit — but note `CashBalance` is a **P1 projection owned by ledger** (w4), so
+  the resolver must NOT mutate it regardless (that write would already violate w4 ownership).
+  Authoritative cash movement for *both* deposit and withdrawal happens once, in ledger-ctrl, on
+  `*_SETTLED`. The insufficient-funds precondition moves to broker-ctrl at intent acceptance
+  (reject the withdrawal → `WITHDRAWAL_FAILED` with reason), surfaced to the UI via the projection.
+  Deposit has no symmetric issue (it only ever credited via ledger). The exact insufficient-funds
+  UX (synchronous resolver error vs async `WITHDRAWAL_FAILED`) is finalized in the plan.
 
 ---
 
@@ -235,3 +247,9 @@ parent spec prescribes for all intent-driven entities; no new transport. Exact M
   existing dev rows are abandoned. Stale-self-heal clause on `projectVersioned` covers legacy rows.
 - **Consumer fan-out on rename (D1/D3).** Grep-verify every subscriber of the renamed events
   (ledger ingress, any adapter `$or` rules, e2e fixtures) is updated atomically in the plan.
+- **Withdrawal double-debit (D7).** The current synchronous resolver debit must be removed in the
+  same change that adds ledger's settlement debit, or cash is debited twice. The plan treats these
+  as one atomic step and adds an integration assertion that a withdrawal moves cash exactly once.
+- **Insufficient-funds UX regression (D7).** Removing the resolver-side `cashBalanceCents >= :amount`
+  precondition loses the synchronous "Insufficient funds" error. broker-ctrl must reject at intent
+  acceptance (→ `WITHDRAWAL_FAILED`); the plan must preserve a usable UX for this path.
