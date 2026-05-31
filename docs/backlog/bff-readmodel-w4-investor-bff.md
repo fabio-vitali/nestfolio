@@ -1,7 +1,6 @@
 ---
 id: bff-readmodel-w4-investor-bff
-status: queued
-rank: 4
+status: active
 type: refactor
 notes: "Workstream 4 of bff-read-model-materialization-redesign: confirm investor-bff command-owned rows (InvestorProfile/Mandate/Notification/UserConfirmation) follow field-level update + condition + seed-by-event rules; CashBalance → P1 projection; register CommandOwned vs Projection typenames."
 references:
@@ -9,6 +8,12 @@ references:
 spec: docs/superpowers/specs/2026-05-29-bff-read-model-materialization-redesign-design.md
 plan: null
 topic_memory: [project_read_model_redesign.md]
+out_of_scope:
+  - "Deposit/Withdrawal/Order externally-settled entities — that is w5; CashBalance is the only external-authority row migrated here."
+  - "dashboard-live-push-* transport rebuild — deferred, rebuilt on the clean read model later."
+  - "Governance/freeze skill + audit-check edits — that is w6; only the incremental ReadModelOwnership registration for investor-bff (and dashboard InvestorSnapshot) typenames lands here."
+  - "Event sourcing on the write side — system stays state-stored-aggregate + CDC-outbox."
+  - "Re-migrating ledger-bff (w1), the rest of dashboard-bff (w2), or advisory (w3) read models — only the w2 InvestorSnapshot carry-over is in scope, gated on investor-bff stamping __version on INVESTOR_PROFILE_*."
 validation_gate: null
 ---
 
