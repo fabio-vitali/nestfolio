@@ -7,7 +7,7 @@ references:
   - "services/investor/dashboard-bff/src/transforms/portfolio-summary.ts"
   - "services/investor/dashboard-bff/src/graphql/js-function/get-dashboard.fn.js"
   - "services/ledger/ledger-ctrl/src/transforms/snapshot-to-events.ts"
-  - "services/advisory/advisory-bff/src/transforms/decision-status-changed.ts"
+  - "services/advisory/advisory-bff/src/transforms/decision-snapshot.ts"
 out_of_scope:
   - "Live-push TRANSPORT (broadcast/subscription/client-merge/shared subscribe-then-reconcile helper) — deferred to the re-scoped dashboard-live-push-portfolio-summary + dashboard-live-push-position-snapshots items; this workstream fixes materialization correctness only, on top of which transport is later rebuilt."
   - "Per-BFF IMPLEMENTATION commits — this item's done-definition is the design + decomposition spec (canonical pattern + rollout order). Each BFF's migration becomes its own Complex implementation workstream with its own worktree."
