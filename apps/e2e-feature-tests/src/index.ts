@@ -6,6 +6,7 @@ export {
   onboarded,
   funded,
   withDecision,
+  emitDecisionSnapshot,
   withLiveDecision,
   withProfileSnapshot,
   withNotification,
@@ -14,6 +15,8 @@ export {
   closeBreakerFixture,
   type Fixture,
   type FixtureResult,
+  type DecisionTrigger,
+  type ProposedTrade,
 } from './helpers/fixtures';
 export { alpacaPaperReset } from './helpers/alpaca-paper-reset';
 export { AgentTraceTrap, type AgentKey, type WaitForOptions } from './helpers/agent-trace-trap';

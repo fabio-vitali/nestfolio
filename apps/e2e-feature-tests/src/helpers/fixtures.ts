@@ -67,7 +67,7 @@ export function onboarded(overrides?: {
   currency?: string;
   mandateLevel?: 'ADVISORY' | 'DISCRETIONARY';
 }): Fixture {
-  return async (ctx, tenant, eb, bff) => {
+  return async (_ctx, tenant, eb, bff) => {
     await eb.putEvent({
       bus: 'investor',
       targetService: 'investor-bff',
@@ -198,32 +198,91 @@ export function funded(opts: { cashBalanceCents: number }): Fixture {
   };
 }
 
+export type DecisionTrigger = 'INITIAL_ALLOCATION' | 'REBALANCE' | 'ADJUSTMENT';
+export type ProposedTrade = { symbol: string; side: 'BUY' | 'SELL'; quantityOrAmountCents: number };
+
+const DEFAULT_PROPOSED_TRADES: ProposedTrade[] = [
+  { symbol: 'VTI', side: 'BUY', quantityOrAmountCents: 500_000 },
+];
+
 /**
- * Seeds a PENDING decision read-model on advisory-bff by publishing a
- * synthetic DECISION_PACKET_CREATED. Returns the generated decisionId so
- * scenarios can reference it in confirmDecision/rejectDecision mutations.
+ * Publishes one synthetic DecisionPacket CDC snapshot (DECISION_PACKET_CREATED
+ * or DECISION_PACKET_UPDATED) to advisory-bff, modelling what the producer
+ * (decision-workflow-ctrl) emits after each SF/user-callback step.
+ *
+ * Post-w3 (versioned read model) the advisory-bff `decision-snapshot` transform
+ * projects this via `projectVersioned(…, { version: subject.__version })`. The
+ * version guard (`attribute_not_exists(pk) OR #__version < :version`) makes the
+ * CREATE-then-UPDATE sequence order-safe, but it CANNOT evaluate when
+ * `__version` is absent — so every synthetic snapshot MUST carry a numeric
+ * `version`, and a terminal snapshot MUST use a strictly higher one than the
+ * row it supersedes. The transform also drops degraded snapshots (no explanation
+ * AND no trades), so we always send both.
+ */
+export async function emitDecisionSnapshot(
+  eb: EventBridgeClient,
+  tenant: FreshTenant,
+  opts: {
+    decisionId: string;
+    trigger: DecisionTrigger;
+    status: string;
+    version: number;
+    proposedTrades?: ProposedTrade[];
+    explanation?: string;
+    confirmedAt?: string;
+    rejectedAt?: string;
+    rejectionReason?: string;
+    /** Defaults to DECISION_PACKET_UPDATED; pass CREATED for the first snapshot. */
+    detailType?: string;
+  },
+): Promise<void> {
+  const now = new Date().toISOString();
+  await eb.putEvent({
+    bus: 'advisory',
+    targetService: 'advisory-bff',
+    detailType: opts.detailType ?? DecisionWorkflowEventTypes.DECISION_PACKET_UPDATED,
+    detail: {
+      __version: opts.version,
+      tenantId: tenant.tenantId,
+      decisionId: opts.decisionId,
+      trigger: opts.trigger,
+      status: opts.status,
+      proposedTrades: opts.proposedTrades ?? DEFAULT_PROPOSED_TRADES,
+      explanation: opts.explanation ?? 'E2E test synthetic decision',
+      confirmationRequired: true,
+      confirmedAt: opts.confirmedAt,
+      rejectedAt: opts.rejectedAt,
+      rejectionReason: opts.rejectionReason,
+      createdAt: now,
+      updatedAt: now,
+    },
+  });
+}
+
+/**
+ * Seeds a PENDING decision read-model on advisory-bff by publishing a synthetic
+ * versioned DECISION_PACKET_CREATED (`__version: 1`). Returns the generated
+ * decisionId so scenarios can reference it in confirmDecision/rejectDecision
+ * mutations. To drive the row to a terminal status, follow up with
+ * `emitDecisionSnapshot(… { version: 2, status: 'CONFIRMED' | 'REJECTED' })` —
+ * the confirm/reject resolvers are intent-only post-w3, so the terminal status
+ * only arrives via the producer's higher-versioned snapshot.
  */
 export function withDecision(opts: {
-  trigger: 'INITIAL_ALLOCATION' | 'REBALANCE' | 'ADJUSTMENT';
-  proposedTrades?: Array<{ symbol: string; side: 'BUY' | 'SELL'; quantityOrAmountCents: number }>;
+  trigger: DecisionTrigger;
+  proposedTrades?: ProposedTrade[];
   explanation?: string;
 }): Fixture {
   return async (_ctx, tenant, eb, _bff) => {
     const decisionId = `e2e-decision-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
-    await eb.putEvent({
-      bus: 'advisory',
-      targetService: 'advisory-bff',
+    await emitDecisionSnapshot(eb, tenant, {
+      decisionId,
+      trigger: opts.trigger,
+      status: 'PENDING',
+      version: 1,
+      proposedTrades: opts.proposedTrades,
+      explanation: opts.explanation,
       detailType: DecisionWorkflowEventTypes.DECISION_PACKET_CREATED,
-      detail: {
-        tenantId: tenant.tenantId,
-        decisionId,
-        trigger: opts.trigger,
-        proposedTrades: opts.proposedTrades ?? [
-          { symbol: 'VTI', side: 'BUY', quantityOrAmountCents: 500_000 },
-        ],
-        explanation: opts.explanation ?? 'E2E test synthetic decision',
-        confirmationRequired: true,
-      },
     });
     return { decisionId };
   };

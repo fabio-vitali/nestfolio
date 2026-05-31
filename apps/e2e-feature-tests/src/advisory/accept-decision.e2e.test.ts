@@ -9,6 +9,7 @@ import {
   onboarded,
   funded,
   withDecision,
+  emitDecisionSnapshot,
   bffClient,
   waitForGraphQL,
   type FreshTenant,
@@ -52,9 +53,16 @@ describe('scenario 6 — investor accepts decision and sees it executed', () => 
       { timeoutMs: 60_000 },
     );
 
-    // TRIGGER 1: user confirms the decision
+    // TRIGGER 1: user confirms the decision.
+    // Post-w3 confirmDecision is INTENT-ONLY: it writes a UserConfirmation row +
+    // emits USER_CONFIRMED, and returns the pre-action readback row (still
+    // PENDING / version 1) — it does NOT write the terminal status. So we assert
+    // the mutation ran (echoes the decisionId), NOT that the response is
+    // CONFIRMED. The real confirm→task-token→CONFIRMED loop is covered by the
+    // Playwright new-investor-happy-path journey + the advisory-bff integration
+    // suite; here we model the producer's reaction synthetically below.
     const confirm = await bff.advisory.mutate<{
-      confirmDecision: { decisionId: string; status: string; confirmedAt: string; version: number };
+      confirmDecision: { decisionId: string; status: string; confirmedAt: string | null; version: number };
     }>(
       `mutation ConfirmDecision($decisionId: ID!) {
          confirmDecision(decisionId: $decisionId) {
@@ -66,7 +74,29 @@ describe('scenario 6 — investor accepts decision and sees it executed', () => 
        }`,
       { decisionId },
     );
-    expect(confirm.confirmDecision.status).toBe('CONFIRMED');
+    expect(confirm.confirmDecision.decisionId).toBe(decisionId);
+
+    // Model the producer (decision-workflow-ctrl) reacting to USER_CONFIRMED:
+    // it increments __version and emits a terminal DECISION_PACKET_UPDATED with
+    // status CONFIRMED. The versioned projection (v2 > v1) drives the read-model
+    // row to CONFIRMED — the only path to terminal status post-w3.
+    await emitDecisionSnapshot(eb, tenant, {
+      decisionId,
+      trigger: 'INITIAL_ALLOCATION',
+      status: 'CONFIRMED',
+      version: 2,
+      proposedTrades: [{ symbol: 'VTI', side: 'BUY', quantityOrAmountCents: 500_000 }],
+      confirmedAt: new Date().toISOString(),
+    });
+
+    // ASSERT: the read model surfaces the terminal CONFIRMED status.
+    await waitForGraphQL<{ getDecision: { decisionId: string; status: string } | null }>(
+      bff.advisory,
+      `query GetDecision($decisionId: ID!) { getDecision(decisionId: $decisionId) { decisionId status } }`,
+      { decisionId },
+      (r) => r.getDecision?.status === 'CONFIRMED',
+      { timeoutMs: 60_000 },
+    );
 
     // TRIGGER 2: simulate the downstream fill (bypass real broker pipeline).
     // Publish directly on the ledger bus so ledger-ctrl's Ingress picks it
