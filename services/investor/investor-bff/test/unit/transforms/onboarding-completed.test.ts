@@ -30,6 +30,13 @@ describe('onboardingCompleted transform', () => {
     expect(profile.mandateId).toEqual(expect.any(String));
   });
 
+  it('stamps __version: 1 on the seeded InvestorProfile row', async () => {
+    await onboardingCompleted({ subject: baseSubject } as any, ctx as any);
+    const items = (InvestorProfileRepository as any).prototype.transactWrite.mock.calls[0][0].TransactItems;
+    const profile = items.find((i: any) => i.Put?.Item.sk === 'InvestorProfile').Put.Item;
+    expect(profile.__version).toBe(1);
+  });
+
   it('writes a sibling Mandate row with status=ACTIVE and operatingMode denormalized', async () => {
     await onboardingCompleted({ subject: baseSubject } as any, ctx as any);
     const items = (InvestorProfileRepository as any).prototype.transactWrite.mock.calls[0][0].TransactItems;

@@ -77,6 +77,17 @@ describe('update-goal resolver', () => {
 
       expect(op.condition.expression).toBe('attribute_exists(pk)');
     });
+
+    it('increments __version in the update expression', () => {
+      const ctx = {
+        stash,
+        arguments: { input: { targetReturn: 0.1 } },
+      };
+      const op = request(ctx);
+
+      expect(op.update.expression).toContain('#v = if_not_exists(#v, :zero) + :one');
+      expect(op.update.expressionNames['#v']).toBe('__version');
+    });
   });
 
   describe('response', () => {

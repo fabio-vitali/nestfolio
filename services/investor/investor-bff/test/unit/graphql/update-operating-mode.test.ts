@@ -12,8 +12,16 @@ describe('updateOperatingMode resolver', () => {
     expect(req.operation).toBe('UpdateItem');
     expect(req.key.sk.S).toBe('InvestorProfile');
     expect(req.key.pk.S).toBe('InvestorProfile#t1#u1');
-    expect(req.update.expression).toBe('SET operatingMode = :mode, updatedAt = :now, #ts = :now');
+    expect(req.update.expression).toBe(
+      'SET operatingMode = :mode, updatedAt = :now, #ts = :now, #v = if_not_exists(#v, :zero) + :one',
+    );
     expect(req.condition.expression).toBe('attribute_exists(pk)');
+  });
+
+  it('increments __version in the update expression', () => {
+    const req = request({ ...baseCtx, arguments: { mode: 'BALANCED' } } as any);
+    expect(req.update.expression).toContain('#v = if_not_exists(#v, :zero) + :one');
+    expect(req.update.expressionNames['#v']).toBe('__version');
   });
 
   it('rejects an invalid mode', () => {

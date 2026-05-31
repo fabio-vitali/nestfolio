@@ -243,9 +243,10 @@ export class InvestorProfileRepository extends TableRepository {
             Update: {
               TableName: this.tableName,
               Key: { pk, sk: 'InvestorProfile' },
-              UpdateExpression: 'SET executionMode = :mode, updatedAt = :now, #ts = :ts',
-              ExpressionAttributeNames: { '#ts': 'timestamp' },
-              ExpressionAttributeValues: { ':mode': toMode, ':now': now, ':ts': now },
+              UpdateExpression:
+                'SET executionMode = :mode, updatedAt = :now, #ts = :ts, #v = if_not_exists(#v, :zero) + :one',
+              ExpressionAttributeNames: { '#ts': 'timestamp', '#v': '__version' },
+              ExpressionAttributeValues: { ':mode': toMode, ':now': now, ':ts': now, ':zero': 0, ':one': 1 },
             },
           },
         ],

@@ -16,9 +16,10 @@ export function request(ctx) {
       sk: 'InvestorProfile',
     }),
     update: {
-      expression: 'SET operatingMode = :mode, updatedAt = :now, #ts = :now',
-      expressionNames: { '#ts': 'timestamp' },
-      expressionValues: util.dynamodb.toMapValues({ ':mode': mode, ':now': now }),
+      expression:
+        'SET operatingMode = :mode, updatedAt = :now, #ts = :now, #v = if_not_exists(#v, :zero) + :one',
+      expressionNames: { '#ts': 'timestamp', '#v': '__version' },
+      expressionValues: util.dynamodb.toMapValues({ ':mode': mode, ':now': now, ':zero': 0, ':one': 1 }),
     },
     condition: { expression: 'attribute_exists(pk)' },
   };

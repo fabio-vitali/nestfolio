@@ -18,6 +18,10 @@ export function request(ctx) {
     }
   }
   updates.push('updatedAt = :now');
+  updates.push('#v = if_not_exists(#v, :zero) + :one');
+  names['#v'] = '__version';
+  values[':zero'] = 0;
+  values[':one'] = 1;
 
   return {
     operation: 'UpdateItem',

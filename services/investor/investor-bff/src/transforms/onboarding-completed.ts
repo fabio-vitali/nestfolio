@@ -66,6 +66,7 @@ export async function onboardingCompleted(
             mandateId,
             mandateLevel,
             onboardingCompletedAt: now,
+            __version: 1,
             createdAt: now,
             updatedAt: now,
             timestamp: now,
