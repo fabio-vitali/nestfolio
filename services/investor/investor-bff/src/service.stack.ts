@@ -84,13 +84,14 @@ export class InvestorBffStack extends ServiceStack {
           insert: InvestorBffEventTypes.MANDATE_ISSUED,
           modify: InvestorBffEventTypes.MANDATE_REVOKED,
         },
-        'Deposit': {
+        // Intent outbox rows — CDC emits the *_INITIATED events. The projected
+        // Deposit/WithdrawalRequest read-model rows are written by the funding
+        // lifecycle transforms (single-writer), never CDC'd back out.
+        'DepositIntent': {
           insert: InvestorBffEventTypes.DEPOSIT_INITIATED,
-          modify: InvestorBffEventTypes.DEPOSIT_UPDATED,
         },
-        'Withdrawal': {
-          insert: InvestorBffEventTypes.WITHDRAWAL_REQUESTED,
-          modify: InvestorBffEventTypes.WITHDRAWAL_UPDATED,
+        'WithdrawalIntent': {
+          insert: InvestorBffEventTypes.WITHDRAWAL_INITIATED,
         },
         'ExecutionModeChange': {
           insert: InvestorBffEventTypes.EXECUTION_MODE_CHANGED,
