@@ -8,9 +8,14 @@
  *   - InvestorProfile / Mandate / Notification : CommandOwned — driven by local
  *     commands after a one-event seed; field-level update() + record() seed are
  *     allowed, projectVersioned on them fails typecheck.
+ *   - Deposit / WithdrawalRequest : P1 — broker-ctrl owns the funding lifecycle
+ *     and emits versioned snapshots; investor-bff projects them via
+ *     projectVersioned only (project/accumulate/update/record fail typecheck).
+ *   - DepositIntent / WithdrawalIntent : CommandOwned — outbox rows written by
+ *     the deposit/withdrawal resolvers; CDC egress emits the *_INITIATED events
+ *     from them (the intent-outbox model — see workstream 5).
  *
  * NOT registered (intentional):
- *   - Deposit / Withdrawal → workstream 5 (externally-settled; become Projection<'P1'>).
  *   - ExecutionModeChange → write-once audit row, never written via an intent and
  *     never projected; registration would be inert.
  */
@@ -22,6 +27,10 @@ declare module '@nestfolio/event-processor' {
     InvestorProfile: CommandOwned;
     Mandate: CommandOwned;
     Notification: CommandOwned;
+    Deposit: Projection<'P1'>;
+    WithdrawalRequest: Projection<'P1'>;
+    DepositIntent: CommandOwned;
+    WithdrawalIntent: CommandOwned;
   }
 }
 
