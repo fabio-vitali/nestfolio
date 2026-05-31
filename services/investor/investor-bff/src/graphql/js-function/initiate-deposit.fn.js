@@ -14,10 +14,13 @@ export function request(ctx) {
   if (!currency || currency.length !== 3) util.error('currency must be 3 chars', 'ValidationError');
   const now = util.time.nowISO8601();
   ctx.stash._depositResult = { depositId, amountCents, currency, status: 'INITIATED', initiatedAt: now };
+  // Write a DepositIntent outbox row (not the projected Deposit read-model row).
+  // CDC egress emits DEPOSIT_INITIATED from this row; the Deposit P1 row is
+  // materialized later from broker-ctrl's funding lifecycle events.
   return ddb.put({
-    key: { pk: `InvestorProfile#${tenantId}#${userId}`, sk: `Deposit#${depositId}` },
+    key: { pk: `InvestorProfile#${tenantId}#${userId}`, sk: `DepositIntent#${depositId}` },
     item: {
-      __typename: 'Deposit', tenantId, userId, region: ctx.stash.region, depositId, amountCents, currency,
+      __typename: 'DepositIntent', tenantId, userId, region: ctx.stash.region, depositId, amountCents, currency,
       status: 'INITIATED', initiatedAt: now, timestamp: now,
     },
   });

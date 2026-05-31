@@ -5,17 +5,21 @@ describe('initiate-deposit resolver', () => {
   const validId = '11111111-1111-4111-8111-111111111111';
 
   describe('request', () => {
-    it('persists a Deposit row using the client-supplied depositId', () => {
+    it('persists a DepositIntent outbox row using the client-supplied depositId', () => {
       const op = request({
         stash,
         arguments: { input: { depositId: validId, amountCents: 10000, currency: 'USD' } },
       });
 
       expect(op.operation).toBe('PutItem');
+      // Intent outbox row (sk=DepositIntent#) — CDC emits DEPOSIT_INITIATED from
+      // it; the projected Deposit row is materialized later from broker-ctrl's
+      // lifecycle events (single-writer).
       expect(op.key).toEqual({
         pk: `InvestorProfile#${stash.tenantId}#${stash.userId}`,
-        sk: `Deposit#${validId}`,
+        sk: `DepositIntent#${validId}`,
       });
+      expect(op.attributeValues.__typename).toBe('DepositIntent');
       expect(op.attributeValues.depositId).toBe(validId);
       expect(op.attributeValues.amountCents).toBe(10000);
       expect(op.attributeValues.status).toBe('INITIATED');

@@ -11,25 +11,28 @@ export function request(ctx) {
   const now = util.time.nowISO8601();
   const pk = `InvestorProfile#${tenantId}#${userId}`;
   ctx.stash._withdrawalResult = { withdrawalId, amountCents, currency, status: 'REQUESTED', requestedAt: now };
+  // Guard funds with a read-only ConditionCheck on CashBalance (no debit here —
+  // ledger-ctrl debits cash on WITHDRAWAL_SETTLED) and write a WithdrawalIntent
+  // outbox row. CDC egress emits WITHDRAWAL_INITIATED from this row; the
+  // WithdrawalRequest P1 row is materialized from broker-ctrl's lifecycle events.
   return {
     operation: 'TransactWriteItems',
     transactItems: [
       {
         table: ctx.stash.tableName,
-        operation: 'UpdateItem',
+        operation: 'ConditionCheck',
         key: util.dynamodb.toMapValues({ pk, sk: 'CashBalance' }),
-        update: {
-          expression: 'SET cashBalanceCents = cashBalanceCents - :amount',
+        condition: {
+          expression: 'attribute_exists(pk) AND cashBalanceCents >= :amount',
           expressionValues: util.dynamodb.toMapValues({ ':amount': amountCents }),
         },
-        condition: { expression: 'attribute_exists(pk) AND cashBalanceCents >= :amount' },
       },
       {
         table: ctx.stash.tableName,
         operation: 'PutItem',
-        key: util.dynamodb.toMapValues({ pk, sk: `Withdrawal#${withdrawalId}` }),
+        key: util.dynamodb.toMapValues({ pk, sk: `WithdrawalIntent#${withdrawalId}` }),
         attributeValues: util.dynamodb.toMapValues({
-          __typename: 'Withdrawal', tenantId, userId, region: ctx.stash.region, withdrawalId, amountCents, currency,
+          __typename: 'WithdrawalIntent', tenantId, userId, region: ctx.stash.region, withdrawalId, amountCents, currency,
           status: 'REQUESTED', requestedAt: now, timestamp: now,
         }),
       },
