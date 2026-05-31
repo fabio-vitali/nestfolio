@@ -1,6 +1,6 @@
 ---
 id: bff-readmodel-w3-advisory-decision-packet
-status: active
+status: shipped
 rank: 3
 type: refactor
 effort: xhigh
@@ -19,7 +19,7 @@ references:
 spec: docs/superpowers/specs/2026-05-30-bff-readmodel-w3-advisory-decision-packet-design.md
 plan: docs/superpowers/plans/2026-05-30-bff-readmodel-w3-advisory-decision-packet.md
 topic_memory: [project_read_model_redesign.md]
-validation_gate: null
+validation_gate: "event-processor:typecheck + unit ×7 green (293 ep / 136 dwc / 106 advisory-mfe); affected lint ×7 green; deploy --services=decision-workflow-ctrl,advisory-bff,dashboard-bff,investor-adpt → all 4 stacks UPDATE_COMPLETE on dev (incl. the aws-sdk:dynamodb:updateItem.waitForTaskToken SF state — CloudFormation accepted it, fallback not needed); integration on deployed dev green (decision-workflow-ctrl 20, advisory-bff 8 rewritten to w3 contract, dashboard-bff 21); scoped e2e on deployed dev green — Jest advisory/accept-decision (CONFIRMED via versioned projection) + reject-decision (REJECTED+reason), Playwright new-investor-happy-path (full L2 confirm UI). Final whole-branch review: APPROVE-WITH-NITS (4 non-blocking hardening follow-ups filed as w3-advisory-versioned-packet-hardening)."
 ---
 
 # Workstream 3 — advisory (versioned DecisionPacket)
