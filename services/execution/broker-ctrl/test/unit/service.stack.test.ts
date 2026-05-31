@@ -86,15 +86,17 @@ describe('BrokerCtrlStack', () => {
     expect(allDetailTypes).toContain('ALPACA_ORDER_FILLED');
   });
 
-  it('creates EventBridge rules for deposit/withdrawal inbound events', () => {
+  it('subscribes the renamed WITHDRAWAL_INITIATED intent (not WITHDRAWAL_REQUESTED)', () => {
     const rules = template.findResources('AWS::Events::Rule');
-    const allPatterns = Object.values(rules).map(
-      (r: any) => r.Properties?.EventPattern,
+    const detailTypes = Object.values(rules).flatMap(
+      (r: any) => r.Properties?.EventPattern?.['detail-type'] ?? [],
     );
-    const allDetailTypes = allPatterns.flatMap(
-      (p: any) => (p?.['detail-type'] ?? []),
-    );
-    expect(allDetailTypes).toContain('DEPOSIT_INITIATED');
-    expect(allDetailTypes).toContain('WITHDRAWAL_REQUESTED');
+    expect(detailTypes).toContain('DEPOSIT_INITIATED');
+    expect(detailTypes).toContain('WITHDRAWAL_INITIATED');
+    // funding lifecycle events are egress (CDC), never ingress rules
+    expect(detailTypes).not.toContain('WITHDRAWAL_REQUESTED');
+    expect(detailTypes).not.toContain('DEPOSIT_REQUESTED');
+    expect(detailTypes).not.toContain('DEPOSIT_SETTLED');
+    expect(detailTypes).not.toContain('WITHDRAWAL_SETTLED');
   });
 });

@@ -14,7 +14,7 @@ export class BrokerCtrlStack extends ServiceStack {
     const state = new State(this, 'State');
     const table = state.getTable();
 
-    // --- Egress: CDC for NormalizedEvent → canonical events ---
+    // --- Egress: CDC for NormalizedEvent (orders) + FundingEvent (deposits/withdrawals) ---
     const egress = new Egress(this, 'Egress', {
       state,
       eventTypes: {
@@ -25,9 +25,17 @@ export class BrokerCtrlStack extends ServiceStack {
             BrokerCtrlEventTypes.ORDER_REJECTED,
             BrokerCtrlEventTypes.ORDER_CANCELLED,
             BrokerCtrlEventTypes.ORDER_ESCALATED,
+          ]},
+        },
+        'FundingEvent': {
+          insert: { field: 'sk', passthrough: true, emits: [
+            BrokerCtrlEventTypes.DEPOSIT_REQUESTED,
             BrokerCtrlEventTypes.DEPOSIT_DETECTED,
-            BrokerCtrlEventTypes.WITHDRAWAL_COMPLETED,
-            BrokerCtrlEventTypes.TRANSFER_FAILED,
+            BrokerCtrlEventTypes.DEPOSIT_SETTLED,
+            BrokerCtrlEventTypes.DEPOSIT_FAILED,
+            BrokerCtrlEventTypes.WITHDRAWAL_REQUESTED,
+            BrokerCtrlEventTypes.WITHDRAWAL_SETTLED,
+            BrokerCtrlEventTypes.WITHDRAWAL_FAILED,
           ]},
         },
       },
@@ -96,7 +104,7 @@ export class BrokerCtrlStack extends ServiceStack {
       state,
       eventTypes: [
         BrokerCtrlInboundEventTypes.DEPOSIT_INITIATED,
-        BrokerCtrlInboundEventTypes.WITHDRAWAL_REQUESTED,
+        BrokerCtrlInboundEventTypes.WITHDRAWAL_INITIATED,
       ],
       entry: join(__dirname, 'handlers', 'deposit-withdrawal-router.ts'),
     });
