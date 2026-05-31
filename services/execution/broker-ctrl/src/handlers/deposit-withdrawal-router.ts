@@ -1,61 +1,92 @@
 import { EventBridgeClient, PutEventsCommand } from '@aws-sdk/client-eventbridge';
-import { createIngestionHandler, skip, requireEnv, logger, getUUID, getTime, pickRequestContext, type EventPayload, type EventContext } from '@nestfolio/event-processor';
+import { materializeToTable, requireEnv, logger, getUUID, getTime, pickRequestContext, type EventPayload, type EventContext, type WriteIntent } from '@nestfolio/event-processor';
 import { ExecutionModeRepository } from '../repositories/execution-mode.repository';
-import { BrokerCtrlRoutedEventTypes, BrokerCtrlInboundEventTypes } from '../domain/events';
+import { BrokerCtrlRoutedEventTypes, BrokerCtrlInboundEventTypes, BrokerCtrlEventTypes } from '../domain/events';
+import { fundingCarrier } from '../domain/funding';
 
-const TABLE_NAME = requireEnv('TABLE_NAME');
 const BUS_NAME = requireEnv('BUS_NAME');
 const SERVICE_NAME = 'broker-ctrl';
 
-const modeRepo = new ExecutionModeRepository(TABLE_NAME);
 const eb = new EventBridgeClient({});
 
+type ModeDeps = { getMode: ExecutionModeRepository['getMode'] };
+
 async function emitToEventBridge(detailType: string, subject: Record<string, unknown>, ctx: EventContext) {
-  const detail = {
-    id: getUUID(),
-    type: detailType,
-    timestamp: getTime(),
-    subject,
-    context: pickRequestContext(ctx),
-  };
+  const detail = { id: getUUID(), type: detailType, timestamp: getTime(), subject, context: pickRequestContext(ctx) };
   await eb.send(new PutEventsCommand({
-    Entries: [{
-      EventBusName: BUS_NAME,
-      Source: `${BUS_NAME}@${SERVICE_NAME}`,
-      DetailType: detailType,
-      Detail: JSON.stringify(detail),
-    }],
+    Entries: [{ EventBusName: BUS_NAME, Source: `${BUS_NAME}@${SERVICE_NAME}`, DetailType: detailType, Detail: JSON.stringify(detail) }],
   }));
 }
 
-async function routeDeposit(payload: EventPayload, ctx: EventContext) {
-  const mode = await modeRepo.getMode(ctx.tenantId);
-  const detailType = mode === 'live'
-    ? BrokerCtrlRoutedEventTypes.ALPACA_TRANSFER_REQUESTED
-    : BrokerCtrlRoutedEventTypes.SIM_DEPOSIT_INITIATED;
-
-  await emitToEventBridge(detailType, { ...payload.subject, direction: 'INCOMING' }, ctx);
-
-  logger.info('Deposit routed', { tenantId: ctx.tenantId, mode, detailType });
-  return skip();
+function routeDeposit(deps: ModeDeps) {
+  return async (payload: EventPayload, ctx: EventContext): Promise<WriteIntent> => {
+    const subject = payload.subject as Record<string, unknown>;
+    const mode = await deps.getMode(ctx.tenantId);
+    const executionMode = mode === 'live' ? 'live' : 'simulation';
+    const detailType = mode === 'live'
+      ? BrokerCtrlRoutedEventTypes.ALPACA_TRANSFER_REQUESTED
+      : BrokerCtrlRoutedEventTypes.SIM_DEPOSIT_INITIATED;
+    await emitToEventBridge(detailType, { ...subject, direction: 'INCOMING' }, ctx);
+    const transferId = (subject.depositId as string) ?? ctx.eventId;
+    const now = ctx.timestamp;
+    logger.info('Deposit routed', { tenantId: ctx.tenantId, mode, detailType });
+    return fundingCarrier({
+      eventName: BrokerCtrlEventTypes.DEPOSIT_REQUESTED,
+      direction: 'DEPOSIT',
+      status: 'requested',
+      transferId,
+      tenantId: ctx.tenantId,
+      userId: (subject.userId as string) ?? ctx.userId,
+      region: ctx.region,
+      amountCents: subject.amountCents as number,
+      currency: (subject.currency as string) ?? 'USD',
+      executionMode,
+      initiatedAt: now,
+      timestamp: now,
+    });
+  };
 }
 
-async function routeWithdrawal(payload: EventPayload, ctx: EventContext) {
-  const mode = await modeRepo.getMode(ctx.tenantId);
-  const detailType = mode === 'live'
-    ? BrokerCtrlRoutedEventTypes.ALPACA_TRANSFER_REQUESTED
-    : BrokerCtrlRoutedEventTypes.SIM_WITHDRAWAL_REQUESTED;
-
-  await emitToEventBridge(detailType, { ...payload.subject, direction: 'OUTGOING' }, ctx);
-
-  logger.info('Withdrawal routed', { tenantId: ctx.tenantId, mode, detailType });
-  return skip();
+function routeWithdrawal(deps: ModeDeps) {
+  return async (payload: EventPayload, ctx: EventContext): Promise<WriteIntent> => {
+    const subject = payload.subject as Record<string, unknown>;
+    const mode = await deps.getMode(ctx.tenantId);
+    const executionMode = mode === 'live' ? 'live' : 'simulation';
+    const detailType = mode === 'live'
+      ? BrokerCtrlRoutedEventTypes.ALPACA_TRANSFER_REQUESTED
+      : BrokerCtrlRoutedEventTypes.SIM_WITHDRAWAL_REQUESTED;
+    await emitToEventBridge(detailType, { ...subject, direction: 'OUTGOING' }, ctx);
+    const transferId = (subject.withdrawalId as string) ?? ctx.eventId;
+    const now = ctx.timestamp;
+    logger.info('Withdrawal routed', { tenantId: ctx.tenantId, mode, detailType });
+    return fundingCarrier({
+      eventName: BrokerCtrlEventTypes.WITHDRAWAL_REQUESTED,
+      direction: 'WITHDRAWAL',
+      status: 'requested',
+      transferId,
+      tenantId: ctx.tenantId,
+      userId: (subject.userId as string) ?? ctx.userId,
+      region: ctx.region,
+      amountCents: subject.amountCents as number,
+      currency: (subject.currency as string) ?? 'USD',
+      executionMode,
+      initiatedAt: now,
+      timestamp: now,
+    });
+  };
 }
 
-export const handler = createIngestionHandler({
+export function createRouterHandlers(modeRepo: Pick<ExecutionModeRepository, 'getMode'>) {
+  const deps: ModeDeps = { getMode: modeRepo.getMode.bind(modeRepo) };
+  return {
+    [BrokerCtrlInboundEventTypes.DEPOSIT_INITIATED]: routeDeposit(deps),
+    [BrokerCtrlInboundEventTypes.WITHDRAWAL_INITIATED]: routeWithdrawal(deps),
+  };
+}
+
+const modeRepo = new ExecutionModeRepository(requireEnv('TABLE_NAME'));
+
+export const handler = materializeToTable({
   serviceName: 'broker-ctrl',
-  handlers: {
-    [BrokerCtrlInboundEventTypes.DEPOSIT_INITIATED]: routeDeposit,
-    [BrokerCtrlInboundEventTypes.WITHDRAWAL_REQUESTED]: routeWithdrawal,
-  },
+  handlers: createRouterHandlers(modeRepo),
 });

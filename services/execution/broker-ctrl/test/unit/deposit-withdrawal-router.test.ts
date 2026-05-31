@@ -1,23 +1,8 @@
-// Set env vars BEFORE any imports
+// Set env vars BEFORE any imports (production export constructs a repo at module load)
 process.env.TABLE_NAME = 'test-table';
 process.env.BUS_NAME = 'test-bus';
 
-const mockDdbSend = jest.fn();
 const mockEbSend = jest.fn();
-
-jest.mock('@aws-sdk/client-dynamodb', () => ({
-  DynamoDBClient: jest.fn().mockImplementation(() => ({ send: mockDdbSend })),
-}));
-
-jest.mock('@aws-sdk/lib-dynamodb', () => {
-  const actual = jest.requireActual('@aws-sdk/lib-dynamodb');
-  return {
-    ...actual,
-    DynamoDBDocumentClient: { from: jest.fn().mockImplementation(() => ({ send: mockDdbSend })) },
-    GetCommand: jest.fn().mockImplementation((input) => ({ _type: 'Get', input })),
-    PutCommand: jest.fn().mockImplementation((input) => ({ _type: 'Put', input })),
-  };
-});
 
 jest.mock('@aws-sdk/client-eventbridge', () => ({
   EventBridgeClient: jest.fn().mockImplementation(() => ({ send: mockEbSend })),
@@ -27,102 +12,91 @@ jest.mock('@aws-sdk/client-eventbridge', () => ({
 jest.mock('@nestfolio/event-processor', () => ({
   ...jest.requireActual('@nestfolio/event-processor'),
   TableRepository: class {
-    protected readonly docClient: { send: jest.Mock };
     protected readonly tableName: string;
     constructor(tableName: string) {
       this.tableName = tableName;
-      this.docClient = { send: mockDdbSend };
     }
   },
   requireEnv: (name: string) => process.env[name] ?? name,
   logger: { info: jest.fn(), error: jest.fn(), warn: jest.fn(), debug: jest.fn() },
+  getUUID: jest.fn().mockReturnValue('evt-uuid'),
   getTime: jest.fn().mockReturnValue('2025-01-01T00:00:00.000Z'),
   withMethodLogging: jest.fn((_className: string) =>
     (_methodName: string, fn: (...args: unknown[]) => unknown) => fn,
   ),
 }));
 
-import { fakeSqsRecord } from '@nestfolio/event-processor';
-import { handler } from '../../src/handlers/deposit-withdrawal-router';
+/* eslint-disable @typescript-eslint/no-explicit-any */
+import { createRouterHandlers } from '../../src/handlers/deposit-withdrawal-router';
 import { BrokerCtrlInboundEventTypes } from '../../src/domain/events';
-import type { SQSEvent } from 'aws-lambda';
 
-function makeSqsEvent(...records: ReturnType<typeof fakeSqsRecord>[]): SQSEvent {
-  return { Records: records };
-}
+const ctx = (over = {}) =>
+  ({
+    eventId: 'evt-1',
+    eventType: 'DEPOSIT_INITIATED',
+    tenantId: 't-1',
+    userId: 'u-1',
+    region: 'us-east-1',
+    timestamp: '2026-01-01T00:00:00.000Z',
+    ...over,
+  }) as any;
 
-describe('deposit-withdrawal-router handler', () => {
+describe('deposit-withdrawal-router', () => {
+  let modeRepo: { getMode: jest.Mock };
+  let handlers: ReturnType<typeof createRouterHandlers>;
+
+  function build(mode: 'simulation' | 'live') {
+    modeRepo = { getMode: jest.fn().mockResolvedValue(mode) };
+    handlers = createRouterHandlers(modeRepo as any);
+  }
+
   beforeEach(() => {
     jest.clearAllMocks();
     mockEbSend.mockResolvedValue({});
   });
 
   describe('DEPOSIT_INITIATED', () => {
-    it('routes to SIM_DEPOSIT_INITIATED when mode=simulation', async () => {
-      mockDdbSend.mockResolvedValue({ Item: { mode: 'simulation' } });
-
-      const event = makeSqsEvent(
-        fakeSqsRecord(
-          BrokerCtrlInboundEventTypes.DEPOSIT_INITIATED,
-          { amount: 1000, currency: 'USD' },
-          { tenantId: 't-1' },
-        ),
+    it('routes to SIM_DEPOSIT_INITIATED with direction=INCOMING when mode=simulation', async () => {
+      build('simulation');
+      await handlers[BrokerCtrlInboundEventTypes.DEPOSIT_INITIATED](
+        { subject: { amountCents: 1000, currency: 'USD' } } as any,
+        ctx({ tenantId: 't-1' }),
       );
 
-      const result = await handler(event);
-
-      expect(result.batchItemFailures).toHaveLength(0);
       expect(mockEbSend).toHaveBeenCalledTimes(1);
-      const ebCall = mockEbSend.mock.calls[0][0];
-      expect(ebCall.input.Entries[0]).toMatchObject({
+      const entry = mockEbSend.mock.calls[0][0].input.Entries[0];
+      expect(entry).toMatchObject({
         EventBusName: 'test-bus',
         Source: 'test-bus@broker-ctrl',
         DetailType: 'SIM_DEPOSIT_INITIATED',
       });
-      const detail = JSON.parse(ebCall.input.Entries[0].Detail);
+      const detail = JSON.parse(entry.Detail);
+      expect(detail.type).toBe('SIM_DEPOSIT_INITIATED');
       expect(detail.context.tenantId).toBe('t-1');
       expect(detail.subject.direction).toBe('INCOMING');
-      expect(detail.type).toBe('SIM_DEPOSIT_INITIATED');
     });
 
     it('routes to ALPACA_TRANSFER_REQUESTED with direction=INCOMING when mode=live', async () => {
-      mockDdbSend.mockResolvedValue({ Item: { mode: 'live' } });
-
-      const event = makeSqsEvent(
-        fakeSqsRecord(
-          BrokerCtrlInboundEventTypes.DEPOSIT_INITIATED,
-          { amount: 5000, currency: 'USD' },
-          { tenantId: 't-2' },
-        ),
+      build('live');
+      await handlers[BrokerCtrlInboundEventTypes.DEPOSIT_INITIATED](
+        { subject: { amountCents: 5000, currency: 'USD' } } as any,
+        ctx({ tenantId: 't-2' }),
       );
 
-      const result = await handler(event);
-
-      expect(result.batchItemFailures).toHaveLength(0);
       expect(mockEbSend).toHaveBeenCalledTimes(1);
-      const ebCall = mockEbSend.mock.calls[0][0];
-      expect(ebCall.input.Entries[0]).toMatchObject({
-        EventBusName: 'test-bus',
-        Source: 'test-bus@broker-ctrl',
-        DetailType: 'ALPACA_TRANSFER_REQUESTED',
-      });
-      const detail = JSON.parse(ebCall.input.Entries[0].Detail);
+      const entry = mockEbSend.mock.calls[0][0].input.Entries[0];
+      expect(entry).toMatchObject({ DetailType: 'ALPACA_TRANSFER_REQUESTED' });
+      const detail = JSON.parse(entry.Detail);
       expect(detail.context.tenantId).toBe('t-2');
       expect(detail.subject.direction).toBe('INCOMING');
     });
 
-    it('emits standard event envelope with id, type, timestamp, subject, context', async () => {
-      mockDdbSend.mockResolvedValue({ Item: { mode: 'simulation' } });
-
-      const event = makeSqsEvent(
-        fakeSqsRecord(
-          BrokerCtrlInboundEventTypes.DEPOSIT_INITIATED,
-          { amount: 1000 },
-          { tenantId: 't-envelope', userId: 'u-envelope', region: 'us-east-1' },
-        ),
+    it('emits a standard event envelope with id, type, timestamp, subject, context', async () => {
+      build('simulation');
+      await handlers[BrokerCtrlInboundEventTypes.DEPOSIT_INITIATED](
+        { subject: { amountCents: 1000 } } as any,
+        ctx({ tenantId: 't-envelope', userId: 'u-envelope', region: 'us-east-1' }),
       );
-
-      await handler(event);
 
       const detail = JSON.parse(mockEbSend.mock.calls[0][0].input.Entries[0].Detail);
       expect(detail).toEqual(expect.objectContaining({
@@ -133,59 +107,105 @@ describe('deposit-withdrawal-router handler', () => {
         context: { tenantId: 't-envelope', userId: 'u-envelope', region: 'us-east-1' },
       }));
     });
-  });
 
-  describe('WITHDRAWAL_REQUESTED', () => {
-    it('routes to SIM_WITHDRAWAL_REQUESTED when mode=simulation', async () => {
-      mockDdbSend.mockResolvedValue({ Item: { mode: 'simulation' } });
-
-      const event = makeSqsEvent(
-        fakeSqsRecord(
-          BrokerCtrlInboundEventTypes.WITHDRAWAL_REQUESTED,
-          { amount: 500, currency: 'USD' },
-          { tenantId: 't-3' },
-        ),
+    it('returns a DEPOSIT_REQUESTED carrier (v1) in addition to routing', async () => {
+      build('simulation');
+      const intent = await handlers[BrokerCtrlInboundEventTypes.DEPOSIT_INITIATED](
+        { subject: { depositId: 'dep-1', amountCents: 1000, currency: 'USD' } } as any,
+        ctx({ tenantId: 't-1', userId: 'u-1', region: 'us-east-1' }),
       );
 
-      const result = await handler(event);
-
-      expect(result.batchItemFailures).toHaveLength(0);
+      // routing still happens
       expect(mockEbSend).toHaveBeenCalledTimes(1);
-      const ebCall = mockEbSend.mock.calls[0][0];
-      expect(ebCall.input.Entries[0]).toMatchObject({
-        EventBusName: 'test-bus',
-        Source: 'test-bus@broker-ctrl',
-        DetailType: 'SIM_WITHDRAWAL_REQUESTED',
+      // carrier intent is returned for the engine to persist
+      expect(intent).toMatchObject({
+        _tag: 'record',
+        typename: 'FundingEvent',
+        fields: expect.objectContaining({
+          __typename: 'FundingEvent',
+          sk: 'DEPOSIT_REQUESTED',
+          direction: 'DEPOSIT',
+          status: 'requested',
+          __version: 1,
+          transferId: 'dep-1',
+          amountCents: 1000,
+          currency: 'USD',
+          executionMode: 'simulation',
+        }),
+        overrides: expect.objectContaining({
+          pk: 'Funding#t-1#dep-1',
+          sk: 'DEPOSIT_REQUESTED',
+        }),
       });
-      const detail = JSON.parse(ebCall.input.Entries[0].Detail);
+    });
+
+    it('falls back to eventId for transferId when depositId is absent', async () => {
+      build('simulation');
+      const intent = await handlers[BrokerCtrlInboundEventTypes.DEPOSIT_INITIATED](
+        { subject: { amountCents: 1000, currency: 'USD' } } as any,
+        ctx({ eventId: 'evt-fallback', tenantId: 't-1' }),
+      );
+      expect((intent as any).overrides.pk).toBe('Funding#t-1#evt-fallback');
+    });
+  });
+
+  describe('WITHDRAWAL_INITIATED', () => {
+    it('routes to SIM_WITHDRAWAL_REQUESTED with direction=OUTGOING when mode=simulation', async () => {
+      build('simulation');
+      await handlers[BrokerCtrlInboundEventTypes.WITHDRAWAL_INITIATED](
+        { subject: { amountCents: 500, currency: 'USD' } } as any,
+        ctx({ eventType: 'WITHDRAWAL_INITIATED', tenantId: 't-3' }),
+      );
+
+      expect(mockEbSend).toHaveBeenCalledTimes(1);
+      const entry = mockEbSend.mock.calls[0][0].input.Entries[0];
+      expect(entry).toMatchObject({ DetailType: 'SIM_WITHDRAWAL_REQUESTED' });
+      const detail = JSON.parse(entry.Detail);
       expect(detail.context.tenantId).toBe('t-3');
       expect(detail.subject.direction).toBe('OUTGOING');
     });
 
     it('routes to ALPACA_TRANSFER_REQUESTED with direction=OUTGOING when mode=live', async () => {
-      mockDdbSend.mockResolvedValue({ Item: { mode: 'live' } });
-
-      const event = makeSqsEvent(
-        fakeSqsRecord(
-          BrokerCtrlInboundEventTypes.WITHDRAWAL_REQUESTED,
-          { amount: 2000, currency: 'USD' },
-          { tenantId: 't-4' },
-        ),
+      build('live');
+      await handlers[BrokerCtrlInboundEventTypes.WITHDRAWAL_INITIATED](
+        { subject: { amountCents: 2000, currency: 'USD' } } as any,
+        ctx({ eventType: 'WITHDRAWAL_INITIATED', tenantId: 't-4' }),
       );
 
-      const result = await handler(event);
-
-      expect(result.batchItemFailures).toHaveLength(0);
       expect(mockEbSend).toHaveBeenCalledTimes(1);
-      const ebCall = mockEbSend.mock.calls[0][0];
-      expect(ebCall.input.Entries[0]).toMatchObject({
-        EventBusName: 'test-bus',
-        Source: 'test-bus@broker-ctrl',
-        DetailType: 'ALPACA_TRANSFER_REQUESTED',
-      });
-      const detail = JSON.parse(ebCall.input.Entries[0].Detail);
+      const entry = mockEbSend.mock.calls[0][0].input.Entries[0];
+      expect(entry).toMatchObject({ DetailType: 'ALPACA_TRANSFER_REQUESTED' });
+      const detail = JSON.parse(entry.Detail);
       expect(detail.context.tenantId).toBe('t-4');
       expect(detail.subject.direction).toBe('OUTGOING');
+    });
+
+    it('returns a WITHDRAWAL_REQUESTED carrier (v1) in addition to routing', async () => {
+      build('simulation');
+      const intent = await handlers[BrokerCtrlInboundEventTypes.WITHDRAWAL_INITIATED](
+        { subject: { withdrawalId: 'wd-1', amountCents: 500, currency: 'USD' } } as any,
+        ctx({ eventType: 'WITHDRAWAL_INITIATED', tenantId: 't-3', userId: 'u-3', region: 'us-east-1' }),
+      );
+
+      expect(mockEbSend).toHaveBeenCalledTimes(1);
+      expect(intent).toMatchObject({
+        _tag: 'record',
+        typename: 'FundingEvent',
+        fields: expect.objectContaining({
+          __typename: 'FundingEvent',
+          sk: 'WITHDRAWAL_REQUESTED',
+          direction: 'WITHDRAWAL',
+          status: 'requested',
+          __version: 1,
+          transferId: 'wd-1',
+          amountCents: 500,
+          currency: 'USD',
+        }),
+        overrides: expect.objectContaining({
+          pk: 'Funding#t-3#wd-1',
+          sk: 'WITHDRAWAL_REQUESTED',
+        }),
+      });
     });
   });
 });
