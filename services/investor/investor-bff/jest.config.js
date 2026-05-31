@@ -9,6 +9,7 @@ module.exports = {
     '^@nestfolio/event-types$': '<rootDir>/../../../libs/event-types/src/index.ts',
     '^@nestfolio/event-processor$': '<rootDir>/../../../libs/event-processor/src/index.ts',
     '^@nestfolio/event-processor/(.*)$': '<rootDir>/../../../libs/event-processor/src/$1',
+    '^@nestfolio/test-support$': '<rootDir>/../../../libs/test-support/src/index.ts',
     '^@nestfolio/investor-ctrl/events$': '<rootDir>/../../investor/investor-ctrl/src/domain/events.ts',
     '^@nestfolio/investor-adpt/domain$': '<rootDir>/../../investor/investor-adpt/src/domain/index.ts',
     '^@nestfolio/ledger-adpt/domain$': '<rootDir>/../../ledger/ledger-adpt/src/domain/index.ts',
