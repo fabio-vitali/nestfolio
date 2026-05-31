@@ -1,15 +1,20 @@
 import { eventName } from '@nestfolio/event-types';
 
 export const BrokerCtrlEventTypes = {
-  // Normalized outbound (CDC)
+  // Order lifecycle (unchanged — still emitted from NormalizedEvent CDC)
   ORDER_FILLED: eventName('ORDER_FILLED'),
   ORDER_PARTIALLY_FILLED: eventName('ORDER_PARTIALLY_FILLED'),
   ORDER_REJECTED: eventName('ORDER_REJECTED'),
   ORDER_CANCELLED: eventName('ORDER_CANCELLED'),
   ORDER_ESCALATED: eventName('ORDER_ESCALATED'),
+  // Funding lifecycle (NEW — emitted from FundingEvent CDC, carry full snapshot + __version)
+  DEPOSIT_REQUESTED: eventName('DEPOSIT_REQUESTED'),
   DEPOSIT_DETECTED: eventName('DEPOSIT_DETECTED'),
-  WITHDRAWAL_COMPLETED: eventName('WITHDRAWAL_COMPLETED'),
-  TRANSFER_FAILED: eventName('TRANSFER_FAILED'),
+  DEPOSIT_SETTLED: eventName('DEPOSIT_SETTLED'),
+  DEPOSIT_FAILED: eventName('DEPOSIT_FAILED'),
+  WITHDRAWAL_REQUESTED: eventName('WITHDRAWAL_REQUESTED'),
+  WITHDRAWAL_SETTLED: eventName('WITHDRAWAL_SETTLED'),
+  WITHDRAWAL_FAILED: eventName('WITHDRAWAL_FAILED'),
 } as const;
 
 // Events this service routes (emits to ExecutionBus for adapters)
@@ -28,7 +33,7 @@ export const BrokerCtrlInboundEventTypes = {
   ORDER_SUBMITTED: eventName('ORDER_SUBMITTED'),
   EXECUTION_MODE_CHANGED: eventName('EXECUTION_MODE_CHANGED'),
   DEPOSIT_INITIATED: eventName('DEPOSIT_INITIATED'),
-  WITHDRAWAL_REQUESTED: eventName('WITHDRAWAL_REQUESTED'),
+  WITHDRAWAL_INITIATED: eventName('WITHDRAWAL_INITIATED'),
   // Adapter results handled by CallbackResolver
   SIM_ORDER_FILLED: eventName('SIM_ORDER_FILLED'),
   SIM_ORDER_REJECTED: eventName('SIM_ORDER_REJECTED'),
