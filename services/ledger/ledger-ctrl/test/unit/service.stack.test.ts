@@ -76,7 +76,8 @@ describe('LedgerCtrlStack', () => {
       EventPattern: {
         'detail-type': Match.arrayWith([
           'ORDER_FILLED',
-          'DEPOSIT_DETECTED',
+          'DEPOSIT_SETTLED',
+          'WITHDRAWAL_SETTLED',
           'CORPORATE_ACTION_APPLIED',
           'DECISION_PACKET_CREATED',
         ]),

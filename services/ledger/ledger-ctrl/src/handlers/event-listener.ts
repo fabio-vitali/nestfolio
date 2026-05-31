@@ -118,8 +118,8 @@ const ACTUAL_EVENT_TYPES = [
   ExecutionCrossDomainEventTypes.ORDER_PARTIALLY_FILLED,
   ExecutionCrossDomainEventTypes.ORDER_REJECTED,
   ExecutionCrossDomainEventTypes.ORDER_CANCELLED,
-  ExecutionCrossDomainEventTypes.DEPOSIT_DETECTED,
-  ExecutionCrossDomainEventTypes.WITHDRAWAL_COMPLETED,
+  ExecutionCrossDomainEventTypes.DEPOSIT_SETTLED,
+  ExecutionCrossDomainEventTypes.WITHDRAWAL_SETTLED,
   ExecutionCrossDomainEventTypes.CORPORATE_ACTION_APPLIED,
 ] as const;
 
