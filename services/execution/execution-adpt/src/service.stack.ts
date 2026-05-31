@@ -55,7 +55,7 @@ export class ExecutionAdptStack extends ServiceStack {
     });
     const fromInvestorEvents = [
       ExecutionIngestEventTypes.DEPOSIT_INITIATED,
-      ExecutionIngestEventTypes.WITHDRAWAL_REQUESTED,
+      ExecutionIngestEventTypes.WITHDRAWAL_INITIATED,
       ExecutionIngestEventTypes.ACCOUNT_CLOSURE_REQUESTED,
       ExecutionIngestEventTypes.EXECUTION_MODE_CHANGED,
     ];
