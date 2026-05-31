@@ -64,7 +64,7 @@ describe('investor-bff', () => {
       bus: 'investor',
       detailType: [
         'DEPOSIT_INITIATED',
-        'WITHDRAWAL_REQUESTED',
+        'WITHDRAWAL_INITIATED',
         'INVESTOR_PROFILE_CREATED',
         'INVESTOR_PROFILE_UPDATED',
         'MANDATE_ISSUED',
@@ -280,11 +280,14 @@ describe('investor-bff', () => {
       expect(mandateRow['operatingMode']).toBe('BALANCED');
       expect(mandateRow['effectiveDate']).toBeDefined();
 
-      // Deposit row (capitalAmount > 0)
-      const deposit = items.find((i) => String(i['sk']).startsWith('Deposit#'));
-      expect(deposit).toBeDefined();
-      expect(deposit!['amountCents']).toBe(100_000);
-      expect(deposit!['status']).toBe('INITIATED');
+      // DepositIntent outbox row (capitalAmount > 0). Onboarding seeds the
+      // intent; CDC emits DEPOSIT_INITIATED and broker-ctrl's lifecycle events
+      // later materialize the projected Deposit row (single-writer).
+      const depositIntent = items.find((i) => String(i['sk']).startsWith('DepositIntent#'));
+      expect(depositIntent).toBeDefined();
+      expect(depositIntent!['__typename']).toBe('DepositIntent');
+      expect(depositIntent!['amountCents']).toBe(100_000);
+      expect(depositIntent!['status']).toBe('INITIATED');
 
       // No stale per-entity rows should exist post-resplit
       expect(items.find((i) => i['sk'] === 'RiskProfile')).toBeUndefined();
@@ -365,7 +368,7 @@ describe('investor-bff', () => {
       await table.cleanup({ table: 'investor-bff', pk: 'FeatureFlag#SYSTEM' });
     }, 30_000);
 
-    it('should create deposit record and emit DEPOSIT_INITIATED', async () => {
+    it('should write a DepositIntent outbox row and emit DEPOSIT_INITIATED', async () => {
       const clientDepositId = crypto.randomUUID();
       const result = await appsync.mutate<{
         initiateDeposit: {
@@ -392,23 +395,35 @@ describe('investor-bff', () => {
         },
       );
 
+      // Optimistic return — the projected Deposit read-model row is materialized
+      // later from broker-ctrl's lifecycle events, not by this resolver.
       expect(result.initiateDeposit.status).toBe('INITIATED');
       expect(result.initiateDeposit.amountCents).toBe(100_000);
       expect(result.initiateDeposit.currency).toBe('USD');
       expect(result.initiateDeposit.depositId).toBe(clientDepositId);
       const depositId = result.initiateDeposit.depositId;
 
-      // Assert: Deposit record in DDB
+      // Assert: DepositIntent outbox row in DDB (NOT a projected Deposit row)
       const item = await table.waitForItem({
         table: 'investor-bff',
         pk: `InvestorProfile#${ctx.tenantId}#${cognitoSub}`,
-        sk: `Deposit#${depositId}`,
+        sk: `DepositIntent#${depositId}`,
       });
       expect(item['amountCents']).toBe(100_000);
       expect(item['status']).toBe('INITIATED');
-      expect(item['__typename']).toBe('Deposit');
+      expect(item['__typename']).toBe('DepositIntent');
 
-      // Assert: CDC event on EventBridge
+      // No projected Deposit row should exist yet (no lifecycle event emitted)
+      await expect(
+        table.waitForItem({
+          table: 'investor-bff',
+          pk: `InvestorProfile#${ctx.tenantId}#${cognitoSub}`,
+          sk: `Deposit#${depositId}`,
+          timeoutMs: 5_000,
+        }),
+      ).rejects.toThrow();
+
+      // Assert: CDC event on EventBridge — DEPOSIT_INITIATED from the outbox row
       const event = await trap.waitForEvent<BusEventPayload>({
         detailType: 'DEPOSIT_INITIATED',
         timeoutMs: 60_000,
@@ -417,10 +432,102 @@ describe('investor-bff', () => {
       expect(event.detail.context.tenantId).toBe(ctx.tenantId);
     }, 120_000);
 
-    it('should create withdrawal record and emit WITHDRAWAL_REQUESTED', async () => {
+    it('materializes the Deposit P1 row from lifecycle v2→v3 with monotonic __version (stale dropped)', async () => {
+      const transferId = crypto.randomUUID();
+      const pk = `InvestorProfile#${ctx.tenantId}#${cognitoSub}`;
+      const sk = `Deposit#${transferId}`;
+
+      // Emit DEPOSIT_DETECTED (v2) — broker-ctrl's funding snapshot shape.
+      // investor-adpt forwards execution→investor; here we emit directly on
+      // investorBus, which is what the ingress handler consumes.
+      await eb.putEvent({
+        bus: 'investor',
+        targetService: 'investor-bff',
+        detailType: 'DEPOSIT_DETECTED',
+        detail: {
+          tenantId: ctx.tenantId,
+          userId: cognitoSub,
+          status: 'detected',
+          transferId,
+          amountCents: 250_000,
+          currency: 'USD',
+          initiatedAt: '2026-01-01T00:00:00.000Z',
+          detectedAt: '2026-01-02T00:00:00.000Z',
+          __version: 2,
+        },
+      });
+
+      const detected = await table.waitForItem({
+        table: 'investor-bff',
+        pk,
+        sk,
+        match: { status: 'DETECTED' },
+        timeoutMs: 60_000,
+      });
+      expect(detected['__typename']).toBe('Deposit');
+      expect(detected['depositId']).toBe(transferId);
+      expect(detected['__version']).toBe(2);
+
+      // Emit DEPOSIT_SETTLED (v3) — must win (monotonic version).
+      await eb.putEvent({
+        bus: 'investor',
+        targetService: 'investor-bff',
+        detailType: 'DEPOSIT_SETTLED',
+        detail: {
+          tenantId: ctx.tenantId,
+          userId: cognitoSub,
+          status: 'settled',
+          transferId,
+          amountCents: 250_000,
+          currency: 'USD',
+          initiatedAt: '2026-01-01T00:00:00.000Z',
+          detectedAt: '2026-01-02T00:00:00.000Z',
+          settledAt: '2026-01-03T00:00:00.000Z',
+          __version: 3,
+        },
+      });
+
+      const settled = await table.waitForItem({
+        table: 'investor-bff',
+        pk,
+        sk,
+        match: { status: 'SETTLED' },
+        timeoutMs: 60_000,
+      });
+      expect(settled['__version']).toBe(3);
+      expect(settled['settledAt']).toBe('2026-01-03T00:00:00.000Z');
+
+      // Re-emit a STALE lower version (v2) — projectVersioned guard drops it,
+      // so the row stays at v3/SETTLED.
+      await eb.putEvent({
+        bus: 'investor',
+        targetService: 'investor-bff',
+        detailType: 'DEPOSIT_DETECTED',
+        detail: {
+          tenantId: ctx.tenantId,
+          userId: cognitoSub,
+          status: 'detected',
+          transferId,
+          amountCents: 250_000,
+          currency: 'USD',
+          initiatedAt: '2026-01-01T00:00:00.000Z',
+          detectedAt: '2026-01-02T00:00:00.000Z',
+          __version: 2,
+        },
+      });
+
+      // Allow time for the stale event to be (wrongly) applied if the guard failed.
+      await new Promise((r) => setTimeout(r, 10_000));
+      const afterStale = await table.waitForItem({ table: 'investor-bff', pk, sk });
+      expect(afterStale['__version']).toBe(3);
+      expect(afterStale['status']).toBe('SETTLED');
+    }, 180_000);
+
+    it('should write a WithdrawalIntent outbox row and emit WITHDRAWAL_INITIATED (funds available)', async () => {
       const pk = `InvestorProfile#${ctx.tenantId}#${cognitoSub}`;
 
-      // Event-driven fixture: BALANCE_UPDATED materializes CashBalance at InvestorProfile# pk
+      // Event-driven fixture: BALANCE_UPDATED materializes CashBalance at InvestorProfile# pk.
+      // Version-guard CashBalance with a high lastEventSequence so this balance wins.
       await eb.putEvent({
         bus: 'investor',
         targetService: 'investor-bff',
@@ -429,12 +536,15 @@ describe('investor-bff', () => {
           tenantId: ctx.tenantId,
           userId: cognitoSub,
           cashBalanceCents: 1_000_000,
+          snapshot: { positions: {}, cashBalanceCents: 1_000_000, lastEventSequence: 1000 },
         },
       });
       await table.waitForItem({
         table: 'investor-bff',
         pk,
         sk: 'CashBalance',
+        predicate: (i) => Number(i['cashBalanceCents']) >= 1_000_000,
+        description: 'CashBalance >= 1,000,000',
         timeoutMs: 60_000,
       });
 
@@ -467,21 +577,61 @@ describe('investor-bff', () => {
       expect(result.requestWithdrawal.amountCents).toBe(50_000);
       const withdrawalId = result.requestWithdrawal.withdrawalId;
 
-      // Assert: Withdrawal record in DDB
+      // Assert: WithdrawalIntent outbox row in DDB (NOT a projected WithdrawalRequest row)
       const item = await table.waitForItem({
         table: 'investor-bff',
         pk,
-        sk: `Withdrawal#${withdrawalId}`,
+        sk: `WithdrawalIntent#${withdrawalId}`,
       });
       expect(item['status']).toBe('REQUESTED');
-      expect(item['__typename']).toBe('Withdrawal');
+      expect(item['__typename']).toBe('WithdrawalIntent');
 
-      // Assert: CDC event on EventBridge
+      // Assert: CashBalance was NOT debited — ledger-ctrl debits on settlement,
+      // the resolver only ConditionChecks funds.
+      const balance = await table.waitForItem({ table: 'investor-bff', pk, sk: 'CashBalance' });
+      expect(Number(balance['cashBalanceCents'])).toBe(1_000_000);
+
+      // Assert: CDC event on EventBridge — WITHDRAWAL_INITIATED from the outbox row
       const event = await trap.waitForEvent({
-        detailType: 'WITHDRAWAL_REQUESTED',
+        detailType: 'WITHDRAWAL_INITIATED',
         timeoutMs: 60_000,
       });
-      expect(event.detailType).toBe('WITHDRAWAL_REQUESTED');
+      expect(event.detailType).toBe('WITHDRAWAL_INITIATED');
+    }, 120_000);
+
+    it('should reject requestWithdrawal with InsufficientFundsError and write NO intent row', async () => {
+      const pk = `InvestorProfile#${ctx.tenantId}#${cognitoSub}`;
+
+      // CashBalance is 1,000,000 from the prior test; request far more than that.
+      await table.waitForItem({ table: 'investor-bff', pk, sk: 'CashBalance', timeoutMs: 30_000 });
+
+      const intentsBefore = await table.queryItems({
+        table: 'investor-bff',
+        pk,
+        skPrefix: 'WithdrawalIntent#',
+      });
+
+      await expect(
+        appsync.mutate(
+          `
+          mutation RequestWithdrawal($input: WithdrawalInput!) {
+            requestWithdrawal(input: $input) {
+              withdrawalId
+              status
+            }
+          }
+        `,
+          { input: { amountCents: 999_999_999, currency: 'USD' } },
+        ),
+      ).rejects.toThrow(/Insufficient funds|InsufficientFundsError/i);
+
+      // No new WithdrawalIntent row should have been written by the failed txn.
+      const intentsAfter = await table.queryItems({
+        table: 'investor-bff',
+        pk,
+        skPrefix: 'WithdrawalIntent#',
+      });
+      expect(intentsAfter.length).toBe(intentsBefore.length);
     }, 120_000);
 
     it('should update goal on composite row and emit INVESTOR_PROFILE_UPDATED', async () => {
@@ -811,16 +961,38 @@ describe('investor-bff', () => {
       expect(result.getProfile.accountMode.mode).toBe('simulation');
     }, 60_000);
 
-    it('getDeposit returns the row written by initiateDeposit', async () => {
-      const depositId = crypto.randomUUID();
-      await appsync.mutate(
-        `
-        mutation InitiateDeposit($input: DepositInput!) {
-          initiateDeposit(input: $input) { depositId }
-        }
-      `,
-        { input: { depositId, amountCents: 5_000, currency: 'USD' } },
-      );
+    it('getDeposit returns the projected Deposit row materialized from a lifecycle event', async () => {
+      // getDeposit reads the projected Deposit P1 row (sk=Deposit#<id>), which is
+      // now materialized from broker-ctrl's funding lifecycle — NOT from
+      // initiateDeposit (which writes a DepositIntent outbox row). Seed via a
+      // DEPOSIT_SETTLED lifecycle event, then read it back.
+      const transferId = crypto.randomUUID();
+      const pk = `InvestorProfile#${ctx.tenantId}#${cognitoSub}`;
+
+      await eb.putEvent({
+        bus: 'investor',
+        targetService: 'investor-bff',
+        detailType: 'DEPOSIT_SETTLED',
+        detail: {
+          tenantId: ctx.tenantId,
+          userId: cognitoSub,
+          status: 'settled',
+          transferId,
+          amountCents: 5_000,
+          currency: 'USD',
+          initiatedAt: '2026-01-01T00:00:00.000Z',
+          settledAt: '2026-01-03T00:00:00.000Z',
+          __version: 3,
+        },
+      });
+
+      await table.waitForItem({
+        table: 'investor-bff',
+        pk,
+        sk: `Deposit#${transferId}`,
+        match: { status: 'SETTLED' },
+        timeoutMs: 60_000,
+      });
 
       const result = await appsync.query<{
         getDeposit: {
@@ -840,18 +1012,18 @@ describe('investor-bff', () => {
           }
         }
       `,
-        { depositId },
+        { depositId: transferId },
       );
 
       expect(result.getDeposit).toEqual(
         expect.objectContaining({
-          depositId,
+          depositId: transferId,
           amountCents: 5_000,
           currency: 'USD',
-          status: 'INITIATED',
+          status: 'SETTLED',
         }),
       );
-    }, 60_000);
+    }, 120_000);
 
     it('getDeposit throws NotFoundError for an unknown depositId', async () => {
       const depositId = crypto.randomUUID();
@@ -943,68 +1115,4 @@ describe('investor-bff', () => {
     }, 210_000); // Two full event→mutation→poll cycles under parallel load
   });
 
-  describe('deposit event subscription pipeline', () => {
-    it('flips DepositIntent status to DETECTED when DEPOSIT_DETECTED is received', async () => {
-      // Create the DepositIntent row first — the publish-deposit-event resolver has
-      // attribute_exists(pk) and will fail silently (conditional) if no row exists.
-      const seedResult = await appsync.mutate<{
-        initiateDeposit: {
-          depositId: string;
-          amountCents: number;
-          currency: string;
-          status: string;
-          initiatedAt: string;
-        };
-      }>(
-        `
-        mutation InitiateDeposit($input: DepositInput!) {
-          initiateDeposit(input: $input) {
-            depositId
-            amountCents
-            currency
-            status
-            initiatedAt
-          }
-        }
-      `,
-        { input: { depositId: crypto.randomUUID(), amountCents: 250_000, currency: 'USD' } },
-      );
-
-      const depositId = seedResult.initiateDeposit.depositId;
-      const pk = `InvestorProfile#${ctx.tenantId}#${cognitoSub}`;
-      const sk = `Deposit#${depositId}`;
-
-      // Confirm seed row is INITIATED
-      const seeded = await table.waitForItem({ table: 'investor-bff', pk, sk });
-      expect(seeded['status']).toBe('INITIATED');
-
-      // Act — emit DEPOSIT_DETECTED on investorBus (investor-adpt already routes
-      // DEPOSIT_DETECTED from executionBus → investorBus; here we bypass the adapter
-      // and emit directly on investorBus, which is what the ingress handler consumes).
-      await eb.putEvent({
-        bus: 'investor',
-        targetService: 'investor-bff',
-        detailType: 'DEPOSIT_DETECTED',
-        detail: {
-          tenantId: ctx.tenantId,
-          userId: cognitoSub,
-          depositId,
-          amountCents: 250_000,
-          currency: 'USD',
-        },
-      });
-
-      // Assert — DDB row status advances to DETECTED
-      const updated = await table.waitForItem({
-        table: 'investor-bff',
-        pk,
-        sk,
-        match: { status: 'DETECTED' },
-        timeoutMs: 60_000,
-      });
-
-      expect(updated['status']).toBe('DETECTED');
-      expect(updated['occurredAt']).toBeDefined();
-    }, 120_000);
-  });
 });
