@@ -6,7 +6,7 @@ notes: "Workstream 4 of bff-read-model-materialization-redesign: confirm investo
 references:
   - "docs/superpowers/specs/2026-05-29-bff-read-model-materialization-redesign-design.md"
 spec: docs/superpowers/specs/2026-05-29-bff-read-model-materialization-redesign-design.md
-plan: null
+plan: docs/superpowers/plans/2026-05-31-bff-readmodel-w4-investor-bff.md
 topic_memory: [project_read_model_redesign.md]
 out_of_scope:
   - "Deposit/Withdrawal/Order externally-settled entities — that is w5; CashBalance is the only external-authority row migrated here."
