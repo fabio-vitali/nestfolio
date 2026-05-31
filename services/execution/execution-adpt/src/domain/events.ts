@@ -16,7 +16,9 @@ export const ExecutionCrossDomainEventTypes = {
   // → Investor + Ledger + Advisory
   ORDER_FILLED: eventName('ORDER_FILLED'),
   ORDER_PARTIALLY_FILLED: eventName('ORDER_PARTIALLY_FILLED'),
+  // → Investor + Advisory (not Ledger)
   DEPOSIT_DETECTED: eventName('DEPOSIT_DETECTED'),
+  // → Investor + Ledger
   DEPOSIT_SETTLED: eventName('DEPOSIT_SETTLED'),
   WITHDRAWAL_SETTLED: eventName('WITHDRAWAL_SETTLED'),
   // → Ledger (planned — no producer yet)

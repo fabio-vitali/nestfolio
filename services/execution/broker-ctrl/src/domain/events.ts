@@ -7,7 +7,7 @@ export const BrokerCtrlEventTypes = {
   ORDER_REJECTED: eventName('ORDER_REJECTED'),
   ORDER_CANCELLED: eventName('ORDER_CANCELLED'),
   ORDER_ESCALATED: eventName('ORDER_ESCALATED'),
-  // Funding lifecycle (NEW — emitted from FundingEvent CDC, carry full snapshot + __version)
+  // Funding lifecycle — emitted from FundingEvent CDC; carry full snapshot + __version
   DEPOSIT_REQUESTED: eventName('DEPOSIT_REQUESTED'),
   DEPOSIT_DETECTED: eventName('DEPOSIT_DETECTED'),
   DEPOSIT_SETTLED: eventName('DEPOSIT_SETTLED'),
