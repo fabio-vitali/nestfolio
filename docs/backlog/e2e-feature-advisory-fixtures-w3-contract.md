@@ -1,7 +1,7 @@
 ---
 id: e2e-feature-advisory-fixtures-w3-contract
 status: queued
-rank: 4
+rank: 1
 type: refactor
 notes: "Synthetic Jest e2e advisory fixtures (withDecision) encode the pre-w3 producer-owned model; accept/reject-decision red post-w3. Rework for versioned producer-owned contract."
 references: []

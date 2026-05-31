@@ -5,7 +5,7 @@ rank: null
 type: design
 references:
   - services/advisory/advisory-bff/src/service.stack.ts
-  - services/advisory/advisory-bff/src/transforms/decision-packet-created.ts
+  - services/advisory/advisory-bff/src/transforms/decision-snapshot.ts
   - services/advisory/decision-workflow-ctrl/src/service.stack.ts
   - services/advisory/decision-workflow-ctrl/src/constructs/decision-state-machine.ts
   - services/investor/dashboard-bff/src/service.stack.ts
