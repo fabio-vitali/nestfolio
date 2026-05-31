@@ -14,17 +14,18 @@ Stack: services/investor/dashboard-bff/src/service.stack.ts
 ## Transforms
 - advisory-status.ts — (Workstream 3) P3 projection: on ADVISORY_STATUS_UPDATED, calls `projectVersioned('AdvisoryStatus', { pendingDecisionsCount: subject.inFlightCount }, { version: subject.__version, … })`. Maps producer field `inFlightCount` → read-model field `pendingDecisionsCount`. No `accumulate`. Returns undefined if `__version` is absent.
 - recent-activity.ts — dispatches DECISION_PACKET_CREATED and USER_CONFIRMATION_REQUESTED (and other activity-relevant events) to the activity feed; rows are LIVE-broadcast via publishActivityUpdate → onActivityUpdate
-- investor-snapshot.ts — reads goal, riskProfile, operatingMode from composite INVESTOR_PROFILE_* payload (still `project()`; P1 migration deferred to w4 — needs investor-bff `__version` + stable `onboardedAt`)
+- investor-snapshot.ts — (Workstream 4) version-guarded P1 projection (`projectVersioned`) of the composite INVESTOR_PROFILE_* payload: reads `goalType`/`riskLevel`/`operatingMode` plus stable `onboardedAt` (from `payload.onboardingCompletedAt`, present on every CDC full-row emit so a full-row write never wipes it), keyed on investor-bff's row `__version`. Returns undefined if `__version` is absent.
 - portfolio-summary.ts — version-guarded P1 projection (`projectVersioned`) from the authoritative ledger snapshot on BALANCE_UPDATED / PORTFOLIO_UPDATED: writes full row `cashBalanceCents`, `positionCount`, `totalValueCents`, keyed on `lastEventSequence` as `__version`
 - position-snapshot.ts — version-guarded P1 projection, one `projectVersioned('PositionSnapshot', …)` per holding from `snapshot.positions`
 - time-travel-availability.ts — unchanged
 
 ## Read model (ownership)
 - `ReadModelOwnership` registered in `src/read-model-ownership.ts` (side-effect-imported from `handlers/event-listener.ts`):
-  - P1 (versioned snapshots via `projectVersioned`): `PortfolioSummary`, `PositionSnapshot`
+  - P1 (versioned snapshots via `projectVersioned`): `PortfolioSummary`, `PositionSnapshot`, `InvestorSnapshot` (`InvestorSnapshot` registered in workstream 4 once investor-bff stamped `__version`; `project()` on it now fails typecheck)
   - P2 (append-only log via `record`): `Activity`
   - P3 (deferred projection of advisory-bff's authoritative aggregate via `projectVersioned`): `AdvisoryStatus` (registered in workstream 3; `accumulate` now fails typecheck)
-- Intentional carry-overs (NOT registered yet): `InvestorSnapshot` → P1 in w4 (producer `__version`); `TimeTravelAvailability` untouched.
+- Enforcement: `tsconfig.type-test.json` + nx `typecheck` target compile `test/types/read-model-ownership.type-test.ts` (the `@ts-expect-error` trip-wire); run `pnpm nx run dashboard-bff:typecheck`.
+- Intentional carry-over (NOT registered): `TimeTravelAvailability` untouched.
 - Dead `SimulationSummary` / `StreamSnapshot` repository writers removed (no callers). The `getSimulationSummary` GraphQL query/resolver remains (returns null via its own GetItem).
 - `DashboardRepository.upsertAdvisoryStatus` is now unused dead code (superseded by the P3 projectVersioned path); a follow-up workstream will remove it.
 

@@ -4,7 +4,14 @@ Domain: investor | Bus: InvestorBus
 Stack: services/investor/investor-bff/src/service.stack.ts
 
 ## State
-- Table (DynamoDB, streams enabled). InvestorProfile is a **single composite row** (sk='InvestorProfile') holding goal, riskProfile, operatingMode, accountMode, executionMode, onboardingCompletedAt. Mandate is a **separate sibling aggregate row** (sk='Mandate') with level, status='ISSUED' | 'REVOKED', effectiveDate — updated only by revokeMandate().
+- Table (DynamoDB, streams enabled). InvestorProfile is a **single composite row** (sk='InvestorProfile') holding goal, riskProfile, operatingMode, accountMode, executionMode, onboardingCompletedAt, and a monotonic `__version` (seed=1, bumped via `SET #v = if_not_exists(#v,:zero)+:one` on every live InvestorProfile write — the two AppSync resolvers `update-goal`/`update-operating-mode` and `setExecutionMode`; carried in INVESTOR_PROFILE_* CDC for dashboard-bff's InvestorSnapshot P1 projection). Mandate is a **separate sibling aggregate row** (sk='Mandate') with level, status='ISSUED' | 'REVOKED', effectiveDate — updated only by revokeMandate(); not versioned (not projected as P1 anywhere).
+
+## Read model (ownership)
+- `ReadModelOwnership` registered in `src/read-model-ownership.ts` (workstream 4):
+  - P1 (versioned snapshot via `projectVersioned`): `CashBalance` — ledger-authoritative, versioned on `BALANCE_UPDATED`'s `snapshot.lastEventSequence` (`balance-updated.ts`). `project()`/`accumulate()`/`update()`/`record()` on it now fail typecheck.
+  - CommandOwned (local commands after a one-event seed): `InvestorProfile`, `Mandate`, `Notification`. `projectVersioned()` on them fails typecheck.
+- NOT registered (intentional): `Deposit`/`Withdrawal` → workstream 5 (externally-settled → P1); `ExecutionModeChange` → write-once audit row, never via an intent.
+- Enforcement: `tsconfig.type-test.json` + nx `typecheck` target compile `test/types/read-model-ownership.type-test.ts` (the `@ts-expect-error` trip-wire). Run `pnpm nx run investor-bff:typecheck`. Note: a full-project `tsc` gate is blocked by `investor-bff-13-latent-tsc-errors`, so the narrow type-test config is used.
 
 ## Ingress
 - InvestorBus → investor-bff-Ingress (SQS → Lambda, event-listener.ts)
