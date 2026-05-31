@@ -1,9 +1,15 @@
 ---
 id: bff-readmodel-w5-externally-settled-entities
-status: queued
-rank: 5
+status: active
 type: refactor
 effort: xhigh
+out_of_scope:
+  - "w6 governance/freeze enforcement (layers 3+4) — tracked in bff-readmodel-w6-governance-freeze."
+  - "Re-touching rows already migrated in w1–w4 (ledger/dashboard/advisory P1 projections, investor command-owned rows) except where w5 changes the deposit/withdrawal/cash path."
+  - "Real-broker (Alpaca) funding rails — the funding lifecycle is modeled on the existing broker-sim deposit path; no real-money deposit/withdrawal integration."
+  - "Creating any new service — broker-ctrl is the funding-lifecycle owner; no new service."
+  - "Re-architecting Orders — already Execution-owned; w5 only aligns, it does not redesign order ownership."
+  - "Weight-drift / rebalance detection and the deferred dashboard-live-push-* transport items — separate workstreams."
 notes: "Workstream 5 (cross-domain, last) of bff-read-model-materialization-redesign: broker-ctrl (Execution) owns the Deposit/Withdrawal funding lifecycle + emits versioned lifecycle events; investor-bff deposit/withdrawal → P1 projections; initiateDeposit → intent event + optimistic UI; ledger-ctrl consumes settled for cash. Fixes deposit-settlement-never-persisted."
 references:
   - "docs/superpowers/specs/2026-05-29-bff-read-model-materialization-redesign-design.md"
@@ -38,6 +44,16 @@ BFF is not their owner.
   projection catches up.
 - `ledger-ctrl` keeps consuming "settled" to adjust cash (records the effect; it
   does not own the funding rail). Align Orders (already Execution-owned).
+
+## Out of scope
+- w6 governance/freeze enforcement (layers 3+4) — tracked in `bff-readmodel-w6-governance-freeze`.
+- Re-touching rows already migrated in w1–w4 (ledger/dashboard/advisory P1 projections, investor command-owned rows) except where w5 changes the deposit/withdrawal/cash path.
+- Real-broker (Alpaca) funding rails — the funding lifecycle is modeled on the existing broker-sim deposit path; no real-money deposit/withdrawal integration.
+- Creating any new service — `broker-ctrl` is the funding-lifecycle owner.
+- Re-architecting Orders — already Execution-owned; w5 only aligns, it does not redesign order ownership.
+- Weight-drift / rebalance detection and the deferred `dashboard-live-push-*` transport items — separate workstreams.
+
+> The full § Out of scope is refined in the implementation plan (`superpowers:writing-plans`) and this frontmatter mirrors it.
 
 ## Done
 funding lifecycle owned + versioned by broker-ctrl; deposit/withdrawal are P1
