@@ -12,19 +12,19 @@ export const accountReducer: EventReducer<AccountState> = (state, entry) => {
   const p = entry.payload as Record<string, unknown>;
 
   switch (entry.eventType) {
-    case 'DEPOSIT_DETECTED': {
+    case 'DEPOSIT_SETTLED': {
       const result = applyCommand(RecordDeposit, {
         depositId: p['depositId'] as string,
         amountCents: p['amountCents'] as number,
-        depositedAt: p['depositedAt'] as string,
+        depositedAt: p['settledAt'] as string,
       }, state);
       return result.ok ? result.value.nextState : state;
     }
-    case 'WITHDRAWAL_COMPLETED': {
+    case 'WITHDRAWAL_SETTLED': {
       const result = applyCommand(RecordWithdrawal, {
         withdrawalId: p['withdrawalId'] as string,
         amountCents: p['amountCents'] as number,
-        withdrawnAt: p['completedAt'] as string,
+        withdrawnAt: p['settledAt'] as string,
       }, state);
       return result.ok ? result.value.nextState : state;
     }

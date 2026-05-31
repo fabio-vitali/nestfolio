@@ -2,22 +2,31 @@ import { INITIAL_ACCOUNT_STATE } from '../../../src/domain/account-state';
 import { accountReducer } from '../../../src/domain/account.reducer';
 
 describe('accountReducer', () => {
-  it('applies DEPOSIT_DETECTED', () => {
+  it('applies DEPOSIT_SETTLED', () => {
     const next = accountReducer(INITIAL_ACCOUNT_STATE, {
-      eventId: 'e1', eventType: 'DEPOSIT_DETECTED', sequenceNo: 1,
+      eventId: 'e1', eventType: 'DEPOSIT_SETTLED', sequenceNo: 1,
       timestamp: '2026-03-12T00:00:00Z',
-      payload: { depositId: 'd1', amountCents: 500_00, depositedAt: '2026-03-12T00:00:00Z' },
+      payload: { depositId: 'd1', amountCents: 500_00, settledAt: '2026-03-12T00:00:00Z' },
     });
     expect(next.cashBalanceCents).toBe(INITIAL_ACCOUNT_STATE.cashBalanceCents + 500_00);
   });
 
-  it('applies WITHDRAWAL_COMPLETED', () => {
+  it('applies WITHDRAWAL_SETTLED', () => {
     const next = accountReducer(INITIAL_ACCOUNT_STATE, {
-      eventId: 'e2', eventType: 'WITHDRAWAL_COMPLETED', sequenceNo: 1,
+      eventId: 'e2', eventType: 'WITHDRAWAL_SETTLED', sequenceNo: 1,
       timestamp: '2026-03-12T00:00:00Z',
-      payload: { withdrawalId: 'w1', amountCents: 200_00, completedAt: '2026-03-12T00:00:00Z' },
+      payload: { withdrawalId: 'w1', amountCents: 200_00, settledAt: '2026-03-12T00:00:00Z' },
     });
     expect(next.cashBalanceCents).toBe(INITIAL_ACCOUNT_STATE.cashBalanceCents - 200_00);
+  });
+
+  it('ignores DEPOSIT_DETECTED (no cash effect)', () => {
+    const next = accountReducer(INITIAL_ACCOUNT_STATE, {
+      eventId: 'e1b', eventType: 'DEPOSIT_DETECTED', sequenceNo: 1,
+      timestamp: '2026-03-12T00:00:00Z',
+      payload: { depositId: 'd1', amountCents: 500_00, detectedAt: '2026-03-12T00:00:00Z' },
+    });
+    expect(next).toEqual(INITIAL_ACCOUNT_STATE);
   });
 
   it('applies ORDER_FILLED (BUY)', () => {
