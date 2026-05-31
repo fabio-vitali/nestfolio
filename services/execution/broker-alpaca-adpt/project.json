@@ -24,7 +24,7 @@
       "executor": "nx:run-commands",
       "dependsOn": ["build-mock"],
       "options": {
-        "command": "pnpm jest --config services/execution/broker-alpaca-adpt/jest.integration.config.js --passWithNoTests",
+        "command": "node tools/run-jest.mjs services/execution/broker-alpaca-adpt/jest.integration.config.js --passWithNoTests",
         "env": { "NODE_OPTIONS": "--experimental-vm-modules" },
         "color": true
       }

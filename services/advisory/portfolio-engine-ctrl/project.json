@@ -25,7 +25,7 @@
       "executor": "nx:run-commands",
       "dependsOn": ["build-mock"],
       "options": {
-        "command": "pnpm jest --config services/advisory/portfolio-engine-ctrl/jest.integration.config.js --passWithNoTests",
+        "command": "node tools/run-jest.mjs services/advisory/portfolio-engine-ctrl/jest.integration.config.js --passWithNoTests",
         "env": { "NODE_OPTIONS": "--experimental-vm-modules" },
         "color": true
       }

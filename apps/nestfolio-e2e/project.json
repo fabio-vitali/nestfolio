@@ -11,7 +11,7 @@
         "commands": [
           "pnpm nx run nestfolio-host:config --prefix=dev",
           "pnpm nx run-many --target=nf-build --configuration=production --projects=nestfolio-host,onboarding-mfe,investor-mfe,dashboard-mfe,advisory-mfe,ledger-mfe --parallel=1",
-          "pnpm exec playwright test --config apps/nestfolio-e2e/playwright.config.ts"
+          "node tools/run-playwright.mjs apps/nestfolio-e2e/playwright.config.ts"
         ],
         "parallel": false
       }

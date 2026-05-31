@@ -30,7 +30,7 @@
     "test-integration": {
       "executor": "nx:run-commands",
       "options": {
-        "command": "pnpm jest --config services/investor/onboarding-bff/jest.integration.config.js --passWithNoTests",
+        "command": "node tools/run-jest.mjs services/investor/onboarding-bff/jest.integration.config.js --passWithNoTests",
         "env": { "NODE_OPTIONS": "--experimental-vm-modules" },
         "color": true
       }
