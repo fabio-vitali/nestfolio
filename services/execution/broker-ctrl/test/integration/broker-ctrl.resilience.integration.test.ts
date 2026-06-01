@@ -12,8 +12,12 @@ import {
 // ── Helpers ──────────────────────────────────────────────────────────────
 //
 // broker-ctrl stores entities under:
-//   ExecutionMode    → pk: `ExecutionMode#${tenantId}`                       sk: 'ExecutionMode'
-//   NormalizedEvent  → pk: `NormalizedEvent#${tenantId}#${transferId}`       sk: 'DEPOSIT_DETECTED' | 'WITHDRAWAL_COMPLETED' | 'TRANSFER_FAILED'
+//   ExecutionMode  → pk: `ExecutionMode#${tenantId}`                  sk: 'ExecutionMode'
+//   FundingEvent   → pk: `Funding#${tenantId}#${transferId}`          sk: '<lifecycle event name>'
+//                    (DEPOSIT_REQUESTED | DEPOSIT_DETECTED | DEPOSIT_SETTLED |
+//                     DEPOSIT_FAILED | WITHDRAWAL_REQUESTED | WITHDRAWAL_SETTLED |
+//                     WITHDRAWAL_FAILED). One immutable carrier row per transition;
+//                    CDC `field:'sk', passthrough` re-emits sk as the bus event.
 //
 // ExecutionMode idempotency: duplicate EXECUTION_MODE_CHANGED events must not
 // produce multiple DDB items. Because the PK is tenant-scoped (no eventId in
@@ -21,9 +25,11 @@ import {
 // verify is that exactly ONE row lives under that PK regardless of how many
 // duplicate events we publish.
 //
-// NormalizedEvent idempotency: the PK is keyed on the deposit/withdrawal ID
-// from the event payload (not eventId). Duplicates from the same payload
-// therefore share a PK and the second write overwrites instead of inserting.
+// FundingEvent idempotency: the PK is keyed on the deposit/withdrawal ID from
+// the event payload (not eventId) and the SK on the lifecycle event name.
+// Duplicates from the same payload therefore share pk+sk and the second write
+// overwrites instead of inserting. A SIM_DEPOSIT_COMPLETED produces two carrier
+// rows (DEPOSIT_DETECTED + DEPOSIT_SETTLED) under the same pk.
 
 // ── Idempotency: ExecutionMode ───────────────────────────────────────────
 
@@ -89,7 +95,7 @@ describe('broker-ctrl resilience: idempotency', () => {
     }
   }, 180_000);
 
-  it('duplicate SIM_DEPOSIT_COMPLETED does not create duplicate NormalizedEvent', async () => {
+  it('duplicate SIM_DEPOSIT_COMPLETED does not create duplicate FundingEvent carriers', async () => {
     const ctx = await createIntegrationTestContext();
     try {
       const eb = new EventBridgeClient(ctx);
@@ -98,7 +104,7 @@ describe('broker-ctrl resilience: idempotency', () => {
       const trap = new EventBusTrap(ctx);
       await trap.deploy({
         bus: 'execution',
-        detailType: ['DEPOSIT_DETECTED', 'WITHDRAWAL_COMPLETED', 'TRANSFER_FAILED'],
+        detailType: ['DEPOSIT_DETECTED', 'DEPOSIT_SETTLED', 'WITHDRAWAL_SETTLED'],
       });
 
       const eventId = `idemp-deposit-${randomUUID()}`;
@@ -118,20 +124,26 @@ describe('broker-ctrl resilience: idempotency', () => {
         eventId,
       });
 
-      // Wait for NormalizedEvent row to land
-      const firstItem = await table.waitForItem({
+      // Wait for both FundingEvent carrier rows to land
+      const detected = await table.waitForItem({
         table: 'broker-ctrl',
-        pk: `NormalizedEvent#${ctx.tenantId}#${depositId}`,
+        pk: `Funding#${ctx.tenantId}#${depositId}`,
         sk: 'DEPOSIT_DETECTED',
         timeoutMs: 90_000,
       });
-      expect(firstItem['__typename']).toBe('NormalizedEvent');
-      expect(firstItem['amountCents']).toBe(100000);
-      expect(firstItem['depositId']).toBe(depositId);
+      expect(detected['__typename']).toBe('FundingEvent');
+      expect(detected['amountCents']).toBe(100000);
+      expect(detected['transferId']).toBe(depositId);
+      await table.waitForItem({
+        table: 'broker-ctrl',
+        pk: `Funding#${ctx.tenantId}#${depositId}`,
+        sk: 'DEPOSIT_SETTLED',
+        timeoutMs: 90_000,
+      });
 
-      // Wait for the first DEPOSIT_DETECTED CDC event
+      // Wait for the first DEPOSIT_SETTLED CDC event
       await trap.waitForEvent({
-        detailType: 'DEPOSIT_DETECTED',
+        detailType: 'DEPOSIT_SETTLED',
         timeoutMs: 60_000,
       });
 
@@ -150,22 +162,23 @@ describe('broker-ctrl resilience: idempotency', () => {
       // Allow duplicate to be processed (or deduplicated)
       await new Promise((r) => setTimeout(r, 20_000));
 
-      // Assert: still exactly one NormalizedEvent row for this depositId
+      // Assert: still exactly two FundingEvent rows for this depositId
+      // (DEPOSIT_DETECTED + DEPOSIT_SETTLED), no extras from the duplicate.
       const count = await countItems(
         table,
         'broker-ctrl',
-        `NormalizedEvent#${ctx.tenantId}#${depositId}`,
+        `Funding#${ctx.tenantId}#${depositId}`,
       );
-      expect(count).toBe(1);
+      expect(count).toBe(2);
 
-      // Assert: no additional DEPOSIT_DETECTED CDC events emitted after drain.
+      // Assert: no additional DEPOSIT_SETTLED CDC events emitted after drain.
       // A duplicate row write would trigger another CDC event; the trap would
       // then capture it and drain would return it.
       const residual = await trap.drain();
-      const extraDeposit = residual.filter(
-        (e) => e.detailType === 'DEPOSIT_DETECTED',
+      const extraSettled = residual.filter(
+        (e) => e.detailType === 'DEPOSIT_SETTLED',
       );
-      expect(extraDeposit.length).toBe(0);
+      expect(extraSettled.length).toBe(0);
     } finally {
       await ctx.cleanup.runAll();
     }
@@ -175,7 +188,7 @@ describe('broker-ctrl resilience: idempotency', () => {
 // ── Order-Agnostic: Pairwise Inversion ───────────────────────────────────
 
 describe('broker-ctrl resilience: order-agnostic pairwise', () => {
-  it('SIM_DEPOSIT_COMPLETED then SIM_WITHDRAWAL_COMPLETED vs reverse produces same record set', async () => {
+  it('SIM_DEPOSIT_COMPLETED then SIM_WITHDRAWAL_COMPLETED vs reverse produces same FundingEvent carrier set', async () => {
     // ── Run A: deposit then withdrawal ──
     const ctxA = await createIntegrationTestContext();
     try {
@@ -185,7 +198,7 @@ describe('broker-ctrl resilience: order-agnostic pairwise', () => {
       const trapA = new EventBusTrap(ctxA);
       await trapA.deploy({
         bus: 'execution',
-        detailType: ['DEPOSIT_DETECTED', 'WITHDRAWAL_COMPLETED', 'TRANSFER_FAILED'],
+        detailType: ['DEPOSIT_DETECTED', 'DEPOSIT_SETTLED', 'WITHDRAWAL_SETTLED'],
       });
 
       const depositIdA = `pair-A-dep-${randomUUID()}`;
@@ -203,7 +216,7 @@ describe('broker-ctrl resilience: order-agnostic pairwise', () => {
         eventId: `pair-A-dep-evt-${randomUUID()}`,
       });
       await trapA.waitForEvent({
-        detailType: 'DEPOSIT_DETECTED',
+        detailType: 'DEPOSIT_SETTLED',
         timeoutMs: 90_000,
       });
 
@@ -213,27 +226,29 @@ describe('broker-ctrl resilience: order-agnostic pairwise', () => {
         detailType: 'SIM_WITHDRAWAL_COMPLETED',
         detail: {
           withdrawalId: withdrawalIdA,
-          amount: 50000,
+          amountCents: 50000,
           currency: 'USD',
         },
         eventId: `pair-A-wd-evt-${randomUUID()}`,
       });
       await trapA.waitForEvent({
-        detailType: 'WITHDRAWAL_COMPLETED',
+        detailType: 'WITHDRAWAL_SETTLED',
         timeoutMs: 90_000,
       });
 
       await new Promise((r) => setTimeout(r, 10_000));
 
+      // A SIM deposit completion writes two carriers (detected + settled); a SIM
+      // withdrawal completion writes one (settled).
       const depCountA = await countItems(
         tableA,
         'broker-ctrl',
-        `NormalizedEvent#${ctxA.tenantId}#${depositIdA}`,
+        `Funding#${ctxA.tenantId}#${depositIdA}`,
       );
       const wdCountA = await countItems(
         tableA,
         'broker-ctrl',
-        `NormalizedEvent#${ctxA.tenantId}#${withdrawalIdA}`,
+        `Funding#${ctxA.tenantId}#${withdrawalIdA}`,
       );
       const countA = depCountA + wdCountA;
 
@@ -246,7 +261,7 @@ describe('broker-ctrl resilience: order-agnostic pairwise', () => {
         const trapB = new EventBusTrap(ctxB);
         await trapB.deploy({
           bus: 'execution',
-          detailType: ['DEPOSIT_DETECTED', 'WITHDRAWAL_COMPLETED', 'TRANSFER_FAILED'],
+          detailType: ['DEPOSIT_DETECTED', 'DEPOSIT_SETTLED', 'WITHDRAWAL_SETTLED'],
         });
 
         const depositIdB = `pair-B-dep-${randomUUID()}`;
@@ -258,13 +273,13 @@ describe('broker-ctrl resilience: order-agnostic pairwise', () => {
           detailType: 'SIM_WITHDRAWAL_COMPLETED',
           detail: {
             withdrawalId: withdrawalIdB,
-            amount: 50000,
+            amountCents: 50000,
             currency: 'USD',
           },
           eventId: `pair-B-wd-evt-${randomUUID()}`,
         });
         await trapB.waitForEvent({
-          detailType: 'WITHDRAWAL_COMPLETED',
+          detailType: 'WITHDRAWAL_SETTLED',
           timeoutMs: 90_000,
         });
 
@@ -280,7 +295,7 @@ describe('broker-ctrl resilience: order-agnostic pairwise', () => {
           eventId: `pair-B-dep-evt-${randomUUID()}`,
         });
         await trapB.waitForEvent({
-          detailType: 'DEPOSIT_DETECTED',
+          detailType: 'DEPOSIT_SETTLED',
           timeoutMs: 90_000,
         });
 
@@ -289,21 +304,23 @@ describe('broker-ctrl resilience: order-agnostic pairwise', () => {
         const depCountB = await countItems(
           tableB,
           'broker-ctrl',
-          `NormalizedEvent#${ctxB.tenantId}#${depositIdB}`,
+          `Funding#${ctxB.tenantId}#${depositIdB}`,
         );
         const wdCountB = await countItems(
           tableB,
           'broker-ctrl',
-          `NormalizedEvent#${ctxB.tenantId}#${withdrawalIdB}`,
+          `Funding#${ctxB.tenantId}#${withdrawalIdB}`,
         );
         const countB = depCountB + wdCountB;
 
-        // Both runs should yield exactly 2 NormalizedEvent rows (1 deposit + 1 withdrawal)
-        expect(countA).toBe(2);
-        expect(countB).toBe(2);
-        expect(depCountA).toBe(1);
+        // Both runs should yield the same carrier set regardless of arrival
+        // order: 2 deposit carriers (detected + settled) + 1 withdrawal carrier
+        // (settled) = 3 total.
+        expect(countA).toBe(3);
+        expect(countB).toBe(3);
+        expect(depCountA).toBe(2);
         expect(wdCountA).toBe(1);
-        expect(depCountB).toBe(1);
+        expect(depCountB).toBe(2);
         expect(wdCountB).toBe(1);
       } finally {
         await ctxB.cleanup.runAll();
