@@ -24,7 +24,7 @@ export class InvestorCtrlStack extends ServiceStack {
         InvestorIngestEventTypes.BALANCE_UPDATED,
         InvestorIngestEventTypes.ORDER_REJECTED,
         InvestorIngestEventTypes.DECISION_BLOCKED,
-        InvestorIngestEventTypes.WITHDRAWAL_COMPLETED,
+        InvestorIngestEventTypes.WITHDRAWAL_SETTLED,
         InvestorIngestEventTypes.BROKER_CIRCUIT_OPEN,
         InvestorIngestEventTypes.BROKER_CIRCUIT_CLOSED,
         InvestorIngestEventTypes.BROKER_HEAL_ESCALATED,

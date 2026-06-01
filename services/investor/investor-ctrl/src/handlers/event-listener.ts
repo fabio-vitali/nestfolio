@@ -73,7 +73,7 @@ const NOTIFICATION_TEMPLATES: Record<string, NotificationTemplate> = {
     body: 'An investment decision was blocked by compliance. Review required.',
     channel: 'push',
   },
-  WITHDRAWAL_COMPLETED: {
+  WITHDRAWAL_SETTLED: {
     title: 'Withdrawal Completed',
     body: 'Your withdrawal has been processed successfully.',
     channel: 'email',
@@ -124,7 +124,7 @@ const EVENT_TYPES = [
   ExecutionCrossDomainEventTypes.ORDER_FILLED,
   LedgerCrossDomainEventTypes.BALANCE_UPDATED,
   ExecutionCrossDomainEventTypes.ORDER_REJECTED,
-  ExecutionCrossDomainEventTypes.WITHDRAWAL_COMPLETED,
+  ExecutionCrossDomainEventTypes.WITHDRAWAL_SETTLED,
   AdvisoryCrossDomainEventTypes.DECISION_BLOCKED,
 ] as const;
 

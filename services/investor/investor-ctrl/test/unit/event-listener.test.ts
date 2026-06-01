@@ -211,7 +211,7 @@ describe('investor-ctrl event-listener', () => {
     });
   });
 
-  describe('WriteIntents — ORDER_REJECTED, DECISION_BLOCKED, WITHDRAWAL_COMPLETED', () => {
+  describe('WriteIntents — ORDER_REJECTED, DECISION_BLOCKED, WITHDRAWAL_SETTLED', () => {
     it('should create notification for ORDER_REJECTED', async () => {
       const record = fakeSqsRecord('ORDER_REJECTED', {
         orderId: 'o1', reason: 'Safety check failed',
@@ -240,8 +240,8 @@ describe('investor-ctrl event-listener', () => {
       });
     });
 
-    it('should create notification for WITHDRAWAL_COMPLETED', async () => {
-      const record = fakeSqsRecord('WITHDRAWAL_COMPLETED', {
+    it('should create notification for WITHDRAWAL_SETTLED', async () => {
+      const record = fakeSqsRecord('WITHDRAWAL_SETTLED', {
         withdrawalId: 'w1', amount: 500,
       }, { tenantId: 'tenant-1' });
       const result = await harness.process([record]);
