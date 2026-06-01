@@ -16,6 +16,25 @@ type Mutation {
   markNotificationRead(notificationId: ID!): Notification!
   updateFeatureFlag(name: String!, enabled: Boolean!, reason: String): FeatureFlag!
     @aws_iam
+  publishDepositUpdate(
+    depositId: ID!
+    status: String!
+    amountCents: Int!
+    currency: String!
+    detectedAt: String
+    settledAt: String
+    failedAt: String
+    reason: String
+  ): DepositUpdate @aws_iam
+  publishWithdrawalUpdate(
+    withdrawalId: ID!
+    status: String!
+    amountCents: Int!
+    currency: String!
+    settledAt: String
+    failedAt: String
+    reason: String
+  ): WithdrawalUpdate @aws_iam
 }
 
 type Subscription {
@@ -23,6 +42,10 @@ type Subscription {
     @aws_subscribe(mutations: ["markNotificationRead"])
   onFeatureFlagUpdate: FeatureFlag
     @aws_subscribe(mutations: ["updateFeatureFlag"])
+  onDepositUpdate(depositId: ID!): DepositUpdate
+    @aws_subscribe(mutations: ["publishDepositUpdate"])
+  onWithdrawalUpdate(withdrawalId: ID!): WithdrawalUpdate
+    @aws_subscribe(mutations: ["publishWithdrawalUpdate"])
 }
 
 type FeatureFlag @aws_cognito_user_pools @aws_iam {
@@ -138,6 +161,27 @@ type WithdrawalRequest {
   currency: String!
   status: String!
   requestedAt: String!
+  settledAt: String
+  failedAt: String
+  reason: String
+}
+
+type DepositUpdate @aws_cognito_user_pools @aws_iam {
+  depositId: ID!
+  status: String!
+  amountCents: Int!
+  currency: String!
+  detectedAt: String
+  settledAt: String
+  failedAt: String
+  reason: String
+}
+
+type WithdrawalUpdate @aws_cognito_user_pools @aws_iam {
+  withdrawalId: ID!
+  status: String!
+  amountCents: Int!
+  currency: String!
   settledAt: String
   failedAt: String
   reason: String

@@ -1,6 +1,10 @@
 import { join } from 'path';
 import { Construct } from 'constructs';
 import { PolicyStatement } from 'aws-cdk-lib/aws-iam';
+import { NodejsFunction } from 'aws-cdk-lib/aws-lambda-nodejs';
+import { StartingPosition } from 'aws-cdk-lib/aws-lambda';
+import { DynamoEventSource } from 'aws-cdk-lib/aws-lambda-event-sources';
+import { defaultLambdaProps } from '@nestfolio/cdk-constructs/utils';
 import { ServiceStack, ServiceStackProps, State, Ingress, Egress, Facade, discoverJsResolvers } from '@nestfolio/cdk-constructs/core';
 import { MfeBucket } from '@nestfolio/cdk-constructs/extensions';
 import { InvestorBffEventTypes } from './domain/events';
@@ -17,7 +21,7 @@ export class InvestorBffStack extends ServiceStack {
       state,
       enableIamAuth: true,
       jsResolvers: discoverJsResolvers(__dirname, {
-        noneDataSource: ['requestAccountClosure'],
+        noneDataSource: ['requestAccountClosure', 'publishDepositUpdate', 'publishWithdrawalUpdate'],
         preSteps: {
           initiateDeposit: ['check-feature-flag.fn.js'],
           requestWithdrawal: ['check-feature-flag.fn.js'],
@@ -99,6 +103,30 @@ export class InvestorBffStack extends ServiceStack {
         'Notification': { modify: InvestorBffEventTypes.NOTIFICATION_READ },
       },
     });
+
+    // DDB-stream-driven funding publisher: fans Deposit / WithdrawalRequest P1 row
+    // status transitions out to clients via @aws_subscribe (onDepositUpdate /
+    // onWithdrawalUpdate). The projectVersioned write (deposit/withdrawal-lifecycle
+    // transforms) is unchanged; this is a post-commit side effect off the stream —
+    // no race with the engine's write. SECOND stream consumer on this table (Egress
+    // CDC is the first); DynamoDB allows up to 2 readers per shard.
+    const depositPublisher = new NodejsFunction(this, 'DepositPublisher', {
+      ...defaultLambdaProps(this),
+      entry: join(__dirname, 'handlers', 'deposit-publisher.ts'),
+      environment: facade.graphqlUrl ? { APPSYNC_URL: facade.graphqlUrl } : {},
+    });
+    depositPublisher.addEventSource(
+      new DynamoEventSource(state.getTable(), {
+        startingPosition: StartingPosition.LATEST,
+        retryAttempts: 3,
+      }),
+    );
+    if (facade.api) {
+      depositPublisher.addToRolePolicy(new PolicyStatement({
+        actions: ['appsync:GraphQL'],
+        resources: [`${facade.api.arn}/*`],
+      }));
+    }
 
     new MfeBucket(this, 'MfeBucket', { mfeKey: 'investor' });
 
