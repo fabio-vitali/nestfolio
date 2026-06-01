@@ -1,6 +1,7 @@
 ---
 id: investor-bff-dead-repo-mutate-methods
-status: parking
+status: queued
+rank: 6
 type: refactor
 notes: "5 InvestorProfileRepository mutate-methods have no live callers; one (upsertReadOnlyBalance) would violate CashBalance P1 ownership if revived."
 references: []
@@ -37,5 +38,10 @@ Two hazards if any is revived without care:
    (the w4 convention) or the method must be deleted.
 
 Cheapest next step: delete all five (they are dead), or — if any is intended for
-future wiring — add the version bump and an ownership-respecting path. Promote on
-the next investor-bff touch.
+future wiring — add the version bump and an ownership-respecting path.
+
+Promoted to QUEUED 2026-06-01 (w6 governance freeze): the dead
+`upsertReadOnlyBalance` is a latent CashBalance-P1 single-writer-ownership
+violation if revived, and the other four write `InvestorProfile` without the
+`__version` bump — both are clean-up/consistency hazards that belong on the
+explicit queue, not parking.

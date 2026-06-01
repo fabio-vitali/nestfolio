@@ -1,6 +1,7 @@
 ---
 id: bff-readmodel-typecheck-targets-not-in-ci
-status: parking
+status: queued
+rank: 7
 type: tooling
 notes: "Per-service typecheck nx targets (the read-model ownership trip-wire) are not invoked by any CI workflow nor nx targetDefaults — they only fire when run by hand."
 references: []

@@ -1,7 +1,7 @@
 ---
 id: weight-drift-detector
 status: queued
-rank: 7
+rank: 2
 type: design
 notes: "Production-feature gap: no service emits PORTFOLIO_DRIFT_DETECTED on the weight-vs-target axis (the kind that motivates a rebalance). reconciliation-ctrl only handles Intent-vs-Settlement drift (broker errors). DWC SF reacts to the event correctly but no producer exists on the user-driven path. Surfaced 2026-05-27 during playwright-rebalance-real-agents-maxvms-remediation brainstorming."
 references:

@@ -1,6 +1,7 @@
 ---
 id: w3-advisory-versioned-packet-hardening
-status: parking
+status: queued
+rank: 10
 type: refactor
 notes: "3 non-blocking hardening nits from the w3 final review: AdvisoryStatus Date.now() version, terminal taskToken cleanup, WorkflowStatus enum guard."
 references: []
