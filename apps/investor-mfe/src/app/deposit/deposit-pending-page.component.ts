@@ -158,7 +158,10 @@ export class DepositPendingPageComponent implements OnInit, OnDestroy {
 
   private hydrate(row: Deposit): void {
     this.deposit.set(row);
-    if (row.status === 'DETECTED') { this.state.set('detected'); return; }
+    // DETECTED and SETTLED both mean "funds arrived" — render the same terminal
+    // panel on load/F5. An already-terminal (SETTLED) row emits no further
+    // status-change broadcast, so hydrate MUST resolve it here or the page hangs.
+    if (row.status === 'DETECTED' || row.status === 'SETTLED') { this.state.set('detected'); return; }
     if (row.status === 'FAILED') {
       this.failureReason.set(row.reason ?? 'Deposit failed');
       this.state.set('failed');
@@ -168,8 +171,11 @@ export class DepositPendingPageComponent implements OnInit, OnDestroy {
   }
 
   private onEvent(event: DepositEvent): void {
-    if (event.status === 'DETECTED') {
-      this.deposit.update((d) => d ? { ...d, status: 'DETECTED', detectedAt: event.occurredAt } : d);
+    // DETECTED and SETTLED both mean "funds arrived" for the pending UX — render
+    // the same terminal panel (deposit-panel-detected). A late REQUESTED frame is
+    // ignored so the page never regresses out of detected/failed (monotonic).
+    if (event.status === 'DETECTED' || event.status === 'SETTLED') {
+      this.deposit.update((d) => (d ? { ...d, status: 'DETECTED', detectedAt: event.occurredAt } : d));
       this.clearTimeout();
       this.state.set('detected');
     } else if (event.status === 'FAILED') {

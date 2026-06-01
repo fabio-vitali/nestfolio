@@ -99,6 +99,15 @@ describe('DepositPendingPageComponent', () => {
     expect(component.state()).toBe('detected');
   });
 
+  it('hydrates as DETECTED from getDeposit when status is SETTLED (F5 on an already-settled deposit)', async () => {
+    deposit.getDeposit.mockResolvedValue({ ...initiated, status: 'SETTLED' });
+    const { component } = await mountWith({ deposit });
+    await component.ngOnInit();
+    expect(component.state()).toBe('detected');
+    jest.advanceTimersByTime(60_000);
+    expect(component.state()).toBe('detected');
+  });
+
   it('hydrates as FAILED from getDeposit with reason', async () => {
     deposit.getDeposit.mockResolvedValue(failed);
     const { component } = await mountWith({ deposit });
@@ -136,7 +145,7 @@ describe('DepositPendingPageComponent', () => {
     const onEvent = deposit.subscribeToDepositEvent.mock.calls[0][1];
 
     const evt: DepositEvent = {
-      depositId, tenantId: 't-1', status: 'DETECTED',
+      depositId, status: 'DETECTED',
       amountCents: 10_000, currency: 'USD',
       occurredAt: '2026-04-22T00:01:00.000Z', reason: null,
     };
@@ -145,6 +154,32 @@ describe('DepositPendingPageComponent', () => {
 
     jest.advanceTimersByTime(60_000);
     expect(component.state()).toBe('detected');
+  });
+
+  it('subscription SETTLED frame after INITIATED hydration → detected panel (DETECTED and SETTLED both mean funds arrived)', async () => {
+    deposit.getDeposit.mockResolvedValue(initiated);
+    const { component } = await mountWith({ deposit });
+    await component.ngOnInit();
+    const onEvent = deposit.subscribeToDepositEvent.mock.calls[0][1];
+
+    const evt: DepositEvent = {
+      depositId, status: 'SETTLED',
+      amountCents: 10_000, currency: 'USD',
+      occurredAt: '2026-04-22T00:02:00.000Z', reason: null,
+    };
+    onEvent(evt);
+    // Renders the same deposit-panel-detected the Playwright POM waits for.
+    expect(component.state()).toBe('detected');
+  });
+
+  it('subscription REQUESTED frame is ignored (monotonic — never regresses the panel)', async () => {
+    deposit.getDeposit.mockResolvedValue(initiated);
+    const { component } = await mountWith({ deposit });
+    await component.ngOnInit();
+    expect(component.state()).toBe('initiated');
+    const onEvent = deposit.subscribeToDepositEvent.mock.calls[0][1];
+    onEvent({ depositId, status: 'REQUESTED', amountCents: 10_000, currency: 'USD', occurredAt: '', reason: null });
+    expect(component.state()).toBe('initiated');
   });
 
   it('30s timeout in INITIATED → state=timeout (subscription stays open)', async () => {
