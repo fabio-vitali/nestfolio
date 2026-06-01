@@ -88,7 +88,7 @@ export class ActivityFeedComponent {
     DECISION_APPROVED: 'pi pi-thumbs-up',
     DECISION_BLOCKED: 'pi pi-ban',
     DEPOSIT_DETECTED: 'pi pi-arrow-down',
-    WITHDRAWAL_COMPLETED: 'pi pi-arrow-up',
+    WITHDRAWAL_SETTLED: 'pi pi-arrow-up',
   };
 
   getIconClass(activityType: string): string {
