@@ -28,6 +28,7 @@ Before any architecturally non-trivial change, read:
 
 - `docs/architecture/SYSTEM-ARCHITECTURE.md` — domains, agent topology, decision lifecycle, event taxonomy, AgentCore Memory contract, idempotency, circuit breakers, frontend topology
 - `docs/architecture/SERVICE-INVENTORY.md` — per-service responsibility, events published/consumed, AI agents, current health (canonical / transitional / legacy / dormant)
+- `docs/architecture/READ-MODEL-OWNERSHIP.md` — **single-writer aggregate-ownership model** (FROZEN). The discriminator (command-owned vs projection), the P1/P2/P3 variants, the `__version` convention, the `ReadModelOwnership` type registry, and command-side rules. **Consult before touching any BFF transform/projection or adding a row written via an event-processor intent factory.** Enforced by the `event-processor:read-model-drift` nx target.
 
 These supersede `specifications/02-system-design.md` (kept as a high-level summary) for service-level reasoning. Per-service `CLAUDE.md` cards remain authoritative for current code state per service.
 

@@ -75,6 +75,16 @@ description: Scaffold a new service — Nx project, file structure, CDK stack, e
   - For orchestrated services (-ctrl with Step Functions): add `new Orchestration(this, 'MyStateMachine', { state, definitionBody, triggers })`
   - Call `this.addObservability({ ingress, egress })` at end of constructor
 - [ ] 4. **Write first handler** per `event-processor-patterns`
+- [ ] 4b. **Classify read-model ownership** for every DynamoDB row the service writes —
+  see `docs/architecture/READ-MODEL-OWNERSHIP.md`. Per row, decide command-owned
+  (local actor drives ongoing state → field-level `update` + conditions; `record`
+  seed) vs projection (external authority → `projectVersioned` P1 with a monotonic
+  `__version`, `record` P2, or derived P3 — never `accumulate`). Declare them in
+  `src/read-model-ownership.ts` (`declare module '@nestfolio/event-processor' {
+  interface ReadModelOwnership { … } }`), side-effect-import it from each handler,
+  and add a `typecheck` target + `tsconfig.type-test.json` + a
+  `test/types/read-model-ownership.type-test.ts` (mirror investor-bff/dashboard-bff).
+  Run `pnpm nx run event-processor:read-model-drift` after wiring.
 - [ ] 5. **Define event types** per `create-event`
 - [ ] 6. **Write unit tests** per `testing-patterns`
 - [ ] 7. **Run unit tests** — `pnpm nx test {service-name}`
@@ -176,3 +186,4 @@ const kb = new KnowledgeBase(this, 'MyKB', {
 - NEVER omit the type suffix from service name
 - NEVER place a service in the wrong domain
 - NEVER create without tests or CDK stack
+- NEVER leave a row's read-model ownership unclassified — register every written `__typename` (command-owned vs `Projection<'P1'|'P2'|'P3'>`) and use the matching intent factory (see `docs/architecture/READ-MODEL-OWNERSHIP.md`)

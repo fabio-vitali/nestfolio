@@ -72,6 +72,16 @@ description: Add a new event type — TypeScript schema, producer registration, 
 
 - [ ] 6. **Add consumer handler** for the new event type
 
+- [ ] 6b. **Classify ownership of any row the consumer writes** — see
+  `docs/architecture/READ-MODEL-OWNERSHIP.md`. A row materialized from *another*
+  service's event is a **projection**: register the `__typename` in the consumer's
+  `src/read-model-ownership.ts` and write it with `projectVersioned` (P1, carrying
+  the producer's monotonic `__version`), `record` (P2), or a derived read (P3).
+  Never `accumulate` a projection; never field-`update` a row a producer owns.
+  On the **producer** side (step 3), a row that downstreams will project as P1
+  must carry a top-level monotonic `__version` on its emitted event (the §3
+  carriage convention). Run `pnpm nx run event-processor:read-model-drift`.
+
 - [ ] 7. **Write tests** — producer and consumer
 
 - [ ] 8. **Update flow specs** if part of a tracked flow
@@ -88,3 +98,4 @@ description: Add a new event type — TypeScript schema, producer registration, 
 - NEVER forward events without a DLQ
 - NEVER skip adapter subscriptions for cross-domain events
 - NEVER skip flow spec updates for tracked flows
+- NEVER materialize a projection from an event with `accumulate` or an unguarded `project`/`update` — a P1 projection uses `projectVersioned` + `__version` (see `docs/architecture/READ-MODEL-OWNERSHIP.md`)

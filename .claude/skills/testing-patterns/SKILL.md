@@ -50,6 +50,43 @@ describe('my-handler', () => {
 });
 ```
 
+## Version-Guard & Stale-Drop Tests (P1 projections)
+
+Any `Projection<'P1'>` written via `projectVersioned` must be tested for BOTH the
+fresh-write and the stale-drop path — a stale/equal `__version` is dropped as
+deduplicated (terminal), NOT redriven (see `docs/architecture/READ-MODEL-OWNERSHIP.md`
+§5). Use the helpers from `@nestfolio/test-support`:
+
+```typescript
+import { createTestHarness, fakeSqsRecord } from '@nestfolio/event-processor';
+import { expectVersionedWrite, expectStaleDrop } from '@nestfolio/test-support';
+import { handlers } from '../../src/handlers/my-projection';
+
+describe('my-projection (P1 version guard)', () => {
+  const harness = createTestHarness({ serviceName: 'my-bff', handlers });
+
+  it('applies a fresh (higher-version) event', async () => {
+    const r = await harness.process([
+      fakeSqsRecord('SNAPSHOT_UPDATED', { tenantId: 't1', lastEventSequence: 5 /* ... */ }),
+    ]);
+    expectVersionedWrite(r.intents[0]); // success, not deduplicated
+  });
+
+  it('drops a stale (lower-or-equal version) event without redrive', async () => {
+    await harness.process([fakeSqsRecord('SNAPSHOT_UPDATED', { tenantId: 't1', lastEventSequence: 5 })]);
+    const r = await harness.process([
+      fakeSqsRecord('SNAPSHOT_UPDATED', { tenantId: 't1', lastEventSequence: 3 }),
+    ]);
+    expectStaleDrop(r.intents[0]); // success + deduplicated === true
+  });
+});
+```
+
+`expectVersionedWrite(result)` asserts `success && !deduplicated`; `expectStaleDrop(result)`
+asserts `success && deduplicated === true`. A P1 projection without a stale-drop test
+is a gap the `event-processor:read-model-drift` gate cannot catch (it is a behavioral,
+not structural, check).
+
 ## CDK Assertion Tests
 
 ```typescript
