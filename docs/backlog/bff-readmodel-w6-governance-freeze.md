@@ -1,13 +1,13 @@
 ---
 id: bff-readmodel-w6-governance-freeze
-status: active
+status: shipped
 rank: 6
 type: tooling
 notes: "Workstream 6 (governance/freeze) of bff-read-model-materialization-redesign: enforcement layers 3+4 — ownership-classification step in create-service/create-feature/create-event, testing-patterns + CLAUDE.md router pointer, and drift checks in audit-service/audit-domain/audit-system (+ local nx drift-checker target). Layer-3/4 skill+audit edits were NOT applied incrementally during w1–w5 (verified 2026-06-01: only event-processor-patterns carries the model); w6 is the full layers-3+4 build, not a thin consolidation."
 references:
   - "docs/superpowers/specs/2026-05-29-bff-read-model-materialization-redesign-design.md"
 spec: docs/superpowers/specs/2026-05-29-bff-read-model-materialization-redesign-design.md
-plan: null
+plan: docs/superpowers/plans/2026-06-01-bff-readmodel-w6-governance-freeze.md
 topic_memory: [project_read_model_redesign.md]
 out_of_scope:
   - "GitHub-workflow wiring of the drift-checker (deferred to ci-pipeline-bring-up — the CI pipeline has never produced a green run; w6 ships the checker as a local-runnable nx lint target only)."
@@ -15,7 +15,7 @@ out_of_scope:
   - "Live-push transport (the deferred dashboard-live-push-* items) — rebuilt on the clean read model separately."
   - "Event sourcing on the write side — explicitly NOT adopted; system stays state-stored-aggregate + CDC-outbox."
   - "Structural-zero (schema field never written) as a STATIC checker class — kept prose-only in the audit skills; the 3 mechanical classes (accumulate-on-Projection, dual command+event writer, missing version-guard) are the scripted ones."
-validation_gate: null
+validation_gate: "Layer 3+4 landed: drift-checker tools/check-read-model-drift.mjs + 15/15 node:test; `node tools/check-read-model-drift.mjs` = OK (21 registered typenames, 0 drift); `pnpm nx run event-processor:read-model-drift` green; create-service/-feature/-event ownership step, testing-patterns version-guard section, CLAUDE.md pointer, audit-service #10 + audit-domain + audit-system 5b hooks. backlog-lint 8/8; 9 read-model parking items promoted to QUEUED + read-model-ownership-producer-aggregates (rank 1) filed. `nx affected -t lint` green (warnings only). GATE EXCEPTION (not w6): broker-ctrl:test (order-lifecycle.test.ts) fails in the fresh-worktree install via the pre-existing event-processor-aws-sdk-pin-drift dup-module hazard (two @aws-sdk/lib-dynamodb copies; findPutItems non-robust) — broker-ctrl byte-identical to origin/main (empty diff); main-verification pending post-merge per user direction. No deploy (zero deployable source; detect-deploy false-positive overridden)."
 ---
 
 # Workstream 6 — governance / freeze (enforcement layers 3 + 4)
