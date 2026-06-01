@@ -74,34 +74,51 @@ describe('DepositService', () => {
     await expect(service.getDeposit(depositId)).rejects.toThrow('Connection refused');
   });
 
-  it('subscribeToDepositEvent: forwards subscription payloads to the callback', () => {
-    const subject = new Subject<{ onDepositEvent: DepositEvent }>();
+  it('subscribeToDepositEvent: subscribes to onDepositUpdate and maps payload → DepositEvent', () => {
+    const subject = new Subject<{ onDepositUpdate: Record<string, unknown> }>();
     graphql.subscribe.mockReturnValue(subject.asObservable());
     const received: DepositEvent[] = [];
     service.subscribeToDepositEvent(depositId, (e) => received.push(e));
     expect(graphql.subscribe).toHaveBeenCalledWith(
-      expect.stringContaining('onDepositEvent'),
+      expect.stringContaining('onDepositUpdate'),
       { depositId },
     );
-    const payload: DepositEvent = {
-      depositId, tenantId: 't-1', status: 'DETECTED',
-      amountCents: 10_000, currency: 'USD',
+    subject.next({
+      onDepositUpdate: {
+        depositId, status: 'DETECTED', amountCents: 10_000, currency: 'USD',
+        detectedAt: '2026-04-22T00:01:00.000Z', settledAt: null, failedAt: null, reason: null,
+      },
+    });
+    expect(received).toEqual([{
+      depositId, status: 'DETECTED', amountCents: 10_000, currency: 'USD',
       occurredAt: '2026-04-22T00:01:00.000Z', reason: null,
-    };
-    subject.next({ onDepositEvent: payload });
-    expect(received).toEqual([payload]);
+    }]);
+  });
+
+  it('subscribeToDepositEvent: maps SETTLED (settledAt) → occurredAt when detectedAt is absent', () => {
+    const subject = new Subject<{ onDepositUpdate: Record<string, unknown> }>();
+    graphql.subscribe.mockReturnValue(subject.asObservable());
+    const received: DepositEvent[] = [];
+    service.subscribeToDepositEvent(depositId, (e) => received.push(e));
+    subject.next({
+      onDepositUpdate: {
+        depositId, status: 'SETTLED', amountCents: 10_000, currency: 'USD',
+        detectedAt: null, settledAt: '2026-04-22T00:02:00.000Z', failedAt: null, reason: null,
+      },
+    });
+    expect(received[0]).toMatchObject({ status: 'SETTLED', occurredAt: '2026-04-22T00:02:00.000Z' });
   });
 
   it('unsubscribeFromDepositEvent: ignores further payloads', () => {
-    const subject = new Subject<{ onDepositEvent: DepositEvent }>();
+    const subject = new Subject<{ onDepositUpdate: Record<string, unknown> }>();
     graphql.subscribe.mockReturnValue(subject.asObservable());
     const received: DepositEvent[] = [];
     service.subscribeToDepositEvent(depositId, (e) => received.push(e));
     service.unsubscribeFromDepositEvent();
     subject.next({
-      onDepositEvent: {
-        depositId, tenantId: 't-1', status: 'DETECTED',
-        amountCents: 1, currency: 'USD', occurredAt: '', reason: null,
+      onDepositUpdate: {
+        depositId, status: 'DETECTED', amountCents: 1, currency: 'USD',
+        detectedAt: '2026-04-22T00:01:00.000Z', settledAt: null, failedAt: null, reason: null,
       },
     });
     expect(received).toEqual([]);

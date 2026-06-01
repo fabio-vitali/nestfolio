@@ -3,7 +3,7 @@ import { Subscription } from 'rxjs';
 import { GraphqlService } from '@nestfolio/shell/graphql';
 import { INITIATE_DEPOSIT } from '../graphql/investor-bff.mutations';
 import { GET_DEPOSIT } from '../graphql/investor-bff.queries';
-import { ON_DEPOSIT_EVENT } from '../graphql/investor-bff.subscriptions';
+import { ON_DEPOSIT_UPDATE } from '../graphql/investor-bff.subscriptions';
 
 export interface Deposit {
   depositId: string;
@@ -18,11 +18,22 @@ export interface Deposit {
 
 export interface DepositEvent {
   depositId: string;
-  tenantId: string;
-  status: 'INITIATED' | 'DETECTED' | 'FAILED';
+  status: 'INITIATED' | 'REQUESTED' | 'DETECTED' | 'SETTLED' | 'FAILED';
   amountCents: number;
   currency: string;
   occurredAt: string;
+  reason: string | null;
+}
+
+// Raw onDepositUpdate subscription payload (BFF DepositUpdate type).
+interface DepositUpdatePayload {
+  depositId: string;
+  status: string;
+  amountCents: number;
+  currency: string;
+  detectedAt: string | null;
+  settledAt: string | null;
+  failedAt: string | null;
   reason: string | null;
 }
 
@@ -60,9 +71,23 @@ export class DepositService {
 
   subscribeToDepositEvent(depositId: string, onEvent: (e: DepositEvent) => void): void {
     this.unsubscribeFromDepositEvent();
-    const obs = this.graphql.subscribe<{ onDepositEvent: DepositEvent }>(ON_DEPOSIT_EVENT, { depositId });
+    const obs = this.graphql.subscribe<{ onDepositUpdate: DepositUpdatePayload }>(
+      ON_DEPOSIT_UPDATE,
+      { depositId },
+    );
     this.subscription = obs.subscribe({
-      next: (data) => { if (data.onDepositEvent) onEvent(data.onDepositEvent); },
+      next: (data) => {
+        const u = data.onDepositUpdate;
+        if (!u) return;
+        onEvent({
+          depositId: u.depositId,
+          status: u.status as DepositEvent['status'],
+          amountCents: u.amountCents,
+          currency: u.currency,
+          occurredAt: u.detectedAt ?? u.settledAt ?? u.failedAt ?? '',
+          reason: u.reason ?? null,
+        });
+      },
       error: (err) => {
         // eslint-disable-next-line no-console
         console.error('Deposit subscription error', err);
