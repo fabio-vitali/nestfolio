@@ -1,7 +1,7 @@
 ---
 id: dashboard-position-orphan-on-sell
 status: queued
-rank: 5
+rank: 6
 type: bug
 notes: "Fully-sold holding leaves a stale PositionSnapshot#<symbol> row in dashboard-bff (no delete path); shared with ledger-bff Position (w1), NOT a w2 regression."
 references: []

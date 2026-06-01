@@ -1,7 +1,7 @@
 ---
 id: dashboard-bff-advisory-status-dead-code-cleanup
 status: queued
-rank: 9
+rank: 10
 type: refactor
 notes: "w3 left 3 AdvisoryStatus vestiges in dashboard-bff: unused upsertAdvisoryStatus + unwritten lastRecommendationAt/lastDecisionStatus fields."
 references: []

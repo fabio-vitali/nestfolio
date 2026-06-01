@@ -1,6 +1,7 @@
 ---
 id: event-processor-aws-sdk-pin-drift
-status: parking
+status: queued
+rank: 3
 type: tooling
 notes: "event-processor pins @aws-sdk/* at ^3.750.0 vs workspace ^3.1011.0 → duplicate lib-dynamodb copy; test-only instanceof hazard."
 references: []
@@ -48,6 +49,21 @@ drift-proof pattern already documented at
 `services/ledger/ledger-bff/test/unit/version-guard.test.ts:52` (`onAnyCommand()` note).
 The `calls()` pattern should stay regardless of this fix (it survives version bumps);
 this item only removes the duplicate.
+
+## Second instance — broker-ctrl (RED on `main`, found 2026-06-01)
+Promoted to QUEUED 2026-06-01 during `bff-readmodel-w6-governance-freeze`'s
+validation gate. `services/execution/broker-ctrl/test/unit/order-lifecycle.test.ts`
+fails **on `main`** (verified: `2 failed, 62 passed`) at the two
+"Deposit/Withdrawal Normalizer Integration" tests (`:739`, `:806`). Same root cause:
+its `jest.mock('@aws-sdk/lib-dynamodb')` tags `PutCommand` with `_type:'Put'`, but
+the handler resolves the other physical copy → real `PutCommand` → the helper
+`findPutItems()` (filters `_type==='Put'`) returns `[]`. The sibling helper
+`findPutItemByTypename` (line 167) already tolerates BOTH the mocked and the real
+`PutCommand` (`constructor.name==='PutCommand'`) — `findPutItems` was simply never
+hardened. **Two fixes available:** (a) the root dedupe below (preferred, systemic),
+or (b) harden `findPutItems` to the drift-proof row-shape match like the w3
+advisory-bff fix. This is the first confirmed case of the dup-module breaking a
+suite on `main` (not just a worktree), so it now blocks the broker-ctrl unit gate.
 
 ## Fix
 Align event-processor's `@aws-sdk/*` ranges to the workspace standard

@@ -1,7 +1,7 @@
 ---
 id: ledger-bff-latent-tsc-errors
 status: queued
-rank: 11
+rank: 12
 type: bug
 notes: "~18 latent tsc --noEmit errors in ledger-bff src + legacy test-cast errors; not a deploy/test blocker (esbuild strips types). Sibling of investor-bff-13 / ledger-ctrl-2."
 references: []

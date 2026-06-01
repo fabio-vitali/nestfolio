@@ -1,7 +1,7 @@
 ---
 id: event-processor-single-fn-handler-undefined-throws
 status: queued
-rank: 4
+rank: 5
 type: bug
 notes: "Single-function handler returning undefined yields [undefined] → TypeError in the engine instead of a clean drop; affects all nullable single-fn transforms."
 references: []
