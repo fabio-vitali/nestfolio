@@ -1,6 +1,6 @@
 ---
 id: bff-readmodel-w5-externally-settled-entities
-status: active
+status: shipped
 type: refactor
 effort: xhigh
 out_of_scope:
@@ -15,10 +15,11 @@ references:
   - "docs/superpowers/specs/2026-05-29-bff-read-model-materialization-redesign-design.md"
   - "docs/superpowers/plans/2026-05-31-w5-externally-settled-entities.md"
   - "docs/superpowers/specs/2026-06-01-deposit-withdrawal-live-push-transport-design.md"
+  - "docs/superpowers/plans/2026-06-01-deposit-withdrawal-live-push-transport.md"
 spec: docs/superpowers/specs/2026-05-29-bff-read-model-materialization-redesign-design.md
 plan: docs/superpowers/plans/2026-05-31-w5-externally-settled-entities.md
 topic_memory: [project_read_model_redesign.md]
-validation_gate: null
+validation_gate: "Backend P1–P6 green (broker-ctrl 64/64, ledger 101/101, investor-bff 86/86, dashboard-bff, investor-ctrl) + integration 5/5 services on deployed dev + scoped Jest e2e 2/2 (fund-account, withdraw-cash). Phase-6 transport: investor-bff 86/86 + investor-mfe 97/97 unit; pre-deploy `nx affected test,lint` 10 projects green; deployed to dev (AppSync schema + publishDeposit/WithdrawalUpdate resolvers + DepositPublisher Lambda + 2nd DDB stream EventSourceMapping created clean alongside Egress CDC); Playwright on deployed dev GREEN twice consecutively (new-investor-happy-path + deposit-reload-mid-flight, 2 passed each run) — confirms DETECTED live-push reaches the browser via onDepositUpdate and survives F5. Fixes deposit-settlement-never-persisted (by construction) + the transport regression w5 Task 4.6 introduced."
 ---
 
 # Workstream 5 — externally-settled entities (cross-domain)
@@ -68,12 +69,11 @@ Rank 5 — cross-domain, sequenced last (see spec §"Externally-settled entities
 Funding owner decision settled 2026-05-29 (broker-ctrl). See
 [[project_read_model_redesign]].
 
-## Resume state (2026-06-01 — mid-execution, context-clear checkpoint)
-Worktree `worktree-feat+bff-readmodel-w5-externally-settled-entities`, 34 commits ahead of
-origin/main, clean tree. Stay at **xhigh**. Subagent-driven execution; first action on resume:
-**confirm cwd is the worktree** (Edit/Write resolve abs paths against MAIN's checkout otherwise).
+## Ship narrative (2026-06-01)
+Shipped on `worktree-feat+bff-readmodel-w5-externally-settled-entities`. The whole workstream
+(backend Phases 1–5 + the Phase-6 deposit/withdrawal live-push transport) ships green in one PR.
 
-**Backend Phases 1–6 = DONE + GREEN:**
+**Backend Phases 1–5 = DONE + GREEN:**
 - P1 event taxonomy + adapters · P2 broker-ctrl Funding carrier aggregate (64/64) · P3 ledger
   cash on `*_SETTLED` (101/101, fixes deposit/withdrawal-settlement-never-persisted) · P4
   investor-bff Deposit/WithdrawalRequest P1 projections + intent outbox (75/75; a real
@@ -84,16 +84,20 @@ origin/main, clean tree. Stay at **xhigh**. Subagent-driven execution; first act
   ledger cash-on-settlement, investor-bff 19/19, dashboard-bff, investor-ctrl); scoped Jest e2e
   **2/2 GREEN** (fund-account + withdraw-cash).
 
-**ONLY remaining work — the deposit/withdrawal live-push transport** (this is what blocks ship):
-Playwright `deposit-reload-mid-flight` + `new-investor-happy-path` FAIL because w5 deleted the
-`onDepositEvent` subscription with no replacement, so the investor-mfe deposit page can't receive
-DETECTED (backend row updates fine — transport-only gap). APPROVED design committed at
-`docs/superpowers/specs/2026-06-01-deposit-withdrawal-live-push-transport-design.md` (`0e6d3ed1`):
-mirror dashboard-bff `broadcastFromStream`→publish-mutation→`@aws_subscribe`, keyed on
-`depositId`/`withdrawalId`, deposit+withdrawal symmetric. Folded into w5 (ships green in one PR).
+**Phase 6 — deposit/withdrawal live-push transport (the regression w5 Task 4.6 introduced):**
+w5 had deleted the `onDepositEvent` subscription with no replacement, so the investor-mfe deposit
+page couldn't receive DETECTED (backend row updated fine — transport-only gap). Fixed by mirroring
+dashboard-bff's pattern (`broadcastFromStream`→none-datasource publish-mutation→`@aws_subscribe`),
+keyed on `depositId`/`withdrawalId`, deposit+withdrawal symmetric:
+- investor-bff: `none`-datasource `publishDepositUpdate`/`publishWithdrawalUpdate` resolvers
+  (echo args incl. the filter-pivot id) + `deposit-publisher.ts` (`broadcastFromStream`, keyed on
+  `__typename`, `whenChanged:['status']`, skips the `DepositIntent` outbox row) + schema
+  `DepositUpdate`/`WithdrawalUpdate` types/mutations/subscriptions + a 2nd DDB-stream consumer
+  Lambda (Egress CDC is the 1st; 2 readers/shard is within DynamoDB's limit — verified clean on deploy).
+- investor-mfe: `onDepositEvent`→`onDepositUpdate` subscription; `deposit.service` maps the payload
+  (`occurredAt = detectedAt ?? settledAt ?? failedAt`); pending page resolves DETECTED **and**
+  SETTLED to the `deposit-panel-detected` UI (incl. the `hydrate()` F5-on-settled fix found in review).
+- Plan: `docs/superpowers/plans/2026-06-01-deposit-withdrawal-live-push-transport.md` (subagent-driven,
+  two-stage review per task). Deferred hardening filed: `bff-publisher-stream-dlq` (parking).
 
-**Next steps:** `superpowers:writing-plans` for the transport design → subagent-driven execution
-(fresh subagent/task, two-stage review) → redeploy investor-bff + investor-web → re-run the 2
-Playwright deposit specs (must pass **twice** — anti-flake, `apps/nestfolio-e2e/CLAUDE.md`) →
-closing phase: set this file `status: shipped` + fill `validation_gate`, `backlog-lint --fix`,
-`superpowers:finishing-a-development-branch`, `ExitWorktree`.
+**Validation:** see `validation_gate`. Playwright on deployed dev passed twice consecutively.
