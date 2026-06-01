@@ -63,7 +63,10 @@ the handler resolves the other physical copy → real `PutCommand` → the helpe
 hardened. **Two fixes available:** (a) the root dedupe below (preferred, systemic),
 or (b) harden `findPutItems` to the drift-proof row-shape match like the w3
 advisory-bff fix. This is the first confirmed case of the dup-module breaking a
-suite on `main` (not just a worktree), so it now blocks the broker-ctrl unit gate.
+suite on `main` (not just a worktree). **Unblocked 2026-06-01 via fix (b)** —
+`findPutItems` hardened to the `input.Item` row-shape match (green: 64/64). The
+systemic dedupe (a) below remains the queued root fix; landing it would let both
+this band-aid and the w3 advisory-bff one be reverted.
 
 ## Fix
 Align event-processor's `@aws-sdk/*` ranges to the workspace standard

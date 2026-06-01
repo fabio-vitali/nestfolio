@@ -711,12 +711,18 @@ describe('Deposit/Withdrawal Normalizer Integration', () => {
     mockDdbSend.mockResolvedValue({});
   });
 
-  /** Collect every Item written via a DDB PutCommand, in call order. */
+  /**
+   * Collect every Item written via a DDB PutCommand, in call order.
+   * Tolerates BOTH the mocked PutCommand (`_type==='Put'`) and a real PutCommand
+   * resolved from a duplicate `@aws-sdk/lib-dynamodb` copy (`input.Item`, the only
+   * command shape carrying an Item) — mirrors findPutItemByTypename/findFirstPutItem.
+   * See backlog: event-processor-aws-sdk-pin-drift.
+   */
   function findPutItems(): Record<string, unknown>[] {
     const items: Record<string, unknown>[] = [];
     for (const call of mockDdbSend.mock.calls) {
-      const arg = call[0];
-      if (arg?._type === 'Put') items.push(arg.input?.Item as Record<string, unknown>);
+      const item = call[0]?.input?.Item as Record<string, unknown> | undefined;
+      if (item) items.push(item);
     }
     return items;
   }
