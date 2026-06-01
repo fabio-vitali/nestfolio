@@ -71,22 +71,23 @@ describe('scenario 2 — investor withdraws cash', () => {
     expect(withdrawal.requestWithdrawal.status).toBe('REQUESTED');
     expect(withdrawal.requestWithdrawal.amountCents).toBe(250_000);
 
-    // Simulate the downstream completion: in the real system, broker-ctrl processes
-    // the withdrawal and eventually emits WITHDRAWAL_COMPLETED on the execution bus,
-    // which investor-adpt forwards to the investor bus. Dashboard-bff subscribes to
-    // WITHDRAWAL_COMPLETED (not WITHDRAWAL_REQUESTED) so the activity entry only
-    // appears after the withdrawal is processed.
+    // Simulate the downstream settlement: in the real system, broker-ctrl
+    // processes the withdrawal and eventually emits WITHDRAWAL_SETTLED on the
+    // execution bus, which investor-adpt forwards to the investor bus.
+    // Dashboard-bff subscribes to WITHDRAWAL_SETTLED (not WITHDRAWAL_REQUESTED)
+    // so the activity entry only appears after the withdrawal settles.
     const eb = new EventBridgeClient(ctx);
     await eb.putEvent({
       bus: 'investor',
       targetService: 'dashboard-bff',
-      detailType: 'WITHDRAWAL_COMPLETED',
+      detailType: 'WITHDRAWAL_SETTLED',
       detail: {
         tenantId: tenant.tenantId,
         userId: tenant.userId,
         withdrawalId: withdrawal.requestWithdrawal.withdrawalId,
         amountCents: 250_000,
         currency: 'USD',
+        settledAt: new Date().toISOString(),
       },
     });
 
