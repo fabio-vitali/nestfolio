@@ -6,13 +6,11 @@
 
 ## ACTIVE
 
-_(none)_
-
+- [bff-readmodel-w6-governance-freeze](backlog/bff-readmodel-w6-governance-freeze.md) [tooling] — Workstream 6 (governance/freeze) of bff-read-model-materialization-redesign: enforcement layers 3+4 — ownership-classification step in create-service/create-feature/create-event, testing-patterns + CLAUDE.md router pointer, and drift checks in audit-service/audit-domain/audit-system (+ local nx drift-checker target). Layer-3/4 skill+audit edits were NOT applied incrementally during w1–w5 (verified 2026-06-01: only event-processor-patterns carries the model); w6 is the full layers-3+4 build, not a thin consolidation.
 
 ## QUEUED
 
-1. [bff-readmodel-w6-governance-freeze](backlog/bff-readmodel-w6-governance-freeze.md) [tooling] — Workstream 6 (governance/freeze) of bff-read-model-materialization-redesign: enforcement layers 3+4 — ownership-classification step in create-service/create-feature/create-event, testing-patterns + CLAUDE.md router pointer, and drift checks in audit-service/audit-domain/audit-system (+ CI lint). Final consolidation of updates applied incrementally as each BFF migrated.
-2. [weight-drift-detector](backlog/weight-drift-detector.md) [design] — Production-feature gap: no service emits PORTFOLIO_DRIFT_DETECTED on the weight-vs-target axis (the kind that motivates a rebalance). reconciliation-ctrl only handles Intent-vs-Settlement drift (broker errors). DWC SF reacts to the event correctly but no producer exists on the user-driven path. Surfaced 2026-05-27 during playwright-rebalance-real-agents-maxvms-remediation brainstorming.
+1. [weight-drift-detector](backlog/weight-drift-detector.md) [design] — Production-feature gap: no service emits PORTFOLIO_DRIFT_DETECTED on the weight-vs-target axis (the kind that motivates a rebalance). reconciliation-ctrl only handles Intent-vs-Settlement drift (broker errors). DWC SF reacts to the event correctly but no producer exists on the user-driven path. Surfaced 2026-05-27 during playwright-rebalance-real-agents-maxvms-remediation brainstorming.
 
 ## LATER
 
