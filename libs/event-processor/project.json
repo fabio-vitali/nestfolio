@@ -30,6 +30,19 @@
       "options": {
         "command": "tsc --noEmit -p libs/event-processor/tsconfig.type-test.json"
       }
+    },
+    "read-model-drift": {
+      "executor": "nx:run-commands",
+      "cache": true,
+      "inputs": [
+        "{workspaceRoot}/services/**/src/read-model-ownership.ts",
+        "{workspaceRoot}/services/**/src/**/*.ts",
+        "{workspaceRoot}/services/**/src/graphql/js-function/**/*.fn.js",
+        "{workspaceRoot}/tools/check-read-model-drift.mjs"
+      ],
+      "options": {
+        "command": "node tools/check-read-model-drift.mjs"
+      }
     }
   },
   "tags": ["scope:platform", "type:lib"]
