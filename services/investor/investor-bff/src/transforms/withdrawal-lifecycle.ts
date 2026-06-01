@@ -15,6 +15,9 @@ import type { UnitOfWork, BusEvent } from '@nestfolio/event-processor';
  * source type lives in broker-ctrl, not investor-bff.
  */
 interface FundingSnapshot {
+  tenantId: string;
+  userId: string;
+  region: string;
   status: string;
   transferId: string;
   amountCents: number;
@@ -26,17 +29,11 @@ interface FundingSnapshot {
   __version: number;
 }
 
-interface FundingContext {
-  tenantId: string;
-  userId: string;
-  region: string;
-}
-
 export const withdrawalLifecycle = (
   uow: UnitOfWork<BusEvent<Record<string, unknown>, Record<string, unknown>>>,
 ): WriteIntent => {
   const s = uow.event.subject as FundingSnapshot;
-  const { tenantId, userId, region } = uow.event.context as FundingContext;
+  const { tenantId, userId, region } = s;
   return projectVersioned(
     'WithdrawalRequest',
     {

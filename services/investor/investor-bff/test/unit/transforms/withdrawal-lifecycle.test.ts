@@ -17,13 +17,16 @@ const makeUow = (
     type: 'WITHDRAWAL_SETTLED',
     timestamp: '2026-01-03T00:00:00.000Z',
     subject: { ...subject, __version: version },
-    context: { tenantId: 't1', userId: 'u1', region: 'us-east-1' },
+    context: {},
   },
   payload: {},
   record: {},
 });
 
 const settledSubject = {
+  tenantId: 't1',
+  userId: 'u1',
+  region: 'us-east-1',
   status: 'settled',
   transferId: 'wd-1',
   amountCents: 50_000,
