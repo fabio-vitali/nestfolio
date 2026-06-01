@@ -100,7 +100,7 @@ describe('investor-ctrl', () => {
         detail: { decisionId: 'integ-blocked', reason: 'Compliance' },
       },
       {
-        detailType: 'WITHDRAWAL_COMPLETED',
+        detailType: 'WITHDRAWAL_SETTLED',
         detail: { withdrawalId: 'integ-wd', amountCents: 50_000 },
       },
       {
