@@ -105,6 +105,13 @@ Write the result to: services/{domain}/{service}/CLAUDE.md
 | 7 | Import boundaries: no imports from `services/` | Hard fail | `grep -r "from.*services/" src/` |
 | 8 | Event emission completeness: all emission paths documented in card | Warning | Check CDC Egress, errorEventType, grantPutEventsTo, noneDataSource resolvers, SF PutEvents integrations |
 | 9 | Integration test coverage: test/integration/ exists and passes audit-integration-test (gated on service suffix) | Hard fail | `ls test/integration/`; if absent → hard fail (for -ctrl/-bff/-adpt only); if present → invoke audit-integration-test skill |
+| 10 | Read-model ownership: no drift + no structural-zero | Hard fail (drift) / Warning (structural-zero) | Run `pnpm nx run event-processor:read-model-drift`; plus the structural-zero prose check below |
+
+**Read-model ownership sub-check (check #10)** — see `docs/architecture/READ-MODEL-OWNERSHIP.md`:
+
+- **Drift (hard fail):** run `pnpm nx run event-processor:read-model-drift` (or `node tools/check-read-model-drift.mjs`). It is repo-wide; treat any reported violation that names a row written by *this* service as a hard fail. The four classes: a `Projection` written by `accumulate`; a `Projection<'P1'>` written by a non-`projectVersioned` factory (no version guard); a `__typename` written by both a command resolver (`*.fn.js`) and an event-side ongoing intent (dual authority — only the `record`-seed pattern may coexist); the same `__typename` registered with conflicting tags.
+- **Coverage (warning):** if this service writes rows via an intent factory but is in the checker's INFO list (no `ReadModelOwnership` augmentation), flag it as an ungoverned-row coverage gap tracked by `read-model-ownership-producer-aggregates`.
+- **Structural-zero (warning, prose — the checker cannot see this):** for each field in the service's read-type SDL (`src/schema.graphql`), confirm some transform/factory call actually writes it. A schema field never written is a structural zero (the bug class the redesign dissolved); flag it.
 
 **Integration test sub-check (check #9)**: Determine applicability by service suffix, then act:
 

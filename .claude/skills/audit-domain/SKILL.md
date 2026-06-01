@@ -23,6 +23,7 @@ description: Verify domain-level consistency — service completeness, adapter f
 | Undocumented flows: Ingress/Egress events not referenced in any `flows/*.flow.yaml` | Warning |
 | Bus configuration: rules match subscriptions | Warning |
 | Infinite loop detection: flag cycles where Service A subscribes to Event X → writes Entity Y → CDC emits Event Z → Event Z reaches Service A's subscription (directly or via adapter). Must trace COMPLETE cycle. A service emitting an event that other services consume is normal — only flag if the chain loops back to the originating service's subscription. | Warning |
+| Read-model ownership drift: run `pnpm nx run event-processor:read-model-drift`; flag any violation naming a row written by this domain's services (accumulate-on-projection, unguarded P1, command+event dual-writer, registry conflict). See `docs/architecture/READ-MODEL-OWNERSHIP.md`. | Hard fail |
 
 - [ ] 4. **Aggregate results** into domain report
 - [ ] 5. **Auto-fix:** regenerate stale service cards
