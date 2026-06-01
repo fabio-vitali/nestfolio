@@ -32,7 +32,7 @@ describe('dashboard-bff event-listener', () => {
 
     // Execution cross-domain events (via investor-adpt)
     expect(handlers).toHaveProperty(InvestorIngestEventTypes.DEPOSIT_DETECTED);
-    expect(handlers).toHaveProperty(InvestorIngestEventTypes.WITHDRAWAL_COMPLETED);
+    expect(handlers).toHaveProperty(InvestorIngestEventTypes.WITHDRAWAL_SETTLED);
 
     // ORDER_FILLED/REJECTED/CANCELLED + PORTFOLIO_DRIFT_DETECTED no longer have
     // handlers — they were the now-removed accumulate-counter triggers.

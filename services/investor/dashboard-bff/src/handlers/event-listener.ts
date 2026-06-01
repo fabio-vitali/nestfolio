@@ -48,7 +48,7 @@ export function createHandlers() {
       investorSnapshot(toUow(payload, ctx)),
     [InvestorIngestEventTypes.DEPOSIT_DETECTED]: (payload: EventPayload, ctx: EventContext) =>
       recentActivity(toUow(payload, ctx)),
-    [InvestorIngestEventTypes.WITHDRAWAL_COMPLETED]: (payload: EventPayload, ctx: EventContext) =>
+    [InvestorIngestEventTypes.WITHDRAWAL_SETTLED]: (payload: EventPayload, ctx: EventContext) =>
       recentActivity(toUow(payload, ctx)),
   };
 }

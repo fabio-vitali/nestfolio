@@ -74,9 +74,9 @@ describe('recentActivity transform', () => {
     expect(typeof intent.fields.metadata).toBe('string');
   });
 
-  it('should return record intent with description for WITHDRAWAL_COMPLETED', () => {
+  it('should return record intent with description for WITHDRAWAL_SETTLED', () => {
     const result = recentActivity(
-      makeUow('WITHDRAWAL_COMPLETED', { amountCents: 250_000, currency: 'USD' }),
+      makeUow('WITHDRAWAL_SETTLED', { amountCents: 250_000, currency: 'USD' }),
     );
     expect(result).toEqual(
       record('Activity', {
@@ -84,8 +84,8 @@ describe('recentActivity transform', () => {
         userId: 'u1',
         region: 'us-east-1',
         activityId: 'e1',
-        activityType: 'WITHDRAWAL_COMPLETED',
-        description: 'Withdrawal completed: 2500 USD',
+        activityType: 'WITHDRAWAL_SETTLED',
+        description: 'Withdrawal settled: 2500 USD',
         createdAt: '2026-01-01T00:00:00.000Z',
         metadata: '{"amountCents":250000,"currency":"USD"}',
       }),

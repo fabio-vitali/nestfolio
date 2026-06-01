@@ -38,7 +38,7 @@ export class DashboardBffStack extends ServiceStack {
         InvestorBffEventTypes.INVESTOR_PROFILE_CREATED,
         InvestorBffEventTypes.INVESTOR_PROFILE_UPDATED,
         InvestorIngestEventTypes.DEPOSIT_DETECTED,
-        InvestorIngestEventTypes.WITHDRAWAL_COMPLETED,
+        InvestorIngestEventTypes.WITHDRAWAL_SETTLED,
         // AdvisoryStatus is now projected from advisory-bff's authoritative
         // announcement (forwarded advisory→investor by investor-adpt, Task 4.1)
         // instead of accumulated from disparate trigger events.

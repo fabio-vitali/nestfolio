@@ -7,7 +7,7 @@ const ACTIVITY_DESCRIPTIONS: Record<string, (payload: Record<string, unknown>) =
   DECISION_APPROVED: (p) => `Decision approved: ${p.decisionId ?? 'unknown'}`,
   DECISION_BLOCKED: (p) => `Decision blocked: ${p.reason ?? p.decisionId ?? 'unknown'}`,
   DEPOSIT_DETECTED: (p) => `Deposit detected: ${((p.amountCents as number) ?? 0) / 100} ${p.currency ?? ''}`.trim(),
-  WITHDRAWAL_COMPLETED: (p) => `Withdrawal completed: ${((p.amountCents as number) ?? 0) / 100} ${p.currency ?? ''}`.trim(),
+  WITHDRAWAL_SETTLED: (p) => `Withdrawal settled: ${((p.amountCents as number) ?? 0) / 100} ${p.currency ?? ''}`.trim(),
 };
 
 export const recentActivity = (
