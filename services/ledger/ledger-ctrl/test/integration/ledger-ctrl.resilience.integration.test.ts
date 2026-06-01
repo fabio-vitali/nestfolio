@@ -129,7 +129,7 @@ describe('ledger-ctrl resilience: idempotency', () => {
     }
   }, 180_000);
 
-  it('duplicate DEPOSIT_DETECTED does not create duplicate LedgerEntry', async () => {
+  it('duplicate DEPOSIT_SETTLED does not create duplicate LedgerEntry', async () => {
     const ctx = await createIntegrationTestContext();
     try {
       const eb = new EventBridgeClient(ctx);
@@ -140,13 +140,13 @@ describe('ledger-ctrl resilience: idempotency', () => {
       const payload = {
         depositId: `dep-idemp-${randomUUID()}`,
         amountCents: 500_000,
-        depositedAt: new Date().toISOString(),
+        settledAt: new Date().toISOString(),
       };
 
       await eb.putEvent({
         bus: 'ledger',
         targetService: 'ledger-ctrl',
-        detailType: 'DEPOSIT_DETECTED',
+        detailType: 'DEPOSIT_SETTLED',
         detail: payload,
         eventId,
       });
@@ -159,7 +159,7 @@ describe('ledger-ctrl resilience: idempotency', () => {
       await eb.putEvent({
         bus: 'ledger',
         targetService: 'ledger-ctrl',
-        detailType: 'DEPOSIT_DETECTED',
+        detailType: 'DEPOSIT_SETTLED',
         detail: payload,
         eventId,
       });
@@ -236,7 +236,7 @@ describe('ledger-ctrl resilience: idempotency', () => {
 // ── Order-Agnostic: Pairwise Inversion ───────────────────────────────────
 
 describe('ledger-ctrl resilience: order-agnostic pairwise', () => {
-  it('DEPOSIT_DETECTED then ORDER_FILLED vs reverse → same final snapshot', async () => {
+  it('DEPOSIT_SETTLED then ORDER_FILLED vs reverse → same final snapshot', async () => {
     // ── Run A: ordered (deposit first) ──
     const ctxA = await createIntegrationTestContext();
     try {
@@ -247,11 +247,11 @@ describe('ledger-ctrl resilience: order-agnostic pairwise', () => {
       await ebA.putEvent({
         bus: 'ledger',
         targetService: 'ledger-ctrl',
-        detailType: 'DEPOSIT_DETECTED',
+        detailType: 'DEPOSIT_SETTLED',
         detail: {
           depositId: `dep-pair-A-${randomUUID()}`,
           amountCents: 500_000,
-          depositedAt: new Date().toISOString(),
+          settledAt: new Date().toISOString(),
         },
       });
       await waitForSnapshot(tableA, ctxA.tenantId, 'actual');
@@ -303,11 +303,11 @@ describe('ledger-ctrl resilience: order-agnostic pairwise', () => {
         await ebB.putEvent({
           bus: 'ledger',
           targetService: 'ledger-ctrl',
-          detailType: 'DEPOSIT_DETECTED',
+          detailType: 'DEPOSIT_SETTLED',
           detail: {
             depositId: `dep-pair-B-${randomUUID()}`,
             amountCents: 500_000,
-            depositedAt: new Date().toISOString(),
+            settledAt: new Date().toISOString(),
           },
         });
 
@@ -339,11 +339,11 @@ describe('ledger-ctrl resilience: order-agnostic full shuffle', () => {
   it('3 events in shuffled order produce same final snapshot as sequential', async () => {
     const events = [
       {
-        detailType: 'DEPOSIT_DETECTED',
+        detailType: 'DEPOSIT_SETTLED',
         detail: (suffix: string) => ({
           depositId: `dep-shuffle-${suffix}-${randomUUID()}`,
           amountCents: 1_000_000,
-          depositedAt: new Date().toISOString(),
+          settledAt: new Date().toISOString(),
         }),
       },
       {

@@ -97,36 +97,36 @@ describe('ledger-ctrl: event-listener DDB writes', () => {
     await ctx.cleanup.runAll();
   }, 30_000);
 
-  it('should record a LedgerEntry on DEPOSIT_DETECTED', async () => {
+  it('should record a LedgerEntry on DEPOSIT_SETTLED', async () => {
     await eb.putEvent({
       bus: 'ledger',
       targetService: 'ledger-ctrl',
-      detailType: 'DEPOSIT_DETECTED',
+      detailType: 'DEPOSIT_SETTLED',
       detail: {
         depositId: `dep-ddb-${Date.now()}`,
         amountCents: 500_000,
-        depositedAt: new Date().toISOString(),
+        settledAt: new Date().toISOString(),
       },
     });
 
-    const item = await waitForLedgerEntry(table, ctx.tenantId, 'DEPOSIT_DETECTED');
+    const item = await waitForLedgerEntry(table, ctx.tenantId, 'DEPOSIT_SETTLED');
     expect(item['__typename']).toBe('LedgerEntry');
     expect(item['tenantId']).toBe(ctx.tenantId);
   }, 120_000);
 
-  it('should record a LedgerEntry on WITHDRAWAL_COMPLETED', async () => {
+  it('should record a LedgerEntry on WITHDRAWAL_SETTLED', async () => {
     await eb.putEvent({
       bus: 'ledger',
       targetService: 'ledger-ctrl',
-      detailType: 'WITHDRAWAL_COMPLETED',
+      detailType: 'WITHDRAWAL_SETTLED',
       detail: {
         withdrawalId: `wd-ddb-${Date.now()}`,
         amountCents: 100_000,
-        completedAt: new Date().toISOString(),
+        settledAt: new Date().toISOString(),
       },
     });
 
-    const item = await waitForLedgerEntry(table, ctx.tenantId, 'WITHDRAWAL_COMPLETED');
+    const item = await waitForLedgerEntry(table, ctx.tenantId, 'WITHDRAWAL_SETTLED');
     expect(item['__typename']).toBe('LedgerEntry');
     expect(item['tenantId']).toBe(ctx.tenantId);
   }, 120_000);
@@ -236,15 +236,15 @@ describe('ledger-ctrl: CDC chain → BALANCE_UPDATED', () => {
     );
   }, 120_000);
 
-  it('DEPOSIT_DETECTED → BALANCE_UPDATED', async () => {
+  it('DEPOSIT_SETTLED → BALANCE_UPDATED', async () => {
     await eb.putEvent({
       bus: 'ledger',
       targetService: 'ledger-ctrl',
-      detailType: 'DEPOSIT_DETECTED',
+      detailType: 'DEPOSIT_SETTLED',
       detail: {
         depositId: `dep-cdc-${Date.now()}`,
         amountCents: 500_000,
-        depositedAt: new Date().toISOString(),
+        settledAt: new Date().toISOString(),
       },
     });
 
@@ -255,17 +255,17 @@ describe('ledger-ctrl: CDC chain → BALANCE_UPDATED', () => {
     );
   }, 120_000);
 
-  it('WITHDRAWAL_COMPLETED → BALANCE_UPDATED', async () => {
+  it('WITHDRAWAL_SETTLED → BALANCE_UPDATED', async () => {
     // INITIAL_ACCOUNT_STATE.cashBalanceCents = 10_000_000 — plenty for
     // a 100_000-cent withdrawal even on the first event for this tenant.
     await eb.putEvent({
       bus: 'ledger',
       targetService: 'ledger-ctrl',
-      detailType: 'WITHDRAWAL_COMPLETED',
+      detailType: 'WITHDRAWAL_SETTLED',
       detail: {
         withdrawalId: `wd-cdc-${Date.now()}`,
         amountCents: 100_000,
-        completedAt: new Date().toISOString(),
+        settledAt: new Date().toISOString(),
       },
     });
 
