@@ -50,4 +50,14 @@ the gate can only be made mandatory once every governed row is registered.
 Validation gate: `pnpm nx run event-processor:read-model-drift` green as a
 **mandatory** gate across all services; `backlog-lint` 8/8.
 
+**Program-end consolidated e2e (2026-06-02, user direction).** Because the whole
+read-model QUEUED set is ONE refactoring over overlapping read surfaces, the
+expensive real-LLM e2e is NOT run per intermediate workstream (deviation from
+`/backlog-next` step 6.4). WS-A–WS-C + the BFF residuals keep only cheap gates
+(`test,lint` + per-service `typecheck` + `event-processor:read-model-drift` +
+`test-integration` with mocked agents + the dev deploy). The involved
+**advisory decision-pipeline + dashboard + ledger** real-LLM e2e scenarios run
+**once, here at WS-D**, against fully-converged dev — this is part of WS-D's gate,
+not optional. See [[project_read_model_redesign]] validation-cadence decision.
+
 See [[project_read_model_redesign]].
