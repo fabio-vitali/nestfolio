@@ -89,6 +89,7 @@ export async function onboardingCompleted(
             operatingMode: s.operatingMode,
             effectiveDate: now,
             revokedAt: null,
+            __version: 1,
             createdAt: now,
             updatedAt: now,
             timestamp: now,

@@ -19,6 +19,14 @@ describe('revokeMandate resolver', () => {
     expect(response(baseCtx as any)).toEqual(baseCtx.result);
   });
 
+  it('bumps __version atomically on revoke (WS-B carriage)', () => {
+    const req = request(baseCtx as any);
+    expect(req.update.expression).toMatch(/#v = if_not_exists\(#v, :zero\) \+ :one/);
+    expect(req.update.expressionNames['#v']).toBe('__version');
+    expect(req.update.expressionValues[':zero'].N).toBe('0');
+    expect(req.update.expressionValues[':one'].N).toBe('1');
+  });
+
   it('translates DDB ConditionalCheckFailedException into InvalidState', () => {
     const errCtx = {
       ...baseCtx,

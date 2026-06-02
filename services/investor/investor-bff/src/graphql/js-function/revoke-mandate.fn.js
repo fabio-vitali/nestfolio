@@ -10,12 +10,14 @@ export function request(ctx) {
       sk: 'Mandate',
     }),
     update: {
-      expression: 'SET #status = :revoked, revokedAt = :now, updatedAt = :now, #ts = :now',
-      expressionNames: { '#status': 'status', '#ts': 'timestamp' },
+      expression: 'SET #status = :revoked, revokedAt = :now, updatedAt = :now, #ts = :now, #v = if_not_exists(#v, :zero) + :one',
+      expressionNames: { '#status': 'status', '#ts': 'timestamp', '#v': '__version' },
       expressionValues: util.dynamodb.toMapValues({
         ':revoked': 'REVOKED',
         ':active': 'ACTIVE',
         ':now': now,
+        ':zero': 0,
+        ':one': 1,
       }),
     },
     condition: {

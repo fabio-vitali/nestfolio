@@ -74,4 +74,11 @@ describe('onboardingCompleted transform', () => {
     const mandate = items.find((i: any) => i.Put?.Item.sk === 'Mandate').Put.Item;
     expect(mandate.level).toBe('ADVISORY');
   });
+
+  it('stamps __version: 1 on the seeded Mandate row (WS-B carriage)', async () => {
+    await onboardingCompleted({ subject: baseSubject } as any, ctx as any);
+    const items = (InvestorProfileRepository as any).prototype.transactWrite.mock.calls[0][0].TransactItems;
+    const mandate = items.find((i: any) => i.Put?.Item.sk === 'Mandate').Put.Item;
+    expect(mandate.__version).toBe(1);
+  });
 });

@@ -312,6 +312,7 @@ describe('investor-bff', () => {
       });
       expect(created.detailType).toBe('INVESTOR_PROFILE_CREATED');
       expect(accepted.detailType).toBe('MANDATE_ISSUED');
+      expect((accepted.detail as { subject?: Record<string, unknown> }).subject?.['__version']).toBe(1);
 
       // Drain residual events to assert legacy per-field events are NOT emitted.
       const residual = (await trap.drain()).map((e) => e.detailType);
@@ -756,11 +757,12 @@ describe('investor-bff', () => {
       expect(profileAfter['updatedAt']).toBe(updatedAtBefore);
 
       // Assert: CDC modify on Mandate row → MANDATE_REVOKED
-      const event = await trap.waitForEvent({
+      const revoked = await trap.waitForEvent({
         detailType: 'MANDATE_REVOKED',
         timeoutMs: 60_000,
       });
-      expect(event.detailType).toBe('MANDATE_REVOKED');
+      expect(revoked.detailType).toBe('MANDATE_REVOKED');
+      expect((revoked.detail as { subject?: Record<string, unknown> }).subject?.['__version']).toBe(2);
 
       // Note: "NO INVESTOR_PROFILE_UPDATED emitted" is enforced by
       // construction at the resolver level (revoke-mandate.fn.js targets
