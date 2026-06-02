@@ -1,8 +1,8 @@
 /**
  * Compile-time proof that advisory-bff's ownership registration (workstream 3)
  * rejects the wrong write intents. A `@ts-expect-error` that does NOT error is
- * itself a compile failure. Verified by tsc against tsconfig.spec.json (which
- * includes test/**\/*.type-test.ts) — no runtime assertions.
+ * itself a compile failure. Verified by `nx run advisory-bff:typecheck`
+ * (tsconfig.type-test.json) — no runtime assertions.
  */
 import { project, accumulate, update, record, projectVersioned } from '@nestfolio/event-processor';
 import '../../src/read-model-ownership';

@@ -48,8 +48,6 @@ Stack: services/advisory/advisory-bff/src/service.stack.ts
   - P3 (projectVersioned, derived): AdvisoryStatus
   - CommandOwned (AppSync fn.js PutItems): UserConfirmation, UserRejection, UserInteraction
 - Enforced by `nx run advisory-bff:typecheck` (test/types/read-model-ownership.type-test.ts)
-- Legacy detail: `DecisionReadModel: Projection<'P1'>` — sole writer is `projectVersioned` in decision-snapshot.ts; compile-time guard blocks record/update/accumulate
-- Legacy detail: `AdvisoryStatus: Projection<'P3'>` — derived aggregate recomputed by advisory-status-projector.ts; compile-time guard blocks accumulate
 
 ## Event Types (domain/events.ts)
 - AdvisoryBffEventTypes: ADVISORY_STATUS_UPDATED, USER_CONFIRMED, USER_REJECTED, USER_VIEWED_EXPLANATION,

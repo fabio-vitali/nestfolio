@@ -20,5 +20,11 @@ accumulate('AuditArtifact', { field: 'count', increment: 1 });
 update('ComplianceCheck', { a: 1 });
 // @ts-expect-error — projectVersioned on a P2 append-log must not typecheck
 projectVersioned('AuditArtifact', { a: 1 }, { version: 1 });
+// @ts-expect-error — project on a P2 projection must not typecheck
+project('AuditArtifact', { a: 1 });
+// @ts-expect-error — accumulate on a P2 projection must not typecheck
+accumulate('ComplianceCheck', { field: 'count', increment: 1 });
+// @ts-expect-error — update (command write) on a P2 projection must not typecheck
+update('AuditArtifact', { a: 1 });
 
 export {};
