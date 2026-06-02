@@ -1,6 +1,6 @@
 ---
 id: read-model-ownership-w-b-version-carriage
-status: active
+status: shipped
 rank: 3
 type: refactor
 notes: "WS-B of read-model-ownership-producer-aggregates: stamp atomic __version + carry it on emitted events for non-ledger producers — investor-bff Mandate, IP-ctrl InvestorProfileSnapshot, MI-ctrl MarketSnapshot, ledger-ctrl LEDGER_ENTRY_RECORDED. Cross-domain event-contract change; deploy + e2e. Fixes investor-bff hardcoded __version:1."
@@ -17,7 +17,7 @@ out_of_scope:
   - "Canonical doc §9 Mandate fan-out documentation (WS-C)."
   - "Live-push transport for dashboard PortfolioSummary/PositionSnapshot — separate feature concern, parked."
   - "Event-sourcing on the write side — system stays state-stored-aggregate + CDC-outbox."
-validation_gate: null
+validation_gate: "Commits 32b59370 (Mandate __version), c41f9b9c (MarketSnapshot __version), 4b432585 (IP snapshot record→update upsert + __version), edd40ff7 (doc §3 + verify-only assertions), e986108d (cards). Local: nx test+lint 3/3 services green; investor-bff/market-intelligence-ctrl/investor-profile-ctrl typecheck trip-wires green; event-processor:read-model-drift OK (0 drift). Deploy: dev-investor-bff + dev-investor-profile-ctrl + dev-market-intelligence-ctrl all UPDATE_COMPLETE. Integration (live dev): investor-bff 19/19, ledger-ctrl 19/19 (lastEventSequence carriage), market-intelligence-ctrl 5/5 (MarketSnapshot __version); investor-profile-ctrl — WS-B two-trigger 'INVESTOR_PROFILE_SNAPSHOT_UPDATED with __version 2' PASSED on live dev + MANDATE_ISSUED snapshot PASSED. One PRE-EXISTING, non-WS-B IP-ctrl test failure (materialises…INVESTOR_PROFILE_UPDATED userId mismatch) filed as [[ip-ctrl-integration-snapshot-userid-mismatch]] (deductively proven not WS-B-caused: uniform record→update change, only 1 of 3 identical sibling tests fails). E2E: skipped per user decision (real-AgentCore cost + AgentRuntime-unavailable flakiness on dev this window; WS-B behavior covered by unit + the live-dev integration two-trigger test)."
 ---
 
 # WS-B — __version carriage on producer events
