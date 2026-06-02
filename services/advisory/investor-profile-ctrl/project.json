@@ -21,6 +21,12 @@
       "options": { "jestConfig": "services/advisory/investor-profile-ctrl/jest.config.js" }
     },
     "lint": { "executor": "@nx/eslint:lint" },
+    "typecheck": {
+      "executor": "nx:run-commands",
+      "options": {
+        "command": "tsc --noEmit -p services/advisory/investor-profile-ctrl/tsconfig.type-test.json"
+      }
+    },
     "build-agent": {
       "executor": "nx:run-commands",
       "options": {

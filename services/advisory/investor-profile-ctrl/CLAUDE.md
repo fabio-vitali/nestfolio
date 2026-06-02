@@ -44,6 +44,12 @@ Agent folder: agents/investor-profile/
 - event-publisher.ts -- Egress CDC publisher (changeDataCapture pipeline)
 - kb-ingestion-handler.ts -- KB ingestion for regulatory precedents
 
+## Read model
+- ReadModelOwnership registered in src/read-model-ownership.ts
+  - CommandOwned (own-aggregate written via record()): InvestorProfileSnapshot
+  - (DWC mirror of InvestorProfileSnapshot is registered Projection<'P1'> in WS-C, not here.)
+- Enforced by `nx run investor-profile-ctrl:typecheck` (test/types/read-model-ownership.type-test.ts)
+
 ## Event Types (domain/events.ts)
 - InvestorProfileEventTypes (outbound): GOAL_INTERPRETATION_PRODUCED, RISK_EVALUATION_PRODUCED, INVESTOR_PROFILE_AGENT_INVOCATION_TRACED, INVESTOR_PROFILE_SNAPSHOT_CREATED, INVESTOR_PROFILE_SNAPSHOT_UPDATED
 - HANDLED_EVENT_TYPES (inbound triggers): INVESTOR_PROFILE_UPDATED, MANDATE_ISSUED, OPERATING_MODE_CHANGED
