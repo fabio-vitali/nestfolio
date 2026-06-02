@@ -1,7 +1,6 @@
 ---
 id: event-processor-readmodel-hardening
-status: queued
-rank: 1
+status: shipped
 type: refactor
 notes: "Foundation/unblocker for the read-model program: (A) dedupe event-processor's @aws-sdk/* pin (^3.750.0) to the workspace standard so the duplicate lib-dynamodb copy stops breaking worktree tests (the WS-D/broker-ctrl hazard); (B) harden the single-fn handler branch so an undefined transform drops cleanly instead of throwing. Merges event-processor-aws-sdk-pin-drift + event-processor-single-fn-handler-undefined-throws."
 references: []
@@ -10,7 +9,23 @@ plan: null
 topic_memory: [project_event_processor.md, project_read_model_redesign.md]
 out_of_scope:
   - "The two band-aids that already mask part of (A) — advisory-bff row-shape match (commit a66ab1f3) and broker-ctrl findPutItems row-shape match — stay until the root dedupe lands; this WS removes the duplicate so they CAN be reverted, but reverting them is optional follow-up."
-validation_gate: null
+validation_gate: |
+  Shipped on main as commit 42a795ad (Simple lane, 2026-06-02).
+  A — dedupe: event-processor @aws-sdk/{client-dynamodb,client-eventbridge,lib-dynamodb}
+  bumped ^3.750.0 → ^3.1011.0 (util-dynamodb already ^3.996.2). `pnpm why lib-dynamodb`
+  now resolves a SINGLE @3.1011.0 (zero @3.1003.0); lockfile churn was a clean ~185-line
+  reduction (only @aws-sdk/smithy transitive). broker-ctrl order-lifecycle.test.ts
+  (2 failed on real main pre-fix) now 10/10 suites green; advisory-bff 34/34 green.
+  B — drop path: normalize-handler.ts filters non-WriteIntent results via isWriteIntent
+  in BOTH the single-fn branch and the array's function-result path (the latter shared
+  the same latent bug); +3 regression tests (sync/async single-fn + array sibling).
+  event-processor 296/296. Validation: `pnpm nx affected -t test,lint,typecheck
+  --base=origin/main` → exit 0 across 49 projects (real-main checkout, per
+  feedback-worktree-symlink-masks-test-failures). No deploy: (A) SDK externalized at
+  runtime (externalModules ['@aws-sdk/*']) so prod is unchanged; (B) LOW live
+  probability post-w3/w4, unit-validated, no e2e gate; detect-deploy-needed → skip.
+  Band-aids in out_of_scope (advisory-bff a66ab1f3, broker-ctrl findPutItems) KEPT —
+  row-shape matching is the drift-proof pattern that survives version bumps; not reverted.
 ---
 
 # event-processor read-model foundation hardening
