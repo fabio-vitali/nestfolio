@@ -6,7 +6,7 @@ notes: "WS-A of read-model-ownership-producer-aggregates: type-only ReadModelOwn
 references:
   - "docs/superpowers/specs/2026-06-01-read-model-ownership-producer-aggregates-design.md"
 spec: null
-plan: null
+plan: "docs/superpowers/plans/2026-06-02-read-model-ownership-w-a-registrations.md"
 topic_memory: [project_read_model_redesign.md]
 out_of_scope:
   - "Any projectVersioned conversion or event-contract change (WS-B/WS-C)."
