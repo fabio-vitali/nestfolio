@@ -1,20 +1,20 @@
 ---
 id: read-model-ownership-producer-aggregates
-status: queued
+status: shipped
 rank: 1
 type: design
 notes: "Successor program to bff-read-model-materialization-redesign. w0-w5 applied the single-writer ownership model ONLY to the BFF read surface; the producer/cross-service surface is ungoverned. Extend the model + the ReadModelOwnership registry to every governed state row, so the w6 drift-checker can run green over the WHOLE system. Needs a design pass (cross-domain __version carriage is an event-contract change across 3 domains)."
 references:
   - "docs/architecture/READ-MODEL-OWNERSHIP.md"
   - "docs/superpowers/specs/2026-05-29-bff-read-model-materialization-redesign-design.md"
-spec: null
+spec: docs/superpowers/specs/2026-06-01-read-model-ownership-producer-aggregates-design.md
 plan: null
 topic_memory: [project_read_model_redesign.md]
 out_of_scope:
   - "Live-push transport (the deferred dashboard-live-push-* items) — a separate feature concern, not read-model consistency."
   - "Real-broker (ALPACA) funding rails — see broker-ctrl-alpaca-funding-carrier-pk-divergence (parking; out of scope until real-money funding is picked up)."
   - "Outbox / event-carrier rows (AgentOutput, AgentInvocation, BalanceEvent, etc.) and external-feed adapter caches — verified NOT governed by the ownership model."
-validation_gate: null
+validation_gate: "Design spec committed df776390 (docs/superpowers/specs/2026-06-01-read-model-ownership-producer-aggregates-design.md); tier model corrected against code with file:line evidence (TimeTravelAvailability has no event version; Tier-1 'safe registrations' mostly force P1 conversions; no non-ledger producer has a version source; Mandate dual-projection confirmed). Decomposed into 4 child workstreams: read-model-ownership-w-a-registrations (QUEUED rank 1), -w-b-version-carriage / -w-c-consumer-conversions / -w-d-governance-capstone (PARKING, sequential triggers). Settled decisions: atomic per-row __version carried by CDC; mandatory drift-checker gate + exclusion registry; R4 per-service scoping. backlog-lint 8/8."
 ---
 
 # Read-model ownership — extend to producer aggregates (consistency closure)
