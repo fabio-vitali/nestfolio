@@ -15,7 +15,9 @@
 //                                    intent (project/projectVersioned/accumulate/
 //                                    update/updateOrRetry). record()-only event writes
 //                                    are the allowed seed-by-one-event path (§6.4).
-//   R4 registry-conflict          — the same typename registered with different tags.
+//   R4 registry-conflict          — the same typename registered with different tags WITHIN ONE service
+//                                    (per-service scoped: a typename may be CommandOwned in its owner
+//                                     and Projection<'P1'> in a mirror).
 //
 // Typenames written via a factory but absent from the registry are reported as a
 // non-failing INFO list (visibility for read-model-ownership-producer-aggregates),
@@ -79,9 +81,17 @@ function inComment(text, index) {
   return false;
 }
 
-// Parse every `interface ReadModelOwnership { ... }` block under services/**.
+// services/<domain>/<service>/... → "<service>". Mirrors the repo layout.
+function serviceOf(rel) {
+  const parts = rel.split('/');
+  return parts[2] ?? rel;
+}
+
+// Parse every `interface ReadModelOwnership { ... }` block under services/**,
+// keyed by (service, typename) so a typename may be CommandOwned in its owning
+// service and Projection<'P1'> in a mirroring service without conflict.
 export function parseRegistry(root) {
-  const registry = {};
+  const registry = {}; // { [service]: { [typename]: { tag, file } } }
   const conflicts = [];
   for (const file of walk(join(root, 'services'))) {
     if (!file.endsWith('.ts')) continue;
@@ -91,17 +101,19 @@ export function parseRegistry(root) {
     catch { continue; }
     if (!text.includes('interface ReadModelOwnership')) continue;
     const rel = relative(root, file).split(sep).join('/');
+    const service = serviceOf(rel);
     const body = text.slice(text.indexOf('interface ReadModelOwnership'));
     const entryRe = /([A-Za-z0-9_]+)\s*:\s*(Projection<\s*'(P[123])'\s*>|CommandOwned)/g;
     let m;
     while ((m = entryRe.exec(body)) !== null) {
       const typename = m[1];
       const tag = m[3] ? m[3] : 'CommandOwned';
-      const existing = registry[typename];
+      const svcReg = (registry[service] ??= {});
+      const existing = svcReg[typename];
       if (existing && existing.tag !== tag) {
-        conflicts.push({ typename, tags: [existing.tag, tag], files: [existing.file, rel] });
+        conflicts.push({ service, typename, tags: [existing.tag, tag], files: [existing.file, rel] });
       } else if (!existing) {
-        registry[typename] = { tag, file: rel };
+        svcReg[typename] = { tag, file: rel };
       }
     }
   }
@@ -151,39 +163,52 @@ export function scanCommandWrites(root) {
 
 export function evaluate(registry, conflicts, calls, commands) {
   const errors = [];
-  const isProjection = t => registry[t] && registry[t].tag.startsWith('P');
+  const tagOf = (service, t) => registry[service]?.[t]?.tag;
+  const isProjection = (service, t) => {
+    const tag = tagOf(service, t);
+    return !!tag && tag.startsWith('P');
+  };
 
   for (const c of calls) {
-    if (c.factory === 'accumulate' && isProjection(c.typename)) {
+    const service = serviceOf(c.file);
+    if (c.factory === 'accumulate' && isProjection(service, c.typename)) {
       errors.push({ rule: 'accumulate-on-projection', typename: c.typename, file: c.file, line: c.line,
         msg: `Projection '${c.typename}' written via accumulate() — projections never accumulate across events` });
     }
-    if (registry[c.typename]?.tag === 'P1' && c.factory !== 'projectVersioned') {
+    if (tagOf(service, c.typename) === 'P1' && c.factory !== 'projectVersioned') {
       errors.push({ rule: 'p1-without-version-guard', typename: c.typename, file: c.file, line: c.line,
         msg: `Projection<'P1'> '${c.typename}' written via ${c.factory}() — P1 rows must use projectVersioned()` });
     }
   }
 
-  const commandTypenames = new Set(commands.map(c => c.typename));
-  for (const t of commandTypenames) {
-    const ongoing = calls.find(c => c.typename === t && ONGOING_FACTORIES.has(c.factory));
+  // R3 dual-writer — per (service, typename): a command write and an event-side
+  // ONGOING intent in the SAME service. record()-only seed is allowed.
+  const seenCmd = new Set();
+  for (const cmd of commands) {
+    const service = serviceOf(cmd.file);
+    const key = `${service}::${cmd.typename}`;
+    if (seenCmd.has(key)) continue;
+    seenCmd.add(key);
+    const ongoing = calls.find(c =>
+      c.typename === cmd.typename && serviceOf(c.file) === service && ONGOING_FACTORIES.has(c.factory));
     if (ongoing) {
-      const cmd = commands.find(c => c.typename === t);
-      errors.push({ rule: 'dual-writer', typename: t, file: ongoing.file, line: ongoing.line,
-        msg: `'${t}' written by a command (${cmd.file}:${cmd.line}) AND an event-side ${ongoing.factory}() — dual authority; only the record()-seed pattern may coexist with a command` });
+      errors.push({ rule: 'dual-writer', typename: cmd.typename, file: ongoing.file, line: ongoing.line,
+        msg: `'${cmd.typename}' written by a command (${cmd.file}:${cmd.line}) AND an event-side ${ongoing.factory}() in ${service} — dual authority; only the record()-seed pattern may coexist with a command` });
     }
   }
 
   for (const c of conflicts) {
     errors.push({ rule: 'registry-conflict', typename: c.typename, file: c.files.join(' / '), line: 0,
-      msg: `'${c.typename}' registered with conflicting tags ${c.tags.join(' vs ')} (${c.files.join(', ')})` });
+      msg: `'${c.typename}' registered with conflicting tags ${c.tags.join(' vs ')} within service ${c.service} (${c.files.join(', ')})` });
   }
 
   const seen = new Set();
   const info = [];
   for (const c of [...calls, ...commands]) {
-    if (registry[c.typename] || seen.has(c.typename)) continue;
-    seen.add(c.typename);
+    const service = serviceOf(c.file);
+    const key = `${service}::${c.typename}`;
+    if (registry[service]?.[c.typename] || seen.has(key)) continue;
+    seen.add(key);
     info.push({ typename: c.typename, file: c.file, line: c.line, factory: c.factory ?? 'command' });
   }
   info.sort((a, b) => a.typename.localeCompare(b.typename));
@@ -205,7 +230,8 @@ function main() {
   }
 
   if (errors.length === 0) {
-    console.log(`read-model-drift: OK (${Object.keys(registry).length} registered typename(s), 0 drift)`);
+    const typenameCount = Object.values(registry).reduce((n, svc) => n + Object.keys(svc).length, 0);
+    console.log(`read-model-drift: OK (${typenameCount} registered typename(s), 0 drift)`);
     process.exit(0);
   }
 

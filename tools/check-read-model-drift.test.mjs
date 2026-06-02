@@ -39,10 +39,10 @@ test('parseRegistry reads P1/P2/P3/CommandOwned tags', () => {
       `declare module '@nestfolio/event-processor' {\n  interface ReadModelOwnership {\n    Foo: Projection<'P1'>;\n    Bar: CommandOwned;\n    Baz: Projection<'P2'>;\n    Qux: Projection<'P3'>;\n  }\n}\n`,
   }, (root) => {
     const { registry, conflicts } = parseRegistry(root);
-    assert.equal(registry.Foo.tag, 'P1');
-    assert.equal(registry.Bar.tag, 'CommandOwned');
-    assert.equal(registry.Baz.tag, 'P2');
-    assert.equal(registry.Qux.tag, 'P3');
+    assert.equal(registry['x-bff'].Foo.tag, 'P1');
+    assert.equal(registry['x-bff'].Bar.tag, 'CommandOwned');
+    assert.equal(registry['x-bff'].Baz.tag, 'P2');
+    assert.equal(registry['x-bff'].Qux.tag, 'P3');
     assert.equal(conflicts.length, 0);
   });
 });
@@ -51,7 +51,7 @@ test('parseRegistry flags a conflicting tag for the same typename', () => {
   withTree({
     'services/a/a-bff/src/read-model-ownership.ts':
       `interface ReadModelOwnership { Shared: Projection<'P1'>; }`,
-    'services/b/b-bff/src/read-model-ownership.ts':
+    'services/a/a-bff/src/legacy-ownership.ts':
       `interface ReadModelOwnership { Shared: Projection<'P2'>; }`,
   }, (root) => {
     const { conflicts } = parseRegistry(root);
@@ -69,8 +69,49 @@ test('parseRegistry allows the same typename with the SAME tag in two files', ()
   }, (root) => {
     const { conflicts, registry } = parseRegistry(root);
     assert.equal(conflicts.length, 0);
-    assert.equal(registry.AdvisoryStatus.tag, 'P3');
+    assert.equal(registry['b-bff'].AdvisoryStatus.tag, 'P3');
   });
+});
+
+test('parseRegistry keys by (service, typename): same typename, different tag in DIFFERENT services is NOT a conflict', () => {
+  withTree({
+    'services/advisory/market-intelligence-ctrl/src/read-model-ownership.ts':
+      `interface ReadModelOwnership { MarketSnapshot: CommandOwned; }`,
+    'services/advisory/decision-workflow-ctrl/src/read-model-ownership.ts':
+      `interface ReadModelOwnership { MarketSnapshot: Projection<'P1'>; }`,
+  }, (root) => {
+    const { conflicts, registry } = parseRegistry(root);
+    assert.equal(conflicts.length, 0);
+    assert.equal(registry['market-intelligence-ctrl'].MarketSnapshot.tag, 'CommandOwned');
+    assert.equal(registry['decision-workflow-ctrl'].MarketSnapshot.tag, 'P1');
+  });
+});
+
+test('parseRegistry flags a conflicting tag for the same typename WITHIN ONE service', () => {
+  withTree({
+    'services/a/a-bff/src/read-model-ownership.ts':
+      `interface ReadModelOwnership { Shared: Projection<'P1'>; }`,
+    'services/a/a-bff/src/other-ownership.ts':
+      `interface ReadModelOwnership { Shared: Projection<'P2'>; }`,
+  }, (root) => {
+    const { conflicts } = parseRegistry(root);
+    assert.equal(conflicts.length, 1);
+    assert.equal(conflicts[0].typename, 'Shared');
+  });
+});
+
+test('R2 lookup is per-service: a P1 typename in service A does not constrain a project() in service B', () => {
+  const { errors } = evalTree({
+    'services/advisory/decision-workflow-ctrl/src/read-model-ownership.ts':
+      `interface ReadModelOwnership { MarketSnapshot: Projection<'P1'>; }`,
+    'services/advisory/decision-workflow-ctrl/src/t.ts':
+      `projectVersioned('MarketSnapshot', {}, { version: 1 });`,
+    'services/advisory/market-intelligence-ctrl/src/read-model-ownership.ts':
+      `interface ReadModelOwnership { MarketSnapshot: CommandOwned; }`,
+    'services/advisory/market-intelligence-ctrl/src/u.ts':
+      `update('MarketSnapshot', {});`,
+  });
+  assert.equal(errors.length, 0, JSON.stringify(errors));
 });
 
 // ---- Task 2: scans ----
@@ -167,7 +208,7 @@ test('R3: command + record-only seed (CommandOwned) is the legit pattern, no err
 test('R4: a registry conflict surfaces as an error', () => {
   const { errors } = evalTree({
     'services/a/a-bff/src/read-model-ownership.ts': `interface ReadModelOwnership { Shared: Projection<'P1'>; }`,
-    'services/b/b-bff/src/read-model-ownership.ts': `interface ReadModelOwnership { Shared: CommandOwned; }`,
+    'services/a/a-bff/src/legacy.ts': `interface ReadModelOwnership { Shared: CommandOwned; }`,
   });
   assert.equal(errors.filter(e => e.rule === 'registry-conflict').length, 1);
 });
