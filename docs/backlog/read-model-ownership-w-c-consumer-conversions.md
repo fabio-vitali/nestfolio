@@ -7,7 +7,7 @@ notes: "WS-C of read-model-ownership-producer-aggregates: convert the CLEAN cons
 references:
   - "docs/superpowers/specs/2026-06-01-read-model-ownership-producer-aggregates-design.md"
 spec: null
-plan: null
+plan: "docs/superpowers/plans/2026-06-02-read-model-ownership-w-c-consumer-conversions.md"
 topic_memory: [project_read_model_redesign.md]
 out_of_scope:
   - "The mandatory-error drift-checker upgrade + exclusion registry (WS-D) — WS-C adds only the per-service R4 scoping needed to register same-typename-two-roles rows."
