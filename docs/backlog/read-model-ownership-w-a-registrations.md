@@ -1,6 +1,6 @@
 ---
 id: read-model-ownership-w-a-registrations
-status: active
+status: shipped
 type: refactor
 notes: "WS-A of read-model-ownership-producer-aggregates: type-only ReadModelOwnership registrations for all CommandOwned/P2 producer rows (compliance ComplianceCheck/AuditArtifact P2; investor-ctrl Notification/MonthlyReport; execution-ctrl Order/StagedOrder; MI-ctrl MarketSnapshot; IP-ctrl InvestorProfileSnapshot; DWC DecisionPacket; advisory-bff user rows). No runtime change, no deploy. Confirm Order/StagedOrder status-update path -> CommandOwned vs P2."
 references:
@@ -11,7 +11,16 @@ topic_memory: [project_read_model_redesign.md]
 out_of_scope:
   - "Any projectVersioned conversion or event-contract change (WS-B/WS-C)."
   - "The drift-checker mandatory-error upgrade + exclusion registry (WS-D)."
-validation_gate: null
+validation_gate: |
+  Type-only; no deploy (design WS-A gate). Commits: compliance-ctrl 24e70049 (+nit dcc8263c),
+  investor-ctrl ae61faf6, execution-ctrl 3bb616c6, market-intelligence-ctrl 786726f0,
+  investor-profile-ctrl 74a6635f, decision-workflow-ctrl 24478338, advisory-bff 1f3d43a7,
+  final-review nits fd0de53d. Order/StagedOrder confirmed CommandOwned (StagedOrderProcessor
+  status-update/delete path). Gates: `node tools/check-read-model-drift.mjs` → "OK (32 registered
+  typename(s), 0 drift)"; `nx run-many -t typecheck` 7/7 PASS; `nx affected -t typecheck,test,lint
+  --base=origin/main` → 28 projects PASS (lint re-proves no cross-service import violations).
+  detect-deploy-needed false-positive (type-only erases under esbuild) → deploy intentionally skipped.
+  Side-finding filed: advisory-bff latent tsc errors folded into dashboard-advisory-readmodel-fixes (D).
 ---
 
 # WS-A — Read-model ownership registrations (type-only)
