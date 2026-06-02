@@ -245,6 +245,33 @@ callers and migration authors must be aware.
 | `RecentActivity`, `HistoryEntry`, `Checkpoint` | append log | projection P2 |
 | `Deposit`, `Withdrawal` (+ structurally `Order`) | external (broker / ledger settles) | projection P1 (intent → command event; settlement drives the row) |
 
+### 9.1 Mandate fan-out (producer surface)
+
+investor-bff is the single **owner** of the `Mandate` aggregate (the `Mandate`
+sibling row, `sk='Mandate'`, carrying an atomic `__version`). It publishes the
+Mandate lifecycle event stream. Two services keep their own independent physical
+copy and project it — they never read investor-bff's table:
+
+- **compliance-ctrl** — `MandateSnapshot` under `pk=GuardrailPolicy#{tenant}#{user}`,
+  used by the RuleEngine.
+- **decision-workflow-ctrl** — `MandateSnapshot` under `pk=MandateSnapshot#{tenant}#{user}`,
+  read by the SF.
+
+Two physical copies, one logical owner. Per-service R4 scoping (the drift-checker)
+permits the same `MandateSnapshot` typename to be `Projection<'P1'>` in both
+projecting services.
+
+> **Known gap (2026-06-02):** `MANDATE_ISSUED`/`MANDATE_REVOKED` are CDC from the
+> Mandate row (full state + Mandate `__version`), but `OPERATING_MODE_CHANGED` is
+> CDC from the **InvestorProfile** row (`onFieldChange: { operatingMode }`) — a
+> *different* `__version` counter and a *partial* payload. A single-version-line
+> full-row P1 projection of `MandateSnapshot` is therefore not yet possible; the
+> compliance-ctrl + DWC `MandateSnapshot` projectors remain field-level `update()`
+> (drift-checker INFO, unregistered) until the producer fix in
+> `read-model-ownership-mandate-projection-fix` lands. The MarketSnapshot and
+> InvestorProfileSnapshot mirrors (WS-C) do not have this problem — each is CDC'd
+> from a single owned row carrying one `__version`.
+
 ---
 
 ## 10. Enforcement Layers — What Shipped vs What Is Planned
