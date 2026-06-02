@@ -12,8 +12,8 @@
  *   - InvestorSnapshot : P1 → projectVersioned (workstream 4 — producer now
  *     stamps __version and keeps onboardingCompletedAt stable).
  *
- * NOT registered (intentional):
- *   - TimeTravelAvailability → untouched.
+ *   - TimeTravelAvailability : P1 → projectVersioned (WS-C — keyed on
+ *     LEDGER_ENTRY_RECORDED.lastEventSequence as __version).
  *
  * See docs/architecture/READ-MODEL-OWNERSHIP.md.
  */
@@ -24,6 +24,7 @@ declare module '@nestfolio/event-processor' {
     PortfolioSummary: Projection<'P1'>;
     PositionSnapshot: Projection<'P1'>;
     InvestorSnapshot: Projection<'P1'>;
+    TimeTravelAvailability: Projection<'P1'>;
     AdvisoryStatus: Projection<'P3'>;
     Activity: Projection<'P2'>;
   }

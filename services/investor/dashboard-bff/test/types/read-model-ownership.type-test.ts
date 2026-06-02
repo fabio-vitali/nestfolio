@@ -24,4 +24,9 @@ record('Activity', { activityId: 'a1' });
 // @ts-expect-error Activity is an append log (P2), not a versioned projection
 projectVersioned('Activity', { a: 1 }, { version: 1 });
 
+// TimeTravelAvailability is P1 (WS-C) — projectVersioned only.
+projectVersioned('TimeTravelAvailability', { a: 1 }, { version: 1 });
+// @ts-expect-error TimeTravelAvailability is P1 — project() is forbidden
+project('TimeTravelAvailability', { a: 1 });
+
 export {};
