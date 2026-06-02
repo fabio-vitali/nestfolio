@@ -104,7 +104,7 @@ async function runMarketAgent(
           sourceEventIds: [ctx.eventId],
           updatedAt: now,
         },
-        { overrides: { pk: marketSnapshotPk(region), sk: MARKET_SNAPSHOT_SK } },
+        { add: { __version: 1 }, overrides: { pk: marketSnapshotPk(region), sk: MARKET_SNAPSHOT_SK } },
       ),
     );
   } else {
@@ -124,7 +124,7 @@ async function runMarketAgent(
           updatedAt: now,
           sourceEventIds: [ctx.eventId],
         },
-        { overrides: { pk: marketSnapshotPk(region), sk: MARKET_SNAPSHOT_SK } },
+        { add: { __version: 1 }, overrides: { pk: marketSnapshotPk(region), sk: MARKET_SNAPSHOT_SK } },
       ),
     );
   }

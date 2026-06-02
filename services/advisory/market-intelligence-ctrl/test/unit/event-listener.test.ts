@@ -121,6 +121,7 @@ describe('market-intelligence-ctrl event-listener', () => {
       // is a natural DDB upsert. Adding a condition would re-introduce
       // the CCFEx-on-existing-row failure mode this fix removes.
       expect(snapshotIntent?.condition).toBeUndefined();
+      expect((snapshotIntent as unknown as { add?: Record<string, number> })?.add).toEqual({ __version: 1 });
     });
 
     it('falls back to AWS_REGION / us-east-1 when subject.region is absent', async () => {
@@ -197,6 +198,7 @@ describe('market-intelligence-ctrl event-listener', () => {
         pk: 'MarketSnapshot#us-east-1',
         sk: 'MarketSnapshot',
       });
+      expect((snapshotIntent as unknown as { add?: Record<string, number> }).add).toEqual({ __version: 1 });
     });
   });
 
