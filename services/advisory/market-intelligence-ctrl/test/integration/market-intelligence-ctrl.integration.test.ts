@@ -143,7 +143,7 @@ describe('market-intelligence-ctrl: snapshot materialisation + CDC', () => {
       timeoutMs: 60_000,
     });
     expect(cdcEvent.detailType).toBe('MARKET_SNAPSHOT_UPDATED');
-    expect((cdcEvent.detail as { subject?: Record<string, unknown> }).subject?.['__version']).toEqual(expect.any(Number));
+    expect((cdcEvent.detail as { subject?: Record<string, unknown> }).subject?.['__version'] as number).toBeGreaterThanOrEqual(1);
   }, 240_000);
 
   // ── Slow-tier scheduled rebuild ─────────────────────────────────────

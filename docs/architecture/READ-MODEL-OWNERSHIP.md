@@ -66,7 +66,7 @@ monotonic version top-level in its emitted events:
 | investor-bff | `Mandate` → `MANDATE_ISSUED`/`MANDATE_REVOKED` | `__version` | seed `__version: 1` on issue; revoke resolver `if_not_exists(#v,:zero)+:one` |
 | market-intelligence-ctrl | `MarketSnapshot` → `MARKET_SNAPSHOT_UPDATED` | `__version` | `update(..., { add: { __version: 1 } })` upsert |
 | investor-profile-ctrl | `InvestorProfileSnapshot` → `INVESTOR_PROFILE_SNAPSHOT_*` | `__version` | `update(..., { add: { __version: 1 } })` upsert |
-| ledger-ctrl | `LedgerEntryEvent` → `LEDGER_ENTRY_RECORDED` | `lastEventSequence` | reducer-accumulated monotonic sequence |
+| ledger-ctrl | `LedgerEntryEvent` (derived event row, `__typename='LedgerEntryEvent'`; source table row is `LedgerEntry`) → `LEDGER_ENTRY_RECORDED` | `lastEventSequence` | reducer-accumulated monotonic sequence |
 
 `ledger-ctrl` is the one **grandfathered exception**: it carries `lastEventSequence`
 (its genuinely-monotonic per-`(tenant, streamType)` sequence) rather than a `__version`
