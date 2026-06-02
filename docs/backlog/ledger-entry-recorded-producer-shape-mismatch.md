@@ -1,14 +1,13 @@
 ---
 id: ledger-entry-recorded-producer-shape-mismatch
-status: queued
-rank: 7
+status: dropped
 type: bug
-notes: "ledger-bff ledger-entry-recorded reads top-level eventId/eventType/sequenceNo/cashBalanceCents/positions, but the real LedgerEntryEvent producer emits only tenantId/streamType/lastEventSequence/snapshot — HistoryEntry sk + Checkpoint degrade in prod."
+notes: "[SUPERSEDED -> ledger-bff-readmodel-fixes, merged 2026-06-02] ledger-bff ledger-entry-recorded reads top-level eventId/eventType/sequenceNo/cashBalanceCents/positions, but the real LedgerEntryEvent producer emits only tenantId/streamType/lastEventSequence/snapshot — HistoryEntry sk + Checkpoint degrade in prod."
 references: []
 out_of_scope: []
 spec: null
 plan: null
-topic_memory: [project_read_model_redesign.md]
+topic_memory: []
 validation_gate: null
 ---
 

@@ -1,9 +1,9 @@
 ---
 id: read-model-ownership-w-d-governance-capstone
 status: queued
-rank: 4
+rank: 5
 type: tooling
-notes: "WS-D of read-model-ownership-producer-aggregates: Tier-4 broker-ctrl ExecutionMode registration + governance capstone — upgrade drift-checker to mandatory-error gate + tools/read-model-exclusions.json for non-governed outbox/carrier rows; extend canonical doc §9 to producer surface; update CLAUDE.md/skill pointers. Makes the model fully enforced across all services."
+notes: "WS-D of read-model-ownership-producer-aggregates: Tier-4 broker-ctrl ExecutionMode registration + governance capstone — upgrade drift-checker to mandatory-error gate + tools/read-model-exclusions.json for non-governed outbox/carrier rows; wire the typecheck trip-wire into CI (folded bff-readmodel-typecheck-targets-not-in-ci); extend canonical doc §9 to producer surface; update CLAUDE.md/skill pointers. Makes the model fully enforced across all services."
 references:
   - "docs/superpowers/specs/2026-06-01-read-model-ownership-producer-aggregates-design.md"
 spec: null
@@ -18,7 +18,7 @@ validation_gate: null
 
 Workstream D of `read-model-ownership-producer-aggregates` (design § "WS-D").
 
-Sequenced after WS-C (`read-model-ownership-w-c-consumer-conversions`, rank 3):
+Sequenced after WS-C (`read-model-ownership-w-c-consumer-conversions`, rank 4):
 the gate can only be made mandatory once every governed row is registered.
 
 - broker-ctrl `ExecutionMode`: register `CommandOwned` (`record()` single-field
@@ -31,6 +31,16 @@ the gate can only be made mandatory once every governed row is registered.
   per-service scoped per WS-C).
 - Extend canonical doc `docs/architecture/READ-MODEL-OWNERSHIP.md` §9 per-row
   table to the producer surface.
+- **Wire the ownership typecheck trip-wire into CI** (folded from
+  `bff-readmodel-typecheck-targets-not-in-ci`): the per-service `@ts-expect-error`
+  ownership type-tests are exposed as nx `typecheck` targets
+  (`event-processor:typecheck`, `*-bff:typecheck`) but nothing in CI runs them
+  (`nx.json` `targetDefaults` has no `typecheck`; ts-jest runs `diagnostics:false`;
+  ESLint isn't type-aware). Register `typecheck` in `targetDefaults` + add
+  `pnpm nx affected -t typecheck --base=origin/main` to the PR workflow, so the
+  trip-wire gates mechanically, not by hand. If CI is still not green per
+  `ci-pipeline-bring-up`, ship the `targetDefaults` registration + a local-runnable
+  target and hand the workflow step to that workstream (per out_of_scope).
 - Update `CLAUDE.md` router / `event-processor-patterns` / audit-skill pointers if
   any reference the BFF-only scope.
 

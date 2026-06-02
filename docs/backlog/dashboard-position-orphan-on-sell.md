@@ -1,14 +1,13 @@
 ---
 id: dashboard-position-orphan-on-sell
-status: queued
-rank: 9
+status: dropped
 type: bug
-notes: "Fully-sold holding leaves a stale PositionSnapshot#<symbol> row in dashboard-bff (no delete path); shared with ledger-bff Position (w1), NOT a w2 regression."
+notes: "[SUPERSEDED -> dashboard-advisory-readmodel-fixes, merged 2026-06-02] Fully-sold holding leaves a stale PositionSnapshot#<symbol> row in dashboard-bff (no delete path); shared with ledger-bff Position (w1), NOT a w2 regression."
 references: []
 out_of_scope: []
 spec: null
 plan: null
-topic_memory: [project_read_model_redesign.md]
+topic_memory: []
 validation_gate: null
 ---
 

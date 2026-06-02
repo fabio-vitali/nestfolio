@@ -1,7 +1,7 @@
 ---
 id: read-model-ownership-w-a-registrations
 status: queued
-rank: 1
+rank: 2
 type: refactor
 notes: "WS-A of read-model-ownership-producer-aggregates: type-only ReadModelOwnership registrations for all CommandOwned/P2 producer rows (compliance ComplianceCheck/AuditArtifact P2; investor-ctrl Notification/MonthlyReport; execution-ctrl Order/StagedOrder; MI-ctrl MarketSnapshot; IP-ctrl InvestorProfileSnapshot; DWC DecisionPacket; advisory-bff user rows). No runtime change, no deploy. Confirm Order/StagedOrder status-update path -> CommandOwned vs P2."
 references:

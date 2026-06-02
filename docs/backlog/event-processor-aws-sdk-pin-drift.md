@@ -1,14 +1,13 @@
 ---
 id: event-processor-aws-sdk-pin-drift
-status: queued
-rank: 6
+status: dropped
 type: tooling
-notes: "event-processor pins @aws-sdk/* at ^3.750.0 vs workspace ^3.1011.0 → duplicate lib-dynamodb copy; test-only instanceof hazard."
+notes: "[SUPERSEDED -> event-processor-readmodel-hardening, merged 2026-06-02] event-processor pins @aws-sdk/* at ^3.750.0 vs workspace ^3.1011.0 → duplicate lib-dynamodb copy; test-only instanceof hazard."
 references: []
 out_of_scope: []
 spec: null
 plan: null
-topic_memory: [project_event_processor.md]
+topic_memory: []
 validation_gate: null
 ---
 

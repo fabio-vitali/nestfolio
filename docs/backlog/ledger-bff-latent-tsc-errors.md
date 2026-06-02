@@ -1,14 +1,13 @@
 ---
 id: ledger-bff-latent-tsc-errors
-status: queued
-rank: 15
+status: dropped
 type: bug
-notes: "~18 latent tsc --noEmit errors in ledger-bff src + legacy test-cast errors; not a deploy/test blocker (esbuild strips types). Sibling of investor-bff-13 / ledger-ctrl-2."
+notes: "[SUPERSEDED -> ledger-bff-readmodel-fixes, merged 2026-06-02] ~18 latent tsc --noEmit errors in ledger-bff src + legacy test-cast errors; not a deploy/test blocker (esbuild strips types). Sibling of investor-bff-13 / ledger-ctrl-2."
 references: []
 out_of_scope: []
 spec: null
 plan: null
-topic_memory: [project_read_model_redesign.md]
+topic_memory: []
 validation_gate: null
 ---
 

@@ -1,14 +1,13 @@
 ---
 id: w3-advisory-versioned-packet-hardening
-status: queued
-rank: 14
+status: dropped
 type: refactor
-notes: "3 non-blocking hardening nits from the w3 final review: AdvisoryStatus Date.now() version, terminal taskToken cleanup, WorkflowStatus enum guard."
+notes: "[SUPERSEDED -> dashboard-advisory-readmodel-fixes, merged 2026-06-02] 3 non-blocking hardening nits from the w3 final review: AdvisoryStatus Date.now() version, terminal taskToken cleanup, WorkflowStatus enum guard."
 references: []
 out_of_scope: []
 spec: null
 plan: null
-topic_memory: [project_read_model_redesign.md]
+topic_memory: []
 validation_gate: null
 ---
 

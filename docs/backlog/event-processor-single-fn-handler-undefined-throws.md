@@ -1,14 +1,13 @@
 ---
 id: event-processor-single-fn-handler-undefined-throws
-status: queued
-rank: 8
+status: dropped
 type: bug
-notes: "Single-function handler returning undefined yields [undefined] → TypeError in the engine instead of a clean drop; affects all nullable single-fn transforms."
+notes: "[SUPERSEDED -> event-processor-readmodel-hardening, merged 2026-06-02] Single-function handler returning undefined yields [undefined] → TypeError in the engine instead of a clean drop; affects all nullable single-fn transforms."
 references: []
 out_of_scope: []
 spec: null
 plan: null
-topic_memory: [project_event_processor.md, project_read_model_redesign.md]
+topic_memory: []
 validation_gate: null
 ---
 

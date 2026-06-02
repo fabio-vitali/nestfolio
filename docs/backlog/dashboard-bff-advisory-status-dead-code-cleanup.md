@@ -1,14 +1,13 @@
 ---
 id: dashboard-bff-advisory-status-dead-code-cleanup
-status: queued
-rank: 13
+status: dropped
 type: refactor
-notes: "w3 left 3 AdvisoryStatus vestiges in dashboard-bff: unused upsertAdvisoryStatus + unwritten lastRecommendationAt/lastDecisionStatus fields."
+notes: "[SUPERSEDED -> dashboard-advisory-readmodel-fixes, merged 2026-06-02] w3 left 3 AdvisoryStatus vestiges in dashboard-bff: unused upsertAdvisoryStatus + unwritten lastRecommendationAt/lastDecisionStatus fields."
 references: []
 out_of_scope: []
 spec: null
 plan: null
-topic_memory: [project_read_model_redesign.md]
+topic_memory: []
 validation_gate: null
 ---
 

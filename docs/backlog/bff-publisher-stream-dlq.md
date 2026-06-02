@@ -1,7 +1,7 @@
 ---
 id: bff-publisher-stream-dlq
 status: queued
-rank: 12
+rank: 9
 type: infra
 notes: "BFF stream broadcast publishers (dashboard + deposit) lack a DLQ/bisect on their DynamoEventSource — best-effort today; harden consistently."
 references: []
