@@ -57,7 +57,7 @@ Agent folder: agents/market-intelligence/
 
 ## Read model
 - ReadModelOwnership registered in src/read-model-ownership.ts
-  - CommandOwned (own-aggregate, one row per region, upserted via update()): MarketSnapshot
+  - CommandOwned (own-aggregate, one row per region, upserted via update() + atomic `__version` ADD, WS-B): MarketSnapshot — `__version` carried on MARKET_SNAPSHOT_UPDATED for downstream P1 projection
   - (DWC mirror of MarketSnapshot is registered Projection<'P1'> in WS-C, not here.)
 - Enforced by `nx run market-intelligence-ctrl:typecheck` (test/types/read-model-ownership.type-test.ts)
 

@@ -46,7 +46,7 @@ Agent folder: agents/investor-profile/
 
 ## Read model
 - ReadModelOwnership registered in src/read-model-ownership.ts
-  - CommandOwned (own-aggregate written via record()): InvestorProfileSnapshot
+  - CommandOwned (own-aggregate written via update() upsert + atomic `__version` ADD, WS-B): InvestorProfileSnapshot — rebuilds every decision cycle (INVESTOR_PROFILE_UPDATED/MANDATE_ISSUED/OPERATING_MODE_CHANGED); INVESTOR_PROFILE_SNAPSHOT_UPDATED fires on each rebuild carrying the incrementing `__version`
   - (DWC mirror of InvestorProfileSnapshot is registered Projection<'P1'> in WS-C, not here.)
 - Enforced by `nx run investor-profile-ctrl:typecheck` (test/types/read-model-ownership.type-test.ts)
 
