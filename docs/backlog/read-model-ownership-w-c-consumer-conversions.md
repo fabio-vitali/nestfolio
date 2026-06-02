@@ -1,6 +1,6 @@
 ---
 id: read-model-ownership-w-c-consumer-conversions
-status: active
+status: shipped
 rank: 4
 type: refactor
 notes: "WS-C of read-model-ownership-producer-aggregates: convert the CLEAN consumer projections to projectVersioned keyed on upstream __version + register Projection<'P1'> — DWC LedgerSnapshot/InvestorProfileSnapshot/MarketSnapshot mirrors, dashboard-bff TimeTravelAvailability. Includes R4 per-service scoping drift-checker refinement (prereq for the Market/IP mirror P1 registrations). Documents Mandate fan-out contract in doc §9. MandateSnapshot (compliance-ctrl + DWC) SPLIT OUT 2026-06-02 → read-model-ownership-mandate-projection-fix (blocked on an investor-bff producer fix — see body)."
@@ -13,7 +13,16 @@ out_of_scope:
   - "The mandatory-error drift-checker upgrade + exclusion registry (WS-D) — WS-C adds only the per-service R4 scoping needed to register same-typename-two-roles rows."
   - "MandateSnapshot P1 conversion (compliance-ctrl + DWC mandate-projector) — split out to read-model-ownership-mandate-projection-fix 2026-06-02. Blocked: OPERATING_MODE_CHANGED is CDC'd from the InvestorProfile row (a different __version counter + partial payload), not the Mandate row, so a single-version-line full-row P1 projection is impossible without an investor-bff producer fix."
   - "Real-LLM e2e — deferred to the single program-end consolidated pass at WS-D (2026-06-02 user cadence decision). WS-C's gate is the cheap set only: test,lint + per-service typecheck + event-processor:read-model-drift + test-integration (mocked agents) + the dev deploy."
-validation_gate: null
+validation_gate: |
+  Cheap gate (real-LLM e2e deferred to WS-D consolidated pass per 2026-06-02 cadence decision):
+  - tools/check-read-model-drift.test.mjs: 18/18 (node --test).
+  - pnpm nx affected -t test,lint --base=origin/main: 28 projects PASS (final whole-branch review). Only lint warnings are pre-existing in untouched libs/integration-testing.
+  - pnpm nx run decision-workflow-ctrl:typecheck + dashboard-bff:typecheck: PASS (ownership @ts-expect-error trip-wires fire).
+  - pnpm nx run event-processor:read-model-drift: OK, 38 registered typenames, 0 drift. InvestorProfileSnapshot/MarketSnapshot/LedgerSnapshot (DWC) + TimeTravelAvailability (dashboard-bff) registered; R4 silent on the owner(CommandOwned)/mirror(P1) pairs (per-service scoping); MandateSnapshot still INFO (split out).
+  - Deploy: bash infrastructure/scripts/deploy.sh sandbox --prefix=dev --services=decision-workflow-ctrl,dashboard-bff → "Deployment complete. Tier: sandbox, Prefix: dev" (account 771924376645).
+  - Integration (deploy+integration gate): the first run surfaced REAL failures — the version-guarded projectVersioned conversions drop events whose fixtures lacked the version field. Root-caused to WS-C; fixed by carrying __version (IP/Market) / lastEventSequence (ledger) on the synthetic events (commit e7024583). Re-run GREEN: decision-workflow-ctrl 20/20 (incl snapshot-projector.integration), dashboard-bff 21/21 (incl dashboard-bff.integration + read-model-projection.integration). NX exit 0.
+  - Known non-blocker: investor-profile-ctrl.integration 'materialises an InvestorProfileSnapshot row on INVESTOR_PROFILE_UPDATED' fails deterministically (userId readback integ-profile-user-… vs integ-user-…) — the pre-existing ip-ctrl-integration-snapshot-userid-mismatch (LATER), proven not-WS-C during WS-B; pulled into the affected set only because the root-level tools/ change over-broadens nx affected.
+  Commits: 5f558666 (R4 per-service) · 9028eeeb (DWC conversions) · 491d34c2 (DWC P1 reg) · 10b650cc (dashboard conversion) · 89f0ec92 (dashboard P1 reg) · d0d84b42 (doc §9) · 9275c753 (service cards) · e7024583 (integration fixtures).
 ---
 
 # WS-C — Consumer projectVersioned conversions
