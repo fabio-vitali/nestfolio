@@ -16,6 +16,9 @@ validation_gate: null
 
 # WS-C — Consumer projectVersioned conversions
 
+> ⚠ **Read-model refactoring item.** Any side-finding required to call this refactoring complete must be **folded into a QUEUED read-model item, never parked in LATER** — see `CLAUDE.md` § "Backlog Discipline" (refactoring-completeness exception).
+
+
 Workstream C of `read-model-ownership-producer-aggregates` (design § "WS-C").
 
 Sequenced after WS-B (`read-model-ownership-w-b-version-carriage`, rank 3): the

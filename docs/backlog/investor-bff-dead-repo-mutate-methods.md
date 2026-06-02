@@ -14,6 +14,9 @@ validation_gate: null
 
 # investor-bff dead repository mutate-methods
 
+> ⚠ **Read-model refactoring item.** Any side-finding required to call this refactoring complete must be **folded into a QUEUED read-model item, never parked in LATER** — see `CLAUDE.md` § "Backlog Discipline" (refactoring-completeness exception).
+
+
 Surfaced during w4 ([[bff-readmodel-w4-investor-bff]]) code review. In
 `services/investor/investor-bff/src/repositories/investor-profile.repository.ts`
 these mutate-methods have **zero live callers** (only unit-test references):

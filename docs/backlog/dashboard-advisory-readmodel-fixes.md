@@ -15,6 +15,9 @@ validation_gate: null
 
 # dashboard-bff + advisory read-model fixes
 
+> ⚠ **Read-model refactoring item.** Any side-finding required to call this refactoring complete must be **folded into a QUEUED read-model item, never parked in LATER** — see `CLAUDE.md` § "Backlog Discipline" (refactoring-completeness exception).
+
+
 Four read-model residuals across dashboard-bff (w2) and advisory (w3), done
 together (adjacent surface; WS-C also touches dashboard-bff). Merges four
 formerly-separate items. None blocked e2e green.

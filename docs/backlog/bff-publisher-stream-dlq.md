@@ -14,6 +14,9 @@ validation_gate: null
 
 # BFF stream-broadcast publishers have no DLQ / bisectBatchOnError
 
+> ⚠ **Read-model refactoring item.** Any side-finding required to call this refactoring complete must be **folded into a QUEUED read-model item, never parked in LATER** — see `CLAUDE.md` § "Backlog Discipline" (refactoring-completeness exception).
+
+
 The two DynamoDB-stream broadcast publishers attach a `DynamoEventSource` with only
 `retryAttempts: 3` — no `bisectBatchOnError`, no `onFailure` DLQ:
 

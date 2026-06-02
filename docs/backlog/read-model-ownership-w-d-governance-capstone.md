@@ -16,6 +16,9 @@ validation_gate: null
 
 # WS-D — Tier-4 + governance capstone
 
+> ⚠ **Read-model refactoring item.** Any side-finding required to call this refactoring complete must be **folded into a QUEUED read-model item, never parked in LATER** — see `CLAUDE.md` § "Backlog Discipline" (refactoring-completeness exception).
+
+
 Workstream D of `read-model-ownership-producer-aggregates` (design § "WS-D").
 
 Sequenced after WS-C (`read-model-ownership-w-c-consumer-conversions`, rank 4):

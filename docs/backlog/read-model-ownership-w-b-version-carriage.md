@@ -16,6 +16,9 @@ validation_gate: null
 
 # WS-B — __version carriage on producer events
 
+> ⚠ **Read-model refactoring item.** Any side-finding required to call this refactoring complete must be **folded into a QUEUED read-model item, never parked in LATER** — see `CLAUDE.md` § "Backlog Discipline" (refactoring-completeness exception).
+
+
 Workstream B of `read-model-ownership-producer-aggregates` (design § "WS-B").
 
 Sequenced immediately after WS-A (`read-model-ownership-w-a-registrations`,

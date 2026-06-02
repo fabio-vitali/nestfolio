@@ -98,6 +98,8 @@ The canonical record for every workstream is `docs/backlog/<id>.md`. `docs/BACKL
 
 Do NOT pivot mid-flight unless the finding actually blocks the active workstream's done-definition.
 
+**Refactoring-completeness exception to file-and-continue (do NOT lose pieces).** file-and-continue defaults to PARKING (`status: parking`, LATER). BUT when the active workstream is one slice of an in-flight **multi-workstream refactoring** whose QUEUED set is curated so that "draining QUEUED = the refactoring is fully complete/clean/enforced", a side-finding that must be fixed for that refactoring to count as complete does NOT go to LATER. **Fold it into the relevant QUEUED umbrella item** (add it as a new lettered part + update that item's `notes:` + set the standalone finding to `status: dropped` with a `[SUPERSEDED -> <umbrella>]` note) — mirroring how `ledger-bff-readmodel-fixes` part (B) folded `ledger-bff-latent-tsc-errors`. Parking such a finding silently drops it from the refactoring's drainable scope; folding keeps "drain QUEUED ⇒ done" true. Litmus: _is this finding required before the refactoring can be called complete?_ Yes → fold into QUEUED. No (genuinely unrelated) → park. The read-model-ownership refactoring is the live instance of this (QUEUED is scoped to be EXACTLY that refactoring); its QUEUED items carry a ⚠ banner pointing here.
+
 **At each workstream ship:**
 
 1. Set `status: shipped`, fill `validation_gate:` in the active file.
