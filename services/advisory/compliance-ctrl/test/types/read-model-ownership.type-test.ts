@@ -1,0 +1,22 @@
+/**
+ * Compile-time proof that compliance-ctrl's ownership registration rejects the
+ * wrong write intents. A `@ts-expect-error` that does NOT error is itself a
+ * compile failure. Verified by `nx run compliance-ctrl:typecheck`.
+ */
+import { project, accumulate, projectVersioned, record } from '@nestfolio/event-processor';
+import '../../src/read-model-ownership';
+
+// P2 append-logs: record() is the blessed write.
+record('ComplianceCheck', { a: 1 });
+record('AuditArtifact', { a: 1 });
+
+// @ts-expect-error — projectVersioned on a P2 append-log must not typecheck
+projectVersioned('ComplianceCheck', { a: 1 }, { version: 1 });
+// @ts-expect-error — project on a P2 projection must not typecheck
+project('ComplianceCheck', { a: 1 });
+// @ts-expect-error — accumulate on a P2 projection must not typecheck
+accumulate('AuditArtifact', { field: 'count', increment: 1 });
+// @ts-expect-error — projectVersioned on a P2 append-log must not typecheck
+projectVersioned('AuditArtifact', { a: 1 }, { version: 1 });
+
+export {};

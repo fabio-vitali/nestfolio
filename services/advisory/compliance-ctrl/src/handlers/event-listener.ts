@@ -2,6 +2,7 @@ import { DynamoDBClient } from '@aws-sdk/client-dynamodb';
 import { materializeToTable, record, update, type WriteIntent, type EventPayload, type EventContext } from '@nestfolio/event-processor';
 import { requireEnv, NotRetryableError } from '@nestfolio/event-processor';
 import { logger } from '@nestfolio/event-processor';
+import '../read-model-ownership';
 import { DecisionWorkflowEventTypes } from '@nestfolio/decision-workflow-ctrl/events';
 import { InvestorBffEventTypes } from '@nestfolio/investor-bff/events';
 

@@ -26,6 +26,11 @@ Post-resplit (2026-05-08): subscribes to semantic/lifecycle events directly inst
   - MANDATE_REVOKED: sets MandateSnapshot.status='REVOKED' + revokedAt; MandateValidator's REVOKED gate short-circuits the rule engine for any subsequent RECOMMENDATION_PROPOSED.
 - event-publisher.ts — Egress CDC publisher
 
+## Read model
+- ReadModelOwnership registered in src/read-model-ownership.ts
+  - P2 (append-only logs via record, idempotent/order-independent): ComplianceCheck, AuditArtifact
+- Enforced by `nx run compliance-ctrl:typecheck` (test/types/read-model-ownership.type-test.ts)
+
 ## Event Types (domain/events.ts)
 - ComplianceEventTypes (outbound, via CDC): DECISION_APPROVED, DECISION_BLOCKED, GUARDRAIL_VIOLATION_DETECTED, ESCALATION_TRIGGERED, COMPLIANCE_APPROVAL_GRANTED, AUDIT_ARTIFACT_CREATED, SUITABILITY_CHECK_PASSED, SUITABILITY_CHECK_FAILED, AUDIT_ARTIFACT_UPDATED
 
