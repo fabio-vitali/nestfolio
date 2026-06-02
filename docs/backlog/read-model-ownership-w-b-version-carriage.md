@@ -7,7 +7,7 @@ notes: "WS-B of read-model-ownership-producer-aggregates: stamp atomic __version
 references:
   - "docs/superpowers/specs/2026-06-01-read-model-ownership-producer-aggregates-design.md"
 spec: null
-plan: null
+plan: "docs/superpowers/plans/2026-06-02-read-model-ownership-w-b-version-carriage.md"
 topic_memory: [project_read_model_redesign.md]
 out_of_scope:
   - "Consumer projectVersioned conversions (WS-C) — this WS only makes __version available at the source; no consumer reads it yet."
