@@ -1,6 +1,6 @@
 ---
 id: read-model-ownership-w-b-version-carriage
-status: queued
+status: active
 rank: 3
 type: refactor
 notes: "WS-B of read-model-ownership-producer-aggregates: stamp atomic __version + carry it on emitted events for non-ledger producers — investor-bff Mandate, IP-ctrl InvestorProfileSnapshot, MI-ctrl MarketSnapshot, ledger-ctrl LEDGER_ENTRY_RECORDED. Cross-domain event-contract change; deploy + e2e. Fixes investor-bff hardcoded __version:1."
@@ -10,7 +10,13 @@ spec: null
 plan: null
 topic_memory: [project_read_model_redesign.md]
 out_of_scope:
-  - "Consumer projectVersioned conversions (WS-C) — this WS only makes the version available at source."
+  - "Consumer projectVersioned conversions (WS-C) — this WS only makes __version available at the source; no consumer reads it yet."
+  - "R4 per-service-scoping drift-checker refinement (WS-C prerequisite — not needed until DWC mirrors register as P1)."
+  - "Mandatory-error drift gate + tools/read-model-exclusions.json (WS-D)."
+  - "broker-ctrl ExecutionMode registration (WS-D)."
+  - "Canonical doc §9 Mandate fan-out documentation (WS-C)."
+  - "Live-push transport for dashboard PortfolioSummary/PositionSnapshot — separate feature concern, parked."
+  - "Event-sourcing on the write side — system stays state-stored-aggregate + CDC-outbox."
 validation_gate: null
 ---
 
