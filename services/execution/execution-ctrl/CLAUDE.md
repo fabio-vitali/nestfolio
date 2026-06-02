@@ -28,6 +28,11 @@ Stack: `services/execution/execution-ctrl/src/service.stack.ts`
 - `event-publisher.ts` — changeDataCapture pipeline
 - `staged-order-processor.ts` — standalone scheduled Lambda (not event-processor pipeline)
 
+## Read model
+- ReadModelOwnership registered in src/read-model-ownership.ts
+  - CommandOwned (mutable aggregates created via record(); mutated/deleted by StagedOrderProcessor): Order, StagedOrder
+- Enforced by `nx run execution-ctrl:typecheck` (test/types/read-model-ownership.type-test.ts)
+
 ## Event Types (`domain/events.ts`)
 - ORDER_CREATED, ORDER_UPDATED, ORDER_REJECTED, ORDER_SUBMITTED, ORDER_STAGED
 - EXECUTION_PAUSED, EXECUTION_RESUMED

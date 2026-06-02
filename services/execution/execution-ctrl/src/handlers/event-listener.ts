@@ -2,6 +2,7 @@ import { logger, getTime } from '@nestfolio/event-processor';
 import { requireEnv } from '@nestfolio/event-processor';
 import { DynamoDBClient } from '@aws-sdk/client-dynamodb';
 import { materializeToTable, record, skip, type WriteIntent, type EventPayload, type EventContext } from '@nestfolio/event-processor';
+import '../read-model-ownership';
 import { AdvisoryCrossDomainEventTypes } from '@nestfolio/advisory-adpt/domain';
 import { InvestorCrossDomainEventTypes } from '@nestfolio/investor-adpt/domain';
 import type { ProposedTrade } from '@nestfolio/advisory-adpt/domain';
