@@ -30,4 +30,16 @@ record('AdvisoryStatus', { a: 1 });
 // @ts-expect-error — command update on the P3 AdvisoryStatus must not typecheck
 update('AdvisoryStatus', { a: 1 });
 
+
+// User command rows (AppSync fn.js writes; CommandOwned). projectVersioned is rejected.
+record('UserConfirmation', { a: 1 });
+record('UserRejection', { a: 1 });
+record('UserInteraction', { a: 1 });
+// @ts-expect-error — projectVersioned on a command-owned row must not typecheck
+projectVersioned('UserConfirmation', { a: 1 }, { version: 1 });
+// @ts-expect-error — projectVersioned on a command-owned row must not typecheck
+projectVersioned('UserRejection', { a: 1 }, { version: 1 });
+// @ts-expect-error — projectVersioned on a command-owned row must not typecheck
+projectVersioned('UserInteraction', { a: 1 }, { version: 1 });
+
 export {};

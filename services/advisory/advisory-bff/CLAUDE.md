@@ -42,10 +42,14 @@ Stack: services/advisory/advisory-bff/src/service.stack.ts
 - decision-snapshot.ts — single transform for DECISION_PACKET_CREATED + DECISION_PACKET_UPDATED; projects the full CDC subject (DecisionPacket NewImage) into DecisionReadModel P1 via projectVersioned; returns undefined (→ skip()) for degraded snapshots (no explanation AND no proposedTrades)
   (Removed: decision-packet-created.ts, decision-status-changed.ts, decision-trigger-received.ts)
 
-## Read model (ownership)
-- Registered in `src/read-model-ownership.ts` (side-effect-imported from both handlers):
-  - `DecisionReadModel: Projection<'P1'>` — sole writer is `projectVersioned` in decision-snapshot.ts; compile-time guard blocks record/update/accumulate
-  - `AdvisoryStatus: Projection<'P3'>` — derived aggregate recomputed by advisory-status-projector.ts; compile-time guard blocks accumulate
+## Read model
+- ReadModelOwnership registered in src/read-model-ownership.ts
+  - P1 (projectVersioned): DecisionReadModel
+  - P3 (projectVersioned, derived): AdvisoryStatus
+  - CommandOwned (AppSync fn.js PutItems): UserConfirmation, UserRejection, UserInteraction
+- Enforced by `nx run advisory-bff:typecheck` (test/types/read-model-ownership.type-test.ts)
+- Legacy detail: `DecisionReadModel: Projection<'P1'>` — sole writer is `projectVersioned` in decision-snapshot.ts; compile-time guard blocks record/update/accumulate
+- Legacy detail: `AdvisoryStatus: Projection<'P3'>` — derived aggregate recomputed by advisory-status-projector.ts; compile-time guard blocks accumulate
 
 ## Event Types (domain/events.ts)
 - AdvisoryBffEventTypes: ADVISORY_STATUS_UPDATED, USER_CONFIRMED, USER_REJECTED, USER_VIEWED_EXPLANATION,
