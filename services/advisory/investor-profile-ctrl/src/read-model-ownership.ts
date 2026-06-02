@@ -3,7 +3,7 @@
  *
  * Compile-time enforcement (see docs/architecture/READ-MODEL-OWNERSHIP.md):
  *   - InvestorProfileSnapshot : CommandOwned own-aggregate (written via
- *     record()) → projectVersioned fails typecheck.
+ *     update() upsert + atomic __version) → projectVersioned fails typecheck.
  * The decision-workflow-ctrl MIRROR is registered Projection<'P1'> in WS-C.
  */
 import type { CommandOwned } from '@nestfolio/event-processor';

@@ -169,4 +169,63 @@ describe('investor-profile-ctrl: INVESTOR_PROFILE_UPDATED → InvestorProfileSna
       );
     }
   }, 180_000);
+
+  it('rebuilds on a second trigger → INVESTOR_PROFILE_SNAPSHOT_UPDATED with __version 2 (WS-B)', async () => {
+    // Inject the first trigger (→ _CREATED, __version 1) then a second trigger for the
+    // same (tenantId, userId) (→ _UPDATED, __version 2), mirroring the existing
+    // single-trigger test's injection helper in this file.
+    const userId = `integ-profile-wsb-${randomUUID()}`;
+
+    // First trigger — distinct eventId → agent runs → INSERT → _CREATED, __version=1
+    await eb.putEvent({
+      bus: 'advisory',
+      targetService: 'investor-profile-ctrl',
+      detailType: 'INVESTOR_PROFILE_UPDATED',
+      detail: {
+        tenantId: ctx.tenantId,
+        userId,
+        operatingMode: 'BALANCED',
+        investorProfile: { age: 40, income: 120000, liquidAssets: 80000, investmentExperience: 'MODERATE' },
+        portfolioState: { totalValue: 200000, holdings: [] },
+      },
+      eventId: `wsb-trigger1-${randomUUID()}`,
+    });
+
+    // Wait for _CREATED so the row exists before the second trigger arrives
+    try {
+      await trap.waitForEvent({
+        detailType: 'INVESTOR_PROFILE_SNAPSHOT_CREATED',
+        match: (detail) => (detail as { subject?: Record<string, unknown> }).subject?.['userId'] === userId,
+        timeoutMs: 150_000,
+      });
+    } catch {
+      console.warn(
+        'investor-profile-ctrl: AgentRuntime may be unavailable — WS-B __version 2 test skipped.',
+      );
+      return;
+    }
+
+    // Second trigger — distinct eventId → agent runs → MODIFY → _UPDATED, __version=2
+    await eb.putEvent({
+      bus: 'advisory',
+      targetService: 'investor-profile-ctrl',
+      detailType: 'INVESTOR_PROFILE_UPDATED',
+      detail: {
+        tenantId: ctx.tenantId,
+        userId,
+        operatingMode: 'CONSERVATIVE',
+        investorProfile: { age: 40, income: 120000, liquidAssets: 80000, investmentExperience: 'MODERATE' },
+        portfolioState: { totalValue: 200000, holdings: [] },
+      },
+      eventId: `wsb-trigger2-${randomUUID()}`,
+    });
+
+    const updated = await trap.waitForEvent({
+      detailType: 'INVESTOR_PROFILE_SNAPSHOT_UPDATED',
+      match: (detail) => (detail as { subject?: Record<string, unknown> }).subject?.['userId'] === userId,
+      timeoutMs: 150_000,
+    });
+    const subject = (updated.detail as { subject?: Record<string, unknown> }).subject!;
+    expect(subject['__version']).toBe(2);
+  }, 360_000);
 });

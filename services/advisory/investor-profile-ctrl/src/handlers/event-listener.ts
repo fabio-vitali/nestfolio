@@ -3,6 +3,7 @@ import { DynamoDBDocumentClient } from '@aws-sdk/lib-dynamodb';
 import {
   materializeToTable,
   record,
+  update,
   type EventPayload,
   type EventContext,
   type WriteIntent,
@@ -91,7 +92,7 @@ async function runSnapshotAgent(
       tenantId,
       agentName: 'investor-profile',
     }),
-    record(
+    update(
       'InvestorProfileSnapshot',
       {
         tenantId,
@@ -101,7 +102,7 @@ async function runSnapshotAgent(
         sourceEventType,
         agentInvocationId: ctx.eventId,
       },
-      { pk: investorProfileSnapshotPk(tenantId, userId), sk: INVESTOR_PROFILE_SNAPSHOT_SK },
+      { add: { __version: 1 }, overrides: { pk: investorProfileSnapshotPk(tenantId, userId), sk: INVESTOR_PROFILE_SNAPSHOT_SK } },
     ),
   ];
 }

@@ -103,9 +103,10 @@ describe('investor-profile-ctrl event-listener', () => {
       expect(result).toEqual([
         expect.objectContaining({ _tag: 'record', typename: 'AgentInvocation' }),
         expect.objectContaining({
-          _tag: 'record',
+          _tag: 'update',
           typename: 'InvestorProfileSnapshot',
-          fields: expect.objectContaining({
+          add: { __version: 1 },
+          updates: expect.objectContaining({
             tenantId: 't1',
             userId: 'u1',
             sourceEventType: 'INVESTOR_PROFILE_UPDATED',
@@ -196,9 +197,10 @@ describe('investor-profile-ctrl event-listener', () => {
       expect(result).toEqual([
         expect.objectContaining({ _tag: 'record', typename: 'AgentInvocation' }),
         expect.objectContaining({
-          _tag: 'record',
+          _tag: 'update',
           typename: 'InvestorProfileSnapshot',
-          fields: expect.objectContaining({
+          add: { __version: 1 },
+          updates: expect.objectContaining({
             tenantId: 't1',
             userId: 'u1',
             sourceEventType: 'MANDATE_ISSUED',
@@ -231,9 +233,10 @@ describe('investor-profile-ctrl event-listener', () => {
       expect(result).toEqual([
         expect.objectContaining({ _tag: 'record', typename: 'AgentInvocation' }),
         expect.objectContaining({
-          _tag: 'record',
+          _tag: 'update',
           typename: 'InvestorProfileSnapshot',
-          fields: expect.objectContaining({
+          add: { __version: 1 },
+          updates: expect.objectContaining({
             tenantId: 't1',
             userId: 'u1',
             sourceEventType: 'OPERATING_MODE_CHANGED',
