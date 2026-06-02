@@ -1,6 +1,6 @@
 ---
 id: read-model-ownership-w-c-consumer-conversions
-status: queued
+status: active
 rank: 4
 type: refactor
 notes: "WS-C of read-model-ownership-producer-aggregates: convert consumer projections to projectVersioned keyed on upstream __version + register Projection<'P1'> — DWC LedgerSnapshot/MandateSnapshot/InvestorProfileSnapshot/MarketSnapshot mirrors, compliance-ctrl MandateSnapshot, dashboard-bff TimeTravelAvailability. Includes R4 per-service scoping drift-checker refinement (prereq). Documents Mandate fan-out contract."
@@ -11,6 +11,7 @@ plan: null
 topic_memory: [project_read_model_redesign.md]
 out_of_scope:
   - "The mandatory-error drift-checker upgrade + exclusion registry (WS-D) — WS-C adds only the per-service R4 scoping needed to register same-typename-two-roles rows."
+  - "Real-LLM e2e — deferred to the single program-end consolidated pass at WS-D (2026-06-02 user cadence decision). WS-C's gate is the cheap set only: test,lint + per-service typecheck + event-processor:read-model-drift + test-integration (mocked agents) + the dev deploy."
 validation_gate: null
 ---
 
@@ -42,6 +43,10 @@ same-typename-conflict rule. Document the Mandate fan-out contract (investor-bff
 owner; compliance-ctrl + DWC keep two independent P1 copies on one version line) in
 canonical doc §9.
 
-Validation gate: deploy dev + integration + advisory/dashboard involved e2e.
+Validation gate (cheap set only — real-LLM e2e deferred to WS-D, see out_of_scope):
+deploy dev (`--services=` for DWC + compliance-ctrl + dashboard-bff) + `pnpm nx
+affected -t test,lint` + per-service `typecheck` + `pnpm nx run
+event-processor:read-model-drift` green + `pnpm nx affected -t test-integration`
+(mocked agents).
 
 See [[project_read_model_redesign]].
