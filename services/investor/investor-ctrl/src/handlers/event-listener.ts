@@ -7,6 +7,7 @@ import {
   requireEnv,
   type WriteIntent,
 } from '@nestfolio/event-processor';
+import '../read-model-ownership';
 import { InvestorBffEventTypes } from '@nestfolio/investor-bff/events';
 import { AdvisoryCrossDomainEventTypes } from '@nestfolio/advisory-adpt/domain';
 import { ExecutionCrossDomainEventTypes } from '@nestfolio/execution-adpt/domain';

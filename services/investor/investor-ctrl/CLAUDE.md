@@ -33,6 +33,11 @@ Post-resplit (2026-05-08): INVESTOR_PROFILE_UPDATED diff-detect handler removed.
   - No INVESTOR_PROFILE_UPDATED diff handler (removed in resplit 2026-05-08)
 - event-publisher.ts (changeDataCapture)
 
+## Read model
+- ReadModelOwnership registered in src/read-model-ownership.ts
+  - CommandOwned (seeded by one idempotent event via record()): Notification, MonthlyReport
+- Enforced by `nx run investor-ctrl:typecheck` (test/types/read-model-ownership.type-test.ts)
+
 ## DDB Entities
 
 - Notification: pk=Notification#{tenantId}#{notificationId}, sk=Notification
