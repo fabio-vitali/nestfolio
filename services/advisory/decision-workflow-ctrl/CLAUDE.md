@@ -57,13 +57,14 @@ Stack: services/advisory/decision-workflow-ctrl/src/service.stack.ts
 ## Read model
 - ReadModelOwnership registered in src/read-model-ownership.ts
   - CommandOwned (own-aggregate via update() + self-incremented __version): DecisionPacket
-  - Mirror rows (MandateSnapshot/InvestorProfileSnapshot/MarketSnapshot/LedgerSnapshot) → Projection<'P1'> in WS-C, not registered here.
+  - Projection<'P1'> mirror rows (WS-C — projectVersioned, version-guarded): InvestorProfileSnapshot + MarketSnapshot (keyed on upstream `__version`), LedgerSnapshot (keyed on `snapshot.lastEventSequence`).
+  - MandateSnapshot is NOT registered (drift-checker INFO) — split to read-model-ownership-mandate-projection-fix (blocked on an investor-bff producer fix; OPERATING_MODE_CHANGED rides a different row/version-counter). mandate-projector.ts still writes it via update()/record().
 - Enforced by `nx run decision-workflow-ctrl:typecheck` (test/types/read-model-ownership.type-test.ts)
 
 ## Handlers
 - sfn-callback.ts — CallbackIngress handler. On PORTFOLIO_COMPLETED / NARRATIVE_COMPLETED → SendTaskSuccess; on PORTFOLIO_FAILED / NARRATIVE_FAILED → SendTaskFailure; also writes AgentOutput records on agent completions; updates DecisionPacket status on compliance + user response events.
 - mandate-projector.ts — MandateProjectorIngress handler (materializeToTable). MANDATE_ISSUED → record() with operatingMode + level + status='ACTIVE'; OPERATING_MODE_CHANGED → update() patching operatingMode.
-- snapshot-projector.ts — SnapshotProjectorIngress handler (materializeToTable). INVESTOR_PROFILE_SNAPSHOT_CREATED → record(InvestorProfileSnapshot); INVESTOR_PROFILE_SNAPSHOT_UPDATED → update(InvestorProfileSnapshot); MARKET_SNAPSHOT_UPDATED → record(MarketSnapshot). Missing subject.agentOutput → NotRetryableError.
+- snapshot-projector.ts — SnapshotProjectorIngress handler (materializeToTable). INVESTOR_PROFILE_SNAPSHOT_CREATED/_UPDATED → projectVersioned(InvestorProfileSnapshot) keyed on subject.__version; MARKET_SNAPSHOT_UPDATED → projectVersioned(MarketSnapshot) keyed on subject.__version; PORTFOLIO_UPDATED → projectVersioned(LedgerSnapshot) keyed on snapshot.lastEventSequence. Missing subject.agentOutput/snapshot → NotRetryableError; absent version → drop (undefined).
 - assemble-packet.ts — Assembles decision packet (invoked by SF).
 - event-publisher.ts — Egress CDC publisher.
 
