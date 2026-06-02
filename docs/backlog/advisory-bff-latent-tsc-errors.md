@@ -1,8 +1,8 @@
 ---
 id: advisory-bff-latent-tsc-errors
-status: parking
+status: dropped
 type: bug
-notes: "advisory-bff: 6 latent tsc --noEmit errors in advisory.repository.ts ('timestamp' not in TableEntry). Not a deploy/test blocker."
+notes: "[SUPERSEDED -> dashboard-advisory-readmodel-fixes, merged 2026-06-02] advisory-bff: 6 latent tsc --noEmit errors in advisory.repository.ts ('timestamp' not in TableEntry; same root cause as ledger-ctrl-2). Not a deploy/test blocker."
 references: []
 out_of_scope: []
 spec: null

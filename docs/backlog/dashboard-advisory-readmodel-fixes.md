@@ -3,7 +3,7 @@ id: dashboard-advisory-readmodel-fixes
 status: queued
 rank: 7
 type: bug
-notes: "dashboard-bff + advisory read-model residuals from w2/w3: (A) PositionSnapshot orphan row on full sell (no delete path); (B) AdvisoryStatus dead code + unwritten fields (structural-zero); (C) w3 hardening nits — Date.now() version, terminal taskToken cleanup, WorkflowStatus enum guard. Merges dashboard-position-orphan-on-sell + dashboard-bff-advisory-status-dead-code-cleanup + w3-advisory-versioned-packet-hardening."
+notes: "dashboard-bff + advisory read-model residuals from w2/w3: (A) PositionSnapshot orphan row on full sell (no delete path); (B) AdvisoryStatus dead code + unwritten fields (structural-zero); (C) w3 hardening nits — Date.now() version, terminal taskToken cleanup, WorkflowStatus enum guard; (D) advisory-bff ~6 latent tsc errors (TableEntry timestamp, shared root w/ ledger-ctrl-2) blocking a clean service-wide typecheck. Merges dashboard-position-orphan-on-sell + dashboard-bff-advisory-status-dead-code-cleanup + w3-advisory-versioned-packet-hardening + advisory-bff-latent-tsc-errors."
 references: []
 spec: null
 plan: null
@@ -15,8 +15,8 @@ validation_gate: null
 
 # dashboard-bff + advisory read-model fixes
 
-Three read-model residuals across dashboard-bff (w2) and advisory (w3), done
-together (adjacent surface; WS-C also touches dashboard-bff). Merges three
+Four read-model residuals across dashboard-bff (w2) and advisory (w3), done
+together (adjacent surface; WS-C also touches dashboard-bff). Merges four
 formerly-separate items. None blocked e2e green.
 
 ## A. PositionSnapshot orphan row on full sell (bug)
@@ -70,5 +70,25 @@ From the w3 final review (APPROVE-WITH-NITS):
    reach `DecisionReadModel` post-w3. Narrow the union to the 6 enum-valid values (or
    add a status-enum guard in `decision-snapshot.ts`) to make the `status: DecisionStatus!`
    contract provable rather than incidental.
+
+## D. advisory-bff latent tsc --noEmit errors (bug)
+
+`tsc --noEmit -p services/advisory/advisory-bff/tsconfig.spec.json` reports 6 errors,
+all `TS2353: … 'timestamp' does not exist in type 'TableEntry'`:
+- `services/advisory/advisory-bff/src/repositories/advisory.repository.ts` lines
+  30 / 179 / 204 / 229 / 247 / 265.
+
+Not a deploy or test blocker (esbuild strips types; ts-jest lenient). **Same
+`TableEntry.timestamp` root cause as `ledger-ctrl-2-latent-tsc-errors`** — coordinate
+the fix (add `timestamp` to the `TableEntry` type, or drop it from the PutItem object
+literals; confirm against the `typename-timestamp-index` GSI shape first).
+
+Surfaced 2026-06-02 during `read-model-ownership-w-a-registrations` (WS-A). WS-A worked
+around it by giving advisory-bff an **isolated** `tsconfig.type-test.json` (compiles
+only `src/read-model-ownership.ts` + `test/types/**`) so its ownership type-test passes
+despite these errors. Once this part lands, advisory-bff's `typecheck` target can point
+at the full spec config for a genuinely clean service-wide typecheck. Folded from the
+standalone `advisory-bff-latent-tsc-errors` (now `dropped`), mirroring how
+`ledger-bff-readmodel-fixes` part (B) folds `ledger-bff-latent-tsc-errors`.
 
 See [[project_read_model_redesign]].
