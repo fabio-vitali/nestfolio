@@ -14,11 +14,16 @@ import {
  * (Task 8 of advisory-cycle-agent-precomputation).
  *
  * Subscriptions (declared in DWC service.stack.ts → SnapshotProjectorIngress):
- *   - INVESTOR_PROFILE_SNAPSHOT_CREATED → record(InvestorProfileSnapshot)
+ *   - INVESTOR_PROFILE_SNAPSHOT_CREATED → projectVersioned(InvestorProfileSnapshot)
  *       pk=`InvestorProfileSnapshot#${tenantId}#${userId}` sk='InvestorProfileSnapshot'
- *   - INVESTOR_PROFILE_SNAPSHOT_UPDATED → update(InvestorProfileSnapshot)
- *   - MARKET_SNAPSHOT_UPDATED → record(MarketSnapshot)
+ *   - INVESTOR_PROFILE_SNAPSHOT_UPDATED → projectVersioned(InvestorProfileSnapshot)
+ *   - MARKET_SNAPSHOT_UPDATED → projectVersioned(MarketSnapshot)
  *       pk=`MarketSnapshot#${region}` sk='MarketSnapshot'
+ *
+ * Post-WS-C these are versioned P1 projections keyed on the upstream `__version`
+ * carried top-level on the event subject (the IP/Market producers stamp it via
+ * `update({ add: { __version: 1 } })`). Each synthetic event below MUST carry
+ * `__version`; without it `projectVersioned` drops the event (no row written).
  *
  * The handler routes through materializeToTable; missing subject.agentOutput
  * throws NotRetryableError (surfaces via observability — the row is NOT
@@ -66,6 +71,7 @@ describe('decision-workflow-ctrl SnapshotProjectorIngress', () => {
         agentOutput,
         sourceEventId,
         sourceEventType: 'INVESTOR_PROFILE_UPDATED',
+        __version: 1,
       },
     });
 
@@ -99,6 +105,7 @@ describe('decision-workflow-ctrl SnapshotProjectorIngress', () => {
         agentOutput: { riskScore: 30 },
         sourceEventId: `seed-${randomUUID()}`,
         sourceEventType: 'INVESTOR_PROFILE_UPDATED',
+        __version: 1,
       },
     });
     const seeded = await table.waitForItem({
@@ -123,6 +130,7 @@ describe('decision-workflow-ctrl SnapshotProjectorIngress', () => {
         agentOutput: updatedAgentOutput,
         sourceEventId: `upd-${randomUUID()}`,
         sourceEventType: 'OPERATING_MODE_CHANGED',
+        __version: 2,
       },
     });
 
@@ -163,6 +171,7 @@ describe('decision-workflow-ctrl SnapshotProjectorIngress', () => {
       detail: {
         region,
         agentOutput,
+        __version: 1,
       },
     });
 

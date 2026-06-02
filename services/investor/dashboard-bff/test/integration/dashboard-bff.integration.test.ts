@@ -217,10 +217,14 @@ describe('dashboard-bff', () => {
         detail: {
           snapshotAt,
           entryType: 'TRADE',
+          // WS-C: TimeTravelAvailability is now projectVersioned keyed on
+          // subject.lastEventSequence (the real LEDGER_ENTRY_RECORDED carries it).
+          // Without it the projection drops the event (no row).
+          lastEventSequence: 10,
         },
       });
 
-      // project('TimeTravelAvailability', ...) → pk: T#<tenantId>, sk: TimeTravelAvailability
+      // projectVersioned('TimeTravelAvailability', …) → pk: T#<tenantId>, sk: TimeTravelAvailability
       const item = await table.waitForItem({
         table: 'dashboard-bff',
         pk: `T#${ctx.tenantId}`,
@@ -446,12 +450,14 @@ describe('dashboard-bff', () => {
             },
           },
         }),
-        // TimeTravelAvailability via project
+        // TimeTravelAvailability via projectVersioned (WS-C). lastEventSequence
+        // must exceed the earlier direct-test write (10) so the shared
+        // T#<tenant> row's version guard accepts this newer snapshotAt.
         eb.putEvent({
           bus: 'investor',
           targetService: 'dashboard-bff',
           detailType: 'LEDGER_ENTRY_RECORDED',
-          detail: { snapshotAt: querySnapshotAt, entryType: 'TRADE' },
+          detail: { snapshotAt: querySnapshotAt, entryType: 'TRADE', lastEventSequence: 100 },
         }),
       ]);
 
