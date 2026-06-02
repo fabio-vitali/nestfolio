@@ -3,7 +3,7 @@
  *
  * Compile-time enforcement (see docs/architecture/READ-MODEL-OWNERSHIP.md):
  *   - ComplianceCheck / AuditArtifact : P2 append-logs → record() only
- *     (projectVersioned / project / accumulate fail typecheck).
+ *     (projectVersioned / project / accumulate / update fail typecheck).
  */
 import type { Projection } from '@nestfolio/event-processor';
 
