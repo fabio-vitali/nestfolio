@@ -1,6 +1,7 @@
 ---
 id: read-model-ownership-w-c-consumer-conversions
-status: parking
+status: queued
+rank: 3
 type: refactor
 notes: "WS-C of read-model-ownership-producer-aggregates: convert consumer projections to projectVersioned keyed on upstream __version + register Projection<'P1'> — DWC LedgerSnapshot/MandateSnapshot/InvestorProfileSnapshot/MarketSnapshot mirrors, compliance-ctrl MandateSnapshot, dashboard-bff TimeTravelAvailability. Includes R4 per-service scoping drift-checker refinement (prereq). Documents Mandate fan-out contract."
 references:
@@ -17,9 +18,9 @@ validation_gate: null
 
 Workstream C of `read-model-ownership-producer-aggregates` (design § "WS-C").
 
-Promote after WS-B (`read-model-ownership-w-b-version-carriage`) ships — the
+Sequenced after WS-B (`read-model-ownership-w-b-version-carriage`, rank 2): the
 consumer conversions need the upstream `__version` to exist first (`LedgerSnapshot`
-excepted: its `lastEventSequence` source already exists).
+excepted — its `lastEventSequence` source already exists).
 
 Conversions (`record()`/`update()`/`project()` → `projectVersioned`, register
 `Projection<'P1'>`):

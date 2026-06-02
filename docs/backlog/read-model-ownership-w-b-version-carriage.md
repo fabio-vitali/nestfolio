@@ -1,6 +1,7 @@
 ---
 id: read-model-ownership-w-b-version-carriage
-status: parking
+status: queued
+rank: 2
 type: refactor
 notes: "WS-B of read-model-ownership-producer-aggregates: stamp atomic __version + carry it on emitted events for non-ledger producers — investor-bff Mandate, IP-ctrl InvestorProfileSnapshot, MI-ctrl MarketSnapshot, ledger-ctrl LEDGER_ENTRY_RECORDED. Cross-domain event-contract change; deploy + e2e. Fixes investor-bff hardcoded __version:1."
 references:
@@ -17,7 +18,9 @@ validation_gate: null
 
 Workstream B of `read-model-ownership-producer-aggregates` (design § "WS-B").
 
-Promote after WS-A (`read-model-ownership-w-a-registrations`) ships.
+Sequenced immediately after WS-A (`read-model-ownership-w-a-registrations`,
+rank 1): this WS makes the upstream `__version` available that WS-C's consumer
+conversions depend on.
 
 Mechanism (settled): atomic per-row `__version` via DynamoDB `ADD #__version :1`
 (`=1` on seed); CDC-as-outbox carries it top-level into the emitted event with no

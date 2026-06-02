@@ -1,6 +1,7 @@
 ---
 id: read-model-ownership-w-d-governance-capstone
-status: parking
+status: queued
+rank: 4
 type: tooling
 notes: "WS-D of read-model-ownership-producer-aggregates: Tier-4 broker-ctrl ExecutionMode registration + governance capstone — upgrade drift-checker to mandatory-error gate + tools/read-model-exclusions.json for non-governed outbox/carrier rows; extend canonical doc §9 to producer surface; update CLAUDE.md/skill pointers. Makes the model fully enforced across all services."
 references:
@@ -17,8 +18,8 @@ validation_gate: null
 
 Workstream D of `read-model-ownership-producer-aggregates` (design § "WS-D").
 
-Promote after WS-C (`read-model-ownership-w-c-consumer-conversions`) ships — the
-gate can only be made mandatory once every governed row is registered.
+Sequenced after WS-C (`read-model-ownership-w-c-consumer-conversions`, rank 3):
+the gate can only be made mandatory once every governed row is registered.
 
 - broker-ctrl `ExecutionMode`: register `CommandOwned` (`record()` single-field
   cache); add `__version` only if a P1 consumer of the mode cache is introduced.

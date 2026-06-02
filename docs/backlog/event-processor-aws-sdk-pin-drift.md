@@ -1,7 +1,7 @@
 ---
 id: event-processor-aws-sdk-pin-drift
 status: queued
-rank: 3
+rank: 6
 type: tooling
 notes: "event-processor pins @aws-sdk/* at ^3.750.0 vs workspace ^3.1011.0 → duplicate lib-dynamodb copy; test-only instanceof hazard."
 references: []
