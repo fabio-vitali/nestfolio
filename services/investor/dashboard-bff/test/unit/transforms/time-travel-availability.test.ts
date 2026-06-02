@@ -1,4 +1,4 @@
-import { project } from '@nestfolio/event-processor';
+import { projectVersioned } from '@nestfolio/event-processor';
 import type { UnitOfWork, BusEvent } from '@nestfolio/event-processor';
 import { timeTravelAvailability } from '../../../src/transforms/time-travel-availability';
 
@@ -11,31 +11,47 @@ describe('timeTravelAvailability transform', () => {
       type: 'LEDGER_ENTRY_RECORDED',
       timestamp: '2026-01-01T00:00:00.000Z',
       subject,
-      context: { tenantId: 't1' },
+      context: { tenantId: 't1', userId: 'u1', region: 'us-east-1' },
     },
     payload: {},
     record: {},
   }) as unknown as TestUow;
 
-  it('should return project intent with snapshotAt from payload', () => {
-    expect(timeTravelAvailability(makeUow({ snapshotAt: '2026-01-01T12:00:00.000Z' }))).toEqual(
-      project('TimeTravelAvailability', {
+  it('returns projectVersioned keyed on subject.lastEventSequence', () => {
+    expect(
+      timeTravelAvailability(makeUow({ snapshotAt: '2026-01-01T12:00:00.000Z', lastEventSequence: 12 })),
+    ).toEqual(
+      projectVersioned('TimeTravelAvailability', {
         tenantId: 't1',
+        userId: 'u1',
+        region: 'us-east-1',
         available: true,
         snapshotAt: '2026-01-01T12:00:00.000Z',
         latestDate: '2026-01-01',
-      }, { pk: 'T#t1', sk: 'TimeTravelAvailability' }),
+      }, {
+        version: 12,
+        overrides: { pk: 'T#t1', sk: 'TimeTravelAvailability' },
+      }),
     );
   });
 
-  it('should fall back to event timestamp when no snapshotAt', () => {
-    expect(timeTravelAvailability(makeUow({}))).toEqual(
-      project('TimeTravelAvailability', {
+  it('falls back to event timestamp for snapshotAt', () => {
+    expect(timeTravelAvailability(makeUow({ lastEventSequence: 3 }))).toEqual(
+      projectVersioned('TimeTravelAvailability', {
         tenantId: 't1',
+        userId: 'u1',
+        region: 'us-east-1',
         available: true,
         snapshotAt: '2026-01-01T00:00:00.000Z',
         latestDate: '2026-01-01',
-      }, { pk: 'T#t1', sk: 'TimeTravelAvailability' }),
+      }, {
+        version: 3,
+        overrides: { pk: 'T#t1', sk: 'TimeTravelAvailability' },
+      }),
     );
+  });
+
+  it('drops (undefined) when lastEventSequence is absent', () => {
+    expect(timeTravelAvailability(makeUow({ snapshotAt: '2026-01-01T12:00:00.000Z' }))).toBeUndefined();
   });
 });

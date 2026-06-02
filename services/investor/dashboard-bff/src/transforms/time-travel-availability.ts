@@ -1,25 +1,34 @@
-import { project, type WriteIntent } from '@nestfolio/event-processor';
+import { projectVersioned, type WriteIntent } from '@nestfolio/event-processor';
 import type { UnitOfWork, BusEvent } from '@nestfolio/event-processor';
 
+/**
+ * Versioned P1 projection of TimeTravelAvailability from LEDGER_ENTRY_RECORDED.
+ * Keyed on the ledger's monotonic `lastEventSequence` carried top-level on the
+ * event subject. Returns undefined when it is absent (dropped, not written —
+ * mirrors investor-snapshot.ts / advisory-status.ts).
+ */
 export const timeTravelAvailability = (
   uow: UnitOfWork<BusEvent<Record<string, unknown>>>,
-): WriteIntent => {
+): WriteIntent | undefined => {
   const { event } = uow;
   const { tenantId, userId, region } = event.context;
   const payload = event.subject as Record<string, unknown>;
+
+  const version = payload.lastEventSequence;
+  if (typeof version !== 'number') return undefined;
+
   const snapshotAt = (payload.snapshotAt as string) ?? event.timestamp;
+  const latestDate = snapshotAt.slice(0, 10);
 
-  const date = snapshotAt.slice(0, 10);
-
-  return project('TimeTravelAvailability', {
+  return projectVersioned('TimeTravelAvailability', {
     tenantId,
     userId,
     region,
     available: true,
     snapshotAt,
-    latestDate: date,
+    latestDate,
   }, {
-    pk: `T#${tenantId}`,
-    sk: 'TimeTravelAvailability',
+    version,
+    overrides: { pk: `T#${tenantId}`, sk: 'TimeTravelAvailability' },
   });
 };
