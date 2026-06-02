@@ -1,7 +1,6 @@
 import {
   materializeToTable,
-  record,
-  update,
+  projectVersioned,
   NotRetryableError,
   type EventPayload,
   type EventContext,
@@ -22,8 +21,7 @@ import {
 function projectIpSnapshot(
   payload: EventPayload,
   ctx: EventContext,
-  mode: 'insert' | 'update',
-): WriteIntent {
+): WriteIntent | undefined {
   const subject = payload.subject ?? {};
   const tenantId = (subject.tenantId as string) ?? ctx.tenantId;
   const userId = (subject.userId as string) ?? tenantId;
@@ -33,20 +31,22 @@ function projectIpSnapshot(
       `${ctx.eventType} missing subject.agentOutput for tenant=${tenantId} user=${userId}`,
     );
   }
-  const attrs = {
+  const version = subject.__version;
+  if (typeof version !== 'number') return undefined;
+  const fields = {
     tenantId,
     userId,
     agentOutput: JSON.stringify(agentOutput),
     sourceEventId: (subject.sourceEventId as string) ?? ctx.eventId,
     updatedAt: new Date().toISOString(),
   };
-  const key = { pk: projectedIpSnapshotPk(tenantId, userId), sk: PROJECTED_IP_SNAPSHOT_SK };
-  return mode === 'insert'
-    ? record('InvestorProfileSnapshot', attrs, key)
-    : update('InvestorProfileSnapshot', attrs, { overrides: key });
+  return projectVersioned('InvestorProfileSnapshot', fields, {
+    version,
+    overrides: { pk: projectedIpSnapshotPk(tenantId, userId), sk: PROJECTED_IP_SNAPSHOT_SK },
+  });
 }
 
-function projectMarketSnapshot(payload: EventPayload): WriteIntent {
+function projectMarketSnapshot(payload: EventPayload): WriteIntent | undefined {
   const subject = payload.subject ?? {};
   const region = (subject.region as string) ?? 'us-east-1';
   const agentOutput = subject.agentOutput as Record<string, unknown> | undefined;
@@ -55,18 +55,23 @@ function projectMarketSnapshot(payload: EventPayload): WriteIntent {
       `MARKET_SNAPSHOT_UPDATED missing subject.agentOutput for region=${region}`,
     );
   }
-  return record(
+  const version = subject.__version;
+  if (typeof version !== 'number') return undefined;
+  return projectVersioned(
     'MarketSnapshot',
     {
       region,
       agentOutput: JSON.stringify(agentOutput),
       updatedAt: new Date().toISOString(),
     },
-    { pk: projectedMarketSnapshotPk(region), sk: PROJECTED_MARKET_SNAPSHOT_SK },
+    {
+      version,
+      overrides: { pk: projectedMarketSnapshotPk(region), sk: PROJECTED_MARKET_SNAPSHOT_SK },
+    },
   );
 }
 
-function projectLedgerSnapshot(payload: EventPayload, ctx: EventContext): WriteIntent {
+function projectLedgerSnapshot(payload: EventPayload, ctx: EventContext): WriteIntent | undefined {
   const subject = payload.subject ?? {};
   const tenantId = (subject.tenantId as string) ?? ctx.tenantId;
   const snapshot = subject.snapshot as
@@ -77,7 +82,9 @@ function projectLedgerSnapshot(payload: EventPayload, ctx: EventContext): WriteI
       `${ctx.eventType} missing subject.snapshot for tenant=${tenantId}`,
     );
   }
-  const attrs = {
+  const version = snapshot.lastEventSequence;
+  if (typeof version !== 'number') return undefined;
+  const fields = {
     tenantId,
     state: JSON.stringify({
       positions: snapshot.positions,
@@ -87,30 +94,28 @@ function projectLedgerSnapshot(payload: EventPayload, ctx: EventContext): WriteI
     sourceEventId: (subject.sourceEventId as string) ?? ctx.eventId,
     updatedAt: new Date().toISOString(),
   };
-  // PORTFOLIO_UPDATED represents both create and update semantics in a single
-  // event type — use update() (UpdateItem upsert) rather than record() which
-  // carries attribute_not_exists(pk) and silently deduplicates the 2nd+ emit.
-  return update(
-    'LedgerSnapshot',
-    attrs,
-    {
-      overrides: {
-        pk: projectedLedgerSnapshotPk(tenantId),
-        sk: PROJECTED_LEDGER_SNAPSHOT_SK,
-      },
+  // PORTFOLIO_UPDATED is both create + update. projectVersioned's guard
+  // (attribute_not_exists(pk) OR __version < :version) makes the first write
+  // a create and later writes version-ordered upserts, dropping stale/replayed
+  // emits — keyed on the ledger's monotonic lastEventSequence.
+  return projectVersioned('LedgerSnapshot', fields, {
+    version,
+    overrides: {
+      pk: projectedLedgerSnapshotPk(tenantId),
+      sk: PROJECTED_LEDGER_SNAPSHOT_SK,
     },
-  );
+  });
 }
 
 export const createHandlers = () => ({
   [InvestorProfileEventTypes.INVESTOR_PROFILE_SNAPSHOT_CREATED]: async (
     p: EventPayload,
     c: EventContext,
-  ) => projectIpSnapshot(p, c, 'insert'),
+  ) => projectIpSnapshot(p, c),
   [InvestorProfileEventTypes.INVESTOR_PROFILE_SNAPSHOT_UPDATED]: async (
     p: EventPayload,
     c: EventContext,
-  ) => projectIpSnapshot(p, c, 'update'),
+  ) => projectIpSnapshot(p, c),
   [MarketIntelligenceEventTypes.MARKET_SNAPSHOT_UPDATED]: async (
     p: EventPayload,
     _c: EventContext,

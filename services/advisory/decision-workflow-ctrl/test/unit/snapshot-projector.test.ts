@@ -23,19 +23,21 @@ const payload = (subject: Record<string, unknown>): EventPayload => ({
 describe('snapshot-projector', () => {
   const handlers = createHandlers();
 
-  it('INVESTOR_PROFILE_SNAPSHOT_CREATED → record() with InvestorProfileSnapshot row', async () => {
+  it('INVESTOR_PROFILE_SNAPSHOT_CREATED → projectVersioned keyed on subject.__version', async () => {
     const result = await handlers.INVESTOR_PROFILE_SNAPSHOT_CREATED(
       payload({
         tenantId: 'tenant-1',
         userId: 'user-1',
         agentOutput: { riskScore: 55, riskTolerance: 'MODERATE' },
         sourceEventId: 'src-e1',
+        __version: 1,
       }),
       ctx('INVESTOR_PROFILE_SNAPSHOT_CREATED'),
     );
     const intent = Array.isArray(result) ? result[0] : result;
-    expect(intent._tag).toBe('record');
-    expect(intent.typename).toBe('InvestorProfileSnapshot');
+    expect(intent!._tag).toBe('projectVersioned');
+    expect(intent!.typename).toBe('InvestorProfileSnapshot');
+    expect((intent as { version: number }).version).toBe(1);
     expect((intent as { overrides?: { pk?: string; sk?: string } }).overrides?.pk).toBe(
       projectedIpSnapshotPk('tenant-1', 'user-1'),
     );
@@ -43,10 +45,37 @@ describe('snapshot-projector', () => {
     const fields = (intent as { fields: Record<string, unknown> }).fields;
     expect(fields.tenantId).toBe('tenant-1');
     expect(fields.userId).toBe('user-1');
-    expect(typeof fields.agentOutput).toBe('string');
     expect(JSON.parse(fields.agentOutput as string)).toEqual({ riskScore: 55, riskTolerance: 'MODERATE' });
     expect(fields.sourceEventId).toBe('src-e1');
     expect(typeof fields.updatedAt).toBe('string');
+  });
+
+  it('INVESTOR_PROFILE_SNAPSHOT_UPDATED → projectVersioned with the incremented version', async () => {
+    const result = await handlers.INVESTOR_PROFILE_SNAPSHOT_UPDATED(
+      payload({
+        tenantId: 'tenant-1',
+        userId: 'user-1',
+        agentOutput: { riskScore: 70 },
+        sourceEventId: 'src-e2',
+        __version: 4,
+      }),
+      ctx('INVESTOR_PROFILE_SNAPSHOT_UPDATED'),
+    );
+    const intent = Array.isArray(result) ? result[0] : result;
+    expect(intent!._tag).toBe('projectVersioned');
+    expect(intent!.typename).toBe('InvestorProfileSnapshot');
+    expect((intent as { version: number }).version).toBe(4);
+    const fields = (intent as { fields: Record<string, unknown> }).fields;
+    expect(JSON.parse(fields.agentOutput as string)).toEqual({ riskScore: 70 });
+    expect(fields.sourceEventId).toBe('src-e2');
+  });
+
+  it('IP snapshot drops (undefined) when __version is absent', async () => {
+    const result = await handlers.INVESTOR_PROFILE_SNAPSHOT_UPDATED(
+      payload({ tenantId: 'tenant-1', userId: 'user-1', agentOutput: { riskScore: 1 } }),
+      ctx('INVESTOR_PROFILE_SNAPSHOT_UPDATED'),
+    );
+    expect(result).toBeUndefined();
   });
 
   it('INVESTOR_PROFILE_SNAPSHOT_CREATED falls back to ctx.eventId when sourceEventId missing', async () => {
@@ -55,6 +84,7 @@ describe('snapshot-projector', () => {
         tenantId: 'tenant-1',
         userId: 'user-1',
         agentOutput: { riskScore: 50 },
+        __version: 1,
       }),
       ctx('INVESTOR_PROFILE_SNAPSHOT_CREATED', { eventId: 'fallback-evt' }),
     );
@@ -62,76 +92,62 @@ describe('snapshot-projector', () => {
     expect((intent as { fields: Record<string, unknown> }).fields.sourceEventId).toBe('fallback-evt');
   });
 
-  it('INVESTOR_PROFILE_SNAPSHOT_UPDATED → update() with InvestorProfileSnapshot row keyed via overrides', async () => {
-    const result = await handlers.INVESTOR_PROFILE_SNAPSHOT_UPDATED(
-      payload({
-        tenantId: 'tenant-1',
-        userId: 'user-1',
-        agentOutput: { riskScore: 70 },
-        sourceEventId: 'src-e2',
-      }),
-      ctx('INVESTOR_PROFILE_SNAPSHOT_UPDATED'),
-    );
-    const intent = Array.isArray(result) ? result[0] : result;
-    expect(intent._tag).toBe('update');
-    expect(intent.typename).toBe('InvestorProfileSnapshot');
-    expect((intent as { overrides?: { pk?: string; sk?: string } }).overrides?.pk).toBe(
-      projectedIpSnapshotPk('tenant-1', 'user-1'),
-    );
-    expect((intent as { overrides?: { pk?: string; sk?: string } }).overrides?.sk).toBe(PROJECTED_IP_SNAPSHOT_SK);
-    const updates = (intent as { updates: Record<string, unknown> }).updates;
-    expect(typeof updates.agentOutput).toBe('string');
-    expect(JSON.parse(updates.agentOutput as string)).toEqual({ riskScore: 70 });
-    expect(updates.sourceEventId).toBe('src-e2');
-  });
-
   it('IP snapshot handlers throw NotRetryableError when agentOutput missing', async () => {
     await expect(
       handlers.INVESTOR_PROFILE_SNAPSHOT_CREATED(
-        payload({ tenantId: 'tenant-1', userId: 'user-1' }),
+        payload({ tenantId: 'tenant-1', userId: 'user-1', __version: 1 }),
         ctx('INVESTOR_PROFILE_SNAPSHOT_CREATED'),
       ),
     ).rejects.toThrow(/agentOutput/);
     await expect(
       handlers.INVESTOR_PROFILE_SNAPSHOT_UPDATED(
-        payload({ tenantId: 'tenant-1', userId: 'user-1' }),
+        payload({ tenantId: 'tenant-1', userId: 'user-1', __version: 1 }),
         ctx('INVESTOR_PROFILE_SNAPSHOT_UPDATED'),
       ),
     ).rejects.toThrow(/agentOutput/);
   });
 
-  it('MARKET_SNAPSHOT_UPDATED → record() with MarketSnapshot row keyed by region', async () => {
+  it('MARKET_SNAPSHOT_UPDATED → projectVersioned keyed on subject.__version', async () => {
     const result = await handlers.MARKET_SNAPSHOT_UPDATED(
       payload({
         region: 'us-east-1',
         agentOutput: { signals: ['risk-on'], regime: 'BULL' },
         fastComponentsAt: '2026-05-17T12:00:00Z',
+        __version: 9,
       }),
       ctx('MARKET_SNAPSHOT_UPDATED', { tenantId: 'SYSTEM' }),
     );
     const intent = Array.isArray(result) ? result[0] : result;
-    expect(intent._tag).toBe('record');
-    expect(intent.typename).toBe('MarketSnapshot');
+    expect(intent!._tag).toBe('projectVersioned');
+    expect(intent!.typename).toBe('MarketSnapshot');
+    expect((intent as { version: number }).version).toBe(9);
     expect((intent as { overrides?: { pk?: string; sk?: string } }).overrides?.pk).toBe(
       projectedMarketSnapshotPk('us-east-1'),
     );
     expect((intent as { overrides?: { pk?: string; sk?: string } }).overrides?.sk).toBe(PROJECTED_MARKET_SNAPSHOT_SK);
     const fields = (intent as { fields: Record<string, unknown> }).fields;
     expect(fields.region).toBe('us-east-1');
-    expect(typeof fields.agentOutput).toBe('string');
     expect(JSON.parse(fields.agentOutput as string)).toEqual({ signals: ['risk-on'], regime: 'BULL' });
     expect(typeof fields.updatedAt).toBe('string');
-    // Field-level pk/sk are NOT set — they come from overrides only.
     expect(fields.pk).toBeUndefined();
     expect(fields.sk).toBeUndefined();
   });
 
+  it('MARKET_SNAPSHOT_UPDATED drops (undefined) when __version is absent', async () => {
+    const result = await handlers.MARKET_SNAPSHOT_UPDATED(
+      payload({ region: 'us-east-1', agentOutput: { signals: [] } }),
+      ctx('MARKET_SNAPSHOT_UPDATED', { tenantId: 'SYSTEM' }),
+    );
+    expect(result).toBeUndefined();
+  });
+
   it('MARKET_SNAPSHOT_UPDATED defaults region to us-east-1 when subject.region missing', async () => {
     const result = await handlers.MARKET_SNAPSHOT_UPDATED(
-      payload({ agentOutput: { signals: [] } }),
+      payload({ agentOutput: { signals: [] }, __version: 1 }),
       ctx('MARKET_SNAPSHOT_UPDATED', { tenantId: 'SYSTEM' }),
     );
     const intent = Array.isArray(result) ? result[0] : result;
+    expect(intent!._tag).toBe('projectVersioned');
     expect((intent as { fields: Record<string, unknown> }).fields.region).toBe('us-east-1');
     expect((intent as { overrides?: { pk?: string } }).overrides?.pk).toBe(
       projectedMarketSnapshotPk('us-east-1'),
@@ -141,7 +157,7 @@ describe('snapshot-projector', () => {
   it('MARKET_SNAPSHOT_UPDATED throws NotRetryableError when agentOutput missing', async () => {
     await expect(
       handlers.MARKET_SNAPSHOT_UPDATED(
-        payload({ region: 'us-east-1' }),
+        payload({ region: 'us-east-1', __version: 1 }),
         ctx('MARKET_SNAPSHOT_UPDATED', { tenantId: 'SYSTEM' }),
       ),
     ).rejects.toThrow(/agentOutput/);
@@ -151,7 +167,7 @@ describe('snapshot-projector', () => {
 describe('snapshot-projector — LedgerSnapshot', () => {
   const handlers = createHandlers();
 
-  it('projects PORTFOLIO_UPDATED into a LedgerSnapshot record intent', async () => {
+  it('projects PORTFOLIO_UPDATED into a LedgerSnapshot projectVersioned keyed on lastEventSequence', async () => {
     const result = await handlers[LedgerCtrlEventTypes.PORTFOLIO_UPDATED](
       payload({
         tenantId: 'tenant-abc',
@@ -164,23 +180,32 @@ describe('snapshot-projector — LedgerSnapshot', () => {
       ctx('PORTFOLIO_UPDATED', { tenantId: 'tenant-abc', eventId: 'evt-1' }),
     );
     const intent = Array.isArray(result) ? result[0] : result;
-    // UpdateIntent (UpsertItem) — PORTFOLIO_UPDATED is both create+update so
-    // record()'s attribute_not_exists(pk) guard would silently dedup the 2nd+ emit.
-    expect(intent._tag).toBe('update');
-    expect(intent.typename).toBe('LedgerSnapshot');
+    expect(intent!._tag).toBe('projectVersioned');
+    expect(intent!.typename).toBe('LedgerSnapshot');
+    expect((intent as { version: number }).version).toBe(7);
     expect((intent as { overrides?: { pk?: string; sk?: string } }).overrides?.pk).toBe(
       projectedLedgerSnapshotPk('tenant-abc'),
     );
     expect((intent as { overrides?: { pk?: string; sk?: string } }).overrides?.sk).toBe(PROJECTED_LEDGER_SNAPSHOT_SK);
-    const updates = (intent as { updates: Record<string, unknown> }).updates;
-    expect(updates.tenantId).toBe('tenant-abc');
-    expect(updates.lastEventSequence).toBe(7);
-    expect(typeof updates.state).toBe('string');
-    const parsed = JSON.parse(updates.state as string);
+    const fields = (intent as { fields: Record<string, unknown> }).fields;
+    expect(fields.tenantId).toBe('tenant-abc');
+    expect(fields.lastEventSequence).toBe(7);
+    const parsed = JSON.parse(fields.state as string);
     expect(parsed.positions.VTI.quantity).toBe(10);
     expect(parsed.cashBalanceCents).toBe(500_000);
-    expect(updates.sourceEventId).toBe('evt-1');
-    expect(typeof updates.updatedAt).toBe('string');
+    expect(fields.sourceEventId).toBe('evt-1');
+    expect(typeof fields.updatedAt).toBe('string');
+  });
+
+  it('LedgerSnapshot drops (undefined) when snapshot.lastEventSequence is absent', async () => {
+    const result = await handlers[LedgerCtrlEventTypes.PORTFOLIO_UPDATED](
+      payload({
+        tenantId: 'tenant-abc',
+        snapshot: { positions: {}, cashBalanceCents: 0 },
+      }),
+      ctx('PORTFOLIO_UPDATED', { tenantId: 'tenant-abc', eventId: 'evt-3' }),
+    );
+    expect(result).toBeUndefined();
   });
 
   it('raises NotRetryableError when subject.snapshot is missing', async () => {
