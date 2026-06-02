@@ -3,7 +3,7 @@ id: dashboard-advisory-readmodel-fixes
 status: queued
 rank: 8
 type: bug
-notes: "dashboard-bff + advisory read-model residuals from w2/w3: (A) PositionSnapshot orphan row on full sell (no delete path); (B) AdvisoryStatus dead code + unwritten fields (structural-zero); (C) w3 hardening nits — Date.now() version, terminal taskToken cleanup, WorkflowStatus enum guard; (D) advisory-bff ~6 latent tsc errors (TableEntry timestamp, shared root w/ ledger-ctrl-2) blocking a clean service-wide typecheck. Merges dashboard-position-orphan-on-sell + dashboard-bff-advisory-status-dead-code-cleanup + w3-advisory-versioned-packet-hardening + advisory-bff-latent-tsc-errors."
+notes: "dashboard-bff + advisory read-model residuals from w2/w3: (A) PositionSnapshot orphan row on full sell (no delete path); (B) AdvisoryStatus dead code + unwritten fields (structural-zero); (C) w3 hardening nits — Date.now() version, terminal taskToken cleanup, WorkflowStatus enum guard, portfolio-summary no-drop fallback (WS-C side-finding); (D) advisory-bff ~6 latent tsc errors (TableEntry timestamp, shared root w/ ledger-ctrl-2) blocking a clean service-wide typecheck. Merges dashboard-position-orphan-on-sell + dashboard-bff-advisory-status-dead-code-cleanup + w3-advisory-versioned-packet-hardening + advisory-bff-latent-tsc-errors."
 references: []
 spec: null
 plan: null
@@ -73,6 +73,14 @@ From the w3 final review (APPROVE-WITH-NITS):
    reach `DecisionReadModel` post-w3. Narrow the union to the 6 enum-valid values (or
    add a status-enum guard in `decision-snapshot.ts`) to make the `status: DecisionStatus!`
    contract provable rather than incidental.
+4. **`portfolio-summary.ts` uses a no-drop `Number(lastEventSequence ?? 0)` fallback**
+   (`services/investor/dashboard-bff/src/transforms/portfolio-summary.ts`) — unlike the
+   strict P1 drop pattern (`if (typeof version !== 'number') return undefined`) used by
+   investor-snapshot / position-snapshot / time-travel-availability. Harmless today
+   (the `#__version < :version` guard means a stray v0 is overwritten by the real v1),
+   but it can write a `version:0` sentinel row when `lastEventSequence` is absent. Align
+   it to drop-on-absent for consistency with the rest of the P1 surface. Surfaced
+   2026-06-02 during WS-C (`read-model-ownership-w-c-consumer-conversions`) code review.
 
 ## D. advisory-bff latent tsc --noEmit errors (bug)
 
