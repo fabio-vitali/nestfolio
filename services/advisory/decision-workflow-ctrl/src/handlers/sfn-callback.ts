@@ -3,6 +3,7 @@ import {
   resumeStateMachine, update, record,
   type EventPayload, type EventContext,
 } from '@nestfolio/event-processor';
+import '../read-model-ownership';
 import {
   AGENT_COMPLETION_EVENT_TYPES,
   AGENT_FAILURE_EVENT_TYPES,

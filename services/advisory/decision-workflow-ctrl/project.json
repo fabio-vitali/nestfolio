@@ -40,7 +40,13 @@
       },
       "outputs": ["{projectRoot}/test/mocks/mock-agent-responses.zip"]
     },
-    "lint": { "executor": "@nx/eslint:lint" }
+    "lint": { "executor": "@nx/eslint:lint" },
+    "typecheck": {
+      "executor": "nx:run-commands",
+      "options": {
+        "command": "tsc --noEmit -p services/advisory/decision-workflow-ctrl/tsconfig.type-test.json"
+      }
+    }
   },
   "tags": ["scope:advisory", "type:ctrl"]
 }

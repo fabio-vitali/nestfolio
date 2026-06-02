@@ -54,6 +54,12 @@ Stack: services/advisory/decision-workflow-ctrl/src/service.stack.ts
 ## Standalone Lambdas
 - AssemblePacket: Reads all 4 agent outputs from the SF Parameters payload (post-Phase-A 2026-05-14 — no AgentCore Memory reads, no eventual-consistency retry loop). Persists DecisionPacket row with explanation + proposedTrades. Returns to SF state via ResultSelector: `proposedTrades`, `currentPositions`, `portfolioValueCents`, `isInitialBuild`, `riskCategory` (replaces the legacy `portfolioValue` + `riskScore` shape; canonical-cents quantities, isInitialBuild from `currentPositions.length === 0`, riskCategory from investorProfile snapshot).
 
+## Read model
+- ReadModelOwnership registered in src/read-model-ownership.ts
+  - CommandOwned (own-aggregate via update() + self-incremented __version): DecisionPacket
+  - Mirror rows (MandateSnapshot/InvestorProfileSnapshot/MarketSnapshot/LedgerSnapshot) → Projection<'P1'> in WS-C, not registered here.
+- Enforced by `nx run decision-workflow-ctrl:typecheck` (test/types/read-model-ownership.type-test.ts)
+
 ## Handlers
 - sfn-callback.ts — CallbackIngress handler. On PORTFOLIO_COMPLETED / NARRATIVE_COMPLETED → SendTaskSuccess; on PORTFOLIO_FAILED / NARRATIVE_FAILED → SendTaskFailure; also writes AgentOutput records on agent completions; updates DecisionPacket status on compliance + user response events.
 - mandate-projector.ts — MandateProjectorIngress handler (materializeToTable). MANDATE_ISSUED → record() with operatingMode + level + status='ACTIVE'; OPERATING_MODE_CHANGED → update() patching operatingMode.
