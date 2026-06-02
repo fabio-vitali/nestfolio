@@ -703,6 +703,7 @@ describe('investor-bff', () => {
         timeoutMs: 60_000,
       });
       expect(event.detailType).toBe('INVESTOR_PROFILE_UPDATED');
+      expect((event.detail as { subject?: Record<string, unknown> }).subject?.['__version']).toBeGreaterThan(1);
     }, 120_000);
 
     it('should revoke mandate and flip Mandate row to REVOKED + emit MANDATE_REVOKED (no INVESTOR_PROFILE_UPDATED)', async () => {

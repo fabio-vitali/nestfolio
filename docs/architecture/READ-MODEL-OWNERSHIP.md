@@ -54,14 +54,31 @@ The owning producer stamps it on every write and carries it top-level in every e
 Projecting consumers read it from the event and pass it to `projectVersioned` as the
 `version` parameter.
 
-`ledger-ctrl` is the **reference implementation**: `SnapshotRecord` exposes `lastEventSequence`
-as its monotonic sequence, and `snapshotToEvents.ts` carries it in emitted events
-(see `services/ledger/ledger-ctrl/src/transforms/snapshot-to-events.ts` —
-`const { …, lastEventSequence } = current`). Note that ledger-ctrl today emits
-`lastEventSequence` (its monotonic sequence) in events but does **not** yet stamp a
-top-level `__version` attribute on emitted events; adopting the `__version` carriage
-convention is part of each producer's BFF-migration workstream (w1–5). Producers that do
-not yet stamp a `__version` adopt the convention as their BFF migrates in workstreams w1–w5.
+### Per-producer version source (settled — WS-B, 2026-06-02)
+
+Every governed **owned** row that feeds a downstream `Projection<'P1'>` carries a
+monotonic version top-level in its emitted events:
+
+| Producer (owner) | Row → event | Version field | Stamp mechanism |
+|---|---|---|---|
+| decision-workflow-ctrl | `DecisionPacket` → `DECISION_PACKET_*` | `__version` | `update(..., { add: { __version: 1 } })`; seed `__version: 1` |
+| investor-bff | `InvestorProfile` → `INVESTOR_PROFILE_*` | `__version` | resolver `SET #v = if_not_exists(#v,:zero)+:one`; seed `__version: 1` |
+| investor-bff | `Mandate` → `MANDATE_ISSUED`/`MANDATE_REVOKED` | `__version` | seed `__version: 1` on issue; revoke resolver `if_not_exists(#v,:zero)+:one` |
+| market-intelligence-ctrl | `MarketSnapshot` → `MARKET_SNAPSHOT_UPDATED` | `__version` | `update(..., { add: { __version: 1 } })` upsert |
+| investor-profile-ctrl | `InvestorProfileSnapshot` → `INVESTOR_PROFILE_SNAPSHOT_*` | `__version` | `update(..., { add: { __version: 1 } })` upsert |
+| ledger-ctrl | `LedgerEntryEvent` → `LEDGER_ENTRY_RECORDED` | `lastEventSequence` | reducer-accumulated monotonic sequence |
+
+`ledger-ctrl` is the one **grandfathered exception**: it carries `lastEventSequence`
+(its genuinely-monotonic per-`(tenant, streamType)` sequence) rather than a `__version`
+attribute. Intentional — `lastEventSequence` predates the convention and is already the
+version source for investor-bff's `CashBalance` P1 projection (`projectVersioned` keyed
+on `snapshot.lastEventSequence`). A redundant `__version` alias was rejected (two fields,
+one value). Consumers of `LEDGER_ENTRY_RECORDED` read `lastEventSequence`; all other P1
+consumers read `__version`.
+
+`projectVersioned` takes a numeric `version` argument, **not** a fixed field name, so the
+source field name is a consumer-mapping detail and neither choice violates any type. The
+reserved `__version` attribute is always the name stamped on the *projected* row.
 
 ---
 
