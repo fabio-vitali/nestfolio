@@ -10,6 +10,7 @@ import {
   requireEnv,
   logger,
 } from '@nestfolio/event-processor';
+import '../read-model-ownership';
 import {
   createMemoryClient,
   createNoOpMemoryClient,

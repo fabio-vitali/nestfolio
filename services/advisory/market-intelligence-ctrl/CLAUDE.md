@@ -55,6 +55,12 @@ Agent folder: agents/market-intelligence/
 - agents/tools/instrument-universe.ts -- Instrument universe factory (in-process)
 - agents/tools/format-context.ts -- Helper to serialize tool output as labelled prompt sections
 
+## Read model
+- ReadModelOwnership registered in src/read-model-ownership.ts
+  - CommandOwned (own-aggregate, one row per region, upserted via update()): MarketSnapshot
+  - (DWC mirror of MarketSnapshot is registered Projection<'P1'> in WS-C, not here.)
+- Enforced by `nx run market-intelligence-ctrl:typecheck` (test/types/read-model-ownership.type-test.ts)
+
 ## Event Types (domain/events.ts)
 - MarketIntelligenceEventTypes (outbound): MARKET_SIGNAL_DETECTED, MARKET_INTELLIGENCE_AGENT_INVOCATION_TRACED, MARKET_SNAPSHOT_UPDATED, MARKET_SNAPSHOT_REFRESH_TICK
 - HANDLED_EVENT_TYPES (inbound): YAHOO_FINANCE_UPDATED, MARKETWATCH_UPDATED, SEC_8K_FILED, FRED_INDICATORS_UPDATED, ALPHA_VANTAGE_NEWS_UPDATED, MARKET_SNAPSHOT_REFRESH_TICK

@@ -30,6 +30,12 @@
       }
     },
     "lint": { "executor": "@nx/eslint:lint" },
+    "typecheck": {
+      "executor": "nx:run-commands",
+      "options": {
+        "command": "tsc --noEmit -p services/advisory/market-intelligence-ctrl/tsconfig.type-test.json"
+      }
+    },
     "build-agent": {
       "executor": "nx:run-commands",
       "options": {
