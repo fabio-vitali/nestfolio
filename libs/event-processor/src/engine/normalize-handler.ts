@@ -8,8 +8,14 @@ function isWriteIntent(value: unknown): value is WriteIntent {
   return typeof value === 'object' && value !== null && '_tag' in value;
 }
 
-function toArray(result: WriteIntent | WriteIntent[]): WriteIntent[] {
-  return Array.isArray(result) ? result : [result];
+/**
+ * Normalizes a HandlerFn result to a WriteIntent[], dropping anything that is not
+ * a WriteIntent. A transform that returns `undefined` (the documented "drop, don't
+ * write" path) must yield zero intents — never a `[undefined]` that throws
+ * downstream in the ingestion engine's `intents.map(i => i._tag)`.
+ */
+function toIntents(result: WriteIntent | WriteIntent[]): WriteIntent[] {
+  return (Array.isArray(result) ? result : [result]).filter(isWriteIntent);
 }
 
 export function normalizeHandler(entry: HandlerEntry): NormalizedHandler {
@@ -20,7 +26,7 @@ export function normalizeHandler(entry: HandlerEntry): NormalizedHandler {
       for (const item of entry) {
         if (typeof item === 'function') {
           const result = await item(payload, ctx);
-          intents.push(...toArray(result));
+          intents.push(...toIntents(result));
         } else if (isWriteIntent(item)) {
           intents.push(item);
         }
@@ -32,6 +38,6 @@ export function normalizeHandler(entry: HandlerEntry): NormalizedHandler {
   // Single HandlerFn
   return async (payload, ctx) => {
     const result = await entry(payload, ctx);
-    return toArray(result);
+    return toIntents(result);
   };
 }
