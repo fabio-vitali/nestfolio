@@ -1,7 +1,7 @@
 ---
 id: investor-bff-dead-repo-mutate-methods
 status: queued
-rank: 8
+rank: 9
 type: refactor
 notes: "5 InvestorProfileRepository mutate-methods have no live callers; one (upsertReadOnlyBalance) would violate CashBalance P1 ownership if revived."
 references: []

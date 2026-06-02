@@ -1,7 +1,7 @@
 ---
 id: ledger-bff-readmodel-fixes
 status: queued
-rank: 6
+rank: 7
 type: bug
 notes: "ledger-bff read-model residuals: (A) ledger-entry-recorded P2 rows (HistoryEntry/Checkpoint) read top-level fields the real LEDGER_ENTRY_RECORDED producer never emits — degrade in prod; (B) ~18 latent tsc --noEmit errors blocking a clean service-wide typecheck. Merges ledger-entry-recorded-producer-shape-mismatch + ledger-bff-latent-tsc-errors."
 references: []

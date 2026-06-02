@@ -1,7 +1,7 @@
 ---
 id: read-model-ownership-w-d-governance-capstone
 status: queued
-rank: 5
+rank: 6
 type: tooling
 notes: "WS-D of read-model-ownership-producer-aggregates: Tier-4 broker-ctrl ExecutionMode registration + governance capstone — upgrade drift-checker to mandatory-error gate + tools/read-model-exclusions.json for non-governed outbox/carrier rows; wire the typecheck trip-wire into CI (folded bff-readmodel-typecheck-targets-not-in-ci); extend canonical doc §9 to producer surface; update CLAUDE.md/skill pointers. Makes the model fully enforced across all services."
 references:
