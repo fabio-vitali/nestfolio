@@ -21,7 +21,7 @@ export type Passthrough = {
  * events when specific fields differ between OldImage and NewImage.
  */
 export type ModifyEmission = {
-  always: EventName;
+  always?: EventName;
   onFieldChange?: Record<string, EventName>;
 };
 
@@ -49,7 +49,7 @@ export type RuntimePassthrough = {
 };
 
 export type RuntimeModifyEmission = {
-  always: string;
+  always?: string;
   onFieldChange?: Record<string, string>;
 };
 
@@ -74,11 +74,10 @@ export function buildRuntimeConfig(eventTypes: EventTypesMap): RuntimeConfig {
         config[`${recordType}:${ddbAction}`] = mapping;
       } else if ('passthrough' in mapping) {
         config[`${recordType}:${ddbAction}`] = { field: mapping.field, passthrough: true };
-      } else if ('always' in mapping) {
-        const entry: RuntimeModifyEmission = { always: mapping.always };
-        if (mapping.onFieldChange) {
-          entry.onFieldChange = mapping.onFieldChange;
-        }
+      } else if ('always' in mapping || 'onFieldChange' in mapping) {
+        const entry: RuntimeModifyEmission = {};
+        if (mapping.always) entry.always = mapping.always;
+        if (mapping.onFieldChange) entry.onFieldChange = mapping.onFieldChange;
         config[`${recordType}:${ddbAction}`] = entry;
       } else {
         const entry: RuntimeFieldDispatch = { field: mapping.field, map: mapping.map as Record<string, string> };
@@ -104,8 +103,8 @@ export function collectAllEventTypes(eventTypes: EventTypesMap): EventName[] {
         types.push(mapping as EventName);
       } else if ('passthrough' in mapping) {
         types.push(...mapping.emits);
-      } else if ('always' in mapping) {
-        types.push(mapping.always);
+      } else if ('always' in mapping || 'onFieldChange' in mapping) {
+        if (mapping.always) types.push(mapping.always);
         if (mapping.onFieldChange) {
           types.push(...Object.values(mapping.onFieldChange));
         }

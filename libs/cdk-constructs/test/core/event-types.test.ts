@@ -244,3 +244,36 @@ describe('onFieldChange ModifyEmission', () => {
     ]);
   });
 });
+
+describe('onFieldChange-only ModifyEmission (no carrier)', () => {
+  const map: EventTypesMap = {
+    Mandate: {
+      insert: eventName('MANDATE_ISSUED'),
+      modify: {
+        onFieldChange: {
+          status: eventName('MANDATE_REVOKED'),
+          operatingMode: eventName('OPERATING_MODE_CHANGED'),
+        },
+      },
+    },
+  };
+
+  it('serializes a modify with onFieldChange and no `always`', () => {
+    const config = buildRuntimeConfig(map);
+    expect(config['Mandate:MODIFY']).toEqual({
+      onFieldChange: {
+        status: 'MANDATE_REVOKED',
+        operatingMode: 'OPERATING_MODE_CHANGED',
+      },
+    });
+    expect(config['Mandate:INSERT']).toBe('MANDATE_ISSUED');
+  });
+
+  it('collectAllEventTypes returns the insert + every onFieldChange event (no carrier)', () => {
+    const types = collectAllEventTypes(map);
+    expect(types).toEqual(expect.arrayContaining([
+      'MANDATE_ISSUED', 'MANDATE_REVOKED', 'OPERATING_MODE_CHANGED',
+    ]));
+    expect(types).toHaveLength(3);
+  });
+});
