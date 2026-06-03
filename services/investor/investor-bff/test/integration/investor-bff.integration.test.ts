@@ -706,6 +706,70 @@ describe('investor-bff', () => {
       expect((event.detail as { subject?: Record<string, unknown> }).subject?.['__version']).toBeGreaterThan(1);
     }, 120_000);
 
+    it('updateOperatingMode bumps Mandate __version and emits OPERATING_MODE_CHANGED (not MANDATE_REVOKED)', async () => {
+      const userId = cognitoSub;
+      const pk = `InvestorProfile#${ctx.tenantId}#${userId}`;
+
+      // Pre-condition: Mandate row exists and is ACTIVE at __version 1 (seeded by
+      // the ONBOARDING_COMPLETED materialization test above). Deploy the local trap
+      // BEFORE the mutation so no CDC events slip through before the rule is warm.
+      const localTrap = new EventBusTrap(ctx);
+      await localTrap.deploy({
+        bus: 'investor',
+        detailType: ['OPERATING_MODE_CHANGED', 'MANDATE_REVOKED'],
+      });
+
+      const result = await appsync.mutate<{
+        updateOperatingMode: { operatingMode: string };
+      }>(
+        `
+        mutation UpdateOperatingMode($mode: OperatingMode!) {
+          updateOperatingMode(mode: $mode) {
+            operatingMode
+          }
+        }
+      `,
+        { mode: 'AGGRESSIVE' },
+      );
+
+      // Resolver extraStep (get-profile.fn.js) reads back the InvestorProfile row.
+      expect(result.updateOperatingMode.operatingMode).toBe('AGGRESSIVE');
+
+      // 1. Mandate sibling row: operatingMode bumped, status still ACTIVE, __version bumped to 2.
+      const mandate = await table.waitForItem({
+        table: 'investor-bff',
+        pk,
+        sk: 'Mandate',
+        match: { operatingMode: 'AGGRESSIVE' },
+        timeoutMs: 30_000,
+      });
+      expect(mandate['__version']).toBe(2);
+      expect(mandate['status']).toBe('ACTIVE');
+
+      // 2. OPERATING_MODE_CHANGED event carries the full Mandate image.
+      //    The EB rule is scoped to tenantId, so the detailType filter alone is
+      //    sufficient for isolation; no per-userId match() needed.
+      const modeChangedEvt = await localTrap.waitForEvent({
+        detailType: 'OPERATING_MODE_CHANGED',
+        timeoutMs: 60_000,
+      });
+      const subject = (modeChangedEvt.detail as { subject?: Record<string, unknown> }).subject;
+      expect(subject).toBeDefined();
+      expect(subject!['operatingMode']).toBe('AGGRESSIVE');
+      expect(subject!['mandateId']).toBeDefined();
+      expect(subject!['level']).toBeDefined();
+      expect(subject!['__version']).toBe(2);
+
+      // 3. A mode-change must NOT emit MANDATE_REVOKED — operatingMode change
+      //    touches the Mandate row but status stays ACTIVE (no status field change).
+      await expect(
+        localTrap.waitForEvent({
+          detailType: 'MANDATE_REVOKED',
+          timeoutMs: 8_000,
+        }),
+      ).rejects.toThrow();
+    }, 180_000);
+
     it('should revoke mandate and flip Mandate row to REVOKED + emit MANDATE_REVOKED (no INVESTOR_PROFILE_UPDATED)', async () => {
       const pk = `InvestorProfile#${ctx.tenantId}#${cognitoSub}`;
 
@@ -763,7 +827,9 @@ describe('investor-bff', () => {
         timeoutMs: 60_000,
       });
       expect(revoked.detailType).toBe('MANDATE_REVOKED');
-      expect((revoked.detail as { subject?: Record<string, unknown> }).subject?.['__version']).toBe(2);
+      // updateOperatingMode (preceding test) bumped Mandate to __version 2;
+      // revokeMandate bumps it once more → __version 3.
+      expect((revoked.detail as { subject?: Record<string, unknown> }).subject?.['__version']).toBe(3);
 
       // Note: "NO INVESTOR_PROFILE_UPDATED emitted" is enforced by
       // construction at the resolver level (revoke-mandate.fn.js targets
@@ -895,12 +961,14 @@ describe('investor-bff', () => {
       // Wait for the goal group to be present (last-written portion of the
       // transactWrite Put — its presence is the strongest signal the
       // composite row is hydrated).
+      // updateOperatingMode mutation (AppSync mutations block) changed
+      // operatingMode to AGGRESSIVE — accept any operatingMode value here.
       await table.waitForItem({
         table: 'investor-bff',
         pk: profilePk(),
         sk: 'InvestorProfile',
-        predicate: (i) => i['operatingMode'] === 'BALANCED' && !!i['goal'],
-        description: 'InvestorProfile row with operatingMode=BALANCED and goal',
+        predicate: (i) => !!i['operatingMode'] && !!i['goal'],
+        description: 'InvestorProfile row with operatingMode and goal',
         timeoutMs: 90_000,
       });
     }, 120_000);
@@ -947,7 +1015,8 @@ describe('investor-bff', () => {
 
       expect(result.getProfile.tenantId).toBe(ctx.tenantId);
       expect(result.getProfile.userId).toBe(cognitoSub);
-      expect(result.getProfile.operatingMode).toBe('BALANCED');
+      // updateOperatingMode mutation (preceding describe block) set AGGRESSIVE.
+      expect(result.getProfile.operatingMode).toBe('AGGRESSIVE');
       // Goal nested group — was the standalone `getGoals` query pre-collapse
       expect(result.getProfile.goal).toBeDefined();
       expect(result.getProfile.goal.objective).toBeTruthy();
