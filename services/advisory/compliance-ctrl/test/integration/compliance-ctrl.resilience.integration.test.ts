@@ -68,6 +68,8 @@ describe('compliance-ctrl resilience: idempotency', () => {
         tenantId: ctx.tenantId,
         userId,
         ...baseMandateIssued(mandateId),
+        status: 'ACTIVE',
+        __version: 1,
       };
 
       // First publish
@@ -129,28 +131,38 @@ describe('compliance-ctrl resilience: idempotency', () => {
           tenantId: ctx.tenantId,
           userId,
           ...baseMandateIssued(mandateId),
+          status: 'ACTIVE',
+          __version: 1,
         },
       });
       await pollForMandateSnapshot(table, ctx.tenantId, userId, (i) => i['mandateId'] === mandateId);
 
-      // First revoke
+      // First revoke — full image at __version:2 so projectVersioned version guard accepts it
       const revokedAt = '2026-04-01T12:00:00.000Z';
       const revokeEventId = `idemp-revoke-evt-${randomUUID()}`;
+      const revokeDetail = {
+        tenantId: ctx.tenantId,
+        userId,
+        ...baseMandateIssued(mandateId),
+        status: 'REVOKED',
+        revokedAt,
+        __version: 2,
+      };
       await eb.putEvent({
         bus: 'advisory',
         targetService: 'compliance-ctrl',
         detailType: 'MANDATE_REVOKED',
-        detail: { tenantId: ctx.tenantId, userId, revokedAt },
+        detail: revokeDetail,
         eventId: revokeEventId,
       });
       await pollForMandateSnapshot(table, ctx.tenantId, userId, (i) => i['status'] === 'REVOKED');
 
-      // Duplicate revoke (same eventId)
+      // Duplicate revoke (same eventId, same payload — __version:2 redelivery)
       await eb.putEvent({
         bus: 'advisory',
         targetService: 'compliance-ctrl',
         detailType: 'MANDATE_REVOKED',
-        detail: { tenantId: ctx.tenantId, userId, revokedAt },
+        detail: revokeDetail,
         eventId: revokeEventId,
       });
 
@@ -199,10 +211,15 @@ describe('compliance-ctrl resilience: order-agnostic (SQS redelivery)', () => {
       const mandateId = `redelivery-mandate-${randomUUID()}`;
       const revokedAt = '2026-04-01T12:00:00.000Z';
       const issueEventId = `redelivery-issue-${randomUUID()}`;
+      // __version:1 — the original issue; redelivered late MANDATE_ISSUED reuses
+      // the same version so the version guard (current __version:2 >= :version 1)
+      // drops it and REVOKED is preserved.
       const issueDetail = {
         tenantId: ctx.tenantId,
         userId,
         ...baseMandateIssued(mandateId),
+        status: 'ACTIVE',
+        __version: 1,
       };
 
       // 1. Original MANDATE_ISSUED — projects {mandateId, level, status:'ACTIVE', operatingMode, effectiveDate}
@@ -220,12 +237,20 @@ describe('compliance-ctrl resilience: order-agnostic (SQS redelivery)', () => {
       expect(projected['level']).toBe('DISCRETIONARY');
       expect(projected['operatingMode']).toBe('BALANCED');
 
-      // 2. REVOKE — patches status=REVOKED + revokedAt, preserving mandate fields
+      // 2. REVOKE — full image at __version:2 so projectVersioned version guard accepts it;
+      //    writes the whole row (mandateId/level/operatingMode/effectiveDate preserved from image)
       await eb.putEvent({
         bus: 'advisory',
         targetService: 'compliance-ctrl',
         detailType: 'MANDATE_REVOKED',
-        detail: { tenantId: ctx.tenantId, userId, revokedAt },
+        detail: {
+          tenantId: ctx.tenantId,
+          userId,
+          ...baseMandateIssued(mandateId),
+          status: 'REVOKED',
+          revokedAt,
+          __version: 2,
+        },
       });
       const revoked = await pollForMandateSnapshot(
         table, ctx.tenantId, userId, (i) => i['status'] === 'REVOKED',
