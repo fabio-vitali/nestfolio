@@ -27,7 +27,7 @@ type RuntimePassthrough = {
 };
 
 type RuntimeModifyEmission = {
-  always: string;
+  always?: string;
   onFieldChange?: Record<string, string>;
 };
 
@@ -92,8 +92,11 @@ function resolveEmissions(
     return [{ eventType: idx > 0 ? raw.slice(0, idx) : raw }];
   }
 
-  if ('always' in mapping) {
-    const emissions: Emission[] = [{ eventType: mapping.always }];
+  if ('always' in mapping || 'onFieldChange' in mapping) {
+    const emissions: Emission[] = [];
+    if ('always' in mapping && mapping.always) {
+      emissions.push({ eventType: mapping.always });
+    }
     if (mapping.onFieldChange && ctx.oldImage && ctx.newImage) {
       for (const [field, semanticType] of Object.entries(mapping.onFieldChange)) {
         const oldVal = ctx.oldImage[field];

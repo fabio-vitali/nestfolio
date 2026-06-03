@@ -253,6 +253,70 @@ describe('changeDataCapture', () => {
     });
   });
 
+  describe('onFieldChange-only emission (no carrier)', () => {
+    it('emits only the matched semantic event when a watched field changes', async () => {
+      process.env.EVENT_TYPE_MAP = JSON.stringify({
+        'Mandate:MODIFY': {
+          onFieldChange: { status: 'MANDATE_REVOKED', operatingMode: 'OPERATING_MODE_CHANGED' },
+        },
+      });
+      const handler = changeDataCapture();
+      await handler({
+        Records: [
+          fakeDdbStreamRecord('MODIFY',
+            { pk: 'InvestorProfile#t#u', sk: 'Mandate', __typename: 'Mandate', tenantId: 't', userId: 'u', region: 'r', status: 'ACTIVE', operatingMode: 'AGGRESSIVE', __version: 2 },
+            { oldImage: { pk: 'InvestorProfile#t#u', sk: 'Mandate', __typename: 'Mandate', tenantId: 't', userId: 'u', region: 'r', status: 'ACTIVE', operatingMode: 'BALANCED', __version: 1 } },
+          ),
+        ],
+      });
+      const entries = mockPublish.mock.calls[0][0];
+      const types = entries.map((e: { DetailType: string }) => e.DetailType);
+      expect(types).toEqual(['OPERATING_MODE_CHANGED']);
+      const detail = JSON.parse(entries[0].Detail);
+      expect(detail.subject.operatingMode).toBe('AGGRESSIVE');
+      expect(detail.subject.status).toBe('ACTIVE');
+      expect(detail.subject.__version).toBe(2);
+    });
+
+    it('emits MANDATE_REVOKED (only) when status changes but operatingMode does not', async () => {
+      process.env.EVENT_TYPE_MAP = JSON.stringify({
+        'Mandate:MODIFY': {
+          onFieldChange: { status: 'MANDATE_REVOKED', operatingMode: 'OPERATING_MODE_CHANGED' },
+        },
+      });
+      const handler = changeDataCapture();
+      await handler({
+        Records: [
+          fakeDdbStreamRecord('MODIFY',
+            { pk: 'InvestorProfile#t#u', sk: 'Mandate', __typename: 'Mandate', tenantId: 't', userId: 'u', region: 'r', status: 'REVOKED', operatingMode: 'BALANCED', __version: 3 },
+            { oldImage: { pk: 'InvestorProfile#t#u', sk: 'Mandate', __typename: 'Mandate', tenantId: 't', userId: 'u', region: 'r', status: 'ACTIVE', operatingMode: 'BALANCED', __version: 2 } },
+          ),
+        ],
+      });
+      const entries = mockPublish.mock.calls[0][0];
+      expect(entries.map((e: { DetailType: string }) => e.DetailType)).toEqual(['MANDATE_REVOKED']);
+    });
+
+    it('publishes nothing when no watched field changed (no carrier to fall back to)', async () => {
+      process.env.EVENT_TYPE_MAP = JSON.stringify({
+        'Mandate:MODIFY': {
+          onFieldChange: { status: 'MANDATE_REVOKED', operatingMode: 'OPERATING_MODE_CHANGED' },
+        },
+      });
+      const handler = changeDataCapture();
+      await handler({
+        Records: [
+          fakeDdbStreamRecord('MODIFY',
+            { pk: 'InvestorProfile#t#u', sk: 'Mandate', __typename: 'Mandate', tenantId: 't', userId: 'u', region: 'r', status: 'ACTIVE', operatingMode: 'BALANCED', updatedAt: 'new', __version: 5 },
+            { oldImage: { pk: 'InvestorProfile#t#u', sk: 'Mandate', __typename: 'Mandate', tenantId: 't', userId: 'u', region: 'r', status: 'ACTIVE', operatingMode: 'BALANCED', updatedAt: 'old', __version: 4 } },
+          ),
+        ],
+      });
+      const totalEntries = mockPublish.mock.calls.reduce((n: number, c: unknown[]) => n + (c[0] as unknown[]).length, 0);
+      expect(totalEntries).toBe(0);
+    });
+  });
+
   describe('advanced features', () => {
     it('applies transform when provided', async () => {
       process.env.EVENT_TYPE_MAP = JSON.stringify({
