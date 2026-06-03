@@ -131,8 +131,10 @@ describe('decision-workflow-ctrl', () => {
         userId,
         mandateId,
         level: 'ADVISORY',
+        status: 'ACTIVE',
         operatingMode: 'BALANCED',
         effectiveDate: new Date().toISOString(),
+        __version: 1,
       },
     });
 
@@ -169,8 +171,10 @@ describe('decision-workflow-ctrl', () => {
         userId,
         mandateId,
         level: 'ADVISORY',
+        status: 'ACTIVE',
         operatingMode: 'AGGRESSIVE',
         effectiveDate: new Date().toISOString(),
+        __version: 1,
       },
     });
     await table.waitForItem({

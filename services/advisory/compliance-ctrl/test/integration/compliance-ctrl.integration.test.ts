@@ -96,8 +96,10 @@ describe('compliance-ctrl', () => {
         userId,
         mandateId,
         level: 'DISCRETIONARY',
+        status: 'ACTIVE',
         operatingMode: 'BALANCED',
         effectiveDate: '2026-01-15T00:00:00.000Z',
+        __version: 1,
       },
     });
 
@@ -135,8 +137,10 @@ describe('compliance-ctrl', () => {
         userId,
         mandateId,
         level: 'ADVISORY',
+        status: 'ACTIVE',
         operatingMode: 'CONSERVATIVE',
         effectiveDate: '2026-01-15T00:00:00.000Z',
+        __version: 1,
       },
     });
 
@@ -148,7 +152,7 @@ describe('compliance-ctrl', () => {
       match: { mandateId, operatingMode: 'CONSERVATIVE' },
     });
 
-    // Now emit OPERATING_MODE_CHANGED — patches only operatingMode, leaves level/mandateId intact
+    // Now emit OPERATING_MODE_CHANGED — full image at __version:2 so projectVersioned version guard accepts it
     await eb.putEvent({
       bus: 'advisory',
       targetService: 'compliance-ctrl',
@@ -156,7 +160,12 @@ describe('compliance-ctrl', () => {
       detail: {
         tenantId: ctx.tenantId,
         userId,
+        mandateId,
+        level: 'ADVISORY',
+        status: 'ACTIVE',
         operatingMode: 'AGGRESSIVE',
+        effectiveDate: '2026-01-15T00:00:00.000Z',
+        __version: 2,
       },
     });
 
@@ -193,8 +202,10 @@ describe('compliance-ctrl', () => {
         userId,
         mandateId,
         level: 'DISCRETIONARY',
+        status: 'ACTIVE',
         operatingMode: 'BALANCED',
         effectiveDate: '2026-01-15T00:00:00.000Z',
+        __version: 1,
       },
     });
 
@@ -209,7 +220,7 @@ describe('compliance-ctrl', () => {
     expect(seeded['mandateId']).toBe(mandateId);
     expect(seeded['status']).toBe('ACTIVE');
 
-    // 2. Emit MANDATE_REVOKED
+    // 2. Emit MANDATE_REVOKED — full image at __version:2 so projectVersioned version guard accepts it
     await eb.putEvent({
       bus: 'advisory',
       targetService: 'compliance-ctrl',
@@ -217,7 +228,13 @@ describe('compliance-ctrl', () => {
       detail: {
         tenantId: ctx.tenantId,
         userId,
+        mandateId,
+        level: 'DISCRETIONARY',
+        status: 'REVOKED',
+        operatingMode: 'BALANCED',
+        effectiveDate: '2026-01-15T00:00:00.000Z',
         revokedAt,
+        __version: 2,
       },
     });
 
@@ -259,8 +276,10 @@ describe('compliance-ctrl', () => {
         userId,
         mandateId,
         level: 'DISCRETIONARY',
+        status: 'ACTIVE',
         operatingMode: 'BALANCED',
         effectiveDate: '2026-01-15T00:00:00.000Z',
+        __version: 1,
       },
     });
 
@@ -274,7 +293,7 @@ describe('compliance-ctrl', () => {
       description: `mandateId=${mandateId} with status≠REVOKED`,
     });
 
-    // Revoke
+    // Revoke — full image at __version:2 so projectVersioned version guard accepts it
     await eb.putEvent({
       bus: 'advisory',
       targetService: 'compliance-ctrl',
@@ -282,7 +301,13 @@ describe('compliance-ctrl', () => {
       detail: {
         tenantId: ctx.tenantId,
         userId,
+        mandateId,
+        level: 'DISCRETIONARY',
+        status: 'REVOKED',
+        operatingMode: 'BALANCED',
+        effectiveDate: '2026-01-15T00:00:00.000Z',
         revokedAt,
+        __version: 2,
       },
     });
 
@@ -377,8 +402,10 @@ describe('compliance-ctrl', () => {
         userId,
         mandateId,
         level: 'DISCRETIONARY',
+        status: 'ACTIVE',
         operatingMode: 'BALANCED',
         effectiveDate: '2026-01-01T00:00:00.000Z',
+        __version: 1,
       },
     });
 
@@ -458,8 +485,10 @@ describe('compliance-ctrl', () => {
         userId,
         mandateId,
         level: 'DISCRETIONARY',
+        status: 'ACTIVE',
         operatingMode: 'CONSERVATIVE',
         effectiveDate: '2026-01-01T00:00:00.000Z',
+        __version: 1,
       },
     });
 
@@ -549,8 +578,10 @@ describe('compliance-ctrl', () => {
           userId,
           mandateId,
           level: 'ADVISORY',
+          status: 'ACTIVE',
           operatingMode: 'BALANCED',
           effectiveDate: '2026-01-01T00:00:00.000Z',
+          __version: 1,
         },
       });
 
@@ -634,8 +665,10 @@ describe('compliance-ctrl', () => {
           userId,
           mandateId,
           level: 'ADVISORY',
+          status: 'ACTIVE',
           operatingMode: 'BALANCED',
           effectiveDate: '2026-01-01T00:00:00.000Z',
+          __version: 1,
         },
       });
 
@@ -735,8 +768,10 @@ describe('compliance-ctrl', () => {
           userId,
           mandateId,
           level: 'DISCRETIONARY',
+          status: 'ACTIVE',
           operatingMode: 'BALANCED',
           effectiveDate: '2026-01-01T00:00:00.000Z',
+          __version: 1,
         },
       });
 
@@ -816,8 +851,10 @@ describe('compliance-ctrl', () => {
           userId,
           mandateId,
           level: 'DISCRETIONARY',
+          status: 'ACTIVE',
           operatingMode: 'BALANCED',
           effectiveDate: '2026-01-01T00:00:00.000Z',
+          __version: 1,
         },
       });
 
@@ -891,8 +928,10 @@ describe('compliance-ctrl', () => {
           userId,
           mandateId,
           level: 'DISCRETIONARY',
+          status: 'ACTIVE',
           operatingMode: 'BALANCED',
           effectiveDate: '2026-01-01T00:00:00.000Z',
+          __version: 1,
         },
       });
 
