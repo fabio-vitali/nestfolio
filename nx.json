@@ -31,6 +31,10 @@
       "inputs": ["default"],
       "cache": true
     },
+    "typecheck": {
+      "inputs": ["default", "^default"],
+      "cache": true
+    },
     "test-integration": {
       "cache": false,
       "parallelism": true
