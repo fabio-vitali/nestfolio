@@ -245,6 +245,32 @@ callers and migration authors must be aware.
 | `RecentActivity`, `HistoryEntry`, `Checkpoint` | append log | projection P2 |
 | `Deposit`, `Withdrawal` (+ structurally `Order`) | external (broker / ledger settles) | projection P1 (intent → command event; settlement drives the row) |
 
+### Producer-surface classification (WS-D, 2026-06-03)
+
+The producer/`-ctrl`/`-adpt` surface is now registered or explicitly excluded. The
+drift gate is **mandatory**: every typename written via an event-processor intent
+factory must be registered below or listed in `tools/read-model-exclusions.json`.
+
+| Service | Row(s) | Kind |
+|---|---|---|
+| broker-ctrl | `ExecutionMode` | command-owned (single-field mode cache; no `__version` until a P1 consumer appears) |
+| reconciliation-ctrl | `ReconciliationResult`, `DriftRecord` | command-owned (computed + read-your-own-writes via `getDriftRecords`) |
+| investor-bff | `FeatureFlag` | command-owned (documentary; AppSync-written, UI-read) |
+| execution-ctrl | `Order`, `StagedOrder` | command-owned (WS-A) |
+| investor-ctrl | `Notification`, `MonthlyReport` | command-owned (WS-A) |
+| compliance-ctrl | `ComplianceCheck`, `AuditArtifact` | projection P2 (WS-A) |
+| market-intelligence-ctrl | `MarketSnapshot` | command-owned (owner; WS-A/B) |
+| investor-profile-ctrl | `InvestorProfileSnapshot` | command-owned (owner; WS-A/B) |
+| decision-workflow-ctrl | `DecisionPacket` | command-owned; mirrors `LedgerSnapshot`/`InvestorProfileSnapshot`/`MarketSnapshot`/`MandateSnapshot` as projection P1 (WS-A/C) |
+
+**Verified non-governed (excluded, not registered)** — outbox/CDC-carrier and
+external-feed-cache rows, enumerated with reasons in `tools/read-model-exclusions.json`:
+agent execution-trace rows (`AgentCompletion`/`AgentFailure`/`AgentInvocation`/`AgentOutput`);
+ledger `snapshot-to-events` carriers (`BalanceEvent`/`LedgerEntryEvent`/`PortfolioEvent`/`SnapshotHistory`);
+funding CDC carriers (`FundingEvent`, `DepositDetected`, `WithdrawalCompleted`);
+external-feed adapter caches (`Alpaca*`, `AlphaVantageArticle`, `EconomicIndicator`,
+`FredIndicator`, `MarketWatchArticle`, `SecFiling`, `YahooFinanceArticle`).
+
 ### 9.1 Mandate fan-out (producer surface)
 
 investor-bff is the single **owner** of the `Mandate` aggregate (the `Mandate`
@@ -283,14 +309,16 @@ feeding dashboard-bff's `InvestorSnapshot`) and the Mandate sibling row in one
 
 2. **Canonical doc (this file)** — single source of truth, referenced by skills and audits.
 
-**Governance workstream (w6) will add layers 3 + 4:**
+**Layers 3 + 4 shipped (w6 + producer-aggregates WS-A–WS-D):**
 
-3. **Skill guidance** — updates to `event-processor-patterns`, `create-service`,
-   `create-feature`, `create-event`, `testing-patterns`, and the `CLAUDE.md` router. These
-   land after the pattern is real in code; a skill that references an unbuilt primitive is
-   itself rot.
+3. **Skill guidance** — `event-processor-patterns`, `create-service`, `create-feature`,
+   `create-event`, `testing-patterns`, and the `CLAUDE.md` router carry the model.
 
-4. **Audit drift checks** — `audit-service`/`audit-domain`/`audit-system` flags: a
-   `Projection` row written by `accumulate`; a typename written by both a command and an
-   event; a `Projection` with no version guard; a schema field never written (structural
-   zero). Plus a CI lint gate.
+4. **Drift gate (mandatory)** — `tools/check-read-model-drift.mjs` / nx target
+   `event-processor:read-model-drift`, repo-wide. Rules: R1 accumulate-on-projection;
+   R2 unguarded P1; R3 command+event dual-writer; R4 within-service registry conflict;
+   **R5 unclassified-write** (an intent-factory write neither registered nor excluded —
+   hard fail); R6 exclusion-conflict. `tools/read-model-exclusions.json` holds the
+   verified non-governed outbox/carrier/feed-cache rows. (Wiring the gate into the
+   GitHub PR workflow stays with `ci-pipeline-bring-up`; WS-D ships it as a
+   local-runnable nx target.) `audit-service`/`audit-domain`/`audit-system` invoke it.
