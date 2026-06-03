@@ -410,172 +410,71 @@ describe('event-listener handler', () => {
     });
   });
 
-  describe('MANDATE_ISSUED handler', () => {
-    const mandateIssuedPayload = (overrides: Record<string, unknown> = {}) => ({
-      tenantId: 't-1',
-      userId: 'u-1',
-      mandateId: 'm-1',
-      level: 'DISCRETIONARY',
-      operatingMode: 'BALANCED',
-      effectiveDate: '2025-01-01T00:00:00.000Z',
+  describe('Mandate projection (projectVersioned)', () => {
+    const fullMandate = (overrides: Record<string, unknown> = {}) => ({
+      tenantId: 't-1', userId: 'u-1', mandateId: 'm-1',
+      level: 'DISCRETIONARY', status: 'ACTIVE', operatingMode: 'BALANCED',
+      effectiveDate: '2025-01-01T00:00:00.000Z', __version: 1,
       ...overrides,
     });
 
-    it('MANDATE_ISSUED → update(MandateSnapshot) with status=ACTIVE and all core fields', async () => {
+    it('MANDATE_ISSUED → projectVersioned(MandateSnapshot) full row keyed on __version', async () => {
       const harness = makeHarness();
       const result = await harness.process([
-        fakeSqsRecord('MANDATE_ISSUED', mandateIssuedPayload(), { tenantId: 't-1' }),
+        fakeSqsRecord('MANDATE_ISSUED', fullMandate(), { tenantId: 't-1' }),
       ]);
       expect(result.batchItemFailures).toHaveLength(0);
       expect(result.intents).toHaveLength(1);
       expect(result.intents[0]).toMatchObject({
-        _tag: 'update',
-        typename: 'MandateSnapshot',
-        updates: expect.objectContaining({
-          tenantId: 't-1',
-          userId: 'u-1',
-          mandateId: 'm-1',
-          level: 'DISCRETIONARY',
-          status: 'ACTIVE',
-          operatingMode: 'BALANCED',
+        _tag: 'projectVersioned', typename: 'MandateSnapshot', version: 1,
+        fields: expect.objectContaining({
+          tenantId: 't-1', userId: 'u-1', mandateId: 'm-1',
+          level: 'DISCRETIONARY', status: 'ACTIVE', operatingMode: 'BALANCED',
           effectiveDate: '2025-01-01T00:00:00.000Z',
         }),
-        condition: 'attribute_not_exists(#mandate_status) OR #mandate_status <> :revoked',
-        conditionNames: { '#mandate_status': 'status' },
-        conditionValues: { ':revoked': 'REVOKED' },
+        overrides: { pk: 'GuardrailPolicy#t-1#u-1', sk: 'MandateSnapshot' },
       });
-      expect(mockSend).not.toHaveBeenCalled();
     });
 
-    it('MANDATE_ISSUED with missing mandateId → batch item failure (NotRetryableError)', async () => {
+    it('OPERATING_MODE_CHANGED → projectVersioned full row (status/level preserved) at the new __version', async () => {
       const harness = makeHarness();
       const result = await harness.process([
-        fakeSqsRecord(
-          'MANDATE_ISSUED',
-          { tenantId: 't-1', userId: 'u-1', level: 'DISCRETIONARY', operatingMode: 'BALANCED' },
-          { tenantId: 't-1' },
-        ),
+        fakeSqsRecord('OPERATING_MODE_CHANGED', fullMandate({ operatingMode: 'AGGRESSIVE', __version: 2 }), { tenantId: 't-1' }),
+      ]);
+      expect(result.intents[0]).toMatchObject({
+        _tag: 'projectVersioned', typename: 'MandateSnapshot', version: 2,
+        fields: expect.objectContaining({ operatingMode: 'AGGRESSIVE', status: 'ACTIVE', level: 'DISCRETIONARY', mandateId: 'm-1' }),
+      });
+    });
+
+    it('MANDATE_REVOKED → projectVersioned full row with status=REVOKED at the new __version', async () => {
+      const harness = makeHarness();
+      const result = await harness.process([
+        fakeSqsRecord('MANDATE_REVOKED', fullMandate({ status: 'REVOKED', revokedAt: '2026-05-03T12:00:00.000Z', __version: 3 }), { tenantId: 't-1' }),
+      ]);
+      expect(result.intents[0]).toMatchObject({
+        _tag: 'projectVersioned', typename: 'MandateSnapshot', version: 3,
+        fields: expect.objectContaining({ status: 'REVOKED', revokedAt: '2026-05-03T12:00:00.000Z', mandateId: 'm-1', level: 'DISCRETIONARY' }),
+      });
+    });
+
+    it('Mandate event missing operatingMode → batch item failure (NotRetryableError)', async () => {
+      const harness = makeHarness();
+      const result = await harness.process([
+        fakeSqsRecord('MANDATE_ISSUED', { tenantId: 't-1', userId: 'u-1', mandateId: 'm-1', level: 'DISCRETIONARY', __version: 1 }, { tenantId: 't-1' }),
       ]);
       expect(result.batchItemFailures).toHaveLength(1);
     });
 
-    it('MANDATE_ISSUED with missing operatingMode → batch item failure (NotRetryableError)', async () => {
+    it('Mandate event missing __version → no MandateSnapshot write, no failure (skip)', async () => {
       const harness = makeHarness();
       const result = await harness.process([
-        fakeSqsRecord(
-          'MANDATE_ISSUED',
-          { tenantId: 't-1', userId: 'u-1', mandateId: 'm-1', level: 'DISCRETIONARY' },
-          { tenantId: 't-1' },
-        ),
-      ]);
-      expect(result.batchItemFailures).toHaveLength(1);
-    });
-  });
-
-  describe('OPERATING_MODE_CHANGED handler', () => {
-    it('OPERATING_MODE_CHANGED → update(MandateSnapshot) patches operatingMode only, status/level untouched', async () => {
-      const harness = makeHarness();
-      const result = await harness.process([
-        fakeSqsRecord(
-          'OPERATING_MODE_CHANGED',
-          { tenantId: 't-1', userId: 'u-1', operatingMode: 'AGGRESSIVE' },
-          { tenantId: 't-1' },
-        ),
+        fakeSqsRecord('MANDATE_ISSUED', { tenantId: 't-1', userId: 'u-1', mandateId: 'm-1', level: 'DISCRETIONARY', operatingMode: 'BALANCED' }, { tenantId: 't-1' }),
       ]);
       expect(result.batchItemFailures).toHaveLength(0);
-      expect(result.intents).toHaveLength(1);
-      expect(result.intents[0]).toMatchObject({
-        _tag: 'update',
-        typename: 'MandateSnapshot',
-        updates: expect.objectContaining({
-          tenantId: 't-1',
-          userId: 'u-1',
-          operatingMode: 'AGGRESSIVE',
-        }),
-        condition: 'attribute_exists(pk) AND #mandate_status <> :revoked',
-        conditionNames: { '#mandate_status': 'status' },
-        conditionValues: { ':revoked': 'REVOKED' },
-      });
-      // status and level are NOT patched — owned by MANDATE_ISSUED and MANDATE_REVOKED respectively
-      const updates = (result.intents[0] as { updates: Record<string, unknown> }).updates;
-      expect('status' in updates).toBe(false);
-      expect('level' in updates).toBe(false);
-      expect('mandateId' in updates).toBe(false);
-      expect(mockSend).not.toHaveBeenCalled();
-    });
-
-    it('OPERATING_MODE_CHANGED with missing operatingMode → batch item failure (NotRetryableError)', async () => {
-      const harness = makeHarness();
-      const result = await harness.process([
-        fakeSqsRecord(
-          'OPERATING_MODE_CHANGED',
-          { tenantId: 't-1', userId: 'u-1' },
-          { tenantId: 't-1' },
-        ),
-      ]);
-      expect(result.batchItemFailures).toHaveLength(1);
-    });
-  });
-
-  describe('mandate revoked events', () => {
-    it('MANDATE_REVOKED → update(MandateSnapshot) patches only status + revokedAt, preserving guardrails', async () => {
-      const harness = makeHarness();
-      const result = await harness.process([
-        fakeSqsRecord(
-          'MANDATE_REVOKED',
-          {
-            tenantId: 't-1',
-            userId: 'u-1',
-            mandateId: 'm-1',
-            revokedAt: '2026-05-03T12:00:00.000Z',
-          },
-          { tenantId: 't-1' },
-        ),
-      ]);
-      expect(result.batchItemFailures).toHaveLength(0);
-      expect(result.intents).toHaveLength(1);
-      expect(result.intents[0]).toMatchObject({
-        _tag: 'update',
-        typename: 'MandateSnapshot',
-        updates: expect.objectContaining({
-          tenantId: 't-1',
-          userId: 'u-1',
-          status: 'REVOKED',
-          revokedAt: '2026-05-03T12:00:00.000Z',
-        }),
-      });
-      // The patch must NOT include guardrail fields — those are owned by
-      // the INVESTOR_PROFILE_* projection. Wiping them on revocation was
-      // the original PutItem-based bug.
-      const updates = (result.intents[0] as { updates: Record<string, unknown> }).updates;
-      expect('mandateId' in updates).toBe(false);
-      expect('level' in updates).toBe(false);
-      expect('maxSingleTradePercent' in updates).toBe(false);
-      expect('monthlyTurnoverCapPercent' in updates).toBe(false);
-      expect(mockSend).not.toHaveBeenCalled();
-    });
-
-    it('MANDATE_REVOKED without revokedAt → patch still emits with synthesized revokedAt', async () => {
-      const harness = makeHarness();
-      const result = await harness.process([
-        fakeSqsRecord(
-          'MANDATE_REVOKED',
-          { tenantId: 't-1', userId: 'u-1' },
-          { tenantId: 't-1' },
-        ),
-      ]);
-      expect(result.batchItemFailures).toHaveLength(0);
-      expect(result.intents).toHaveLength(1);
-      expect(result.intents[0]).toMatchObject({
-        _tag: 'update',
-        typename: 'MandateSnapshot',
-        updates: expect.objectContaining({
-          status: 'REVOKED',
-        }),
-      });
-      // revokedAt should be a string (synthesized via new Date().toISOString())
-      const updates = (result.intents[0] as { updates: Record<string, unknown> }).updates;
-      expect(typeof updates.revokedAt).toBe('string');
+      // No projectVersioned MandateSnapshot write — the handler returned skip().
+      // result.intents[0]._tag === 'skip' (the skip intent is surfaced in the intents array).
+      expect(result.intents.some((i) => i._tag === 'projectVersioned')).toBe(false);
     });
   });
 });

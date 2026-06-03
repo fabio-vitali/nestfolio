@@ -1,5 +1,5 @@
 import { DynamoDBClient } from '@aws-sdk/client-dynamodb';
-import { materializeToTable, record, update, type WriteIntent, type EventPayload, type EventContext } from '@nestfolio/event-processor';
+import { materializeToTable, record, projectVersioned, skip, type WriteIntent, type EventPayload, type EventContext } from '@nestfolio/event-processor';
 import { requireEnv, NotRetryableError } from '@nestfolio/event-processor';
 import { logger } from '@nestfolio/event-processor';
 import '../read-model-ownership';
@@ -157,93 +157,37 @@ async function processDecisionPacket(
   ];
 }
 
-function processMandateIssued(
-  payload: EventPayload,
-  ctx: EventContext,
-): WriteIntent {
-  const subject = payload.subject ?? {};
-  const tenantId = (subject.tenantId as string) ?? ctx.tenantId;
-  const userId = (subject.userId as string) ?? tenantId;
-  const mandateId = subject.mandateId as string;
-  const level = subject.level as MandateSnapshot['level'];
-  const operatingMode = subject.operatingMode as MandateSnapshot['operatingMode'];
-  const effectiveDate = subject.effectiveDate as string;
-
-  if (!mandateId || !level || !operatingMode) {
-    throw new NotRetryableError(
-      `MANDATE_ISSUED missing required fields: mandateId=${mandateId} level=${level} operatingMode=${operatingMode}`,
-    );
-  }
-
-  logger.info('MandateSnapshot projected from MANDATE_ISSUED', { tenantId, userId, mandateId, level, operatingMode });
-
-  // SET-style update skips when already REVOKED — protects against SQS at-least-once
-  // redelivery of MANDATE_ISSUED arriving after MANDATE_REVOKED.
-  return update(
-    'MandateSnapshot',
-    { tenantId, userId, mandateId, level, status: 'ACTIVE', operatingMode, effectiveDate },
-    {
-      condition: 'attribute_not_exists(#mandate_status) OR #mandate_status <> :revoked',
-      conditionNames: { '#mandate_status': 'status' },
-      conditionValues: { ':revoked': 'REVOKED' },
-      overrides: { pk: guardrailPolicyPk(tenantId, userId), sk: 'MandateSnapshot' },
-    },
-  );
-}
-
-function processOperatingModeChanged(
-  payload: EventPayload,
-  ctx: EventContext,
-): WriteIntent {
+function projectMandateSnapshot(payload: EventPayload, ctx: EventContext): WriteIntent {
   const subject = payload.subject ?? {};
   const tenantId = (subject.tenantId as string) ?? ctx.tenantId;
   const userId = (subject.userId as string) ?? tenantId;
   const operatingMode = subject.operatingMode as MandateSnapshot['operatingMode'];
 
   if (!operatingMode) {
-    throw new NotRetryableError(`OPERATING_MODE_CHANGED missing operatingMode`);
+    throw new NotRetryableError(
+      `Mandate event ${ctx.eventType} missing operatingMode for tenant=${tenantId} user=${userId}`,
+    );
   }
 
-  logger.info('MandateSnapshot.operatingMode updated from OPERATING_MODE_CHANGED', { tenantId, userId, operatingMode });
+  const version = subject.__version;
+  if (typeof version !== 'number') return skip();
 
-  // Patch only operatingMode — status/level are untouched. Skips if row is REVOKED.
-  return update(
-    'MandateSnapshot',
-    { tenantId, userId, operatingMode },
-    {
-      condition: 'attribute_exists(pk) AND #mandate_status <> :revoked',
-      conditionNames: { '#mandate_status': 'status' },
-      conditionValues: { ':revoked': 'REVOKED' },
-      overrides: { pk: guardrailPolicyPk(tenantId, userId), sk: 'MandateSnapshot' },
-    },
-  );
-}
-
-function processMandateRevoked(
-  payload: EventPayload,
-  ctx: EventContext,
-): WriteIntent {
-  const subject = payload.subject ?? {};
-  const tenantId = (subject.tenantId as string) ?? ctx.tenantId;
-  const userId = (subject.userId as string) ?? tenantId;
-  const revokedAt = (subject.revokedAt as string) ?? new Date().toISOString();
-
-  logger.info('Mandate revoked — gating MandateSnapshot.status=REVOKED', { tenantId, userId });
-
-  // Patch only status + revokedAt via UpdateExpression — preserves all
-  // mandate guardrail fields (mandateId, level, *Percent thresholds,
-  // effectiveDate) projected from a prior INVESTOR_PROFILE_CREATED. The
-  // previous PutItem-based projection wiped those fields, leaving the
-  // RuleEngine to evaluate against an empty mandate snapshot.
-  return update(
+  // Full-row P1 projection on the Mandate version line. Every Mandate event now
+  // carries the full image + Mandate __version, so one projector writes the whole
+  // row; the version guard subsumes the old REVOKED-skip idempotency.
+  return projectVersioned(
     'MandateSnapshot',
     {
       tenantId,
       userId,
-      status: 'REVOKED',
-      revokedAt,
+      mandateId: subject.mandateId as string,
+      level: subject.level as MandateSnapshot['level'],
+      status: (subject.status as 'ACTIVE' | 'REVOKED' | undefined) ?? 'ACTIVE',
+      operatingMode,
+      effectiveDate: subject.effectiveDate as string,
+      revokedAt: (subject.revokedAt as string | null) ?? null,
     },
-    { overrides: { pk: guardrailPolicyPk(tenantId, userId), sk: 'MandateSnapshot' } },
+    { version, overrides: { pk: guardrailPolicyPk(tenantId, userId), sk: 'MandateSnapshot' } },
   );
 }
 
@@ -256,16 +200,16 @@ export const createHandlers = (deps: EventListenerDeps) => {
   handlers[DecisionWorkflowEventTypes.RECOMMENDATION_PROPOSED] = (payload, ctx) =>
     processDecisionPacket(deps, payload, ctx);
 
-  // Semantic mandate events replace the old carrier INVESTOR_PROFILE_CREATED/UPDATED fan-out.
-  // MANDATE_ISSUED: project a fresh MandateSnapshot (operatingMode denormalized at issue time).
-  // OPERATING_MODE_CHANGED: patch only operatingMode on the existing snapshot.
-  // MANDATE_REVOKED: gate the rule engine via MandateSnapshot.status='REVOKED'.
+  // Single full-row P1 projector: every Mandate event (ISSUED / OPERATING_MODE_CHANGED /
+  // REVOKED) now carries the full Mandate image + __version. projectMandateSnapshot
+  // writes a version-guarded upsert; the __version guard subsumes the old
+  // REVOKED-skip conditional idempotency.
   handlers[InvestorBffEventTypes.MANDATE_ISSUED] = (payload, ctx) =>
-    processMandateIssued(payload, ctx);
+    projectMandateSnapshot(payload, ctx);
   handlers[InvestorBffEventTypes.OPERATING_MODE_CHANGED] = (payload, ctx) =>
-    processOperatingModeChanged(payload, ctx);
+    projectMandateSnapshot(payload, ctx);
   handlers[InvestorBffEventTypes.MANDATE_REVOKED] = (payload, ctx) =>
-    processMandateRevoked(payload, ctx);
+    projectMandateSnapshot(payload, ctx);
 
   return handlers;
 };
