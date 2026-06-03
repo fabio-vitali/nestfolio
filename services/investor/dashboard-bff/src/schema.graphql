@@ -28,8 +28,6 @@ type Subscription {
 
 input AdvisoryStatusInput {
   pendingDecisionsCount: Int!
-  lastRecommendationAt: String
-  lastDecisionStatus: String
   updatedAt: String!
 }
 
@@ -75,8 +73,6 @@ type ActivityEntry @aws_cognito_user_pools @aws_iam {
 
 type AdvisoryStatus @aws_cognito_user_pools @aws_iam {
   pendingDecisionsCount: Int!
-  lastRecommendationAt: String
-  lastDecisionStatus: String
   updatedAt: String!
 }
 

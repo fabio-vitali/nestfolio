@@ -25,8 +25,6 @@ describe('AdvisoryAlertBarComponent', () => {
   it('should accept advisory status input', () => {
     component.advisoryStatus = {
       pendingDecisionsCount: 2,
-      lastRecommendationAt: '2026-03-01T00:00:00Z',
-      lastDecisionStatus: 'APPROVED',
       updatedAt: '2026-03-01T00:00:00Z',
     };
     expect(component.advisoryStatus.pendingDecisionsCount).toBe(2);

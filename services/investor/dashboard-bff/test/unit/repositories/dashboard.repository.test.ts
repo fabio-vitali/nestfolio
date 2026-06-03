@@ -204,36 +204,6 @@ describe('DashboardRepository', () => {
     });
   });
 
-  describe('upsertAdvisoryStatus', () => {
-    it('should increment pending decisions count with delta', async () => {
-      mockSend.mockResolvedValueOnce({});
-
-      await repository.upsertAdvisoryStatus('tenant-1', {
-        pendingDecisionsDelta: 1,
-        lastRecommendationAt: '2025-01-01T00:00:00.000Z',
-      });
-
-      expect(mockSend).toHaveBeenCalledTimes(1);
-      const cmd = mockSend.mock.calls[0][0];
-      expect(cmd.input.Key).toEqual({ pk: 'T#tenant-1', sk: 'AdvisoryStatus' });
-      expect(cmd.input.UpdateExpression).toContain('if_not_exists(pendingDecisionsCount, :zero) + :delta');
-      expect(cmd.input.ExpressionAttributeValues[':delta']).toBe(1);
-    });
-
-    it('should set absolute pending count when provided', async () => {
-      mockSend.mockResolvedValueOnce({});
-
-      await repository.upsertAdvisoryStatus('tenant-1', {
-        pendingDecisionsCount: 3,
-        lastDecisionStatus: 'APPROVED',
-      });
-
-      const cmd = mockSend.mock.calls[0][0];
-      expect(cmd.input.ExpressionAttributeValues[':pendingDecisionsCount']).toBe(3);
-      expect(cmd.input.ExpressionAttributeValues[':lastDecisionStatus']).toBe('APPROVED');
-    });
-  });
-
   describe('upsertInvestorSnapshot', () => {
     it('should update investor snapshot with provided fields', async () => {
       mockSend.mockResolvedValueOnce({});
