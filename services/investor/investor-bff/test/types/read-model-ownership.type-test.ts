@@ -26,4 +26,9 @@ projectVersioned('InvestorProfile', { a: 1 }, { version: 1 });
 // @ts-expect-error a command-owned row is not a versioned projection
 projectVersioned('Mandate', { a: 1 }, { version: 1 });
 
+// FeatureFlag is CommandOwned (command-written system flag) — record() seed allowed.
+record('FeatureFlag', { name: 'confirmDecision', enabled: true });
+// @ts-expect-error a command-owned row is not a versioned projection
+projectVersioned('FeatureFlag', { name: 'confirmDecision', enabled: true }, { version: 1 });
+
 export {};

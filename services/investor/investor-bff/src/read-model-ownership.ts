@@ -14,6 +14,10 @@
  *   - DepositIntent / WithdrawalIntent : CommandOwned — outbox rows written by
  *     the deposit/withdrawal resolvers; CDC egress emits the *_INITIATED events
  *     from them (the intent-outbox model — see workstream 5).
+ *   - FeatureFlag : CommandOwned — system flag store written only by the
+ *     updateFeatureFlag AppSync resolver (and the circuit-breaker IAM-signed
+ *     mutation), read by getFeatureFlags + the onFeatureFlagUpdate subscription.
+ *     Documentary registration (command write, not an intent factory — WS-D).
  *
  * NOT registered (intentional):
  *   - ExecutionModeChange → write-once audit row, never written via an intent and
@@ -31,6 +35,7 @@ declare module '@nestfolio/event-processor' {
     WithdrawalRequest: Projection<'P1'>;
     DepositIntent: CommandOwned;
     WithdrawalIntent: CommandOwned;
+    FeatureFlag: CommandOwned;
   }
 }
 
