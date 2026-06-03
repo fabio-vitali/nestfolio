@@ -75,13 +75,15 @@ export function buildRuntimeConfig(eventTypes: EventTypesMap): RuntimeConfig {
       } else if ('passthrough' in mapping) {
         config[`${recordType}:${ddbAction}`] = { field: mapping.field, passthrough: true };
       } else if ('always' in mapping || 'onFieldChange' in mapping) {
+        const modEmit = mapping as ModifyEmission;
         const entry: RuntimeModifyEmission = {};
-        if (mapping.always) entry.always = mapping.always;
-        if (mapping.onFieldChange) entry.onFieldChange = mapping.onFieldChange;
+        if (modEmit.always) entry.always = modEmit.always;
+        if (modEmit.onFieldChange) entry.onFieldChange = modEmit.onFieldChange as Record<string, string>;
         config[`${recordType}:${ddbAction}`] = entry;
       } else {
-        const entry: RuntimeFieldDispatch = { field: mapping.field, map: mapping.map as Record<string, string> };
-        if (mapping.default) entry.default = mapping.default as string;
+        const fd = mapping as FieldDispatch;
+        const entry: RuntimeFieldDispatch = { field: fd.field, map: fd.map as Record<string, string> };
+        if (fd.default) entry.default = fd.default as string;
         config[`${recordType}:${ddbAction}`] = entry;
       }
     }
@@ -104,13 +106,15 @@ export function collectAllEventTypes(eventTypes: EventTypesMap): EventName[] {
       } else if ('passthrough' in mapping) {
         types.push(...mapping.emits);
       } else if ('always' in mapping || 'onFieldChange' in mapping) {
-        if (mapping.always) types.push(mapping.always);
-        if (mapping.onFieldChange) {
-          types.push(...Object.values(mapping.onFieldChange));
+        const modEmit = mapping as ModifyEmission;
+        if (modEmit.always) types.push(modEmit.always);
+        if (modEmit.onFieldChange) {
+          types.push(...(Object.values(modEmit.onFieldChange) as EventName[]));
         }
       } else {
-        types.push(...Object.values(mapping.map));
-        if (mapping.default) types.push(mapping.default);
+        const fd = mapping as FieldDispatch;
+        types.push(...Object.values(fd.map));
+        if (fd.default) types.push(fd.default);
       }
     }
   }

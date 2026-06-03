@@ -110,8 +110,11 @@ function resolveEmissions(
   }
 
   // Field dispatch — empty array for unmapped values is intentional
-  const value = (record as Record<string, unknown>)[mapping.field] as string;
-  const eventType = mapping.map[value] ?? mapping.default ?? null;
+  // At this point mapping is RuntimeFieldDispatch (has 'map' key)
+  if (!('map' in mapping)) return [];
+  const fieldDispatch = mapping as RuntimeFieldDispatch;
+  const value = (record as Record<string, unknown>)[fieldDispatch.field] as string;
+  const eventType = fieldDispatch.map[value] ?? fieldDispatch.default ?? null;
   return eventType ? [{ eventType }] : [];
 }
 
