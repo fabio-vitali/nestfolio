@@ -13,7 +13,6 @@ export const InvestorProfileEventTypes = {
 export const HANDLED_EVENT_TYPES = [
   'INVESTOR_PROFILE_UPDATED',
   'MANDATE_ISSUED',
-  'OPERATING_MODE_CHANGED',
 ] as const;
 
 /** KB ingestion event types — routed to kb-ingestion-handler */

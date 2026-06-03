@@ -51,7 +51,7 @@ export interface InvestorProfileSnapshotRow {
     readonly confidence: number;
   };
   readonly sourceEventId: string;
-  readonly sourceEventType: 'INVESTOR_PROFILE_UPDATED' | 'MANDATE_ISSUED' | 'OPERATING_MODE_CHANGED';
+  readonly sourceEventType: 'INVESTOR_PROFILE_UPDATED' | 'MANDATE_ISSUED';
   readonly agentInvocationId: string;
   readonly updatedAt: string;
 }

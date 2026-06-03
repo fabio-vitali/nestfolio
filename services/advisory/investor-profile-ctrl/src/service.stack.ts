@@ -40,7 +40,6 @@ export class InvestorProfileCtrlStack extends ServiceStack {
       eventTypes: [
         InvestorBffEventTypes.INVESTOR_PROFILE_UPDATED,
         InvestorBffEventTypes.MANDATE_ISSUED,
-        InvestorBffEventTypes.OPERATING_MODE_CHANGED,
         ComplianceEventTypes.DECISION_BLOCKED,
         ComplianceEventTypes.DECISION_APPROVED,
       ],

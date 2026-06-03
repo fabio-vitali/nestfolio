@@ -115,21 +115,22 @@ describe('InvestorProfileCtrlStack', () => {
     expect(actions).not.toContain('bedrock-agentcore:ListMemoryRecords');
   });
 
-  it('subscribes to INVESTOR_PROFILE_UPDATED, MANDATE_ISSUED, OPERATING_MODE_CHANGED — not ANALYZE_INVESTOR_PROFILE', () => {
+  it('subscribes to INVESTOR_PROFILE_UPDATED, MANDATE_ISSUED — not OPERATING_MODE_CHANGED or ANALYZE_INVESTOR_PROFILE', () => {
     template.hasResourceProperties('AWS::Events::Rule', {
       EventPattern: Match.objectLike({
         'detail-type': Match.arrayWith([
           'INVESTOR_PROFILE_UPDATED',
           'MANDATE_ISSUED',
-          'OPERATING_MODE_CHANGED',
         ]),
       }),
     });
-    // Negative assertion: no rule subscribes to ANALYZE_INVESTOR_PROFILE
+    // Negative assertions: OPERATING_MODE_CHANGED re-sourced to Mandate row (feeds degraded input);
+    // operatingMode changes still rebuild the snapshot via INVESTOR_PROFILE_UPDATED co-fire.
     const rules = template.findResources('AWS::Events::Rule');
     for (const rule of Object.values(rules)) {
       const detailTypes: string[] =
         (rule as any).Properties?.EventPattern?.['detail-type'] ?? [];
+      expect(detailTypes).not.toContain('OPERATING_MODE_CHANGED');
       expect(detailTypes).not.toContain('ANALYZE_INVESTOR_PROFILE');
     }
   });

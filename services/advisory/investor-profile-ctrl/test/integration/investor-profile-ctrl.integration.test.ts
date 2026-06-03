@@ -18,9 +18,12 @@ import {
  *
  * Post advisory-cycle-agent-precomputation:
  *   - The service NO LONGER subscribes to ANALYZE_INVESTOR_PROFILE.
- *   - It subscribes to INVESTOR_PROFILE_UPDATED, MANDATE_ISSUED, and
- *     OPERATING_MODE_CHANGED, runs the agent, and materialises an
- *     InvestorProfileSnapshot row keyed by (tenantId, userId).
+ *   - It subscribes to INVESTOR_PROFILE_UPDATED and MANDATE_ISSUED, runs the
+ *     agent, and materialises an InvestorProfileSnapshot row keyed by (tenantId, userId).
+ *     (OPERATING_MODE_CHANGED was dropped: investor-bff re-sourced it from the
+ *     Mandate CDC row, so the subject would feed a Mandate row instead of the
+ *     full InvestorProfile to the agent. operatingMode changes still trigger a
+ *     rebuild via the INVESTOR_PROFILE_UPDATED co-fire from investor-bff's dual-write.)
  *   - Egress CDC emits INVESTOR_PROFILE_SNAPSHOT_CREATED / _UPDATED.
  *
  * Snapshot row shape:

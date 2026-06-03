@@ -16,9 +16,13 @@ import {
 /**
  * investor-profile-ctrl resilience — verifies AgentInvocation idempotency
  * (deterministic INV#${eventId} sk + attribute_not_exists guard inside
- * agent-service) plus order-agnostic processing of the three snapshot
- * triggers (INVESTOR_PROFILE_UPDATED + MANDATE_ISSUED + OPERATING_MODE_CHANGED)
- * alongside the KB ingestion path (DECISION_APPROVED).
+ * agent-service) plus order-agnostic processing of the two snapshot
+ * triggers (INVESTOR_PROFILE_UPDATED + MANDATE_ISSUED) alongside the KB
+ * ingestion path (DECISION_APPROVED).
+ *
+ * Note: OPERATING_MODE_CHANGED was dropped as a snapshot trigger (see
+ * investor-profile-ctrl.integration.test.ts header). operatingMode changes
+ * still rebuild the snapshot via the INVESTOR_PROFILE_UPDATED co-fire.
  *
  * Post advisory-cycle-agent-precomputation the service no longer subscribes
  * to ANALYZE_INVESTOR_PROFILE; each trigger event runs the agent and writes

@@ -14,7 +14,8 @@ Stack: services/advisory/investor-profile-ctrl/src/service.stack.ts
 
 ## Ingress
 - advisoryBus -> investor-profile-ctrl-ingress (SQS -> Lambda)
-  Subscriptions: INVESTOR_PROFILE_UPDATED, MANDATE_ISSUED, OPERATING_MODE_CHANGED, DECISION_BLOCKED, DECISION_APPROVED
+  Subscriptions: INVESTOR_PROFILE_UPDATED, MANDATE_ISSUED, DECISION_BLOCKED, DECISION_APPROVED
+  Note: OPERATING_MODE_CHANGED was dropped (2026-06-03) — investor-bff re-sourced it from the Mandate CDC row, so the event subject now carries Mandate fields (mandateId/level/status/operatingMode/effectiveDate) rather than the full InvestorProfile. Feeding a Mandate row to the snapshot agent would produce degraded output. operatingMode changes still rebuild the snapshot via INVESTOR_PROFILE_UPDATED, which investor-bff's dual-write co-fires on every operatingMode change (touching the InvestorProfile row → its `always` carrier).
   Profile: agentProps (1024 MB / batchSize 1 / concurrency 5) with timing overrides — lambdaTimeout 150s, SQS visibilityTimeout 240s (fast native redrive on maxVms; no production deadline — see agentcore-invocation-resilience spec)
   Grants: AgentCore Memory API, InvokeAgentRuntime, AgentRuntimeUrl SSM read
   Pattern: materializeToTable (continuous projection — snapshot writer)
@@ -46,13 +47,13 @@ Agent folder: agents/investor-profile/
 
 ## Read model
 - ReadModelOwnership registered in src/read-model-ownership.ts
-  - CommandOwned (own-aggregate written via update() upsert + atomic `__version` ADD, WS-B): InvestorProfileSnapshot — rebuilds every decision cycle (INVESTOR_PROFILE_UPDATED/MANDATE_ISSUED/OPERATING_MODE_CHANGED); INVESTOR_PROFILE_SNAPSHOT_UPDATED fires on each rebuild carrying the incrementing `__version`
+  - CommandOwned (own-aggregate written via update() upsert + atomic `__version` ADD, WS-B): InvestorProfileSnapshot — rebuilds every decision cycle (INVESTOR_PROFILE_UPDATED/MANDATE_ISSUED); INVESTOR_PROFILE_SNAPSHOT_UPDATED fires on each rebuild carrying the incrementing `__version`
   - (DWC mirror of InvestorProfileSnapshot is registered Projection<'P1'> in WS-C, not here.)
 - Enforced by `nx run investor-profile-ctrl:typecheck` (test/types/read-model-ownership.type-test.ts)
 
 ## Event Types (domain/events.ts)
 - InvestorProfileEventTypes (outbound): GOAL_INTERPRETATION_PRODUCED, RISK_EVALUATION_PRODUCED, INVESTOR_PROFILE_AGENT_INVOCATION_TRACED, INVESTOR_PROFILE_SNAPSHOT_CREATED, INVESTOR_PROFILE_SNAPSHOT_UPDATED
-- HANDLED_EVENT_TYPES (inbound triggers): INVESTOR_PROFILE_UPDATED, MANDATE_ISSUED, OPERATING_MODE_CHANGED
+- HANDLED_EVENT_TYPES (inbound triggers): INVESTOR_PROFILE_UPDATED, MANDATE_ISSUED
 - KB_INGESTION_EVENT_TYPES (inbound, KB-only): DECISION_BLOCKED, DECISION_APPROVED
 
 ## IAM trace
@@ -73,7 +74,7 @@ Agent folder: agents/investor-profile/
 
 ## Dependencies
 - libs: cdk-constructs (core, extensions, utils), event-processor, agent-orchestrator, event-types
-- Cross-service event-type imports: investor-bff (INVESTOR_PROFILE_UPDATED, MANDATE_ISSUED, OPERATING_MODE_CHANGED), compliance-ctrl (DECISION_BLOCKED, DECISION_APPROVED)
+- Cross-service event-type imports: investor-bff (INVESTOR_PROFILE_UPDATED, MANDATE_ISSUED), compliance-ctrl (DECISION_BLOCKED, DECISION_APPROVED)
 - SSM: advisory-hub (models/opus, models/haiku), decision-workflow-ctrl (memory/id)
 - AgentCore Memory API (CreateEvent, RetrieveMemoryRecords, GetMemoryRecord, ListEvents, ListActors, ListSessions)
 - AgentCore Runtime (InvokeAgentRuntime)

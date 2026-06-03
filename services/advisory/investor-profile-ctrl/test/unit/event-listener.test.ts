@@ -211,39 +211,4 @@ describe('investor-profile-ctrl event-listener', () => {
     });
   });
 
-  describe('OPERATING_MODE_CHANGED handler', () => {
-    it('runs the agent and emits an InvestorProfileSnapshot intent with sourceEventType=OPERATING_MODE_CHANGED', async () => {
-      const payload: EventPayload = {
-        subject: {
-          tenantId: 't1',
-          userId: 'u1',
-          operatingMode: 'AGGRESSIVE',
-        },
-      };
-
-      const result = await handlers.OPERATING_MODE_CHANGED(
-        payload,
-        makeCtx({ eventType: 'OPERATING_MODE_CHANGED', eventId: 'evt-mode-1' }),
-      );
-
-      expect(mockRunPipeline).toHaveBeenCalledWith(
-        'evt-mode-1',
-        expect.objectContaining({ tenantId: 't1', operatingMode: 'AGGRESSIVE' }),
-      );
-      expect(result).toEqual([
-        expect.objectContaining({ _tag: 'record', typename: 'AgentInvocation' }),
-        expect.objectContaining({
-          _tag: 'update',
-          typename: 'InvestorProfileSnapshot',
-          add: { __version: 1 },
-          updates: expect.objectContaining({
-            tenantId: 't1',
-            userId: 'u1',
-            sourceEventType: 'OPERATING_MODE_CHANGED',
-            sourceEventId: 'evt-mode-1',
-          }),
-        }),
-      ]);
-    });
-  });
 });

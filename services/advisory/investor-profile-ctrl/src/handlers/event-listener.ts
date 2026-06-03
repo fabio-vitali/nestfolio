@@ -30,8 +30,7 @@ export interface IngressDeps {
 
 type SourceEventType =
   | 'INVESTOR_PROFILE_UPDATED'
-  | 'MANDATE_ISSUED'
-  | 'OPERATING_MODE_CHANGED';
+  | 'MANDATE_ISSUED';
 
 // The event-processor ingestion engine's normalize-handler expects a
 // `WriteIntent | WriteIntent[]` (libs/event-processor/src/engine/normalize-handler.ts).
@@ -112,8 +111,6 @@ export const createHandlers = (deps: IngressDeps) => ({
     runSnapshotAgent(deps, p, c, 'INVESTOR_PROFILE_UPDATED'),
   MANDATE_ISSUED: (p: EventPayload, c: EventContext) =>
     runSnapshotAgent(deps, p, c, 'MANDATE_ISSUED'),
-  OPERATING_MODE_CHANGED: (p: EventPayload, c: EventContext) =>
-    runSnapshotAgent(deps, p, c, 'OPERATING_MODE_CHANGED'),
 });
 
 // --- Production wiring ---
