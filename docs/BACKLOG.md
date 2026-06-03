@@ -6,15 +6,13 @@
 
 ## ACTIVE
 
-_(none)_
-
+- [ledger-bff-readmodel-fixes](backlog/ledger-bff-readmodel-fixes.md) [bug] — ledger-bff read-model residuals: (A) ledger-entry-recorded P2 rows (HistoryEntry/Checkpoint) read top-level fields the real LEDGER_ENTRY_RECORDED producer never emits — degrade in prod; (B) ~18 latent tsc --noEmit errors blocking a clean service-wide typecheck. Merges ledger-entry-recorded-producer-shape-mismatch + ledger-bff-latent-tsc-errors.
 
 ## QUEUED
 
-1. [ledger-bff-readmodel-fixes](backlog/ledger-bff-readmodel-fixes.md) [bug] — ledger-bff read-model residuals: (A) ledger-entry-recorded P2 rows (HistoryEntry/Checkpoint) read top-level fields the real LEDGER_ENTRY_RECORDED producer never emits — degrade in prod; (B) ~18 latent tsc --noEmit errors blocking a clean service-wide typecheck. Merges ledger-entry-recorded-producer-shape-mismatch + ledger-bff-latent-tsc-errors.
-2. [dashboard-advisory-readmodel-fixes](backlog/dashboard-advisory-readmodel-fixes.md) [bug] — dashboard-bff + advisory read-model residuals from w2/w3: (A) PositionSnapshot orphan row on full sell (no delete path); (B) AdvisoryStatus dead code + unwritten fields (structural-zero); (C) w3 hardening nits — Date.now() version, terminal taskToken cleanup, WorkflowStatus enum guard, portfolio-summary no-drop fallback (WS-C side-finding); (D) advisory-bff ~6 latent tsc errors (TableEntry timestamp, shared root w/ ledger-ctrl-2) blocking a clean service-wide typecheck. Merges dashboard-position-orphan-on-sell + dashboard-bff-advisory-status-dead-code-cleanup + w3-advisory-versioned-packet-hardening + advisory-bff-latent-tsc-errors.
-3. [investor-bff-dead-repo-mutate-methods](backlog/investor-bff-dead-repo-mutate-methods.md) [refactor] — 5 InvestorProfileRepository mutate-methods have no live callers; one (upsertReadOnlyBalance) would violate CashBalance P1 ownership if revived.
-4. [bff-publisher-stream-dlq](backlog/bff-publisher-stream-dlq.md) [infra] — BFF stream broadcast publishers (dashboard + deposit) lack a DLQ/bisect on their DynamoEventSource — best-effort today; harden consistently.
+1. [dashboard-advisory-readmodel-fixes](backlog/dashboard-advisory-readmodel-fixes.md) [bug] — dashboard-bff + advisory read-model residuals from w2/w3: (A) PositionSnapshot orphan row on full sell (no delete path); (B) AdvisoryStatus dead code + unwritten fields (structural-zero); (C) w3 hardening nits — Date.now() version, terminal taskToken cleanup, WorkflowStatus enum guard, portfolio-summary no-drop fallback (WS-C side-finding); (D) advisory-bff ~6 latent tsc errors (TableEntry timestamp, shared root w/ ledger-ctrl-2) blocking a clean service-wide typecheck. Merges dashboard-position-orphan-on-sell + dashboard-bff-advisory-status-dead-code-cleanup + w3-advisory-versioned-packet-hardening + advisory-bff-latent-tsc-errors.
+2. [investor-bff-dead-repo-mutate-methods](backlog/investor-bff-dead-repo-mutate-methods.md) [refactor] — 5 InvestorProfileRepository mutate-methods have no live callers; one (upsertReadOnlyBalance) would violate CashBalance P1 ownership if revived.
+3. [bff-publisher-stream-dlq](backlog/bff-publisher-stream-dlq.md) [infra] — BFF stream broadcast publishers (dashboard + deposit) lack a DLQ/bisect on their DynamoEventSource — best-effort today; harden consistently.
 
 ## LATER
 
