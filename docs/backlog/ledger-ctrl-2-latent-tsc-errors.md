@@ -1,7 +1,8 @@
 ---
 id: ledger-ctrl-2-latent-tsc-errors
-status: parking
+status: dropped
 type: bug
+dropped_reason: "Resolved by construction in dashboard-advisory-readmodel-fixes Part D (D3, 2026-06-03): the two `'timestamp' does not exist in type TableEntry` errors were the first-reported excess properties on bare-TableEntry literals; dropping the redundant `: TableEntry` annotation (put() takes Record<string,unknown>, so the annotation was non-load-bearing) cleared them — ledger-ctrl full-spec tsc 2→0. See dashboard-advisory-readmodel-fixes validation_gate."
 notes: "Two latent tsc --noEmit errors in services/ledger/ledger-ctrl/src/repositories/ledger.repository.ts:79 and :185 — `'timestamp' does not exist in type 'TableEntry'`. Surfaced 2026-05-15 during the ledger-ctrl-simulated-trade-quantity-undefined ship. Not a deploy or test blocker (esbuild strips types; ts-jest is lenient on excess-property in nested generics). Same class as investor-bff-13-latent-tsc-errors."
 references:
   - services/ledger/ledger-ctrl/src/repositories/ledger.repository.ts

@@ -1,6 +1,6 @@
 ---
 id: dashboard-advisory-readmodel-fixes
-status: active
+status: shipped
 rank: 8
 type: bug
 notes: "dashboard-bff + advisory read-model residuals from w2/w3: (A) PositionSnapshot orphan row on full sell (no delete path); (B) AdvisoryStatus dead code + unwritten fields (structural-zero); (C) w3 hardening nits — Date.now() version, terminal taskToken cleanup, WorkflowStatus enum guard, portfolio-summary no-drop fallback (WS-C side-finding); (D) advisory-bff ~6 latent tsc errors (TableEntry timestamp, shared root w/ ledger-ctrl-2) blocking a clean service-wide typecheck. Merges dashboard-position-orphan-on-sell + dashboard-bff-advisory-status-dead-code-cleanup + w3-advisory-versioned-packet-hardening + advisory-bff-latent-tsc-errors."
@@ -10,7 +10,7 @@ plan: docs/superpowers/plans/2026-06-03-dashboard-advisory-readmodel-fixes.md
 topic_memory: [project_read_model_redesign.md]
 out_of_scope:
   - "The ledger-bff Position projection's identical orphan behavior (w1 reference) — same root pattern; fix the producer-side removal signal once and both inherit it, but track the ledger side under ledger-bff if it needs separate work."
-validation_gate: null
+validation_gate: "Shipped 2026-06-03 on main (merge d71ebf6d + C1-revert fix). Commits: f5c373cd (C), 40b3a31e (A), c7d6268d (B), 9437f99a (D), + advisory-status-projector C1 revert. Cheap gates on main: `nx affected -t test,lint` GREEN (30 projects); per-service typecheck advisory-bff 0 + ledger-ctrl 0 (clean, resolves ledger-ctrl-2), dashboard-bff 24 / ledger-bff 11 / dwc 18 pre-existing latent debt with touched files 0; `event-processor:read-model-drift` 0. Deploy: all 4 stacks ✅ (dashboard-bff, ledger-bff, advisory-bff, decision-workflow-ctrl) + dashboard-mfe to dev. Integration (mocked agents, dev): dashboard-bff 21/21, decision-workflow-ctrl 20/20, ledger-bff 11/11, advisory-bff 7/7. NOTE: C1's max-SequenceNumber version was WRONG (DecisionReadModel is per-decision sharded → non-monotonic; recompute never wrote — caught by the advisory-bff integration recompute test) and was reverted to Date.now(); a correct strictly-monotonic fix (atomic self-increment) is parked. Real-LLM e2e deferred per the read-model program cadence."
 ---
 
 # dashboard-bff + advisory read-model fixes
