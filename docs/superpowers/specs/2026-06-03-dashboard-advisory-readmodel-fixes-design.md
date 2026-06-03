@@ -154,21 +154,30 @@ members (`INITIATED`/`PROFILING`/`CONSTRUCTING`/`NARRATING`/`PROPOSED`/
 matching `investor-snapshot.ts` / `time-travel-availability.ts`. portfolio-summary
 returns `undefined`; position-snapshot returns `[]`.
 
-## Part D — shared `TableEntry.timestamp`
+## Part D — clean typecheck via dropping redundant `TableEntry` annotations (D3)
 
-`libs/event-processor/src/platform/table.ts` — add `timestamp?: string` to the
-`TableEntry` base (alongside `createdAt`/`updatedAt?`). `timestamp` is the SK of
-the system-wide `typename-timestamp-index` GSI and `getTime()` returns `string`,
-so this is the principled home for it. Verified safe: **zero** `TableEntry<…>`
-generic usages exist in the repo, so the additive optional field cannot conflict
-with any per-call generic.
+**Revised during implementation (2026-06-03).** The original plan added
+`timestamp?: string` to the shared `TableEntry`, on the premise that `timestamp`
+was the only missing field. That premise was wrong: `TS2353` reports only the
+*first* excess property per literal, so adding `timestamp` merely unmasked the
+next ones (`decisionId`, `streamType`, `status`, …). These repos write several
+domain fields **directly** onto a bare-`TableEntry`-annotated literal, and
+crucially `TableRepository.put()` / `putIfNotExists()` take
+`Record<string, unknown>` — so the `const item: TableEntry = {…}` annotation is
+**not load-bearing**; it exists only to trip the excess-property check.
 
-This clears all 8 `TS2353` errors (advisory-bff 6, ledger-ctrl 2). Then:
+**Chosen approach (user, 2026-06-03): D3 — drop the redundant annotations.**
+Remove `: TableEntry` from the 6 `advisory-bff/advisory.repository.ts` literals
+and the 2 `ledger-ctrl/ledger.repository.ts` literals (plus the now-unused
+`TableEntry` imports). No shared-lib change; the `put(Record<string,unknown>)`
+contract already implies it; type rigor preserved everywhere else.
+
+Result: advisory-bff full-spec tsc 6→0, ledger-ctrl 2→0. Then:
 - Repoint `services/advisory/advisory-bff`'s `typecheck` nx target from the
   isolated `tsconfig.type-test.json` (WS-A workaround) to the full
   `tsconfig.spec.json` for a genuinely clean service-wide typecheck.
 - At ship: mark `docs/backlog/ledger-ctrl-2-latent-tsc-errors.md` `dropped` with a
-  forward-pointer to this workstream's validation_gate.
+  forward-pointer to this workstream's validation_gate (resolved by construction).
 
 ## Testing
 

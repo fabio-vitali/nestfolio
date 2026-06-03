@@ -1,7 +1,7 @@
 import { DynamoDBClient } from '@aws-sdk/client-dynamodb';
 import { QueryCommand } from '@aws-sdk/lib-dynamodb';
 import {
-  TableRepository, getUUID, getTime, type TableEntry, type RequestContext,
+  TableRepository, getUUID, getTime, type RequestContext,
 } from '@nestfolio/event-processor';
 import { withMethodLogging } from '@nestfolio/event-processor';
 
@@ -22,7 +22,7 @@ export class AdvisoryRepository extends TableRepository {
     data: Record<string, unknown>,
   ): Promise<boolean> => {
     const now = getTime();
-    const item: TableEntry = {
+    const item = {
       pk: decisionPk(ctx.tenantId, decisionId),
       sk: 'DecisionReadModel',
       __typename: 'DecisionReadModel',
@@ -171,7 +171,7 @@ export class AdvisoryRepository extends TableRepository {
   ): Promise<void> => {
     const now = getTime();
     const invocationId = (invocation.invocationId as string) ?? getUUID();
-    const item: TableEntry = {
+    const item = {
       pk: decisionPk(ctx.tenantId, decisionId),
       sk: `AgentInvocation#${invocationId}`,
       __typename: 'AgentInvocation',
@@ -196,7 +196,7 @@ export class AdvisoryRepository extends TableRepository {
   ): Promise<void> => {
     const now = getTime();
     const checkId = (check.checkId as string) ?? getUUID();
-    const item: TableEntry = {
+    const item = {
       pk: decisionPk(ctx.tenantId, decisionId),
       sk: `ComplianceCheck#${checkId}`,
       __typename: 'ComplianceCheck',
@@ -221,7 +221,7 @@ export class AdvisoryRepository extends TableRepository {
   ): Promise<void> => {
     const now = getTime();
     const interactionId = getUUID();
-    const item: TableEntry = {
+    const item = {
       pk: decisionPk(ctx.tenantId, decisionId),
       sk: `UserInteraction#${interactionId}`,
       __typename: 'UserInteraction',
@@ -239,7 +239,7 @@ export class AdvisoryRepository extends TableRepository {
     decisionId: string,
     confirmedAt: string,
   ): Promise<void> => {
-    const item: TableEntry = {
+    const item = {
       pk: decisionPk(ctx.tenantId, decisionId),
       sk: `UserConfirmation#${getUUID()}`,
       __typename: 'UserConfirmation',
@@ -257,7 +257,7 @@ export class AdvisoryRepository extends TableRepository {
     rejectedAt: string,
     rejectionReason: string,
   ): Promise<void> => {
-    const item: TableEntry = {
+    const item = {
       pk: decisionPk(ctx.tenantId, decisionId),
       sk: `UserRejection#${getUUID()}`,
       __typename: 'UserRejection',
