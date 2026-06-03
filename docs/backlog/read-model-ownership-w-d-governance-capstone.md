@@ -7,7 +7,7 @@ notes: "WS-D of read-model-ownership-producer-aggregates: Tier-4 broker-ctrl Exe
 references:
   - "docs/superpowers/specs/2026-06-01-read-model-ownership-producer-aggregates-design.md"
 spec: null
-plan: null
+plan: docs/superpowers/plans/2026-06-03-read-model-ownership-w-d-governance-capstone.md
 topic_memory: [project_read_model_redesign.md]
 out_of_scope:
   - "GitHub-workflow wiring of the gate (stays with ci-pipeline-bring-up — CI has never produced a green run; WS-D ships the gate as a local-runnable nx lint target only)."
