@@ -12,6 +12,7 @@ import {
   parseRegistry,
   scanIntentCalls,
   scanCommandWrites,
+  parseExclusions,
   evaluate,
 } from './check-read-model-drift.mjs';
 
@@ -160,7 +161,8 @@ test('scanCommandWrites finds __typename literals in *.fn.js', () => {
 function evalTree(files) {
   return withTree(files, (root) => {
     const { registry, conflicts } = parseRegistry(root);
-    return evaluate(registry, conflicts, scanIntentCalls(root), scanCommandWrites(root));
+    const { exclusions } = parseExclusions(root);
+    return evaluate(registry, conflicts, scanIntentCalls(root), scanCommandWrites(root), exclusions);
   });
 }
 
@@ -213,12 +215,63 @@ test('R4: a registry conflict surfaces as an error', () => {
   assert.equal(errors.filter(e => e.rule === 'registry-conflict').length, 1);
 });
 
-test('INFO: factory-written but unregistered typenames are reported, not errored', () => {
-  const { errors, info } = evalTree({
+test('R5: an unregistered + unexcluded intent-factory write is a HARD ERROR', () => {
+  const { errors } = evalTree({
     'services/x/x-ctrl/src/t.ts': `record('Order', {});`,
   });
-  assert.equal(errors.length, 0);
-  assert.ok(info.some(i => i.typename === 'Order'));
+  assert.equal(errors.filter(e => e.rule === 'unclassified-write').length, 1);
+});
+
+test('R5: an EXCLUDED intent-factory write is clean (no error, no info)', () => {
+  const { errors, info } = evalTree({
+    'services/x/x-ctrl/src/t.ts': `record('Carrier', {});`,
+    'tools/read-model-exclusions.json':
+      `{ "exclusions": [ { "service": "x-ctrl", "typename": "Carrier", "reason": "outbox carrier" } ] }`,
+  });
+  assert.equal(errors.length, 0, JSON.stringify(errors));
+  assert.ok(!info.some(i => i.typename === 'Carrier'));
+});
+
+test('R5: a REGISTERED intent-factory write is clean (no error)', () => {
+  const { errors } = evalTree({
+    'services/x/x-ctrl/src/read-model-ownership.ts': `interface ReadModelOwnership { Order: CommandOwned; }`,
+    'services/x/x-ctrl/src/t.ts': `record('Order', {});`,
+  });
+  assert.equal(errors.length, 0, JSON.stringify(errors));
+});
+
+test('gate is intent-factory-scoped: an unregistered command-write is INFO, not an error', () => {
+  const { errors, info } = evalTree({
+    'services/x/x-bff/src/graphql/js-function/c.fn.js': `const x = { __typename: 'FeatureFlag' };`,
+  });
+  assert.equal(errors.length, 0, JSON.stringify(errors));
+  assert.ok(info.some(i => i.typename === 'FeatureFlag'));
+});
+
+test('R6: a typename both registered AND excluded is a conflict error', () => {
+  const { errors } = evalTree({
+    'services/x/x-ctrl/src/read-model-ownership.ts': `interface ReadModelOwnership { Order: CommandOwned; }`,
+    'services/x/x-ctrl/src/t.ts': `record('Order', {});`,
+    'tools/read-model-exclusions.json':
+      `{ "exclusions": [ { "service": "x-ctrl", "typename": "Order", "reason": "dup" } ] }`,
+  });
+  assert.equal(errors.filter(e => e.rule === 'exclusion-conflict').length, 1);
+});
+
+test('parseExclusions returns empty when the file is absent', () => {
+  withTree({ 'services/x/x-bff/src/t.ts': `record('A', {});` }, (root) => {
+    const { exclusions, entries } = parseExclusions(root);
+    assert.equal(exclusions.size, 0);
+    assert.equal(entries.length, 0);
+  });
+});
+
+test('parseExclusions throws on an entry missing service/typename/reason', () => {
+  withTree({
+    'tools/read-model-exclusions.json': `{ "exclusions": [ { "typename": "A" } ] }`,
+  }, (root) => {
+    assert.throws(() => parseExclusions(root), /read-model-exclusions\.json/);
+  });
 });
 
 // ---- CLI exit codes ----
@@ -241,5 +294,26 @@ test('CLI exits 1 and names the typename on drift', () => {
     const r = spawnSync('node', [SCRIPT, '--root', root], { encoding: 'utf8' });
     assert.equal(r.status, 1);
     assert.match(r.stdout + r.stderr, /Foo/);
+  });
+});
+
+test('CLI exits 1 on an unregistered + unexcluded intent-factory write', () => {
+  withTree({
+    'services/x/x-ctrl/src/t.ts': `record('Ungoverned', {});`,
+  }, (root) => {
+    const r = spawnSync('node', [SCRIPT, '--root', root], { encoding: 'utf8' });
+    assert.equal(r.status, 1, `stdout: ${r.stdout}`);
+    assert.match(r.stdout + r.stderr, /Ungoverned/);
+  });
+});
+
+test('CLI exits 0 when the write is excluded', () => {
+  withTree({
+    'services/x/x-ctrl/src/t.ts': `record('Ungoverned', {});`,
+    'tools/read-model-exclusions.json':
+      `{ "exclusions": [ { "service": "x-ctrl", "typename": "Ungoverned", "reason": "carrier" } ] }`,
+  }, (root) => {
+    const r = spawnSync('node', [SCRIPT, '--root', root], { encoding: 'utf8' });
+    assert.equal(r.status, 0, `stderr: ${r.stderr}\nstdout: ${r.stdout}`);
   });
 });

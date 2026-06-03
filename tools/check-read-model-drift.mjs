@@ -1,11 +1,11 @@
 #!/usr/bin/env node
-// check-read-model-drift.mjs — read-model ownership freeze gate (w6, layer 4).
+// check-read-model-drift.mjs — read-model ownership MANDATORY gate (WS-D).
 //
 // Enforces the single-writer aggregate-ownership model
-// (docs/architecture/READ-MODEL-OWNERSHIP.md) over the REGISTERED surface: it
-// parses every service's `ReadModelOwnership` augmentation into a typename->tag
-// registry, scans event-processor intent-factory call sites and AppSync
-// JS-resolver `__typename` writes, and errors on four drift classes:
+// (docs/architecture/READ-MODEL-OWNERSHIP.md) across the WHOLE system: it parses
+// every service's `ReadModelOwnership` augmentation into a typename->tag registry,
+// scans event-processor intent-factory call sites and AppSync JS-resolver
+// `__typename` writes, and errors on six drift classes:
 //
 //   R1 accumulate-on-projection   — a registered Projection written via accumulate()
 //   R2 p1-without-version-guard   — a registered Projection<'P1'> written by a
@@ -18,10 +18,16 @@
 //   R4 registry-conflict          — the same typename registered with different tags WITHIN ONE service
 //                                    (per-service scoped: a typename may be CommandOwned in its owner
 //                                     and Projection<'P1'> in a mirror).
+//   R5 unclassified-write         — an intent-factory write whose typename is neither
+//                                    registered in a ReadModelOwnership augmentation NOR
+//                                    listed in tools/read-model-exclusions.json. MANDATORY:
+//                                    register it or add it to the exclusion registry.
+//                                    (Command writes — *.fn.js __typename — are NOT gated
+//                                    here; they are surfaced as non-failing INFO.)
+//   R6 exclusion-conflict         — a (service, typename) both registered AND excluded.
 //
-// Typenames written via a factory but absent from the registry are reported as a
-// non-failing INFO list (visibility for read-model-ownership-producer-aggregates),
-// NOT errored: registration is opt-in, and unregistered = not-yet-governed.
+// The exclusion registry (tools/read-model-exclusions.json) lists the verified
+// non-governed outbox/carrier and external-feed-cache rows, each with a reason.
 //
 // Usage:
 //   node tools/check-read-model-drift.mjs [--root <dir>]
@@ -49,6 +55,30 @@ function parseArgs(argv) {
     if (argv[i] === '--root') root = argv[++i];
   }
   return { root };
+}
+
+const EXCLUSIONS_FILE = 'tools/read-model-exclusions.json';
+
+// Parse the verified-non-governed exclusion registry. Returns a Set of
+// "service::typename" keys plus the raw entries. Absent file → empty (so a
+// tmpdir tree with no registry degrades cleanly). Malformed entries throw.
+export function parseExclusions(root) {
+  let raw;
+  try { raw = readFileSync(join(root, EXCLUSIONS_FILE), 'utf8'); }
+  catch { return { exclusions: new Set(), entries: [] }; }
+  let parsed;
+  try { parsed = JSON.parse(raw); }
+  catch (e) { throw new Error(`${EXCLUSIONS_FILE}: invalid JSON — ${e.message}`); }
+  const entries = Array.isArray(parsed) ? parsed : (parsed.exclusions ?? []);
+  const exclusions = new Set();
+  for (const e of entries) {
+    const ok = e && typeof e.service === 'string' && e.service &&
+      typeof e.typename === 'string' && e.typename &&
+      typeof e.reason === 'string' && e.reason.trim();
+    if (!ok) throw new Error(`${EXCLUSIONS_FILE}: each entry needs non-empty {service, typename, reason} — bad entry: ${JSON.stringify(e)}`);
+    exclusions.add(`${e.service}::${e.typename}`);
+  }
+  return { exclusions, entries };
 }
 
 function* walk(dir) {
@@ -161,7 +191,7 @@ export function scanCommandWrites(root) {
   return cmds;
 }
 
-export function evaluate(registry, conflicts, calls, commands) {
+export function evaluate(registry, conflicts, calls, commands, exclusions = new Set()) {
   const errors = [];
   const tagOf = (service, t) => registry[service]?.[t]?.tag;
   const isProjection = (service, t) => {
@@ -202,14 +232,36 @@ export function evaluate(registry, conflicts, calls, commands) {
       msg: `'${c.typename}' registered with conflicting tags ${c.tags.join(' vs ')} within service ${c.service} (${c.files.join(', ')})` });
   }
 
+  // R5 unclassified-write — an intent-factory write that is neither registered
+  // nor excluded. Command writes (*.fn.js) are intentionally NOT gated here.
+  for (const c of calls) {
+    const service = serviceOf(c.file);
+    if (registry[service]?.[c.typename]) continue;
+    if (exclusions.has(`${service}::${c.typename}`)) continue;
+    errors.push({ rule: 'unclassified-write', typename: c.typename, file: c.file, line: c.line,
+      msg: `'${c.typename}' written via ${c.factory}() in ${service} is neither registered in a ReadModelOwnership augmentation nor listed in ${EXCLUSIONS_FILE}. Classify it (CommandOwned / Projection<'P1'|'P2'|'P3'>) or, if it is a verified non-governed outbox/carrier/external-feed row, add it to the exclusion registry.` });
+  }
+
+  // R6 exclusion-conflict — a (service, typename) both registered AND excluded.
+  for (const key of exclusions) {
+    const [service, typename] = key.split('::');
+    if (registry[service]?.[typename]) {
+      errors.push({ rule: 'exclusion-conflict', typename, file: EXCLUSIONS_FILE, line: 0,
+        msg: `'${typename}' in ${service} is both registered in ReadModelOwnership AND listed in ${EXCLUSIONS_FILE} — remove one` });
+    }
+  }
+
+  // INFO — unregistered command writes (gate is intent-factory-scoped; command
+  // writes are surfaced for visibility but never errored). After all governed
+  // command rows are registered documentarily this list is empty.
   const seen = new Set();
   const info = [];
-  for (const c of [...calls, ...commands]) {
+  for (const c of commands) {
     const service = serviceOf(c.file);
     const key = `${service}::${c.typename}`;
-    if (registry[service]?.[c.typename] || seen.has(key)) continue;
+    if (registry[service]?.[c.typename] || exclusions.has(key) || seen.has(key)) continue;
     seen.add(key);
-    info.push({ typename: c.typename, file: c.file, line: c.line, factory: c.factory ?? 'command' });
+    info.push({ typename: c.typename, file: c.file, line: c.line, factory: 'command' });
   }
   info.sort((a, b) => a.typename.localeCompare(b.typename));
 
@@ -219,19 +271,20 @@ export function evaluate(registry, conflicts, calls, commands) {
 function main() {
   const { root } = parseArgs(process.argv);
   const { registry, conflicts } = parseRegistry(root);
+  const { exclusions, entries } = parseExclusions(root);
   const calls = scanIntentCalls(root);
   const commands = scanCommandWrites(root);
-  const { errors, info } = evaluate(registry, conflicts, calls, commands);
+  const { errors, info } = evaluate(registry, conflicts, calls, commands, exclusions);
 
   if (info.length) {
-    console.log(`read-model-drift: ${info.length} factory-written typename(s) not in any ReadModelOwnership registry (INFO — tracked by read-model-ownership-producer-aggregates):`);
+    console.log(`read-model-drift: ${info.length} unregistered command-written typename(s) (INFO — command writes are not gated; register documentarily if governed):`);
     for (const i of info) console.log(`  - ${i.typename}  (${i.factory}, ${i.file}:${i.line})`);
     console.log('');
   }
 
   if (errors.length === 0) {
     const typenameCount = Object.values(registry).reduce((n, svc) => n + Object.keys(svc).length, 0);
-    console.log(`read-model-drift: OK (${typenameCount} registered typename(s), 0 drift)`);
+    console.log(`read-model-drift: OK (${typenameCount} registered typename(s), ${entries.length} excluded, 0 drift)`);
     process.exit(0);
   }
 
