@@ -1,18 +1,18 @@
 ---
 id: read-model-ownership-mandate-projection-fix
-status: active
+status: shipped
 rank: 5
 type: refactor
 notes: "Spun out of WS-C (read-model-ownership-w-c-consumer-conversions) 2026-06-02. The compliance-ctrl + DWC MandateSnapshot P1 projectVersioned conversion is blocked by a producer-contract gap: OPERATING_MODE_CHANGED is CDC'd from the InvestorProfile row (a different __version counter + a partial payload missing level/status/effectiveDate/mandateId), not the Mandate row — so a single-version-line full-row P1 projection is impossible. Scope: (1) an investor-bff producer fix putting operatingMode changes on the Mandate version line carrying full Mandate state; (2) convert compliance-ctrl MandateSnapshot + DWC mandate-projector MandateSnapshot to projectVersioned + register Projection<'P1'> in both. Opens with a small design decision on the producer approach. Ranked before WS-D (its mandatory gate needs MandateSnapshot registered)."
 references:
   - "docs/superpowers/specs/2026-06-01-read-model-ownership-producer-aggregates-design.md"
-spec: null
-plan: null
+spec: "docs/superpowers/specs/2026-06-03-read-model-ownership-mandate-projection-fix-design.md"
+plan: "docs/superpowers/plans/2026-06-03-read-model-ownership-mandate-projection-fix.md"
 topic_memory: [project_read_model_redesign.md]
 out_of_scope:
   - "Any change to the operating-mode FEATURE behavior (Phase-2 agent mode-awareness, updateOperatingMode mutation surface) — this item only changes how the operatingMode CHANGE is carried + versioned on the Mandate event stream so projectors can do full-row P1."
   - "Real-LLM e2e — runs in the program-end consolidated pass at WS-D (2026-06-02 cadence decision); this item's gate is the cheap set + deploy of the touched producers/consumers."
-validation_gate: null
+validation_gate: "Approach A (dual-write + re-source). Cheap gate green: read-model-drift OK 0 drift (MandateSnapshot now P1 in compliance-ctrl + DWC); per-service typecheck 3/3; nx affected -t test,lint 37 projects. Deploy dev (investor-bff, compliance-ctrl, decision-workflow-ctrl, +investor-profile-ctrl) all UPDATE_COMPLETE 2026-06-03T15:17Z. Integration (mocked agents, deployed dev): 3-core parallel GREEN — investor-bff 20/20 (incl. dual-write + full-image OPERATING_MODE_CHANGED + no MANDATE_REVOKED), decision-workflow-ctrl 20/20 (MANDATE_ISSUED→MANDATE_SNAPSHOT_CREATED→SF preserved), compliance-ctrl 15/15 (incl. resilience idempotency/order-agnostic via version guard). investor-profile-ctrl 4/5 — the 1 failure is the known pre-existing ip-ctrl-integration-snapshot-userid-mismatch (userId readback at line 119), NOT caused by this change. Two surprises caught + fixed in-workstream: compliance resilience suite missing __version (Task 7b, 3187df6b); IP-ctrl OPERATING_MODE_CHANGED degraded-rebuild side-effect (Task 5.5, 8d54cf9d; pre-existing MANDATE_ISSUED variant filed as ip-ctrl-snapshot-agent-fed-trigger-row). Real-LLM e2e deferred to WS-D per program cadence."
 ---
 
 # Mandate projection fix — single version line + P1 conversion
