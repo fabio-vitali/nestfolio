@@ -17,6 +17,8 @@ module.exports = {
     '^@nestfolio/event-processor/(.*)$': '<rootDir>/../../../libs/event-processor/src/$1',
     '^@nestfolio/ledger-ctrl/events$': '<rootDir>/../../ledger/ledger-ctrl/src/domain/events.ts',
     '^@nestfolio/test-support$': '<rootDir>/../../../libs/test-support/src/index.ts',
+    '^@aws-appsync/utils/dynamodb$': '<rootDir>/test/unit/graphql/__mocks__/appsync-utils-dynamodb.ts',
+    '^@aws-appsync/utils$': '<rootDir>/test/unit/graphql/__mocks__/appsync-utils.ts',
   },
   transformIgnorePatterns: ['node_modules/(?!.*p-limit/|.*yocto-queue/)'],
 };
