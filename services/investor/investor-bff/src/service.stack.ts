@@ -28,6 +28,7 @@ export class InvestorBffStack extends ServiceStack {
         },
         extraSteps: {
           getProfile: ['get-profile-mandate.fn.js'],
+          updateOperatingMode: ['get-profile.fn.js'],
         },
       }),
     });
@@ -78,14 +79,18 @@ export class InvestorBffStack extends ServiceStack {
           modify: {
             always: InvestorBffEventTypes.INVESTOR_PROFILE_UPDATED,
             onFieldChange: {
-              operatingMode: InvestorBffEventTypes.OPERATING_MODE_CHANGED,
               goal: InvestorBffEventTypes.GOAL_UPDATED,
             },
           },
         },
         'Mandate': {
           insert: InvestorBffEventTypes.MANDATE_ISSUED,
-          modify: InvestorBffEventTypes.MANDATE_REVOKED,
+          modify: {
+            onFieldChange: {
+              status: InvestorBffEventTypes.MANDATE_REVOKED,
+              operatingMode: InvestorBffEventTypes.OPERATING_MODE_CHANGED,
+            },
+          },
         },
         // Intent outbox rows — CDC emits the *_INITIATED events. The projected
         // Deposit/WithdrawalRequest read-model rows are written by the funding
