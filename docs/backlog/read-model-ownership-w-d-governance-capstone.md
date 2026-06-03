@@ -1,6 +1,6 @@
 ---
 id: read-model-ownership-w-d-governance-capstone
-status: queued
+status: active
 rank: 6
 type: tooling
 notes: "WS-D of read-model-ownership-producer-aggregates: Tier-4 broker-ctrl ExecutionMode registration + governance capstone — upgrade drift-checker to mandatory-error gate + tools/read-model-exclusions.json for non-governed outbox/carrier rows; wire the typecheck trip-wire into CI (folded bff-readmodel-typecheck-targets-not-in-ci); extend canonical doc §9 to producer surface; update CLAUDE.md/skill pointers. Makes the model fully enforced across all services."
@@ -11,6 +11,8 @@ plan: null
 topic_memory: [project_read_model_redesign.md]
 out_of_scope:
   - "GitHub-workflow wiring of the gate (stays with ci-pipeline-bring-up — CI has never produced a green run; WS-D ships the gate as a local-runnable nx lint target only)."
+  - "Adding __version carriage / a P1 consumer to broker-ctrl ExecutionMode — registered CommandOwned only (record() single-field cache); __version is added later iff a P1 consumer of the mode cache is introduced (design WS-D)."
+  - "Fixing any newly-discovered governed P1 row that lacks a version source — folded into a NEW queued read-model item per the refactoring-completeness exception, NOT patched inside this gate-upgrade workstream (WS-D ships the gate + exclusion registry, not new producer version sources)."
 validation_gate: null
 ---
 
