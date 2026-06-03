@@ -6,6 +6,11 @@ Stack: services/execution/broker-ctrl/src/service.stack.ts
 ## State
 - Table (DynamoDB, streams enabled)
 
+## Read model (ownership)
+- ReadModelOwnership registered in `src/read-model-ownership.ts` (WS-D), side-effect-imported from `handlers/mode-listener.ts`:
+  - CommandOwned: `ExecutionMode` — single-field operating-mode cache, seeded/refreshed via `record()` on EXECUTION_MODE_CHANGED, read by the order state-machine's ReadExecutionMode GetItem. No `__version` (add one only if a P1 consumer of the cache appears). `projectVersioned()` fails typecheck.
+- Enforced by `nx run broker-ctrl:typecheck` (`test/types/read-model-ownership.type-test.ts`) + the mandatory `event-processor:read-model-drift` gate. `FundingEvent` is an excluded CDC carrier (`tools/read-model-exclusions.json`).
+
 ## Ingress
 - ExecutionBus -> broker-ctrl-mode-ingress (SQS -> Lambda)
   Subscriptions: EXECUTION_MODE_CHANGED

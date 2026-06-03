@@ -10,6 +10,7 @@ Stack: services/investor/investor-bff/src/service.stack.ts
 - `ReadModelOwnership` registered in `src/read-model-ownership.ts` (workstream 4):
   - P1 (versioned snapshot via `projectVersioned`): `CashBalance` — ledger-authoritative, versioned on `BALANCE_UPDATED`'s `snapshot.lastEventSequence` (`balance-updated.ts`). `Deposit`, `WithdrawalRequest` — broker-ctrl owns the funding lifecycle; investor-bff projects them via `projectVersioned` only (project/accumulate/update/record fail typecheck).
   - CommandOwned (local commands after a one-event seed): `InvestorProfile`, `Mandate`, `Notification`, `DepositIntent`, `WithdrawalIntent`. `projectVersioned()` on them fails typecheck.
+  - CommandOwned (documentary; command-written, not an intent factory — WS-D): `FeatureFlag` — system flag store written by the `updateFeatureFlag` resolver + the circuit-breaker IAM-signed mutation, read by `getFeatureFlags` + `onFeatureFlagUpdate`.
 - NOT registered (intentional): `ExecutionModeChange` → write-once audit row, never via an intent.
 - Enforcement: `tsconfig.type-test.json` + nx `typecheck` target compile `test/types/read-model-ownership.type-test.ts` (the `@ts-expect-error` trip-wire). Run `pnpm nx run investor-bff:typecheck`. Note: a full-project `tsc` gate is blocked by `investor-bff-13-latent-tsc-errors`, so the narrow type-test config is used.
 

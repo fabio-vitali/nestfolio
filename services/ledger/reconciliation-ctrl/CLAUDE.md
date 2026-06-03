@@ -6,6 +6,11 @@ Stack: services/ledger/reconciliation-ctrl/src/service.stack.ts
 ## State
 - Table (DynamoDB, streams enabled)
 
+## Read model (ownership)
+- ReadModelOwnership registered in `src/read-model-ownership.ts` (WS-D), side-effect-imported from `handlers/event-listener.ts`:
+  - CommandOwned: `ReconciliationResult`, `DriftRecord` — computed by `reconcile()`, written via `record()`, read back via `getDriftRecords` (read-your-own-writes). No other service projects the rows; consumers react to the emitted RECONCILIATION_COMPLETED / PORTFOLIO_DRIFT_DETECTED events. `projectVersioned()` fails typecheck.
+- Enforced by `nx run reconciliation-ctrl:typecheck` (`test/types/read-model-ownership.type-test.ts`) + the mandatory `event-processor:read-model-drift` gate.
+
 ## Ingress
 - LedgerBus → reconciliation-ctrl-ingress (SQS → Lambda)
   Subscriptions: PORTFOLIO_UPDATED, PORTFOLIO_SNAPSHOT_IMPORTED, CORPORATE_ACTION_APPLIED, ALPACA_ACCOUNT_SNAPSHOT
