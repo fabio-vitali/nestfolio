@@ -1,6 +1,6 @@
 ---
 id: ledger-bff-readmodel-fixes
-status: queued
+status: active
 rank: 7
 type: bug
 notes: "ledger-bff read-model residuals: (A) ledger-entry-recorded P2 rows (HistoryEntry/Checkpoint) read top-level fields the real LEDGER_ENTRY_RECORDED producer never emits — degrade in prod; (B) ~18 latent tsc --noEmit errors blocking a clean service-wide typecheck. Merges ledger-entry-recorded-producer-shape-mismatch + ledger-bff-latent-tsc-errors."
@@ -10,6 +10,8 @@ plan: null
 topic_memory: [project_read_model_redesign.md]
 out_of_scope:
   - "ledger-ctrl's own latent tsc errors (ledger-ctrl-2-latent-tsc-errors) — separate file; the TableEntry timestamp fix likely shares a root cause, coordinate but don't bundle."
+  - "dashboard-bff + advisory read-model residuals (dashboard-advisory-readmodel-fixes) and investor-bff tsc errors (investor-bff-13-latent-tsc-errors) — separate QUEUED files, do not bundle."
+  - "Part A approach decision is recorded in this file's body after brainstorming; only the chosen path is in scope. Re-widening any OTHER event contract beyond LEDGER_ENTRY_RECORDED is out."
 validation_gate: null
 ---
 
