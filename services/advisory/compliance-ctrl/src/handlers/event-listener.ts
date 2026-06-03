@@ -170,11 +170,17 @@ function projectMandateSnapshot(payload: EventPayload, ctx: EventContext): Write
   }
 
   const version = subject.__version;
-  if (typeof version !== 'number') return skip();
+  if (typeof version !== 'number') {
+    logger.warn('Mandate event missing __version — skipping MandateSnapshot projection', {
+      tenantId, userId, eventType: ctx.eventType,
+    });
+    return skip();
+  }
 
   // Full-row P1 projection on the Mandate version line. Every Mandate event now
   // carries the full image + Mandate __version, so one projector writes the whole
   // row; the version guard subsumes the old REVOKED-skip idempotency.
+  logger.info('MandateSnapshot projected', { tenantId, userId, version, eventType: ctx.eventType });
   return projectVersioned(
     'MandateSnapshot',
     {

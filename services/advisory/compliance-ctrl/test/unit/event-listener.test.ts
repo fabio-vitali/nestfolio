@@ -473,8 +473,9 @@ describe('event-listener handler', () => {
       ]);
       expect(result.batchItemFailures).toHaveLength(0);
       // No projectVersioned MandateSnapshot write — the handler returned skip().
-      // result.intents[0]._tag === 'skip' (the skip intent is surfaced in the intents array).
+      // The harness pushes the skip intent into result.intents.
       expect(result.intents.some((i) => i._tag === 'projectVersioned')).toBe(false);
+      expect(result.intents[0]._tag).toBe('skip');
     });
   });
 });
