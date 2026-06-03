@@ -1,0 +1,30 @@
+{
+  "$comment": "Read-model ownership EXCLUSION registry (WS-D). Each (service, typename) listed here is a verified NON-governed row — an outbox/CDC-carrier or external-feed cache written via an event-processor intent factory but NOT a governed read model. The drift gate (tools/check-read-model-drift.mjs) errors on any intent-factory write that is neither registered in a ReadModelOwnership augmentation NOR listed here. See docs/architecture/READ-MODEL-OWNERSHIP.md §9. Keep alphabetised by service then typename.",
+  "exclusions": [
+    { "service": "advisory-narrative-ctrl", "typename": "AgentCompletion", "reason": "Agent execution-trace/outbox row; write-once diagnostic consumed via emitted trace events, never read back as a governed read model." },
+    { "service": "advisory-narrative-ctrl", "typename": "AgentFailure", "reason": "Agent execution-trace/outbox row; write-once diagnostic consumed via emitted trace events." },
+    { "service": "advisory-narrative-ctrl", "typename": "AgentInvocation", "reason": "Agent execution-trace/outbox row; write-once diagnostic consumed via emitted trace events." },
+    { "service": "alpha-vantage-adpt", "typename": "AlphaVantageArticle", "reason": "External-feed adapter cache; raw Alpha Vantage feed item persisted for CDC re-emission, not a governed aggregate." },
+    { "service": "alpha-vantage-adpt", "typename": "EconomicIndicator", "reason": "External-feed adapter cache; raw Alpha Vantage indicator persisted for CDC re-emission." },
+    { "service": "broker-alpaca-adpt", "typename": "AlpacaAccountSnapshot", "reason": "External-feed adapter cache; raw Alpaca account result persisted for CDC re-emission." },
+    { "service": "broker-alpaca-adpt", "typename": "AlpacaOrderResult", "reason": "External-feed adapter cache; raw Alpaca order result persisted for CDC re-emission." },
+    { "service": "broker-alpaca-adpt", "typename": "AlpacaTransferResult", "reason": "External-feed adapter cache; raw Alpaca transfer result persisted for CDC re-emission." },
+    { "service": "broker-ctrl", "typename": "FundingEvent", "reason": "Funding-lifecycle CDC carrier; one immutable row per transition re-emitted via sk-passthrough. Governed funding read model is investor-bff Deposit/WithdrawalRequest (P1)." },
+    { "service": "broker-sim-adpt", "typename": "DepositDetected", "reason": "Sim-broker funding CDC carrier; write-once keyed by source eventId, emitted only to publish DEPOSIT_DETECTED. Governed funding read model is investor-bff (P1)." },
+    { "service": "broker-sim-adpt", "typename": "WithdrawalCompleted", "reason": "Sim-broker funding CDC carrier; write-once keyed by source eventId, emitted only to publish WITHDRAWAL_COMPLETED. Governed funding read model is investor-bff (P1)." },
+    { "service": "decision-workflow-ctrl", "typename": "AgentOutput", "reason": "Agent execution-trace/outbox row written by sfn-callback; consumed via the decision pipeline, not read back as a governed read model." },
+    { "service": "fred-adpt", "typename": "FredIndicator", "reason": "External-feed adapter cache; raw FRED indicator persisted for CDC re-emission." },
+    { "service": "investor-profile-ctrl", "typename": "AgentInvocation", "reason": "Agent execution-trace/outbox row; write-once diagnostic consumed via emitted trace events." },
+    { "service": "ledger-ctrl", "typename": "BalanceEvent", "reason": "Ledger snapshot-to-events outbox/carrier; emitted purely to drive CDC (BALANCE_UPDATED). Governed read models are downstream BFF projections." },
+    { "service": "ledger-ctrl", "typename": "LedgerEntryEvent", "reason": "Ledger snapshot-to-events outbox/carrier; emitted purely to drive CDC (LEDGER_ENTRY_RECORDED)." },
+    { "service": "ledger-ctrl", "typename": "PortfolioEvent", "reason": "Ledger snapshot-to-events outbox/carrier; emitted purely to drive CDC (PORTFOLIO_UPDATED)." },
+    { "service": "ledger-ctrl", "typename": "SnapshotHistory", "reason": "Ledger snapshot-to-events append-only history row with TTL; carrier/audit log, not a governed read model." },
+    { "service": "market-intelligence-ctrl", "typename": "AgentInvocation", "reason": "Agent execution-trace/outbox row; write-once diagnostic consumed via emitted trace events." },
+    { "service": "marketwatch-adpt", "typename": "MarketWatchArticle", "reason": "External-feed adapter cache; raw MarketWatch feed item persisted for CDC re-emission." },
+    { "service": "portfolio-engine-ctrl", "typename": "AgentCompletion", "reason": "Agent execution-trace/outbox row; write-once diagnostic consumed via emitted trace events." },
+    { "service": "portfolio-engine-ctrl", "typename": "AgentFailure", "reason": "Agent execution-trace/outbox row; write-once diagnostic consumed via emitted trace events." },
+    { "service": "portfolio-engine-ctrl", "typename": "AgentInvocation", "reason": "Agent execution-trace/outbox row; write-once diagnostic consumed via emitted trace events." },
+    { "service": "sec-edgar-adpt", "typename": "SecFiling", "reason": "External-feed adapter cache; raw SEC EDGAR filing persisted for CDC re-emission." },
+    { "service": "yahoo-finance-adpt", "typename": "YahooFinanceArticle", "reason": "External-feed adapter cache; raw Yahoo Finance feed item persisted for CDC re-emission." }
+  ]
+}
