@@ -34,7 +34,7 @@ describe('ledger-bff', () => {
   //
   // BALANCE_UPDATED → projectVersioned('PortfolioLatest', ...) → pk: Portfolio#<tenantId>, sk: Latest
   // PORTFOLIO_UPDATED → projectVersioned('Position', ...) → pk: Portfolio#<tenantId>, sk: Position#<symbol>
-  // LEDGER_ENTRY_RECORDED → record('HistoryEntry', ...) with override → pk: History#<tenantId>, sk: Entry#<sequenceNo>
+  // LEDGER_ENTRY_RECORDED → record('HistoryEntry', ...) with override → pk: History#<tenantId>, sk: <8-digit padded lastEventSequence>
   //
   // Note: get-balance.fn.js resolver and event-listener transform both use sk: 'Latest'.
 
@@ -100,37 +100,40 @@ describe('ledger-bff', () => {
     }, 120_000);
 
     it('should materialize LEDGER_ENTRY_RECORDED to HistoryEntry in DDB', async () => {
-      // Use a sequenceNo that is NOT a multiple of 100 (avoids creating Checkpoint items)
-      const sequenceNo = 1001 + Math.floor(Math.random() * 99); // 1001–1099, never a checkpoint (mod 100 ≠ 0)
+      const lastEventSequence = 1001 + Math.floor(Math.random() * 99); // 1001–1099
       const eventId = `integ-entry-${Date.now()}`;
 
       await eb.putEvent({
         bus: 'ledger',
         targetService: 'ledger-bff',
         detailType: 'LEDGER_ENTRY_RECORDED',
+        eventId,
         detail: {
-          eventId,
-          eventType: 'ORDER_FILLED',
-          payload: { orderId: 'test-order-001', symbol: 'AAPL', quantity: 5, fillPrice: 150.0 },
-          timestamp: new Date().toISOString(),
-          sequenceNo,
+          streamType: 'actual',
+          lastEventSequence,
+          snapshot: {
+            positions: { AAPL: { symbol: 'AAPL', quantity: 5, averageCostBasis: 150.0, totalCostBasis: 750.0, lastFillPrice: 150.0 } },
+            cashBalanceCents: 250_000,
+            lastEventSequence,
+          },
         },
       });
 
-      // record() with explicit sk override → pk: History#<tenantId>, sk: Entry#<sequenceNo>
+      // record() with sk override → pk: History#<tenantId>, sk: <8-digit padded seq>
+      const sk = String(lastEventSequence).padStart(8, '0');
       const item = await table.waitForItem({
         table: 'ledger-bff',
         pk: `History#${ctx.tenantId}`,
-        sk: `Entry#${sequenceNo}`,
+        sk,
         timeoutMs: 60_000,
       });
 
       expect(item['__typename']).toBe('HistoryEntry');
       expect(item['tenantId']).toBe(ctx.tenantId);
-      expect(item['eventType']).toBe('ORDER_FILLED');
-      // eventId stored from event.subject.eventId — assert it is a non-empty string
-      expect(item['eventId']).toEqual(expect.any(String));
-      expect(item['sequenceNo']).toBe(sequenceNo);
+      expect(item['eventType']).toBe('LEDGER_ENTRY_RECORDED'); // generic envelope detail-type
+      expect(item['sequenceNo']).toBe(lastEventSequence);
+      expect(item['eventId']).toBe(eventId);                   // auto-injected by record() executor
+      expect(item['createdAt']).toEqual(expect.any(String));   // auto-injected by record() executor
     }, 120_000);
   });
 
@@ -217,7 +220,7 @@ describe('ledger-bff', () => {
   //   getPortfolio    → pk: Portfolio#<tenantId>, sk beginsWith: ''  (Latest + Position# items)
   //   getPositions    → pk: Portfolio#<tenantId>, sk beginsWith: 'Position#'
   //   getOrderHistory → pk: History#<tenantId>    (no sk filter)
-  //   getTimeTravelAvailability → pk: Checkpoint#<tenantId> (no sk filter, reads earliestDate/latestDate from sk)
+  //   getTimeTravelAvailability → pk: Checkpoint#<tenantId> (no sk filter, reads earliestDate/latestDate from sk = processing date)
   //   getPerformance  → pk: Portfolio#<tenantId>, sk beginsWith: ''  (Latest + Position# items)
   //
   // Lambda resolvers:
@@ -268,75 +271,48 @@ describe('ledger-bff', () => {
         },
       });
 
-      // 3. LEDGER_ENTRY_RECORDED → HistoryEntry (Entry#99001, Entry#99002)
+      // 3. LEDGER_ENTRY_RECORDED (actual) → HistoryEntry rows (00099001, 00099002)
+      //    + a Checkpoint at today's processing date.
       await eb.putEvent({
         bus: 'ledger',
         targetService: 'ledger-bff',
         detailType: 'LEDGER_ENTRY_RECORDED',
+        eventId: 'integ-hist-query-001',
         detail: {
-          eventId: 'integ-hist-query-001',
-          eventType: 'ORDER_FILLED',
-          payload: { orderId: 'order-001', symbol: 'AAPL', quantity: 5, fillPrice: 150.0 },
-          timestamp: new Date().toISOString(),
-          sequenceNo: 99001,
+          streamType: 'actual',
+          lastEventSequence: 99001,
+          snapshot: {
+            cashBalanceCents: 800_000,
+            positions: { AAPL: { symbol: 'AAPL', quantity: 8, averageCostBasis: 145.0, totalCostBasis: 1160.0, lastFillPrice: 150.0 } },
+            lastEventSequence: 99001,
+          },
         },
       });
       await eb.putEvent({
         bus: 'ledger',
         targetService: 'ledger-bff',
         detailType: 'LEDGER_ENTRY_RECORDED',
+        eventId: 'integ-hist-query-002',
         detail: {
-          eventId: 'integ-hist-query-002',
-          eventType: 'BALANCE_UPDATED',
-          payload: { cashBalanceCents: 1000000 },
-          timestamp: new Date().toISOString(),
-          sequenceNo: 99002,
-        },
-      });
-
-      // 4. LEDGER_ENTRY_RECORDED with sequenceNo % 100 === 0 → Checkpoint
-      //    Must include cashBalanceCents and positions for checkpoint data
-      await eb.putEvent({
-        bus: 'ledger',
-        targetService: 'ledger-bff',
-        detailType: 'LEDGER_ENTRY_RECORDED',
-        detail: {
-          eventId: 'integ-checkpoint-100',
-          eventType: 'CHECKPOINT',
-          payload: {},
-          timestamp: '2025-01-15T00:00:00.000Z',
-          sequenceNo: 100,
-          cashBalanceCents: 500_000,
-          positions: {},
-        },
-      });
-      await eb.putEvent({
-        bus: 'ledger',
-        targetService: 'ledger-bff',
-        detailType: 'LEDGER_ENTRY_RECORDED',
-        detail: {
-          eventId: 'integ-checkpoint-200',
-          eventType: 'CHECKPOINT',
-          payload: {},
-          timestamp: '2025-06-15T00:00:00.000Z',
-          sequenceNo: 200,
-          cashBalanceCents: 900_000,
-          positions: { AAPL: { symbol: 'AAPL', quantity: 8, averageCostBasis: 145.0, totalCostBasis: 1160.0, lastFillPrice: 150.0 } },
+          streamType: 'actual',
+          lastEventSequence: 99002,
+          snapshot: {
+            cashBalanceCents: 1_000_000,
+            positions: {},
+            lastEventSequence: 99002,
+          },
         },
       });
 
-      // 5. LEDGER_ENTRY_RECORDED with streamType: 'simulated' → Simulation#Latest + SimulationPosition
+      // 4. LEDGER_ENTRY_RECORDED (simulated) → Simulation#Latest + SimulationPosition
       await eb.putEvent({
         bus: 'ledger',
         targetService: 'ledger-bff',
         detailType: 'LEDGER_ENTRY_RECORDED',
+        eventId: 'integ-sim-001',
         detail: {
-          eventId: 'integ-sim-001',
-          eventType: 'SIMULATED_TRADE',
-          payload: {},
-          timestamp: new Date().toISOString(),
-          sequenceNo: 1,
           streamType: 'simulated',
+          lastEventSequence: 1,
           snapshot: {
             cashBalanceCents: 950_000,
             lastEventSequence: 1,
@@ -348,6 +324,7 @@ describe('ledger-bff', () => {
       });
 
       // Wait for all materializations
+      const today = new Date().toISOString().slice(0, 10);
       await table.waitForItem({
         table: 'ledger-bff',
         pk: portfolioPk(),
@@ -363,20 +340,14 @@ describe('ledger-bff', () => {
       await table.waitForItem({
         table: 'ledger-bff',
         pk: historyPk(),
-        sk: 'Entry#99001',
+        sk: '00099001',
         timeoutMs: 30_000,
       });
-      // Wait for checkpoints
+      // One checkpoint per active date — actual entries above land on today.
       await table.waitForItem({
         table: 'ledger-bff',
         pk: checkpointPk(),
-        sk: '2025-01-15',
-        timeoutMs: 30_000,
-      });
-      await table.waitForItem({
-        table: 'ledger-bff',
-        pk: checkpointPk(),
-        sk: '2025-06-15',
+        sk: today,
         timeoutMs: 30_000,
       });
       // Wait for simulation
@@ -491,10 +462,10 @@ describe('ledger-bff', () => {
 
       expect(result.getOrderHistory).toBeDefined();
       expect(Array.isArray(result.getOrderHistory.items)).toBe(true);
-      // Returned in reverse order (scanIndexForward: false) — highest seq first
-      const orderFilled = result.getOrderHistory.items.find(i => i.eventType === 'ORDER_FILLED');
-      expect(orderFilled).toBeDefined();
-      expect(orderFilled!.sequenceNo).toBe(99001);
+      // Entries carry the generic envelope detail-type; identify by sequenceNo.
+      const entry = result.getOrderHistory.items.find(i => i.sequenceNo === 99001);
+      expect(entry).toBeDefined();
+      expect(entry!.eventType).toBe('LEDGER_ENTRY_RECORDED');
     }, 60_000);
 
     it('should return TimeTravelAvailability via getTimeTravelAvailability', async () => {
@@ -512,10 +483,11 @@ describe('ledger-bff', () => {
         }
       `, {});
 
+      const today = new Date().toISOString().slice(0, 10);
       expect(result.getTimeTravelAvailability).toBeDefined();
-      // earliestDate = first checkpoint sk, latestDate = last checkpoint sk
-      expect(result.getTimeTravelAvailability.earliestDate).toBe('2025-01-15');
-      expect(result.getTimeTravelAvailability.latestDate).toBe('2025-06-15');
+      // One checkpoint per active date — all actual entries above land on today.
+      expect(result.getTimeTravelAvailability.earliestDate).toBe(today);
+      expect(result.getTimeTravelAvailability.latestDate).toBe(today);
     }, 60_000);
 
     it('should return portfolio at a past timestamp via getPortfolioAt (Lambda resolver)', async () => {
