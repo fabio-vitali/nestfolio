@@ -276,6 +276,7 @@ describe('changeDataCapture', () => {
       expect(detail.subject.operatingMode).toBe('AGGRESSIVE');
       expect(detail.subject.status).toBe('ACTIVE');
       expect(detail.subject.__version).toBe(2);
+      expect(detail.previousSubject.operatingMode).toBe('BALANCED');
     });
 
     it('emits MANDATE_REVOKED (only) when status changes but operatingMode does not', async () => {
@@ -309,6 +310,24 @@ describe('changeDataCapture', () => {
           fakeDdbStreamRecord('MODIFY',
             { pk: 'InvestorProfile#t#u', sk: 'Mandate', __typename: 'Mandate', tenantId: 't', userId: 'u', region: 'r', status: 'ACTIVE', operatingMode: 'BALANCED', updatedAt: 'new', __version: 5 },
             { oldImage: { pk: 'InvestorProfile#t#u', sk: 'Mandate', __typename: 'Mandate', tenantId: 't', userId: 'u', region: 'r', status: 'ACTIVE', operatingMode: 'BALANCED', updatedAt: 'old', __version: 4 } },
+          ),
+        ],
+      });
+      const totalEntries = mockPublish.mock.calls.reduce((n: number, c: unknown[]) => n + (c[0] as unknown[]).length, 0);
+      expect(totalEntries).toBe(0);
+    });
+
+    it('publishes nothing (does not throw) when OldImage is absent on an onFieldChange-only mapping', async () => {
+      process.env.EVENT_TYPE_MAP = JSON.stringify({
+        'Mandate:MODIFY': {
+          onFieldChange: { status: 'MANDATE_REVOKED', operatingMode: 'OPERATING_MODE_CHANGED' },
+        },
+      });
+      const handler = changeDataCapture();
+      await handler({
+        Records: [
+          fakeDdbStreamRecord('MODIFY',
+            { pk: 'InvestorProfile#t#u', sk: 'Mandate', __typename: 'Mandate', tenantId: 't', userId: 'u', region: 'r', status: 'REVOKED', operatingMode: 'AGGRESSIVE', __version: 6 },
           ),
         ],
       });
