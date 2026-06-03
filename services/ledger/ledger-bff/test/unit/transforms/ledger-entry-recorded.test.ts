@@ -93,4 +93,18 @@ describe('ledgerEntryRecorded transform', () => {
     expect(intents.find((i) => i.typename === 'HistoryEntry')).toBeUndefined();
     expect(intents.find((i) => i.typename === 'Checkpoint')).toBeUndefined();
   });
+
+  it('falls back to sequence 0 (sk 00000000) for an actual entry with no snapshot', () => {
+    const result = ledgerEntryRecorded(
+      makeUow({ streamType: 'actual' }) as Parameters<typeof ledgerEntryRecorded>[0],
+    );
+    const intents = result as Array<Record<string, unknown>>;
+    const hist = intents.find((i) => i.typename === 'HistoryEntry');
+    expect(hist).toMatchObject({
+      typename: 'HistoryEntry',
+      overrides: { pk: 'History#t1', sk: '00000000' },
+    });
+    expect((hist!.fields as Record<string, unknown>).sequenceNo).toBe(0);
+    expect((hist!.fields as Record<string, unknown>).cashBalanceCents).toBeUndefined();
+  });
 });

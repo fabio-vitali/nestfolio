@@ -19,6 +19,8 @@ type LedgerEntryPayload = {
   };
 };
 
+// Zero-pad the monotonic ledger sequence so DynamoDB sorts HistoryEntry rows by
+// recency. 8 digits supports up to ~100M entries per tenant stream.
 const HISTORY_SEQ_PAD = 8;
 
 export const ledgerEntryRecorded = (
