@@ -1,6 +1,6 @@
 ---
 id: read-model-ownership-w-d-governance-capstone
-status: active
+status: shipped
 rank: 6
 type: tooling
 notes: "WS-D of read-model-ownership-producer-aggregates: Tier-4 broker-ctrl ExecutionMode registration + governance capstone — upgrade drift-checker to mandatory-error gate + tools/read-model-exclusions.json for non-governed outbox/carrier rows; wire the typecheck trip-wire into CI (folded bff-readmodel-typecheck-targets-not-in-ci); extend canonical doc §9 to producer surface; update CLAUDE.md/skill pointers. Makes the model fully enforced across all services."
@@ -13,7 +13,36 @@ out_of_scope:
   - "GitHub-workflow wiring of the gate (stays with ci-pipeline-bring-up — CI has never produced a green run; WS-D ships the gate as a local-runnable nx lint target only)."
   - "Adding __version carriage / a P1 consumer to broker-ctrl ExecutionMode — registered CommandOwned only (record() single-field cache); __version is added later iff a P1 consumer of the mode cache is introduced (design WS-D)."
   - "Fixing any newly-discovered governed P1 row that lacks a version source — folded into a NEW queued read-model item per the refactoring-completeness exception, NOT patched inside this gate-upgrade workstream (WS-D ships the gate + exclusion registry, not new producer version sources)."
-validation_gate: null
+validation_gate: |
+  Shipped on worktree branch worktree-read-model-ownership-w-d-governance-capstone
+  (12 commits, f3dc6600..e75e1c04). All gates green:
+  - MANDATORY drift gate: `pnpm nx run event-processor:read-model-drift` →
+    `OK (44 registered typename(s), 25 excluded, 0 drift)`, exit 0. Unregistered
+    intent-factory writes are now a hard ERROR (R5) unless in
+    tools/read-model-exclusions.json (R6 guards register+exclude contradiction).
+  - Checker unit tests: `node --test tools/check-read-model-drift.test.mjs` → 26/26
+    pass (incl. new R5/R6/exclusion-skip/parseExclusions/CLI tests).
+  - typecheck + lint + test on the 4 touched projects (broker-ctrl,
+    reconciliation-ctrl, investor-bff, event-processor) → all pass. typecheck now
+    runs under `nx affected -t typecheck` via the nx.json targetDefault.
+  - Registrations: ExecutionMode (broker-ctrl), ReconciliationResult + DriftRecord
+    (reconciliation-ctrl), FeatureFlag (investor-bff, documentary) — all CommandOwned,
+    each with read-model-ownership.ts + type-test + typecheck target. 25 verified
+    non-governed outbox/carrier/feed-cache rows excluded.
+  - Service cards regenerated (broker-ctrl, reconciliation-ctrl, investor-bff).
+  - Canonical doc §9 producer-surface table + §10 mandatory-gate rewrite.
+  - Skill/router pointers updated (event-processor-patterns, create-service/feature/event,
+    audit-service/domain/system, CLAUDE.md).
+  - No deploy: all code changes are type-only augmentations (declare module + export{},
+    stripped by esbuild) → zero runtime bundle change.
+  - Program-end consolidated real-LLM e2e (the deferred program gate, run once here
+    against fully-converged dev): 4/4 PASS —
+    advisory/first-decision (83.6s), advisory/accept-decision (150.9s),
+    advisory/reconciliation-correction (142.8s), funding/fund-account (47.3s);
+    globalTeardown alpacaPaperReset OK (prefix=dev). No flakes (1x, all green).
+  - GitHub-workflow wiring of the gate deferred to ci-pipeline-bring-up (out_of_scope).
+  This completes the read-model-ownership program: the single-writer ownership model
+  is now fully enforced as a mandatory gate across all 32 services.
 ---
 
 # WS-D — Tier-4 + governance capstone
