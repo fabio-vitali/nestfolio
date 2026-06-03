@@ -261,16 +261,14 @@ Two physical copies, one logical owner. Per-service R4 scoping (the drift-checke
 permits the same `MandateSnapshot` typename to be `Projection<'P1'>` in both
 projecting services.
 
-> **Known gap (2026-06-02):** `MANDATE_ISSUED`/`MANDATE_REVOKED` are CDC from the
-> Mandate row (full state + Mandate `__version`), but `OPERATING_MODE_CHANGED` is
-> CDC from the **InvestorProfile** row (`onFieldChange: { operatingMode }`) — a
-> *different* `__version` counter and a *partial* payload. A single-version-line
-> full-row P1 projection of `MandateSnapshot` is therefore not yet possible; the
-> compliance-ctrl + DWC `MandateSnapshot` projectors remain field-level `update()`
-> (drift-checker INFO, unregistered) until the producer fix in
-> `read-model-ownership-mandate-projection-fix` lands. The MarketSnapshot and
-> InvestorProfileSnapshot mirrors (WS-C) do not have this problem — each is CDC'd
-> from a single owned row carrying one `__version`.
+`MANDATE_ISSUED`/`MANDATE_REVOKED`/`OPERATING_MODE_CHANGED` are all CDC from the
+Mandate row on one monotonic `__version` line, each carrying the full Mandate
+image. compliance-ctrl and decision-workflow-ctrl both project `MandateSnapshot`
+as `Projection<'P1'>` via `projectVersioned` keyed on that `__version`
+(`read-model-ownership-mandate-projection-fix`, 2026-06-03). `updateOperatingMode`
+dual-writes the InvestorProfile composite row (keeps `INVESTOR_PROFILE_UPDATED`
+feeding dashboard-bff's `InvestorSnapshot`) and the Mandate sibling row in one
+`TransactWriteItems`; `OPERATING_MODE_CHANGED` is re-sourced from the Mandate row.
 
 ---
 

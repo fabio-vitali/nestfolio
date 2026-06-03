@@ -8,9 +8,9 @@ Stack: services/investor/investor-bff/src/service.stack.ts
 
 ## Read model (ownership)
 - `ReadModelOwnership` registered in `src/read-model-ownership.ts` (workstream 4):
-  - P1 (versioned snapshot via `projectVersioned`): `CashBalance` — ledger-authoritative, versioned on `BALANCE_UPDATED`'s `snapshot.lastEventSequence` (`balance-updated.ts`). `project()`/`accumulate()`/`update()`/`record()` on it now fail typecheck.
-  - CommandOwned (local commands after a one-event seed): `InvestorProfile`, `Mandate`, `Notification`. `projectVersioned()` on them fails typecheck.
-- NOT registered (intentional): `Deposit`/`Withdrawal` → workstream 5 (externally-settled → P1); `ExecutionModeChange` → write-once audit row, never via an intent.
+  - P1 (versioned snapshot via `projectVersioned`): `CashBalance` — ledger-authoritative, versioned on `BALANCE_UPDATED`'s `snapshot.lastEventSequence` (`balance-updated.ts`). `Deposit`, `WithdrawalRequest` — broker-ctrl owns the funding lifecycle; investor-bff projects them via `projectVersioned` only (project/accumulate/update/record fail typecheck).
+  - CommandOwned (local commands after a one-event seed): `InvestorProfile`, `Mandate`, `Notification`, `DepositIntent`, `WithdrawalIntent`. `projectVersioned()` on them fails typecheck.
+- NOT registered (intentional): `ExecutionModeChange` → write-once audit row, never via an intent.
 - Enforcement: `tsconfig.type-test.json` + nx `typecheck` target compile `test/types/read-model-ownership.type-test.ts` (the `@ts-expect-error` trip-wire). Run `pnpm nx run investor-bff:typecheck`. Note: a full-project `tsc` gate is blocked by `investor-bff-13-latent-tsc-errors`, so the narrow type-test config is used.
 
 ## Ingress
@@ -22,8 +22,8 @@ Stack: services/investor/investor-bff/src/service.stack.ts
 ## Egress (CDC, 6 entity types — 3-tier topology on InvestorProfile)
 - DynamoDB Streams → investor-bff-egress (Lambda)
 - Declarative `eventTypes` map:
-  - InvestorProfile (composite row) → INVESTOR_PROFILE_CREATED (insert); on modify: INVESTOR_PROFILE_UPDATED (carrier, always) + OPERATING_MODE_CHANGED (semantic, onFieldChange:operatingMode) + GOAL_UPDATED (semantic, onFieldChange:goal)
-  - Mandate (sibling row, sk='Mandate') → MANDATE_ISSUED (insert, lifecycle), MANDATE_REVOKED (modify, lifecycle)
+  - InvestorProfile (composite row) → INVESTOR_PROFILE_CREATED (insert); on modify: INVESTOR_PROFILE_UPDATED (carrier, always) + GOAL_UPDATED (semantic, onFieldChange:goal)
+  - Mandate (sibling row, sk='Mandate') → MANDATE_ISSUED (insert, lifecycle); on modify: OPERATING_MODE_CHANGED (onFieldChange:operatingMode), MANDATE_REVOKED (onFieldChange:status)
   - Deposit → DEPOSIT_INITIATED (insert), DEPOSIT_UPDATED (modify)
   - Withdrawal → WITHDRAWAL_REQUESTED (insert), WITHDRAWAL_UPDATED (modify)
   - ExecutionModeChange → EXECUTION_MODE_CHANGED (insert), EXECUTION_MODE_CHANGE_UPDATED (modify)
@@ -40,7 +40,7 @@ Note: legacy per-entity rows (Goal, RiskProfile, OperatingModeRecord, AccountMod
   - Pipeline preSteps: check-feature-flag.fn.js gates initiateDeposit + requestWithdrawal
   - Pipeline extraSteps: get-profile-mandate.fn.js appended to getProfile (fetches Mandate sibling row and merges into response)
 - revokeMandate resolver issues a single UpdateItem on the Mandate row (sk='Mandate', status='REVOKED', revokedAt) — CDC then emits MANDATE_REVOKED. No write to InvestorProfile row.
-- updateOperatingMode resolver writes operatingMode onto the composite InvestorProfile row — CDC emits INVESTOR_PROFILE_UPDATED (carrier) + OPERATING_MODE_CHANGED (semantic).
+- updateOperatingMode resolver issues an atomic `TransactWriteItems` writing BOTH the InvestorProfile composite row (bumps its own `__version`, keeps INVESTOR_PROFILE_UPDATED firing for dashboard-bff's InvestorSnapshot) AND the Mandate sibling row (bumps the Mandate `__version`, re-sources OPERATING_MODE_CHANGED from the Mandate row's CDC). TransactWriteItems returns no attributes; a `get-profile.fn.js` readback step (pipeline extraSteps) fetches and returns the InvestorProfile.
 
 ## Handlers
 - event-listener.ts — materializes USER_REGISTERED, NOTIFICATION_CREATED, BALANCE_UPDATED, ONBOARDING_COMPLETED (transactWrite: composite InvestorProfile + Mandate sibling row + conditional Deposit), GO_LIVE_CONFIRMED (sets executionMode='live' on the composite row)

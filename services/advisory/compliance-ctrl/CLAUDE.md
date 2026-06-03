@@ -21,14 +21,13 @@ Post-resplit (2026-05-08): subscribes to semantic/lifecycle events directly inst
 ## Handlers
 - event-listener.ts — Ingress event handler
   - RECOMMENDATION_PROPOSED: loads GuardrailPolicy (MandateSnapshot) from DDB, runs RuleEngine (MandateValidator + GuardrailEvaluator + SuitabilityChecker + AuthorityResolver), writes ComplianceCheck + AuditArtifact records. Requires `taskToken` on subject (SF callback to decision-workflow-ctrl on DECISION_APPROVED|BLOCKED). Throws NotRetryableError if taskToken missing or required fields absent.
-  - MANDATE_ISSUED: projects GuardrailPolicy (MandateSnapshot `{level, status, operatingMode, effectiveDate}`) from the Mandate row payload. The 8 numeric guardrail thresholds are looked up from `guardrail-params.ts` by level + operatingMode.
-  - OPERATING_MODE_CHANGED: re-projects the GuardrailPolicy with the new operatingMode — updates the stored MandateSnapshot so the next RECOMMENDATION_PROPOSED uses the correct thresholds.
-  - MANDATE_REVOKED: sets MandateSnapshot.status='REVOKED' + revokedAt; MandateValidator's REVOKED gate short-circuits the rule engine for any subsequent RECOMMENDATION_PROPOSED.
+  - MANDATE_ISSUED / OPERATING_MODE_CHANGED / MANDATE_REVOKED: all three route to a single `projectMandateSnapshot` helper that calls `projectVersioned('MandateSnapshot', fullImage, { version: subject.__version, overrides: { pk, sk } })`. Every Mandate event now carries the full Mandate image + Mandate `__version`; the version guard is the sole idempotency mechanism (the old REVOKED-skip conditional is gone). Missing `operatingMode` throws NotRetryableError; missing `__version` returns `skip()`.
 - event-publisher.ts — Egress CDC publisher
 
 ## Read model
 - ReadModelOwnership registered in src/read-model-ownership.ts
   - P2 (append-only logs via record, idempotent/order-independent): ComplianceCheck, AuditArtifact
+  - P1 (versioned snapshot via projectVersioned, version-guarded): MandateSnapshot — mirror of the investor-bff Mandate aggregate, keyed on the Mandate `__version` carried by CDC (`read-model-ownership-mandate-projection-fix`, 2026-06-03). projectVersioned writes the full Mandate image; the `__version` guard subsumes the old REVOKED-skip idempotency.
 - Enforced by `nx run compliance-ctrl:typecheck` (test/types/read-model-ownership.type-test.ts)
 
 ## Event Types (domain/events.ts)

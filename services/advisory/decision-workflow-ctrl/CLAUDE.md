@@ -58,12 +58,12 @@ Stack: services/advisory/decision-workflow-ctrl/src/service.stack.ts
 - ReadModelOwnership registered in src/read-model-ownership.ts
   - CommandOwned (own-aggregate via update() + self-incremented __version): DecisionPacket
   - Projection<'P1'> mirror rows (WS-C — projectVersioned, version-guarded): InvestorProfileSnapshot + MarketSnapshot (keyed on upstream `__version`), LedgerSnapshot (keyed on `snapshot.lastEventSequence`).
-  - MandateSnapshot is NOT registered (drift-checker INFO) — split to read-model-ownership-mandate-projection-fix (blocked on an investor-bff producer fix; OPERATING_MODE_CHANGED rides a different row/version-counter). mandate-projector.ts still writes it via update()/record().
+  - MandateSnapshot: Projection<'P1'> — mirror of the investor-bff Mandate aggregate, keyed on the Mandate `__version` carried by CDC (`read-model-ownership-mandate-projection-fix`, 2026-06-03). mandate-projector.ts writes it via `projectVersioned` (full-row upsert, version-guarded); missing `__version` → `skip()`.
 - Enforced by `nx run decision-workflow-ctrl:typecheck` (test/types/read-model-ownership.type-test.ts)
 
 ## Handlers
 - sfn-callback.ts — CallbackIngress handler. On PORTFOLIO_COMPLETED / NARRATIVE_COMPLETED → SendTaskSuccess; on PORTFOLIO_FAILED / NARRATIVE_FAILED → SendTaskFailure; also writes AgentOutput records on agent completions; updates DecisionPacket status on compliance + user response events.
-- mandate-projector.ts — MandateProjectorIngress handler (materializeToTable). MANDATE_ISSUED → record() with operatingMode + level + status='ACTIVE'; OPERATING_MODE_CHANGED → update() patching operatingMode.
+- mandate-projector.ts — MandateProjectorIngress handler (materializeToTable). MANDATE_ISSUED + OPERATING_MODE_CHANGED both route to `projectMandateSnapshot` which calls `projectVersioned('MandateSnapshot', fullImage, { version: subject.__version, overrides: { pk, sk } })`. The FIRST write (MANDATE_ISSUED) creates the row → stream INSERT → MANDATE_SNAPSHOT_CREATED (the SF trigger) fires once; later OPERATING_MODE_CHANGED overwrites the row → MODIFY → no re-trigger. Missing `operatingMode` throws NotRetryableError; missing `__version` → `skip()`.
 - snapshot-projector.ts — SnapshotProjectorIngress handler (materializeToTable). INVESTOR_PROFILE_SNAPSHOT_CREATED/_UPDATED → projectVersioned(InvestorProfileSnapshot) keyed on subject.__version; MARKET_SNAPSHOT_UPDATED → projectVersioned(MarketSnapshot) keyed on subject.__version; PORTFOLIO_UPDATED → projectVersioned(LedgerSnapshot) keyed on snapshot.lastEventSequence. Missing subject.agentOutput/snapshot → NotRetryableError; absent version → drop (undefined).
 - assemble-packet.ts — Assembles decision packet (invoked by SF).
 - event-publisher.ts — Egress CDC publisher.
