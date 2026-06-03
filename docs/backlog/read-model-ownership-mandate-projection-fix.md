@@ -1,6 +1,6 @@
 ---
 id: read-model-ownership-mandate-projection-fix
-status: queued
+status: active
 rank: 5
 type: refactor
 notes: "Spun out of WS-C (read-model-ownership-w-c-consumer-conversions) 2026-06-02. The compliance-ctrl + DWC MandateSnapshot P1 projectVersioned conversion is blocked by a producer-contract gap: OPERATING_MODE_CHANGED is CDC'd from the InvestorProfile row (a different __version counter + a partial payload missing level/status/effectiveDate/mandateId), not the Mandate row — so a single-version-line full-row P1 projection is impossible. Scope: (1) an investor-bff producer fix putting operatingMode changes on the Mandate version line carrying full Mandate state; (2) convert compliance-ctrl MandateSnapshot + DWC mandate-projector MandateSnapshot to projectVersioned + register Projection<'P1'> in both. Opens with a small design decision on the producer approach. Ranked before WS-D (its mandatory gate needs MandateSnapshot registered)."
