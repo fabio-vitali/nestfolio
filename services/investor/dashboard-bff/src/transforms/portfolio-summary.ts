@@ -26,8 +26,14 @@ export const portfolioSummary = (
 
   if (!snapshot || snapshot.cashBalanceCents === undefined) return undefined;
 
+  const version = snapshot.lastEventSequence;
+  if (typeof version !== 'number') return undefined;
+
   const positions = snapshot.positions ?? {};
-  const positionMarketValueCents = Object.values(positions).reduce(
+  // Holdings are quantity > 0; fully-exited symbols persist in the snapshot at
+  // quantity 0 (the reducer keeps them) and must not inflate the count.
+  const held = Object.values(positions).filter((p) => (p.quantity ?? 0) > 0);
+  const positionMarketValueCents = held.reduce(
     (sum, p) => sum + Math.round((p.quantity ?? 0) * (p.lastFillPrice ?? 0) * 100),
     0,
   );
@@ -39,11 +45,11 @@ export const portfolioSummary = (
       userId,
       region,
       cashBalanceCents: snapshot.cashBalanceCents,
-      positionCount: Object.keys(positions).length,
+      positionCount: held.length,
       totalValueCents: snapshot.cashBalanceCents + positionMarketValueCents,
     },
     {
-      version: Number(snapshot.lastEventSequence ?? 0),
+      version,
       overrides: { pk: `T#${tenantId}`, sk: 'PortfolioSummary' },
     },
   );

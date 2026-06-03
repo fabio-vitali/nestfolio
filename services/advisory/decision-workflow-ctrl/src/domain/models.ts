@@ -1,18 +1,11 @@
 /** Status of a DecisionPacket through the Step Functions workflow. */
 export type WorkflowStatus =
   | 'PENDING'
-  | 'INITIATED'
-  | 'PROFILING'
-  | 'CONSTRUCTING'
-  | 'NARRATING'
-  | 'PROPOSED'
-  | 'COMPLIANCE_REVIEW'
+  | 'AWAITING_CONFIRMATION'
   | 'APPROVED'
   | 'BLOCKED'
-  | 'AWAITING_CONFIRMATION'
   | 'CONFIRMED'
-  | 'REJECTED'
-  | 'FAILED';
+  | 'REJECTED';
 
 /** DecisionPacket: the core aggregate owned by decision-workflow-ctrl. */
 export interface DecisionPacket {

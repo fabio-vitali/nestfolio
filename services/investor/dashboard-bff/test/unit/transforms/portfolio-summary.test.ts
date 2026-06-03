@@ -54,4 +54,24 @@ describe('portfolioSummary transform', () => {
   it('returns undefined when no snapshot/cashBalance is present', () => {
     expect(portfolioSummary(makeUow('RECONCILIATION_COMPLETED', { foo: 'bar' }))).toBeUndefined();
   });
+
+  it('excludes zero-quantity (fully-exited) positions from positionCount', () => {
+    const withGhost = {
+      cashBalanceCents: 5000,
+      lastEventSequence: 8,
+      positions: {
+        AAPL: { symbol: 'AAPL', quantity: 10, averageCostBasis: 100, totalCostBasis: 1000, lastFillPrice: 150 },
+        TSLA: { symbol: 'TSLA', quantity: 0, averageCostBasis: 0, totalCostBasis: 0, lastFillPrice: 200 },
+      },
+    };
+    expect(portfolioSummary(makeUow('PORTFOLIO_UPDATED', { snapshot: withGhost }))).toMatchObject({
+      fields: { positionCount: 1, totalValueCents: 155000 }, // only AAPL; TSLA contributes 0
+      version: 8,
+    });
+  });
+
+  it('drops (returns undefined) when lastEventSequence is absent', () => {
+    const noVersion = { cashBalanceCents: 5000, positions: {} };
+    expect(portfolioSummary(makeUow('PORTFOLIO_UPDATED', { snapshot: noVersion }))).toBeUndefined();
+  });
 });

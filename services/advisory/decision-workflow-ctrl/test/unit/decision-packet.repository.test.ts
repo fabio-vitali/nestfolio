@@ -190,13 +190,13 @@ describe('DecisionPacketRepository', () => {
     it('should update status via transactWrite without EditEvent', async () => {
       mockSend.mockResolvedValueOnce({});
 
-      await repo.updateStatus('t1', 'dp-1', 'PROFILING');
+      await repo.updateStatus('t1', 'dp-1', 'AWAITING_CONFIRMATION');
 
       expect(mockSend).toHaveBeenCalledTimes(1);
       const call = mockSend.mock.calls[0][0];
       expect(call.input.TransactItems).toHaveLength(1);
       const attrs = extractUpdateAttrs(call.input.TransactItems[0].Update);
-      expect(attrs).toMatchObject({ status: 'PROFILING' });
+      expect(attrs).toMatchObject({ status: 'AWAITING_CONFIRMATION' });
     });
 
     it('should merge extra details into the update', async () => {

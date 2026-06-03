@@ -110,6 +110,9 @@ const createHandlers = () => {
           ...(reason ? { rejectionReason: reason } : {}),
         }, {
           add: { __version: 1 },
+          // CONFIRMED/REJECTED are terminal; the L2 waitForTaskToken token was
+          // already consumed to resume the SF. Strip the now-dead attribute.
+          removes: ['taskToken'],
           overrides: { pk: `DecisionPacket#${tenantId}#${decisionId}`, sk: 'DecisionPacket' },
         })] : [],
       };

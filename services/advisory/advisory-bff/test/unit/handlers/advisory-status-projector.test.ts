@@ -22,7 +22,10 @@ function streamEvent(rows: Record<string, unknown>[]): DynamoDBStreamEvent {
       eventID: `evt-${i}`,
       eventName: 'MODIFY',
       eventSource: 'aws:dynamodb',
-      dynamodb: { NewImage: marshall(row, { removeUndefinedValues: true }) },
+      dynamodb: {
+        SequenceNumber: String(1000 + i),
+        NewImage: marshall(row, { removeUndefinedValues: true }),
+      },
     })),
   } as unknown as DynamoDBStreamEvent;
 }
@@ -70,5 +73,18 @@ describe('advisory-status-projector', () => {
     ]));
 
     expect(countMock).toHaveBeenCalledTimes(1);
+  });
+
+  it('versions the AdvisoryStatus write with the max SequenceNumber for the tenant', async () => {
+    countMock.mockResolvedValue(2);
+
+    await handler(streamEvent([
+      { __typename: 'DecisionReadModel', tenantId: 't1', pk: 'Decision#t1#d1' }, // seq 1000
+      { __typename: 'DecisionReadModel', tenantId: 't1', pk: 'Decision#t1#d2' }, // seq 1001
+    ]));
+
+    const put = (ddbMock.calls() as Array<{ args: [{ input: { Item?: Record<string, unknown> } }] }>)
+      .find((c) => c.args[0].input.Item?.sk === 'AdvisoryStatus');
+    expect(put!.args[0].input.Item!.__version).toBe(1001);
   });
 });

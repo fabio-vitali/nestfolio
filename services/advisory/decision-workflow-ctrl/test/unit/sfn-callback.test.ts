@@ -108,6 +108,7 @@ function createHandlers() {
           ...(reason ? { rejectionReason: reason } : {}),
         }, {
           add: { __version: 1 },
+          removes: ['taskToken'],
           overrides: { pk: `DecisionPacket#${tenantId}#${decisionId}`, sk: 'DecisionPacket' },
         })] : [],
       };
@@ -356,6 +357,7 @@ describe('decision-workflow-ctrl sfn-callback (resumeStateMachine)', () => {
       });
       expect('rejectedAt' in intent.updates).toBe(false);
       expect(intent.add).toEqual({ __version: 1 });
+      expect(intent.removes).toEqual(['taskToken']);
       expect(intent.overrides).toEqual({ pk: 'DecisionPacket#t1#dp-1', sk: 'DecisionPacket' });
     });
 
@@ -381,6 +383,7 @@ describe('decision-workflow-ctrl sfn-callback (resumeStateMachine)', () => {
       });
       expect('confirmedAt' in intent.updates).toBe(false);
       expect(intent.add).toEqual({ __version: 1 });
+      expect(intent.removes).toEqual(['taskToken']);
     });
 
     it('should return empty intents when decisionId is missing', async () => {

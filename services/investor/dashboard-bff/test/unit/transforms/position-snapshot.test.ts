@@ -60,4 +60,10 @@ describe('positionSnapshot transform', () => {
   it('returns an empty array when the snapshot has no positions', () => {
     expect(positionSnapshot(makeUow({ snapshot: { positions: {}, lastEventSequence: 1 } }))).toEqual([]);
   });
+
+  it('drops (returns empty array) when lastEventSequence is absent', () => {
+    expect(positionSnapshot(makeUow({ snapshot: {
+      positions: { AAPL: { symbol: 'AAPL', quantity: 1, averageCostBasis: 1, totalCostBasis: 1, lastFillPrice: 1 } },
+    } }))).toEqual([]);
+  });
 });
