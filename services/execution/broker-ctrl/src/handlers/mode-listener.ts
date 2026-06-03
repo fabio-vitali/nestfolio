@@ -1,3 +1,4 @@
+import '../read-model-ownership';
 import { materializeToTable, record, type EventPayload, type EventContext } from '@nestfolio/event-processor';
 import { BrokerCtrlInboundEventTypes } from '../domain/events';
 
