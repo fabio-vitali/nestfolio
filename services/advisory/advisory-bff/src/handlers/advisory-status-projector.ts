@@ -4,7 +4,7 @@ import { unmarshall } from '@aws-sdk/util-dynamodb';
 import type { AttributeValue } from '@aws-sdk/client-dynamodb';
 import { DynamoDBClient } from '@aws-sdk/client-dynamodb';
 import { DynamoDBDocumentClient } from '@aws-sdk/lib-dynamodb';
-import { IntentExecutor, projectVersioned, asTenantId, asUserId, getTime, type EventContext } from '@nestfolio/event-processor';
+import { IntentExecutor, projectVersioned, asTenantId, asUserId, type EventContext } from '@nestfolio/event-processor';
 import { AdvisoryRepository } from '../repositories/advisory.repository';
 
 const TABLE = process.env.TABLE_NAME!;
@@ -20,27 +20,30 @@ const executor = new IntentExecutor({ docClient, tableName: TABLE });
 // between them: the count is always a pure function of the projected rows. The
 // loop guard (skip AdvisoryStatus records) prevents the projector's own writes
 // from re-triggering a recompute.
+//
+// Version = Date.now() (wall clock). NOTE: do NOT switch this to the stream
+// SequenceNumber — DecisionReadModel rows are keyed `Decision#<tenant>#<id>`
+// (per-decision pk), so a tenant's decisions land in DIFFERENT stream shards and
+// their SequenceNumbers are NOT comparable across shards. max(SequenceNumber)
+// over a multi-decision batch is therefore not monotonic for the per-tenant
+// AdvisoryStatus row, and the `#__version < :version` guard drops the recompute
+// (proven: advisory-bff integration "recomputes inFlightCount" -> row never
+// written). The Date.now() same-ms collision is benign: the next DecisionReadModel
+// change re-triggers the recompute, and two recomputes 1ms apart count near-
+// identical data. A strictly-monotonic fix would need an atomic self-increment.
 export const handler = async (event: DynamoDBStreamEvent): Promise<void> => {
-  // Strictly-monotonic version per tenant: the max DynamoDB-stream SequenceNumber
-  // of the tenant's DecisionReadModel records in this batch. SequenceNumbers
-  // increase within a shard, and a tenant's rows share a pk -> same shard.
-  // Number() is lossy above 2^53, but distinct invocations are temporally
-  // separated well above that floor -- strictly better than the Date.now()
-  // same-ms collision it replaces (two same-ms recomputes produced equal
-  // versions and the #__version < :version guard dropped the fresher count).
-  const tenantMaxSeq = new Map<string, number>();
+  const tenants = new Set<string>();
   for (const rec of event.Records) {
     const image = rec.dynamodb?.NewImage ?? rec.dynamodb?.OldImage;
     if (!image) continue;
     const row = unmarshall(image as Record<string, AttributeValue>) as Record<string, unknown>;
     if (row.__typename !== 'DecisionReadModel') continue; // loop guard
-    if (typeof row.tenantId !== 'string') continue;
-    const seq = Number(rec.dynamodb?.SequenceNumber ?? 0);
-    if (seq > (tenantMaxSeq.get(row.tenantId) ?? 0)) tenantMaxSeq.set(row.tenantId, seq);
+    if (typeof row.tenantId === 'string') tenants.add(row.tenantId);
   }
 
-  for (const [tenantId, version] of tenantMaxSeq) {
+  for (const tenantId of tenants) {
     const inFlightCount = await repo.countInFlightDecisions(tenantId);
+    const version = Date.now();
     // System-originated recompute: no end-user request context. The
     // RequestContext fields are required by EventContext; supply system
     // sentinels — pickRequestContext copies them onto the AdvisoryStatus row
@@ -51,7 +54,7 @@ export const handler = async (event: DynamoDBStreamEvent): Promise<void> => {
       region: process.env.AWS_REGION ?? 'us-east-1',
       eventId: `recompute-${tenantId}-${version}`,
       eventType: 'ADVISORY_STATUS_RECOMPUTED',
-      timestamp: getTime(),
+      timestamp: new Date(version).toISOString(),
       serviceName: 'advisory-bff',
       record: {},
     };
