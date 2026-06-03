@@ -1,6 +1,6 @@
 ---
 id: dashboard-advisory-readmodel-fixes
-status: queued
+status: active
 rank: 8
 type: bug
 notes: "dashboard-bff + advisory read-model residuals from w2/w3: (A) PositionSnapshot orphan row on full sell (no delete path); (B) AdvisoryStatus dead code + unwritten fields (structural-zero); (C) w3 hardening nits — Date.now() version, terminal taskToken cleanup, WorkflowStatus enum guard, portfolio-summary no-drop fallback (WS-C side-finding); (D) advisory-bff ~6 latent tsc errors (TableEntry timestamp, shared root w/ ledger-ctrl-2) blocking a clean service-wide typecheck. Merges dashboard-position-orphan-on-sell + dashboard-bff-advisory-status-dead-code-cleanup + w3-advisory-versioned-packet-hardening + advisory-bff-latent-tsc-errors."
