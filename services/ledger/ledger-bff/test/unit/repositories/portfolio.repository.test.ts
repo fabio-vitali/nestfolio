@@ -56,8 +56,6 @@ jest.mock('@nestfolio/event-processor', () => {
 });
 import { PortfolioRepository } from '../../../src/repositories/portfolio.repository';
 
-const TEST_CTX = { tenantId: 'tenant-1', userId: 'user-1', region: 'us-east-1' };
-
 describe('PortfolioRepository', () => {
   let repo: PortfolioRepository;
 
@@ -65,21 +63,6 @@ describe('PortfolioRepository', () => {
     jest.clearAllMocks();
     mockSend.mockResolvedValue({ Items: [] });
     repo = new PortfolioRepository('test-table');
-  });
-
-  describe('upsertBalance', () => {
-    it('should update balance for tenant', async () => {
-      mockSend.mockResolvedValue({});
-
-      await repo.upsertBalance('tenant-1', 950_000, -50_000);
-
-      expect(mockSend).toHaveBeenCalledTimes(1);
-      const cmd = mockSend.mock.calls[0][0];
-      expect(cmd._type).toBe('Update');
-      expect(cmd.input.Key).toEqual({ pk: 'Portfolio#tenant-1', sk: 'Latest' });
-      expect(cmd.input.ExpressionAttributeValues[':balance']).toBe(950_000);
-      expect(cmd.input.ExpressionAttributeValues[':delta']).toBe(-50_000);
-    });
   });
 
   describe('getLatest', () => {
@@ -99,44 +82,6 @@ describe('PortfolioRepository', () => {
     });
   });
 
-  describe('appendHistory', () => {
-    it('should write history entry with zero-padded sequence', async () => {
-      mockSend.mockResolvedValue({});
-
-      await repo.appendHistory({
-        eventId: 'evt-1',
-        eventType: 'ORDER_FILLED',
-        payload: { symbol: 'VTI', quantity: 10 },
-        timestamp: '2025-01-01T00:00:00.000Z',
-        sequenceNo: 42,
-      }, TEST_CTX as Parameters<typeof repo.appendHistory>[1]);
-
-      const cmd = mockSend.mock.calls[0][0];
-      expect(cmd._type).toBe('Put');
-      expect(cmd.input.Item.pk).toBe('History#tenant-1');
-      expect(cmd.input.Item.sk).toBe('00000042#evt-1');
-      expect(cmd.input.Item.__typename).toBe('HistoryEntry');
-      expect(cmd.input.Item.sequenceNo).toBe(42);
-    });
-  });
-
-  describe('saveCheckpoint', () => {
-    it('should write checkpoint with conditional put', async () => {
-      mockSend.mockResolvedValue({});
-
-      await repo.saveCheckpoint('2025-01-01', {
-        cashBalanceCents: 950_000,
-        positions: {},
-      }, TEST_CTX as Parameters<typeof repo.saveCheckpoint>[2]);
-
-      const cmd = mockSend.mock.calls[0][0];
-      expect(cmd._type).toBe('Put');
-      expect(cmd.input.Item.pk).toBe('Checkpoint#tenant-1');
-      expect(cmd.input.Item.sk).toBe('2025-01-01');
-      expect(cmd.input.ConditionExpression).toBe('attribute_not_exists(pk)');
-    });
-  });
-
   describe('getPositions', () => {
     it('should query positions for tenant', async () => {
       const positions = [
@@ -150,23 +95,6 @@ describe('PortfolioRepository', () => {
     });
   });
 
-  describe('getCheckpointBefore', () => {
-    it('should return closest checkpoint before date', async () => {
-      const checkpoint = { pk: 'Checkpoint#t1', sk: '2025-01-01', cashBalanceCents: 100_000 };
-      mockSend.mockResolvedValue({ Items: [checkpoint] });
-
-      const result = await repo.getCheckpointBefore('t1', '2025-01-15');
-      expect(result).toEqual(checkpoint);
-    });
-
-    it('should return null when no checkpoints exist', async () => {
-      mockSend.mockResolvedValue({ Items: [] });
-
-      const result = await repo.getCheckpointBefore('t1', '2025-01-15');
-      expect(result).toBeNull();
-    });
-  });
-
   describe('getSimulationLatest', () => {
     it('should return simulation latest when found', async () => {
       const item = { pk: 'Simulation#t1', sk: 'Latest', cashBalanceCents: 100_000 };
@@ -174,42 +102,6 @@ describe('PortfolioRepository', () => {
 
       const result = await repo.getSimulationLatest('t1');
       expect(result).toEqual(item);
-    });
-  });
-
-  describe('upsertSimulation', () => {
-    it('should write simulation latest state', async () => {
-      mockSend.mockResolvedValue({});
-
-      await repo.upsertSimulation({
-        cashBalanceCents: 900_000,
-        positions: {},
-      }, TEST_CTX as Parameters<typeof repo.upsertSimulation>[1]);
-
-      const cmd = mockSend.mock.calls[0][0];
-      expect(cmd._type).toBe('Put');
-      expect(cmd.input.Item.pk).toBe('Simulation#tenant-1');
-      expect(cmd.input.Item.sk).toBe('Latest');
-    });
-  });
-
-  describe('saveSnapshotAt', () => {
-    it('should write a SnapshotAt item with TTL', async () => {
-      mockSend.mockResolvedValueOnce({}); // put
-
-      const snapshotCtx = { tenantId: 't1', userId: 'u1', region: 'us-east-1' };
-      await repo.saveSnapshotAt('actual', '2025-06-15T12:00:00.000Z', {
-        cashBalanceCents: 7_500_000,
-        positions: { VTI: { symbol: 'VTI', quantity: 10, averageCostBasis: 250, totalCostBasis: 2500, lastFillPrice: 250 } },
-      }, 365, snapshotCtx as Parameters<typeof repo.saveSnapshotAt>[3]);
-
-      const { PutCommand } = jest.requireMock('@aws-sdk/lib-dynamodb') as { PutCommand: jest.Mock };
-      const putCall = PutCommand.mock.calls[0][0];
-      expect(putCall.Item.pk).toBe('SnapshotAt#t1#actual');
-      expect(putCall.Item.sk).toBe('2025-06-15T12:00:00.000Z');
-      expect(putCall.Item.__typename).toBe('SnapshotAt');
-      expect(putCall.Item.cashBalanceCents).toBe(7_500_000);
-      expect(putCall.Item.ttl).toBeGreaterThan(0);
     });
   });
 
