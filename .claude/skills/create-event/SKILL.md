@@ -81,6 +81,9 @@ description: Add a new event type — TypeScript schema, producer registration, 
   On the **producer** side (step 3), a row that downstreams will project as P1
   must carry a top-level monotonic `__version` on its emitted event (the §3
   carriage convention). Run `pnpm nx run event-processor:read-model-drift`.
+  (If the new row is a verified non-governed outbox/carrier/feed-cache row, add it to
+  `tools/read-model-exclusions.json` instead of registering it — the gate errors on any
+  unclassified intent-factory write.)
 
 - [ ] 7. **Write tests** — producer and consumer
 

@@ -20,13 +20,13 @@ description: Full system sweep — dispatches audit-domain per domain in paralle
   - **Evolution annotations** in `docs/architecture/SYSTEM-ARCHITECTURE.md` (§7.1, §10.1, §17.1, etc.) reference specs that exist under `docs/superpowers/specs/`
   - **Orientation skill drift guard:** `.claude/skills/orient/SKILL.md` and `.claude/skills/domains/SKILL.md` must remain under ~60 lines each. They were thinned to canonical-doc pointers on 2026-05-03; re-population with enumerated service or event lists is the failure mode (those drift on every system change). Grep for forbidden enumerations: any service name (`advisory-ctrl`, `decision-workflow-ctrl`, etc.) or event name (`MANDATE_CREATED`, etc.) appearing in these two skills is a hard fail.
   - **BACKLOG design-entry refs valid:** for each `[design]` entry in `docs/BACKLOG.md`, every reference in its `**References:**` line resolves AND still matches code (cited service section in SERVICE-INVENTORY.md exists; cited SYSTEM-ARCHITECTURE.md section exists; cited `flows/*.flow.yaml` exists and passes `validate-flow`).
-- [ ] 5b. **Read-model ownership drift (system-wide)** — run `pnpm nx run event-processor:read-model-drift` once (it is repo-wide). HARD FAIL on any drift violation (accumulate-on-projection, unguarded P1, command+event dual-writer, registry conflict). The non-failing INFO list (factory-written typenames with no `ReadModelOwnership` augmentation) is the ungoverned-row coverage gap — report its size and confirm it is tracked by `read-model-ownership-producer-aggregates`; a growing list means new code is skipping classification. See `docs/architecture/READ-MODEL-OWNERSHIP.md`.
+- [ ] 5b. **Read-model ownership drift (system-wide)** — run `pnpm nx run event-processor:read-model-drift` once (it is repo-wide). HARD FAIL on any drift violation (accumulate-on-projection, unguarded P1, command+event dual-writer, registry conflict, unclassified-write, exclusion-conflict). The producer-aggregates program is complete: the gate is MANDATORY — an intent-factory write that is neither registered nor listed in `tools/read-model-exclusions.json` is a hard fail (`unclassified-write`). The only remaining non-failing INFO is unregistered *command* writes (`*.fn.js`), which are not gated; a non-empty list there is a documentary-registration gap, not a drift. See `docs/architecture/READ-MODEL-OWNERSHIP.md`.
 - [ ] 6. **System-level checks summary:**
 
 | Check | Severity |
 |-------|----------|
 | All domains pass | Aggregated |
-| Read-model ownership drift (event-processor:read-model-drift, 0 violations) | Hard fail |
+| Read-model ownership drift (event-processor:read-model-drift, 0 violations incl. unclassified-write + exclusion-conflict) | Hard fail |
 | E2E feature test coverage (via audit-e2e-test) | Hard fail |
 | C4 diagram freshness (D2 sources match CDK stacks) | Hard fail |
 | Flow spec completeness (all cross-domain + user-triggered flows documented) | Hard fail |

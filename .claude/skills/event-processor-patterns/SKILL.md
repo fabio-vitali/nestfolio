@@ -611,7 +611,7 @@ Every aggregate has exactly one owner. After creation, the key question is **"wh
 
 ### `ReadModelOwnership` registry
 
-Opt a typename into compile-time enforcement by augmenting the open interface in the service's `src/ownership.ts`:
+Opt a typename into compile-time enforcement by augmenting the open interface in the service's `src/read-model-ownership.ts` (side-effect-imported from a handler):
 
 ```ts
 declare module '@nestfolio/event-processor' {
@@ -633,6 +633,8 @@ Import `Projection` and `CommandOwned` from `@nestfolio/event-processor`. The re
 | `projectVersioned` | `CommandOwned`, `P2`, `P3` | P1, unregistered |
 | `project`, `accumulate`, `update`, `updateOrRetry` | Any `Projection` (P1, P2, P3) | `CommandOwned`, unregistered |
 | `record` | P1, P3 | P2 (append-log) and `CommandOwned` (seed-by-one-event path) |
+
+> **The drift gate is mandatory** (`event-processor:read-model-drift`): "unregistered" is allowed by the *type system* but **fails the gate** for any intent-factory write — register the typename, or, if it is a verified non-governed outbox/carrier/external-feed row, add it to `tools/read-model-exclusions.json`. Command writes (`*.fn.js __typename`) are not gated.
 
 ### String-literal enforcement caveat
 

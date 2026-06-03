@@ -31,6 +31,9 @@ description: Step-by-step guide for adding a feature to an existing service. Ens
   `__typename` in `services/{domain}/{service}/src/read-model-ownership.ts`
   (`declare module '@nestfolio/event-processor' { interface ReadModelOwnership { … } }`)
   and use the matching factory. Then run `pnpm nx run event-processor:read-model-drift`.
+  (If the new row is a verified non-governed outbox/carrier/feed-cache row, add it to
+  `tools/read-model-exclusions.json` instead of registering it — the gate errors on any
+  unclassified intent-factory write.)
 - [ ] 6. **Wire handler in service stack** if new Ingress or event types needed
 - [ ] 7. **Run unit tests to verify pass** — `pnpm nx test {service}`
 - [ ] 7b. **Update integration tests** if service has them — invoke `create-integration-test` for new event coverage
