@@ -13,31 +13,56 @@ describe('ledgerEntryRecorded transform', () => {
     record: {},
   });
 
-  it('writes a HistoryEntry record (P2) for an actual-stream entry', () => {
-    const result = ledgerEntryRecorded(makeUow({
-      eventId: 'evt-1',
-      eventType: 'ORDER_FILLED',
-      payload: { orderId: 'o1' },
-      timestamp: '2026-01-01T00:00:00.000Z',
-      sequenceNo: 42,
-    }) as Parameters<typeof ledgerEntryRecorded>[0]);
+  // The shape the real ledger-ctrl producer emits (LedgerEntryEvent).
+  const actualSubject = {
+    streamType: 'actual',
+    lastEventSequence: 42,
+    snapshot: {
+      positions: { AAPL: { symbol: 'AAPL', quantity: 5, averageCostBasis: 150, totalCostBasis: 750, lastFillPrice: 150 } },
+      cashBalanceCents: 250_000,
+      lastEventSequence: 42,
+    },
+  };
 
-    const intent = result as Record<string, unknown>;
-    expect(intent).toMatchObject({
+  it('writes a HistoryEntry (P2) for an actual entry, keyed on the padded sequence', () => {
+    const result = ledgerEntryRecorded(
+      makeUow(actualSubject) as Parameters<typeof ledgerEntryRecorded>[0],
+    );
+    const intents = result as Array<Record<string, unknown>>;
+    const hist = intents.find((i) => i.typename === 'HistoryEntry');
+    expect(hist).toMatchObject({
       _tag: 'record',
       typename: 'HistoryEntry',
-      overrides: { pk: 'History#t1', sk: 'Entry#42' },
+      overrides: { pk: 'History#t1', sk: '00000042' },
     });
+    const fields = hist!.fields as Record<string, unknown>;
+    expect(fields.eventType).toBe('LEDGER_ENTRY_RECORDED'); // envelope detail-type
+    expect(fields.sequenceNo).toBe(42);
+    // eventId + createdAt are injected by the record() executor, not the transform.
+    expect(fields.eventId).toBeUndefined();
+    expect(fields.createdAt).toBeUndefined();
   });
 
-  it('writes versioned Simulation + SimulationPosition from snapshot for a simulated entry', () => {
+  it('writes one per-date Checkpoint (P2) from the snapshot for an actual entry', () => {
+    const result = ledgerEntryRecorded(
+      makeUow(actualSubject) as Parameters<typeof ledgerEntryRecorded>[0],
+    );
+    const intents = result as Array<Record<string, unknown>>;
+    const cp = intents.find((i) => i.typename === 'Checkpoint');
+    expect(cp).toMatchObject({
+      _tag: 'record',
+      typename: 'Checkpoint',
+      overrides: { pk: 'Checkpoint#t1', sk: '2026-01-01' },
+    });
+    const fields = cp!.fields as Record<string, unknown>;
+    expect(fields.cashBalanceCents).toBe(250_000);
+    expect(fields.date).toBe('2026-01-01');
+  });
+
+  it('writes versioned Simulation + SimulationPosition and NO history/checkpoint for a simulated entry', () => {
     const result = ledgerEntryRecorded(makeUow({
-      eventId: 'evt-sim',
-      eventType: 'SIMULATED_TRADE',
-      payload: {},
-      timestamp: '2026-01-01T00:00:00.000Z',
-      sequenceNo: 5,
       streamType: 'simulated',
+      lastEventSequence: 9,
       snapshot: {
         positions: { AAPL: { symbol: 'AAPL', quantity: 12, averageCostBasis: 148, totalCostBasis: 1776, lastFillPrice: 155 } },
         cashBalanceCents: 950_000,
@@ -64,23 +89,8 @@ describe('ledgerEntryRecorded transform', () => {
       overrides: { pk: 'Simulation#t1', sk: 'Position#AAPL' },
     });
     expect((simPos!.fields as Record<string, unknown>).quantity).toBe(12);
-  });
 
-  it('writes a Checkpoint record (P2) when sequenceNo is a multiple of 100', () => {
-    const result = ledgerEntryRecorded(makeUow({
-      eventId: 'evt-cp',
-      eventType: 'CHECKPOINT',
-      payload: {},
-      timestamp: '2026-01-15T00:00:00.000Z',
-      sequenceNo: 200,
-    }) as Parameters<typeof ledgerEntryRecorded>[0]);
-
-    const intents = result as Array<Record<string, unknown>>;
-    const cp = intents.find((i) => i.typename === 'Checkpoint');
-    expect(cp).toMatchObject({
-      _tag: 'record',
-      typename: 'Checkpoint',
-      overrides: { pk: 'Checkpoint#t1', sk: '2026-01-15' },
-    });
+    expect(intents.find((i) => i.typename === 'HistoryEntry')).toBeUndefined();
+    expect(intents.find((i) => i.typename === 'Checkpoint')).toBeUndefined();
   });
 });

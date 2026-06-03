@@ -10,18 +10,8 @@ type PositionRecord = {
 };
 
 type LedgerEntryPayload = {
-  eventId: string;
-  eventType: string;
-  payload: Record<string, unknown>;
-  timestamp: string;
-  sequenceNo: number;
   streamType?: string;
-  // Top-level fields consumed by the P2 append-logs (HistoryEntry / Checkpoint).
-  // These predate w1 and are left untouched — the broader producer-shape mismatch
-  // (the real LedgerEntryEvent carries these only inside `snapshot`) is filed as
-  // ledger-entry-recorded-producer-shape-mismatch, out of w1 scope.
-  cashBalanceCents?: number;
-  positions?: Record<string, PositionRecord>;
+  lastEventSequence?: number;
   snapshot?: {
     positions: Record<string, PositionRecord>;
     cashBalanceCents: number;
@@ -29,40 +19,29 @@ type LedgerEntryPayload = {
   };
 };
 
-const CHECKPOINT_INTERVAL = 100;
+const HISTORY_SEQ_PAD = 8;
 
 export const ledgerEntryRecorded = (
-  uow: UnitOfWork<BusEvent<Record<string, unknown>>>,
+  uow: UnitOfWork<BusEvent<Record<string, unknown>, Record<string, unknown>>>,
 ): WriteIntent | WriteIntent[] => {
   const { event } = uow;
-  const { tenantId, userId, region } = event.context;
+  const { tenantId, userId, region } = event.context as {
+    tenantId: string;
+    userId?: string;
+    region?: string;
+  };
   const payload = event.subject as LedgerEntryPayload & Record<string, unknown>;
 
-  const intents: WriteIntent[] = [
-    record('HistoryEntry', {
-      tenantId,
-      userId,
-      region,
-      eventId: payload.eventId,
-      eventType: payload.eventType,
-      payload: payload.payload ?? {},
-      createdAt: payload.timestamp,
-      sequenceNo: payload.sequenceNo,
-      streamType: payload.streamType,
-    }, {
-      pk: `History#${tenantId}`,
-      sk: `Entry#${payload.sequenceNo}`,
-    }),
-  ];
+  const snapshot = payload.snapshot;
+  const streamType = payload.streamType ?? 'actual';
+  const sequenceNo = Number(snapshot?.lastEventSequence ?? payload.lastEventSequence ?? 0);
+  const cashBalanceCents = snapshot?.cashBalanceCents ?? 0;
+  const positions = snapshot?.positions ?? {};
 
-  // Simulated stream: version-guarded projections fed from the snapshot.
-  if (payload.streamType === 'simulated') {
-    const snapshot = payload.snapshot;
-    const cashBalanceCents = snapshot?.cashBalanceCents ?? 0;
-    const positions = snapshot?.positions ?? {};
-    const version = Number(snapshot?.lastEventSequence ?? 0);
-
-    intents.push(
+  // Simulated stream: version-guarded projections fed from the snapshot. No
+  // order-history / checkpoint rows — those describe the real account timeline.
+  if (streamType === 'simulated') {
+    const intents: WriteIntent[] = [
       projectVersioned('Simulation', {
         tenantId,
         userId,
@@ -70,11 +49,10 @@ export const ledgerEntryRecorded = (
         cashBalanceCents,
         positions,
       }, {
-        version,
+        version: sequenceNo,
         overrides: { pk: `Simulation#${tenantId}`, sk: 'Latest' },
       }),
-    );
-
+    ];
     for (const [symbol, position] of Object.entries(positions)) {
       intents.push(
         projectVersioned('SimulationPosition', {
@@ -87,30 +65,43 @@ export const ledgerEntryRecorded = (
           totalCostBasis: position.totalCostBasis ?? 0,
           lastFillPrice: position.lastFillPrice ?? 0,
         }, {
-          version,
+          version: sequenceNo,
           overrides: { pk: `Simulation#${tenantId}`, sk: `Position#${symbol}` },
         }),
       );
     }
+    return intents.length === 1 ? intents[0] : intents;
   }
 
-  // Checkpoint every N entries (append-only).
-  if (payload.sequenceNo > 0 && payload.sequenceNo % CHECKPOINT_INTERVAL === 0) {
-    const date = payload.timestamp.slice(0, 10);
-    intents.push(
-      record('Checkpoint', {
-        tenantId,
-        userId,
-        region,
-        date,
-        cashBalanceCents: payload.cashBalanceCents ?? 0,
-        positions: payload.positions ?? {},
-      }, {
-        pk: `Checkpoint#${tenantId}`,
-        sk: date,
-      }),
-    );
-  }
+  // Actual stream: append-only order history + one checkpoint per active date.
+  // `eventId` and `createdAt` are auto-injected onto record() rows by the intent
+  // executor (eventId = ctx.eventId, createdAt = ctx.timestamp) — not set here.
+  const paddedSeq = String(sequenceNo).padStart(HISTORY_SEQ_PAD, '0');
+  const date = event.timestamp.slice(0, 10);
 
-  return intents.length === 1 ? intents[0] : intents;
+  return [
+    record('HistoryEntry', {
+      tenantId,
+      userId,
+      region,
+      eventType: event.type,
+      sequenceNo,
+      streamType,
+      payload: { cashBalanceCents, positions, lastEventSequence: sequenceNo },
+    }, {
+      pk: `History#${tenantId}`,
+      sk: paddedSeq,
+    }),
+    record('Checkpoint', {
+      tenantId,
+      userId,
+      region,
+      date,
+      cashBalanceCents,
+      positions,
+    }, {
+      pk: `Checkpoint#${tenantId}`,
+      sk: date,
+    }),
+  ];
 };
