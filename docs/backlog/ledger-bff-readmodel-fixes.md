@@ -5,8 +5,8 @@ rank: 7
 type: bug
 notes: "ledger-bff read-model residuals: (A) ledger-entry-recorded P2 rows (HistoryEntry/Checkpoint) read top-level fields the real LEDGER_ENTRY_RECORDED producer never emits — degrade in prod; (B) ~18 latent tsc --noEmit errors blocking a clean service-wide typecheck. Merges ledger-entry-recorded-producer-shape-mismatch + ledger-bff-latent-tsc-errors."
 references: []
-spec: null
-plan: null
+spec: docs/superpowers/specs/2026-06-03-ledger-bff-readmodel-fixes-design.md
+plan: docs/superpowers/plans/2026-06-03-ledger-bff-readmodel-fixes.md
 topic_memory: [project_read_model_redesign.md]
 out_of_scope:
   - "ledger-ctrl's own latent tsc errors (ledger-ctrl-2-latent-tsc-errors) — separate file; the TableEntry timestamp fix likely shares a root cause, coordinate but don't bundle."

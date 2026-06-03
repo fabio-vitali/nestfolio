@@ -83,25 +83,32 @@ producer change; deploy `ledger-bff` only.
 
 ### Part A — rewrite `ledger-entry-recorded.ts`
 
-Source fields from canonical locations:
+Source fields from canonical locations. **`eventId` and `createdAt` are auto-injected onto
+every `record()` row by the intent executor** (`intent-executor.ts:68` —
+`eventId: ctx.eventId, createdAt: ctx.timestamp`, applied after the transform's fields), so
+the transform must NOT set them. The transform supplies only:
 
-| Field | Source |
+| Field (transform-set) | Source |
 | --- | --- |
-| `eventId` | `event.id` (envelope) |
-| `eventType` | `event.type` (envelope) |
-| `createdAt` | `event.timestamp` (envelope) |
+| `eventType` | `event.type` (envelope detail-type, e.g. `"LEDGER_ENTRY_RECORDED"`) |
 | `sequenceNo` | `payload.snapshot.lastEventSequence` |
 | `cashBalanceCents` / `positions` | `payload.snapshot.*` |
 | `streamType` | `payload.streamType` (default `'actual'`) |
+| `payload` | snapshot summary `{ cashBalanceCents, positions, lastEventSequence }` |
 
-- **`HistoryEntry` (P2, `record()`), actual stream only.** `sk: ${paddedSeq}#${event.id}`
-  (8-digit zero-padded sequence + envelope id): unique, recency-sorted under
-  `scanIndexForward:false`, idempotent on redelivery. `payload` set to the resulting
-  snapshot summary `{ cashBalanceCents, positions, lastEventSequence }`.
+(`eventId ← ctx.eventId`, `createdAt ← ctx.timestamp` arrive via the executor.)
+
+- **`HistoryEntry` (P2, `record()`), actual stream only.** `sk: ${paddedSeq}` (8-digit
+  zero-padded `lastEventSequence`): unique per monotonic sequence, recency-sorted under
+  `scanIndexForward:false`, and idempotent on redelivery (same sequence → same sk). Keying on
+  the business sequence rather than the envelope id keeps the key predictable (integration
+  tests can compute it) and robust to redelivery with a fresh envelope id.
 - **`Checkpoint` (P2, `record()`), actual stream only.** **Drop the `%100` gate** — write one
   row per active date (`sk: event.timestamp.slice(0,10)`), idempotent on the date. This makes
   `getTimeTravelAvailability` report the true active-date window instead of under-reporting it
   (the actual `getPortfolioAt` replay reads `SnapshotAt` rows, which exist for every event).
+  `event.timestamp` is the published envelope timestamp (processing time), the only timestamp
+  the consumer receives — so the checkpoint date is the processing date.
 - **Simulation P1 projections** (`projectVersioned('Simulation' / 'SimulationPosition')`):
   unchanged.
 
@@ -113,7 +120,12 @@ no registry change; both keep using `record()`, matching P2 enforcement.
 - Delete the 7 dead write methods + 4 dead read methods from `portfolio.repository.ts`,
   leaving the 5 live read methods. Removes the 5 `TableEntry.timestamp` errors.
 - Align the 3 transform signatures (`balanceUpdated`, `portfolioUpdated`,
-  `ledgerEntryRecorded`) to `toUow`'s return type so `event-listener.ts` typechecks.
+  `ledgerEntryRecorded`) to `toUow`'s return type — widen the param to
+  `UnitOfWork<BusEvent<Record<string, unknown>, Record<string, unknown>>>` (the second arg,
+  the context, is what mismatches: `toUow` returns `Record<string, unknown>` while the
+  transforms default it to `RequestContext`). Inside each, narrow the now-`Record` context
+  with a local `event.context as { tenantId: string; userId?: string; region?: string }`.
+  This resolves the `event-listener.ts` call-site error.
 - Resolve any remaining `tsc --noEmit` errors in `src` (legacy test-file casts handled as
   the tests in those files are rewritten/pruned).
 - Add a `typecheck` target to `services/ledger/ledger-bff/project.json` (the `typecheck`
