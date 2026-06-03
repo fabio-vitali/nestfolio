@@ -32,7 +32,7 @@
     "typecheck": {
       "executor": "nx:run-commands",
       "options": {
-        "command": "tsc --noEmit -p services/advisory/advisory-bff/tsconfig.type-test.json"
+        "command": "tsc --noEmit -p services/advisory/advisory-bff/tsconfig.spec.json"
       }
     }
   },

@@ -25,10 +25,13 @@ export const positionSnapshot = (
   const { tenantId, userId, region } = event.context;
   const subject = event.subject as Record<string, unknown>;
   const snapshot = (subject?.snapshot ?? subject) as LedgerSnapshot | undefined;
+
+  const version = snapshot?.lastEventSequence;
+  if (typeof version !== 'number') return [];
+
   const entries = Object.entries(snapshot?.positions ?? {});
   if (entries.length === 0) return [];
 
-  const version = Number(snapshot?.lastEventSequence ?? 0);
   const marketValueCentsOf = (p: LedgerPosition) =>
     Math.round((p.quantity ?? 0) * (p.lastFillPrice ?? 0) * 100);
   const totalMarketValueCents = entries.reduce((sum, [, p]) => sum + marketValueCentsOf(p), 0);

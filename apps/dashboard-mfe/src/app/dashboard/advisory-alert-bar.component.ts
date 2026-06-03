@@ -16,11 +16,6 @@ import type { AdvisoryStatus } from '../stores/dashboard.store';
         <span class="alert-text">
           {{ i18n.t('advisory.pendingDecisions') }}: {{ advisoryStatus?.pendingDecisionsCount ?? 0 }}
         </span>
-        @if (advisoryStatus?.lastDecisionStatus) {
-          <span class="alert-status">
-            &middot; {{ i18n.t('dashboard.advisory.lastStatus') }}: {{ advisoryStatus!.lastDecisionStatus }}
-          </span>
-        }
       </div>
       <p-button
         [label]="i18n.t('dashboard.advisory.viewAll')"
@@ -57,11 +52,6 @@ import type { AdvisoryStatus } from '../stores/dashboard.store';
       font-weight: 600;
       font-size: 0.875rem;
       color: var(--nf-text-primary, #212529);
-    }
-
-    .alert-status {
-      font-size: 0.8rem;
-      color: var(--nf-text-secondary, #6c757d);
     }
   `],
 })

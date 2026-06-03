@@ -30,8 +30,6 @@ describe('DashboardStore', () => {
 
   const mockAdvisory: AdvisoryStatus = {
     pendingDecisionsCount: 3,
-    lastRecommendationAt: '2026-03-01T00:00:00Z',
-    lastDecisionStatus: 'APPROVED',
     updatedAt: '2026-03-01T00:00:00Z',
   };
 

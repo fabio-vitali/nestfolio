@@ -19,6 +19,10 @@ export function response(ctx) {
   const latest = items.find((i) => i.sk === 'Latest');
   const positions = items
     .filter((i) => i.sk && i.sk.startsWith('Position#'))
+    // Fully-exited symbols persist as quantity:0 rows; holdings are quantity > 0.
+    // Filtering before the totals loop leaves totals unchanged (zeroed rows
+    // contribute 0) while cleaning the returned list.
+    .filter((p) => (p.quantity ?? 0) > 0)
     .map((p) => ({
       symbol: p.symbol,
       quantity: p.quantity ?? 0,

@@ -37,8 +37,6 @@ export interface ActivityEntry {
 
 export interface AdvisoryStatus {
   pendingDecisionsCount: number;
-  lastRecommendationAt: string | null;
-  lastDecisionStatus: string | null;
   updatedAt: string;
 }
 

@@ -36,13 +36,16 @@ export function response(ctx) {
     }];
   }
 
-  // All positions
+  // All positions. Fully-exited symbols persist as version-correct quantity:0
+  // rows; holdings are quantity > 0 — filter the ghost rows from the list.
   const items = ctx.result.items || [];
-  return items.map((p) => ({
-    symbol: p.symbol,
-    quantity: p.quantity ?? 0,
-    averageCostBasis: p.averageCostBasis ?? 0,
-    totalCostBasis: p.totalCostBasis ?? 0,
-    lastFillPrice: p.lastFillPrice ?? 0,
-  }));
+  return items
+    .filter((p) => (p.quantity ?? 0) > 0)
+    .map((p) => ({
+      symbol: p.symbol,
+      quantity: p.quantity ?? 0,
+      averageCostBasis: p.averageCostBasis ?? 0,
+      totalCostBasis: p.totalCostBasis ?? 0,
+      lastFillPrice: p.lastFillPrice ?? 0,
+    }));
 }

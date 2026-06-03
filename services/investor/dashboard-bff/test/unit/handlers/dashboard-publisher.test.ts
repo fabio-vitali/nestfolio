@@ -44,8 +44,8 @@ describe('dashboard-publisher', () => {
   it('broadcasts publishDashboardUpdate when AdvisoryStatus row changes (MODIFY)', async () => {
     await handler(streamEvent({
       eventName: 'MODIFY',
-      oldImage: { pk: 'T#tenant1', sk: 'AdvisoryStatus', pendingDecisionsCount: 1, lastDecisionStatus: 'PENDING', updatedAt: '2026-05-01T00:00:00Z' },
-      newImage: { pk: 'T#tenant1', sk: 'AdvisoryStatus', pendingDecisionsCount: 2, lastDecisionStatus: 'AWAITING_CONFIRMATION', lastRecommendationAt: '2026-05-01T12:00:00Z', updatedAt: '2026-05-01T12:00:00Z' },
+      oldImage: { pk: 'T#tenant1', sk: 'AdvisoryStatus', pendingDecisionsCount: 1, updatedAt: '2026-05-01T00:00:00Z' },
+      newImage: { pk: 'T#tenant1', sk: 'AdvisoryStatus', pendingDecisionsCount: 2, updatedAt: '2026-05-01T12:00:00Z' },
     }), {} as never, () => {});
     expect(postAppSyncMutation).toHaveBeenCalledTimes(1);
     const call = (postAppSyncMutation as jest.Mock).mock.calls[0][0];
@@ -53,8 +53,6 @@ describe('dashboard-publisher', () => {
       tenantId: 'tenant1',
       advisoryStatus: {
         pendingDecisionsCount: 2,
-        lastDecisionStatus: 'AWAITING_CONFIRMATION',
-        lastRecommendationAt: '2026-05-01T12:00:00Z',
       },
     });
   });
@@ -62,8 +60,8 @@ describe('dashboard-publisher', () => {
   it('skips MODIFY when no UI-relevant field changed', async () => {
     await handler(streamEvent({
       eventName: 'MODIFY',
-      oldImage: { pk: 'T#tenant1', sk: 'AdvisoryStatus', pendingDecisionsCount: 1, lastDecisionStatus: 'PENDING', lastRecommendationAt: null, updatedAt: '2026-05-01T00:00:00Z', someOtherField: 'a' },
-      newImage: { pk: 'T#tenant1', sk: 'AdvisoryStatus', pendingDecisionsCount: 1, lastDecisionStatus: 'PENDING', lastRecommendationAt: null, updatedAt: '2026-05-01T00:01:00Z', someOtherField: 'b' },
+      oldImage: { pk: 'T#tenant1', sk: 'AdvisoryStatus', pendingDecisionsCount: 1, updatedAt: '2026-05-01T00:00:00Z', someOtherField: 'a' },
+      newImage: { pk: 'T#tenant1', sk: 'AdvisoryStatus', pendingDecisionsCount: 1, updatedAt: '2026-05-01T00:01:00Z', someOtherField: 'b' },
     }), {} as never, () => {});
     expect(postAppSyncMutation).not.toHaveBeenCalled();
   });
@@ -71,7 +69,7 @@ describe('dashboard-publisher', () => {
   it('broadcasts on INSERT (first AdvisoryStatus materialisation)', async () => {
     await handler(streamEvent({
       eventName: 'INSERT',
-      newImage: { pk: 'T#tenant1', sk: 'AdvisoryStatus', pendingDecisionsCount: 0, lastDecisionStatus: 'PENDING', updatedAt: '2026-05-01T00:00:00Z' },
+      newImage: { pk: 'T#tenant1', sk: 'AdvisoryStatus', pendingDecisionsCount: 0, updatedAt: '2026-05-01T00:00:00Z' },
     }), {} as never, () => {});
     expect(postAppSyncMutation).toHaveBeenCalledTimes(1);
     const call = (postAppSyncMutation as jest.Mock).mock.calls[0][0];
@@ -92,7 +90,7 @@ describe('dashboard-publisher', () => {
   it('derives tenantId by stripping T# prefix from pk', async () => {
     await handler(streamEvent({
       eventName: 'INSERT',
-      newImage: { pk: 'T#my-tenant-42', sk: 'AdvisoryStatus', pendingDecisionsCount: 3, lastDecisionStatus: 'APPROVED', updatedAt: '2026-05-01T00:00:00Z' },
+      newImage: { pk: 'T#my-tenant-42', sk: 'AdvisoryStatus', pendingDecisionsCount: 3, updatedAt: '2026-05-01T00:00:00Z' },
     }), {} as never, () => {});
     expect(postAppSyncMutation).toHaveBeenCalledTimes(1);
     const call = (postAppSyncMutation as jest.Mock).mock.calls[0][0];

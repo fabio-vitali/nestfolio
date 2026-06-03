@@ -1,7 +1,7 @@
 import { DynamoDBClient } from '@aws-sdk/client-dynamodb';
 import { UpdateCommand, PutCommand, QueryCommand } from '@aws-sdk/lib-dynamodb';
 import {
-  TableRepository, getTime, type TableEntry, type RequestContext,
+  TableRepository, getTime, type RequestContext,
 } from '@nestfolio/event-processor';
 import { withMethodLogging } from '@nestfolio/event-processor';
 
@@ -71,7 +71,7 @@ export class LedgerRepository extends TableRepository {
 
   readonly putLedgerEntry = this.log('putLedgerEntry',
     async (entry: LedgerEntryItem, ctx: RequestContext): Promise<boolean> => {
-      const item: TableEntry = {
+      const item = {
         pk: `Account#${ctx.tenantId}#${entry.streamType}`,
         sk: `Event#${entry.eventId}`,
         __typename: 'LedgerEntry',
@@ -177,7 +177,7 @@ export class LedgerRepository extends TableRepository {
     ): Promise<void> => {
       const now = getTime();
       const pk = `Account#${ctx.tenantId}#${streamType}`;
-      const item: TableEntry = {
+      const item = {
         pk,
         sk: `Checkpoint#${date}`,
         __typename: 'AccountCheckpoint',
