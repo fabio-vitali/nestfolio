@@ -28,7 +28,13 @@
         "color": true
       }
     },
-    "lint": { "executor": "@nx/eslint:lint" }
+    "lint": { "executor": "@nx/eslint:lint" },
+    "typecheck": {
+      "executor": "nx:run-commands",
+      "options": {
+        "command": "tsc --noEmit -p services/ledger/reconciliation-ctrl/tsconfig.type-test.json"
+      }
+    }
   },
   "tags": ["scope:ledger", "type:ctrl"]
 }
