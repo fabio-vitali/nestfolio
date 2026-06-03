@@ -1,6 +1,6 @@
 ---
 id: ledger-bff-readmodel-fixes
-status: active
+status: shipped
 rank: 7
 type: bug
 notes: "ledger-bff read-model residuals: (A) ledger-entry-recorded P2 rows (HistoryEntry/Checkpoint) read top-level fields the real LEDGER_ENTRY_RECORDED producer never emits — degrade in prod; (B) ~18 latent tsc --noEmit errors blocking a clean service-wide typecheck. Merges ledger-entry-recorded-producer-shape-mismatch + ledger-bff-latent-tsc-errors."
@@ -12,7 +12,19 @@ out_of_scope:
   - "ledger-ctrl's own latent tsc errors (ledger-ctrl-2-latent-tsc-errors) — separate file; the TableEntry timestamp fix likely shares a root cause, coordinate but don't bundle."
   - "dashboard-bff + advisory read-model residuals (dashboard-advisory-readmodel-fixes) and investor-bff tsc errors (investor-bff-13-latent-tsc-errors) — separate QUEUED files, do not bundle."
   - "Part A approach decision is recorded in this file's body after brainstorming; only the chosen path is in scope. Re-widening any OTHER event contract beyond LEDGER_ENTRY_RECORDED is out."
-validation_gate: null
+validation_gate: |
+  Branch worktree-ledger-bff-readmodel-fixes (commits 5d551a67 transform, 2ec8a05a test/comment,
+  8225d4a5 signatures, 65b28ff2 delete-dead-repo, bc9e5c02 typecheck-target, c68d56ee integration-fixtures).
+  - pnpm nx affected -t test,lint,typecheck --base=origin/main → green (28 projects).
+  - event-processor:read-model-drift mandatory gate → green (0 drift; all 7 ledger-bff typenames registered).
+  - ledger-bff:typecheck (new target, src/** + test/types/**) → green (0 errors; was 8 src errors).
+  - Deploy: ✅ dev-ledger-bff via deploy.sh sandbox --prefix=dev --services=ledger-bff (+ shell redeploy).
+  - Integration: 11/11 PASS against deployed dev (161s) — incl. HistoryEntry materialization (padded-seq sk),
+    getOrderHistory (generic eventType), getTimeTravelAvailability (per-date Checkpoint).
+  - E2E: no scenario exercises the changed read paths (getOrderHistory/getTimeTravelAvailability); the lone
+    ledger-bff e2e touchpoint getPortfolio (advisory/accept-decision) reads runtime-unchanged Portfolio rows
+    already validated by the integration suite — full advisory e2e not-involved + cost-heavy, intentionally skipped.
+  - Side-finding filed: ledger-bff-order-history-generic-eventtype (parking).
 ---
 
 # ledger-bff read-model fixes
