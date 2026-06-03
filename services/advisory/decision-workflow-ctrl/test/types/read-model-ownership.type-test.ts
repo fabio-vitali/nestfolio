@@ -22,4 +22,8 @@ update('InvestorProfileSnapshot', { a: 1 });
 // @ts-expect-error MarketSnapshot is P1 in DWC's mirror — update() is forbidden
 update('MarketSnapshot', { a: 1 });
 
+projectVersioned('MandateSnapshot', { a: 1 }, { version: 1 });
+// @ts-expect-error MandateSnapshot is P1 in DWC's mirror — update() is forbidden
+update('MandateSnapshot', { a: 1 });
+
 export {};

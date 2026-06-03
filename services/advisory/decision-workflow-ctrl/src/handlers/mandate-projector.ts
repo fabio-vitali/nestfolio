@@ -1,7 +1,7 @@
 import {
   materializeToTable,
-  record,
-  update,
+  projectVersioned,
+  skip,
   NotRetryableError,
   type EventPayload,
   type EventContext,
@@ -10,28 +10,7 @@ import {
 import { InvestorBffEventTypes } from '@nestfolio/investor-bff/events';
 import { mandateSnapshotPk, MANDATE_SNAPSHOT_SK } from '../repositories/mandate-snapshot.repository';
 
-function processMandateIssued(payload: EventPayload, ctx: EventContext): WriteIntent {
-  const subject = payload.subject ?? {};
-  const tenantId = (subject.tenantId as string) ?? ctx.tenantId;
-  const userId = (subject.userId as string) ?? tenantId;
-  const operatingMode = subject.operatingMode as string | undefined;
-  const level = subject.level as string | undefined;
-  const mandateId = subject.mandateId as string | undefined;
-  const effectiveDate = subject.effectiveDate as string | undefined;
-
-  if (!operatingMode) {
-    throw new NotRetryableError(
-      `MANDATE_ISSUED missing operatingMode for tenant=${tenantId} user=${userId}`,
-    );
-  }
-
-  return record('MandateSnapshot', {
-    tenantId, userId, mandateId, level, operatingMode, effectiveDate,
-    status: 'ACTIVE',
-  }, { pk: mandateSnapshotPk(tenantId, userId), sk: MANDATE_SNAPSHOT_SK });
-}
-
-function processOperatingModeChanged(payload: EventPayload, ctx: EventContext): WriteIntent {
+function projectMandateSnapshot(payload: EventPayload, ctx: EventContext): WriteIntent {
   const subject = payload.subject ?? {};
   const tenantId = (subject.tenantId as string) ?? ctx.tenantId;
   const userId = (subject.userId as string) ?? tenantId;
@@ -39,18 +18,34 @@ function processOperatingModeChanged(payload: EventPayload, ctx: EventContext): 
 
   if (!operatingMode) {
     throw new NotRetryableError(
-      `OPERATING_MODE_CHANGED missing operatingMode for tenant=${tenantId} user=${userId}`,
+      `${ctx.eventType} missing operatingMode for tenant=${tenantId} user=${userId}`,
     );
   }
 
-  return update('MandateSnapshot', { tenantId, userId, operatingMode }, {
+  const version = subject.__version;
+  if (typeof version !== 'number') return skip();
+
+  // Full-row P1 projection keyed on the Mandate version line. The FIRST write
+  // (MANDATE_ISSUED) creates the row -> stream INSERT -> MANDATE_SNAPSHOT_CREATED
+  // (the SF trigger) fires once; later OPERATING_MODE_CHANGED overwrites the row
+  // -> MODIFY -> no re-trigger.
+  return projectVersioned('MandateSnapshot', {
+    tenantId,
+    userId,
+    mandateId: subject.mandateId as string | undefined,
+    level: subject.level as string | undefined,
+    operatingMode,
+    effectiveDate: subject.effectiveDate as string | undefined,
+    status: (subject.status as string | undefined) ?? 'ACTIVE',
+  }, {
+    version,
     overrides: { pk: mandateSnapshotPk(tenantId, userId), sk: MANDATE_SNAPSHOT_SK },
   });
 }
 
 export const createHandlers = () => ({
-  [InvestorBffEventTypes.MANDATE_ISSUED]: async (p: EventPayload, c: EventContext) => processMandateIssued(p, c),
-  [InvestorBffEventTypes.OPERATING_MODE_CHANGED]: async (p: EventPayload, c: EventContext) => processOperatingModeChanged(p, c),
+  [InvestorBffEventTypes.MANDATE_ISSUED]: async (p: EventPayload, c: EventContext) => projectMandateSnapshot(p, c),
+  [InvestorBffEventTypes.OPERATING_MODE_CHANGED]: async (p: EventPayload, c: EventContext) => projectMandateSnapshot(p, c),
 });
 
 export const handler = materializeToTable({
