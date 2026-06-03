@@ -26,10 +26,9 @@ type RuntimePassthrough = {
   passthrough: true;
 };
 
-type RuntimeModifyEmission = {
-  always?: string;
-  onFieldChange?: Record<string, string>;
-};
+type RuntimeModifyEmission =
+  | { always: string; onFieldChange?: Record<string, string> }
+  | { always?: string; onFieldChange: Record<string, string> };
 
 type RuntimeMapping = string | RuntimeFieldDispatch | RuntimePassthrough | RuntimeModifyEmission;
 type RuntimeConfig = Record<string, RuntimeMapping>;
@@ -110,11 +109,8 @@ function resolveEmissions(
   }
 
   // Field dispatch — empty array for unmapped values is intentional
-  // At this point mapping is RuntimeFieldDispatch (has 'map' key)
-  if (!('map' in mapping)) return [];
-  const fieldDispatch = mapping as RuntimeFieldDispatch;
-  const value = (record as Record<string, unknown>)[fieldDispatch.field] as string;
-  const eventType = fieldDispatch.map[value] ?? fieldDispatch.default ?? null;
+  const value = (record as Record<string, unknown>)[mapping.field] as string;
+  const eventType = mapping.map[value] ?? mapping.default ?? null;
   return eventType ? [{ eventType }] : [];
 }
 

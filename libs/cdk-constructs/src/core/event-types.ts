@@ -20,10 +20,9 @@ export type Passthrough = {
  * `always` fires on any modify; `onFieldChange` fires additional semantic
  * events when specific fields differ between OldImage and NewImage.
  */
-export type ModifyEmission = {
-  always?: EventName;
-  onFieldChange?: Record<string, EventName>;
-};
+export type ModifyEmission =
+  | { always: EventName; onFieldChange?: Record<string, EventName> }
+  | { always?: EventName; onFieldChange: Record<string, EventName> };
 
 export type ActionMapping = EventName | FieldDispatch | Passthrough | ModifyEmission;
 
@@ -48,15 +47,29 @@ export type RuntimePassthrough = {
   passthrough: true;
 };
 
-export type RuntimeModifyEmission = {
-  always?: string;
-  onFieldChange?: Record<string, string>;
-};
+export type RuntimeModifyEmission =
+  | { always: string; onFieldChange?: Record<string, string> }
+  | { always?: string; onFieldChange: Record<string, string> };
 
 export type RuntimeMapping = string | RuntimeFieldDispatch | RuntimePassthrough | RuntimeModifyEmission;
 export type RuntimeConfig = Record<string, RuntimeMapping>;
 
 // ── Utility functions ─────────────────────────────────────────────
+
+/**
+ * Project a build-time ModifyEmission onto its runtime counterpart. Both are
+ * "at least one of always/onFieldChange" discriminated unions; the value check
+ * on `always` narrows to the member whose required key is present.
+ */
+function toRuntimeModifyEmission(mapping: ModifyEmission): RuntimeModifyEmission {
+  const { always, onFieldChange } = mapping;
+  if (always !== undefined && onFieldChange !== undefined) return { always, onFieldChange };
+  if (always !== undefined) return { always };
+  // The ModifyEmission union guarantees at least one key, so onFieldChange is
+  // present whenever always is absent.
+  if (onFieldChange !== undefined) return { onFieldChange };
+  throw new Error('ModifyEmission must declare at least one of always/onFieldChange');
+}
 
 /**
  * Flatten EventTypesMap into `{RecordType}:{ACTION}` keyed runtime config.
@@ -75,15 +88,10 @@ export function buildRuntimeConfig(eventTypes: EventTypesMap): RuntimeConfig {
       } else if ('passthrough' in mapping) {
         config[`${recordType}:${ddbAction}`] = { field: mapping.field, passthrough: true };
       } else if ('always' in mapping || 'onFieldChange' in mapping) {
-        const modEmit = mapping as ModifyEmission;
-        const entry: RuntimeModifyEmission = {};
-        if (modEmit.always) entry.always = modEmit.always;
-        if (modEmit.onFieldChange) entry.onFieldChange = modEmit.onFieldChange as Record<string, string>;
-        config[`${recordType}:${ddbAction}`] = entry;
+        config[`${recordType}:${ddbAction}`] = toRuntimeModifyEmission(mapping);
       } else {
-        const fd = mapping as FieldDispatch;
-        const entry: RuntimeFieldDispatch = { field: fd.field, map: fd.map as Record<string, string> };
-        if (fd.default) entry.default = fd.default as string;
+        const entry: RuntimeFieldDispatch = { field: mapping.field, map: mapping.map };
+        if (mapping.default) entry.default = mapping.default;
         config[`${recordType}:${ddbAction}`] = entry;
       }
     }
@@ -106,15 +114,13 @@ export function collectAllEventTypes(eventTypes: EventTypesMap): EventName[] {
       } else if ('passthrough' in mapping) {
         types.push(...mapping.emits);
       } else if ('always' in mapping || 'onFieldChange' in mapping) {
-        const modEmit = mapping as ModifyEmission;
-        if (modEmit.always) types.push(modEmit.always);
-        if (modEmit.onFieldChange) {
-          types.push(...(Object.values(modEmit.onFieldChange) as EventName[]));
+        if (mapping.always) types.push(mapping.always);
+        if (mapping.onFieldChange) {
+          types.push(...Object.values(mapping.onFieldChange));
         }
       } else {
-        const fd = mapping as FieldDispatch;
-        types.push(...Object.values(fd.map));
-        if (fd.default) types.push(fd.default);
+        types.push(...Object.values(mapping.map));
+        if (mapping.default) types.push(mapping.default);
       }
     }
   }
