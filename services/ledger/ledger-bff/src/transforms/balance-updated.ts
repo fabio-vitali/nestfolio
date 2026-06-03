@@ -13,10 +13,14 @@ type BalancePayload = {
 };
 
 export const balanceUpdated = (
-  uow: UnitOfWork<BusEvent<Record<string, unknown>>>,
+  uow: UnitOfWork<BusEvent<Record<string, unknown>, Record<string, unknown>>>,
 ): WriteIntent | WriteIntent[] => {
   const { event } = uow;
-  const { tenantId, userId, region } = event.context;
+  const { tenantId, userId, region } = event.context as {
+    tenantId: string;
+    userId?: string;
+    region?: string;
+  };
   const payload = event.subject as BalancePayload & Record<string, unknown>;
 
   const balanceCents = payload.cashBalanceCents ?? 0;

@@ -20,10 +20,14 @@ type PortfolioPayload = {
 };
 
 export const portfolioUpdated = (
-  uow: UnitOfWork<BusEvent<Record<string, unknown>>>,
+  uow: UnitOfWork<BusEvent<Record<string, unknown>, Record<string, unknown>>>,
 ): WriteIntent | WriteIntent[] => {
   const { event } = uow;
-  const { tenantId, userId, region } = event.context;
+  const { tenantId, userId, region } = event.context as {
+    tenantId: string;
+    userId?: string;
+    region?: string;
+  };
   const payload = event.subject as PortfolioPayload & Record<string, unknown>;
 
   const positions = payload.positions ?? {};
