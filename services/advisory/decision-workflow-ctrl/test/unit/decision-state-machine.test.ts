@@ -329,7 +329,7 @@ describe('Decision SF state machine (post-precomputation rewire)', () => {
 
   // ---- Main chain ordering ----------------------------------------------
 
-  it('wires the main chain UnpackTriggerEnvelope → ResolveTriggerAmountCents → ParallelProjections → MergeProjections → ResolveMandateSnapshot', () => {
+  it('wires the main chain UnpackTriggerEnvelope → EmitDecisionCycleStarted → ResolveTriggerAmountCents → ParallelProjections → MergeProjections → ResolveMandateSnapshot', () => {
     expect(definition.States.UnpackTriggerEnvelope.Next).toBe('EmitDecisionCycleStarted');
     expect(definition.States.EmitDecisionCycleStarted.Next).toBe('ResolveTriggerAmountCents');
     // Both ResolveTriggerAmountCents branches converge on ParallelProjections.
