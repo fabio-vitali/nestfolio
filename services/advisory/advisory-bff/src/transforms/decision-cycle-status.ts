@@ -29,6 +29,7 @@ export const decisionCycleStatus = (
     decisionId: p.decisionId,
     tenantId: p.tenantId,
     status: p.status,
+    version: p.__version,
     createdAt: uow.event.timestamp,
     updatedAt: uow.event.timestamp,
   }, {

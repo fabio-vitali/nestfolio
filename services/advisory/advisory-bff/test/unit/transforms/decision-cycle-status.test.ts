@@ -15,7 +15,7 @@ describe('decisionCycleStatus transform', () => {
       ),
     ).toEqual(
       projectVersioned('DecisionReadModel', {
-        decisionId: 'd1', tenantId: 't1', status: 'GENERATING', createdAt: TS, updatedAt: TS,
+        decisionId: 'd1', tenantId: 't1', status: 'GENERATING', version: 0, createdAt: TS, updatedAt: TS,
       }, { version: 0, overrides: { pk: 'Decision#t1#d1', sk: 'DecisionReadModel' } }),
     );
   });
@@ -27,7 +27,7 @@ describe('decisionCycleStatus transform', () => {
       ),
     ).toEqual(
       projectVersioned('DecisionReadModel', {
-        decisionId: 'd1', tenantId: 't1', status: 'FAILED', createdAt: TS, updatedAt: TS,
+        decisionId: 'd1', tenantId: 't1', status: 'FAILED', version: 1, createdAt: TS, updatedAt: TS,
       }, { version: 1, overrides: { pk: 'Decision#t1#d1', sk: 'DecisionReadModel' } }),
     );
   });
