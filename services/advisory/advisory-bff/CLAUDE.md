@@ -30,14 +30,15 @@ Stack: services/advisory/advisory-bff/src/service.stack.ts
   Pipeline steps:
   - confirmDecision: preStep + extraStep → get-decision-readback.fn.js (reads existing DecisionReadModel to lift taskToken); confirm-decision.fn.js writes ONLY UserConfirmation intent row (PutItem) — no DecisionReadModel write
   - rejectDecision: preStep + extraStep → get-decision-readback.fn.js; reject-decision.fn.js writes ONLY UserRejection intent row (PutItem) — no DecisionReadModel write
-  - getAdvisoryStatus → get-advisory-status.fn.js (GetItem on AdvisoryStatus row)
-  - publishAdvisoryStatusUpdate → publish-advisory-status-update.fn.js (@aws_iam IAM-only mutation used by advisory-status-projector)
   - publishDecisionUpdate → publish-decision-update.fn.js (@aws_iam IAM-only mutation used by decision-publisher)
+  (WS-3: getAdvisoryStatus + publishAdvisoryStatusUpdate resolvers removed — the AppSync AdvisoryStatus
+  read/subscribe surface had no consumer once advisory-mfe moved to status-routed rendering off
+  DecisionReadModel. The AdvisoryStatus aggregate stays, consumed by dashboard-bff via the ADVISORY_STATUS_UPDATED CDC.)
 
 ## Handlers
 - event-listener.ts — Ingress handler; dispatches DECISION_PACKET_CREATED + DECISION_PACKET_UPDATED to decisionSnapshot; drops degraded snapshots (no explanation + no trades) via skip()
 - advisory-status-projector.ts — DDB-stream consumer (advisory-bff's own command-owned derived aggregate); recomputes AdvisoryStatus.inFlightCount post-commit by counting non-terminal DecisionReadModel rows via countInFlightDecisions; writes via update(..., { add: { __version: 1 } }) (atomic strictly-monotonic __version self-increment, was projectVersioned+Date.now()); loop-guarded to skip AdvisoryStatus records
-- decision-publisher.ts — DDB-stream consumer; broadcasts DecisionReadModel changes to MFE via AppSync publishDecisionUpdate mutation
+- decision-publisher.ts — DDB-stream consumer; broadcasts DecisionReadModel changes to MFE via AppSync publishDecisionUpdate mutation (WS-3: the AdvisoryStatus → publishAdvisoryStatusUpdate broadcast was removed — no MFE subscriber remains)
 - event-publisher.ts — Egress CDC publisher
 
 ## Transforms
@@ -57,11 +58,12 @@ Stack: services/advisory/advisory-bff/src/service.stack.ts
   DECISION_READ_MODEL_CREATED, DECISION_READ_MODEL_UPDATED, USER_INTERACTION_CREATED, USER_INTERACTION_UPDATED
 
 ## GraphQL Surface (schema.graphql)
-- Query: getAdvisoryStatus → AdvisoryStatus (by tenantId from auth context)
-- Mutation: publishAdvisoryStatusUpdate(tenantId, inFlightCount, lastTriggerAt, updatedAt) @aws_iam
-- Subscription: onAdvisoryStatusUpdate(tenantId) @aws_subscribe(publishAdvisoryStatusUpdate) @aws_cognito_user_pools @aws_iam
-- Type: AdvisoryStatus { tenantId, inFlightCount, lastTriggerAt, updatedAt }
+- Queries: getDecision, getPendingDecisions, getDecisionHistory, getAgentInvocations, getComplianceChecks
+  - getPendingDecisions status filter includes GENERATING + FAILED (WS-3) so cycle-lifecycle rows reach the /advisory list UI.
+- Mutations: confirmDecision, rejectDecision, recordExplanationView, publishDecisionUpdate (@aws_iam)
+- Subscription: onDecisionUpdate(tenantId) @aws_subscribe(confirmDecision, rejectDecision, publishDecisionUpdate) @aws_cognito_user_pools @aws_iam
 - DecisionStatus enum includes GENERATING (WS-2) + FAILED so cycle-status rows broadcast via publishDecisionUpdate without enum-validation failure.
+- (WS-3: the AdvisoryStatus AppSync surface — getAdvisoryStatus Query, publishAdvisoryStatusUpdate Mutation, onAdvisoryStatusUpdate Subscription, AdvisoryStatus type — was removed as dead. The AdvisoryStatus DDB aggregate + ADVISORY_STATUS_UPDATED CDC remain for dashboard-bff.)
 
 ## MFE Hosting
 - MfeBucket (mfeKey=advisory): S3 bucket "{account}-{prefix}-nestfolio-mfe-advisory"
