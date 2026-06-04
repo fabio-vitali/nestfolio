@@ -16,7 +16,7 @@ out_of_scope:
   - "Any AdvisoryStatus read-model field additions or read-model-ownership registration change — DecisionReadModel stays Projection<'P1'>, same typename + intent"
   - "e2e / Playwright scenario rewrites (WS-3 owns /advisory, WS-4 owns dashboard)"
 spec: docs/superpowers/specs/2026-06-04-advisory-generating-state-design.md
-plan: null
+plan: docs/superpowers/plans/2026-06-04-advisory-bff-cycle-status-projection.md
 topic_memory: []
 validation_gate: null
 ---
