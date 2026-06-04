@@ -47,6 +47,7 @@ Note: legacy per-entity rows (Goal, RiskProfile, OperatingModeRecord, AccountMod
 - event-listener.ts — materializes USER_REGISTERED, NOTIFICATION_CREATED, BALANCE_UPDATED, ONBOARDING_COMPLETED (transactWrite: composite InvestorProfile + Mandate sibling row + conditional Deposit), GO_LIVE_CONFIRMED (sets executionMode='live' on the composite row)
 - broadcast-listener.ts — BROKER_CIRCUIT_OPEN disables 3 feature flags (confirmDecision, initiateDeposit, requestWithdrawal) via IAM-signed AppSync mutation; BROKER_CIRCUIT_CLOSED re-enables them; DEPOSIT_DETECTED published to investor-facing notification flow
 - event-publisher.ts — CDC (changeDataCapture) using the declarative eventTypes map
+- deposit-publisher.ts — `DepositBroadcaster` (Broadcaster construct): DDB-stream-driven; fans Deposit/WithdrawalRequest P1 row status transitions out via @aws_subscribe (onDepositUpdate / onWithdrawalUpdate). SECOND stream consumer on the table (Egress CDC is first). DLQ + bisectBatchOnError owned by the construct.
 
 ## Feature Flags (Circuit Breaker)
 - BroadcastIngress handler env: APPSYNC_URL (from facade.graphqlUrl)
@@ -68,7 +69,7 @@ InvestorBffEventTypes: USER_REGISTERED, USER_AUTHENTICATED, USER_SESSION_EXPIRED
 - mfe/key
 
 ## Tests
-- Unit: handlers/event-listener.test.ts, repositories/investor-profile.repository.test.ts, transforms/balance-updated.test.ts, transforms/user-registered.test.ts, transforms/notification-created.test.ts, transforms/onboarding-completed.test.ts, graphql/* (resolver fn unit tests)
+- Unit: service.stack.test.ts (Broadcaster wiring: every DDB-stream consumer — Egress CDC + DepositBroadcaster — has DLQ + bisectBatchOnError), handlers/event-listener.test.ts, repositories/investor-profile.repository.test.ts, transforms/balance-updated.test.ts, transforms/user-registered.test.ts, transforms/notification-created.test.ts, transforms/onboarding-completed.test.ts, graphql/* (resolver fn unit tests)
 - Integration: investor-bff.integration.test.ts (composite-row materialization, AppSync mutations including revokeMandate, AppSync queries, circuit breaker feature flags)
 
 ## Dependencies

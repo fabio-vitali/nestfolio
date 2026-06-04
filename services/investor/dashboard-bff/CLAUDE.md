@@ -47,6 +47,7 @@ Stack: services/investor/dashboard-bff/src/service.stack.ts
 - dashboard-publisher.ts — DDB-stream-driven broadcaster: fires publishDashboardUpdate on AdvisoryStatus mutation and publishActivityUpdate on Activity insert (keyed by __typename)
 
 ## Tests
+- unit/service.stack.test.ts (Broadcaster wiring: DLQ + bisectBatchOnError on the DDB-stream consumer)
 - handlers/event-listener.test.ts
 - handlers/dashboard-publisher.test.ts
 - repositories/dashboard.repository.test.ts
