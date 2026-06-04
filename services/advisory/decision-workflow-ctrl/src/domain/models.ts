@@ -1,11 +1,16 @@
-/** Status of a DecisionPacket through the Step Functions workflow. */
+/** Status of a DecisionPacket through the Step Functions workflow.
+ *  GENERATING/FAILED are cycle-lifecycle statuses set by advisory-bff (WS-2)
+ *  from the SF-direct DECISION_CYCLE_STARTED/FAILED events — no DecisionPacket
+ *  row carries them (they describe a cycle with no packet yet). */
 export type WorkflowStatus =
+  | 'GENERATING'
   | 'PENDING'
   | 'AWAITING_CONFIRMATION'
   | 'APPROVED'
   | 'BLOCKED'
   | 'CONFIRMED'
-  | 'REJECTED';
+  | 'REJECTED'
+  | 'FAILED';
 
 /** DecisionPacket: the core aggregate owned by decision-workflow-ctrl. */
 export interface DecisionPacket {

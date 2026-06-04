@@ -12,6 +12,13 @@ export const DecisionWorkflowEventTypes = {
   AGENT_OUTPUT_CREATED: eventName('AGENT_OUTPUT_CREATED'),
   AGENT_OUTPUT_UPDATED: eventName('AGENT_OUTPUT_UPDATED'),
   MANDATE_SNAPSHOT_CREATED: eventName('MANDATE_SNAPSHOT_CREATED'),
+  // WS-1 (advisory-generating-failed-ux): SF-direct cycle-lifecycle signals.
+  // Emitted by the state machine via putEvents (Source: serviceName), NOT CDC —
+  // no DecisionPacket row exists at emit time. advisory-bff (WS-2) projects them
+  // onto the DecisionReadModel row as status GENERATING (__version:0) / FAILED
+  // (__version:1) via projectVersioned.
+  DECISION_CYCLE_STARTED: eventName('DECISION_CYCLE_STARTED'),
+  DECISION_CYCLE_FAILED: eventName('DECISION_CYCLE_FAILED'),
 } as const;
 
 // SF triggers. INVESTOR_PROFILE_CREATED removed: replaced by MANDATE_SNAPSHOT_CREATED
