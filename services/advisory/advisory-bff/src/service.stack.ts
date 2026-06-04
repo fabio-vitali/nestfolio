@@ -59,7 +59,7 @@ export class AdvisoryBffStack extends ServiceStack {
       enableIamAuth: true,
       userPoolSsmPath: `/nestfolio/${this.prefix}-investor/auth/userPoolId`,
       jsResolvers: discoverJsResolvers(__dirname, {
-        noneDataSource: ['publishDecisionUpdate', 'publishAdvisoryStatusUpdate'],
+        noneDataSource: ['publishDecisionUpdate'],
         // Pre-step reads the existing DecisionReadModel so the mutation can
         // copy `taskToken` (originally stamped by the SF
         // USER_CONFIRMATION_REQUESTED state) onto the UserConfirmation /
