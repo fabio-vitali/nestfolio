@@ -14,7 +14,7 @@ references:
   - services/advisory/advisory-bff/src/handlers/advisory-status-projector.ts
 topic_memory: [project_read_model_redesign.md]
 spec: docs/superpowers/specs/2026-06-04-advisory-status-monotonic-version-design.md
-plan: null
+plan: docs/superpowers/plans/2026-06-04-advisory-status-monotonic-version.md
 validation_gate: null
 ---
 
