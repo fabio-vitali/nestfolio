@@ -1,0 +1,40 @@
+---
+id: detect-deploy-service-test-path-no-deploy
+status: parking
+type: tooling
+notes: "detect-deploy-needed.mjs lacks a Tier-0 rule for services/*/test/**, so a test-only service change defaults to deploy=true (false positive)."
+references: []
+out_of_scope: []
+spec: null
+plan: null
+topic_memory: []
+validation_gate: null
+---
+
+# detect-deploy-needed: services/*/test/** defaults to deploy=true
+
+`.claude/skills/backlog-next/detect-deploy-needed.mjs` has no Tier-0 rule for
+`services/<domain>/<service>/test/**`. Its `TIER1` matches `src/`,
+`infrastructure/`, and `domain/`; anything else under `services/` falls through
+to the conservative "unknown path → deploy=true" default.
+
+Surfaced 2026-06-04 while shipping [[investor-bff-dead-repo-mutate-methods]]: the
+unit-test file edit (`services/investor/investor-bff/test/unit/repositories/investor-profile.repository.test.ts`)
+was reported under:
+
+```
+Unknown paths (defaulted to deploy=true):
+  services/investor/investor-bff/test/unit/repositories/investor-profile.repository.test.ts
+  → consider adding to deploy-paths.md
+```
+
+A test-only change never produces a deployable artifact, so it should be Tier 0.
+
+Same class as [[detect-deploy-tools-path-no-deploy]] (the `tools/**` gap) — both
+are missing Tier-0 entries in the same script.
+
+Cheapest next step: add `/^services\/[^/]+\/[^/]+\/test\//` to `TIER0` in
+`detect-deploy-needed.mjs` and a matching row in
+`.claude/skills/backlog-next/deploy-paths.md`. Likely blocked from a same-session
+`/backlog-next` fix by the auto-mode self-modification guard (the script is agent
+logic), same as the `tools/**` item — so pair the two when one is unblocked.
