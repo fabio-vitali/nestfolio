@@ -1,14 +1,17 @@
 ---
 id: advisory-generating-state-e2e-accumulate-model-stale
-status: queued
-rank: 1
+status: active
 type: bug
 notes: "advisory-generating-state.spec.ts (Playwright) encodes the removed pre-WS3 accumulate model (DEPOSIT_DETECTED -> count++); both tests are broken vs the current recompute architecture, and the generating-empty-state may be unreachable now."
 references:
   - apps/nestfolio-e2e/src/scenarios/advisory-generating-state.spec.ts
   - apps/nestfolio-e2e/src/fixtures/inject-advisory-update.ts
   - apps/advisory-mfe/src/app/decision-list/decision-list.component.ts
-out_of_scope: []
+out_of_scope:
+  - "No change to advisory-bff / dashboard-bff backend behavior (inFlightCount recompute + pendingDecisionsCount P3 projection are correct as shipped); this is a test-correctness + UI-reachability workstream."
+  - "No broadening to other nestfolio-e2e scenarios beyond advisory-generating-state.spec.ts and its two fixtures."
+  - "No migration of the lone direct @aws-sdk/client-eventbridge import in inject-advisory-update.ts to the test-support wrapper (tracked separately: nestfolio-e2e-eventbridge-client-wrapper-migration)."
+  - "No new production feature (e.g. a real count-before-row 'generating' signal) — if the empty-state is unreachable, resolve by re-targeting the test to the reachable state and/or removing dead UI, not by adding backend machinery."
 spec: null
 plan: null
 topic_memory: [project_read_model_redesign.md]
