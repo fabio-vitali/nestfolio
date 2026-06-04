@@ -11,8 +11,7 @@ _(none)_
 
 ## QUEUED
 
-_(none)_
-
+1. [advisory-generating-state-e2e-accumulate-model-stale](backlog/advisory-generating-state-e2e-accumulate-model-stale.md) [bug] — advisory-generating-state.spec.ts (Playwright) encodes the removed pre-WS3 accumulate model (DEPOSIT_DETECTED -> count++); both tests are broken vs the current recompute architecture, and the generating-empty-state may be unreachable now.
 
 ## LATER
 
