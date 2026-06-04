@@ -139,7 +139,9 @@
       "errorTitle": "Impossibile caricare le decisioni",
       "generatingTitle": "L'agente sta generando raccomandazioni…",
       "generatingHint": "Di solito richiede da 30 a 75 secondi. La lista si aggiornerà automaticamente.",
-      "generatingMore": "Generando {count} raccomandazione(i) aggiuntiva(e)…"
+      "generatingMore": "Generando {count} raccomandazione(i) aggiuntiva(e)…",
+      "failedTitle": "Non siamo riusciti a generare la tua consulenza",
+      "failedHint": "Si è verificato un problema durante la preparazione della raccomandazione. Riprova tra poco."
     },
     "detail": {
       "trades": "Operazioni Proposte",

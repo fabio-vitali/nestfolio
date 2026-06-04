@@ -139,7 +139,9 @@
       "errorTitle": "Could not load decisions",
       "generatingTitle": "Agent is generating recommendations…",
       "generatingHint": "This usually takes 30 to 75 seconds. The list will refresh automatically.",
-      "generatingMore": "Generating {count} additional recommendation(s)…"
+      "generatingMore": "Generating {count} additional recommendation(s)…",
+      "failedTitle": "We couldn't generate your advice",
+      "failedHint": "Something went wrong while preparing your recommendation. Please try again shortly."
     },
     "detail": {
       "trades": "Proposed Trades",
