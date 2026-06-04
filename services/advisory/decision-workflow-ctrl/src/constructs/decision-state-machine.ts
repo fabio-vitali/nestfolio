@@ -320,6 +320,50 @@ export class DecisionWorkflowDefinition extends Construct {
       },
     });
 
+    // --- WS-1: cycle-start signal (advisory-generating-failed-ux mini-program) ---
+    // Fire-and-forget putEvents announcing the cycle is GENERATING, BEFORE any
+    // DecisionPacket row exists (the packet is created ~30-60s later at
+    // AssembleDecisionPacket). advisory-bff (WS-2) projects this onto the
+    // DecisionReadModel row as status=GENERATING (__version:0). ResultPath:null
+    // (DISCARD) preserves the SF state (decisionId/tenantId/userId/region) for
+    // ResolveTriggerAmountCents downstream. Source = serviceName matches every
+    // other SF putEvents state (e.g. RECOMMENDATION_PROPOSED), so WS-2's
+    // advisory-bff Ingress $or accepts it. __version:0 sorts below the
+    // DecisionPacket CDC insert (__version:1) → a content packet cleanly
+    // overwrites the GENERATING row via the version guard.
+    const emitCycleStarted = new sfn.CustomState(this, 'EmitDecisionCycleStarted', {
+      stateJson: {
+        Type: 'Task',
+        Resource: 'arn:aws:states:::events:putEvents',
+        Parameters: {
+          Entries: [
+            {
+              EventBusName: eventBus.eventBusName,
+              Source: serviceName,
+              DetailType: 'DECISION_CYCLE_STARTED',
+              Detail: {
+                'id.$': 'States.UUID()',
+                'type': 'DECISION_CYCLE_STARTED',
+                'timestamp.$': '$$.State.EnteredTime',
+                'subject': {
+                  'decisionId.$': '$.decisionId',
+                  'tenantId.$': '$.tenantId',
+                  'status': 'GENERATING',
+                  '__version': 0,
+                },
+                'context': {
+                  'tenantId.$': '$.tenantId',
+                  'userId.$': '$.userId',
+                  'region.$': '$.region',
+                },
+              },
+            },
+          ],
+        },
+        ResultPath: null,
+      },
+    });
+
     // Resolve triggerAmountCents from the trigger payload IF present (DEPOSIT_DETECTED),
     // otherwise default to 0. The bare JSONPath `$.triggerContext.amountCents` raises
     // uncatchable States.Runtime when the field is missing — work around via Choice + Pass.
@@ -652,6 +696,7 @@ export class DecisionWorkflowDefinition extends Construct {
       .next(parallelProjections);
 
     const definition = unpackTriggerEnvelope
+      .next(emitCycleStarted)
       .next(amountCentsResolved)
       .next(mergeProjections)
       .next(mandateResolved)

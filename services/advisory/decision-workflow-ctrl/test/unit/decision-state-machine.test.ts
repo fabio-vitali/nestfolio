@@ -330,7 +330,8 @@ describe('Decision SF state machine (post-precomputation rewire)', () => {
   // ---- Main chain ordering ----------------------------------------------
 
   it('wires the main chain UnpackTriggerEnvelope → ResolveTriggerAmountCents → ParallelProjections → MergeProjections → ResolveMandateSnapshot', () => {
-    expect(definition.States.UnpackTriggerEnvelope.Next).toBe('ResolveTriggerAmountCents');
+    expect(definition.States.UnpackTriggerEnvelope.Next).toBe('EmitDecisionCycleStarted');
+    expect(definition.States.EmitDecisionCycleStarted.Next).toBe('ResolveTriggerAmountCents');
     // Both ResolveTriggerAmountCents branches converge on ParallelProjections.
     expect(definition.States.SetTriggerAmountCentsFromTrigger.Next).toBe('ParallelProjections');
     expect(definition.States.SetTriggerAmountCentsZero.Next).toBe('ParallelProjections');
@@ -340,6 +341,35 @@ describe('Decision SF state machine (post-precomputation rewire)', () => {
     expect(definition.States.SetInvestorProfile.Next).toBe('InvokePortfolioEngine');
     // The hoist branch must also feed into InvokePortfolioEngine.
     expect(definition.States.HoistMandateFromTrigger.Next).toBe('InvokePortfolioEngine');
+  });
+
+  // ---- WS-1: cycle-lifecycle events (advisory-generating-failed-ux) ---------
+
+  it('emits DECISION_CYCLE_STARTED as a fire-and-forget putEvents (GENERATING, __version 0, ResultPath DISCARD)', () => {
+    const s = definition.States.EmitDecisionCycleStarted;
+    expect(s).toBeDefined();
+    expect(s.Type).toBe('Task');
+    // fire-and-forget — NOT putEvents.waitForTaskToken
+    expect(s.Resource).toBe('arn:aws:states:::events:putEvents');
+    // DISCARD so decisionId/tenantId/userId/region flow through to ResolveTriggerAmountCents
+    expect(s.ResultPath).toBeNull();
+    const entry = s.Parameters.Entries[0];
+    expect(entry.DetailType).toBe('DECISION_CYCLE_STARTED');
+    expect(entry.Source).toBeDefined();
+    const detail = entry.Detail;
+    expect(detail.type).toBe('DECISION_CYCLE_STARTED');
+    expect(detail.subject['decisionId.$']).toBe('$.decisionId');
+    expect(detail.subject['tenantId.$']).toBe('$.tenantId');
+    expect(detail.subject.status).toBe('GENERATING');
+    expect(detail.subject.__version).toBe(0);
+    expect(detail.context['tenantId.$']).toBe('$.tenantId');
+    expect(detail.context['userId.$']).toBe('$.userId');
+    expect(detail.context['region.$']).toBe('$.region');
+  });
+
+  it('splices EmitDecisionCycleStarted between UnpackTriggerEnvelope and ResolveTriggerAmountCents', () => {
+    expect(definition.States.UnpackTriggerEnvelope.Next).toBe('EmitDecisionCycleStarted');
+    expect(definition.States.EmitDecisionCycleStarted.Next).toBe('ResolveTriggerAmountCents');
   });
 
   it('compliance choice + downstream states preserved', () => {
