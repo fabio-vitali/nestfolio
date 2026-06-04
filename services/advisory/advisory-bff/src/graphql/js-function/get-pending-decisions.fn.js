@@ -17,7 +17,7 @@ export function request(ctx) {
       expressionValues: util.dynamodb.toMapValues({ ':tenantId': tenantId, ':typename': 'DecisionReadModel' }),
     },
     filter: {
-      expression: '#status IN (:s1, :s2, :s3, :s4, :s5, :s6, :s7)',
+      expression: '#status IN (:s1, :s2, :s3, :s4, :s5, :s6, :s7, :s8, :s9)',
       expressionNames: { '#status': 'status' },
       expressionValues: util.dynamodb.toMapValues({
         ':s1': 'PENDING',
@@ -27,6 +27,8 @@ export function request(ctx) {
         ':s5': 'APPROVED',
         ':s6': 'CONFIRMATION_REQUIRED',
         ':s7': 'AWAITING_CONFIRMATION',
+        ':s8': 'GENERATING',
+        ':s9': 'FAILED',
       }),
     },
     limit,
