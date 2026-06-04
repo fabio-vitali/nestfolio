@@ -15,7 +15,10 @@ import {
 // advisory-bff is now a P1 VERSIONED projection of decision-workflow-ctrl's
 // full DecisionPacket row, plus a P3 derived AdvisoryStatus aggregate.
 //
-//  * Ingress subscribes ONLY DECISION_PACKET_CREATED + DECISION_PACKET_UPDATED.
+//  * Ingress subscribes DECISION_PACKET_CREATED + DECISION_PACKET_UPDATED (full-row
+//    CDC snapshots) AND the WS-2 SF-direct cycle-lifecycle events
+//    DECISION_CYCLE_STARTED (→ GENERATING, v0) + DECISION_CYCLE_FAILED (→ FAILED, v1),
+//    projected onto the same versioned DecisionReadModel row.
 //    The old direct status/trigger events (DECISION_APPROVED, DECISION_BLOCKED,
 //    USER_CONFIRMATION_REQUESTED, DEPOSIT_DETECTED, ORDER_FILLED, …) are no
 //    longer subscribed — their effects arrive folded into the versioned
@@ -299,6 +302,98 @@ describe('advisory-bff', () => {
         }),
       ).rejects.toThrow();
     }, 60_000);
+  });
+
+  // ── DecisionReadModel: cycle-lifecycle status (WS-2) ─────────────────
+  //
+  // SF-direct cycle events project a MINIMAL versioned row before any packet
+  // exists. The version guard makes this order-agnostic: STARTED(v0)→GENERATING,
+  // content CREATED(v1) overwrites, FAILED(v1)→FAILED, late STARTED(v0) dropped.
+
+  describe('DecisionReadModel cycle-status (GENERATING/FAILED, WS-2)', () => {
+    it('projects GENERATING (v0) from DECISION_CYCLE_STARTED before any packet exists', async () => {
+      const decisionId = `integ-gen-${Date.now()}`;
+      const pk = `Decision#${ctx.tenantId}#${decisionId}`;
+
+      await eb.putEvent({
+        bus: 'advisory',
+        targetService: 'advisory-bff',
+        detailType: 'DECISION_CYCLE_STARTED',
+        detail: { decisionId, tenantId: ctx.tenantId, status: 'GENERATING', __version: 0 },
+      });
+
+      const item = await table.waitForItem({
+        table: 'advisory-bff', pk, sk: 'DecisionReadModel',
+        timeoutMs: 30_000, match: { status: 'GENERATING' },
+      });
+      expect(item['__typename']).toBe('DecisionReadModel');
+      expect(item['status']).toBe('GENERATING');
+      expect(Number(item['version'])).toBe(0);
+    }, 120_000);
+
+    it('a content DECISION_PACKET_CREATED (v1) overwrites the GENERATING (v0) row', async () => {
+      const decisionId = `integ-gen-overwrite-${Date.now()}`;
+      const pk = `Decision#${ctx.tenantId}#${decisionId}`;
+
+      await eb.putEvent({
+        bus: 'advisory', targetService: 'advisory-bff', detailType: 'DECISION_CYCLE_STARTED',
+        detail: { decisionId, tenantId: ctx.tenantId, status: 'GENERATING', __version: 0 },
+      });
+      await table.waitForItem({
+        table: 'advisory-bff', pk, sk: 'DecisionReadModel', timeoutMs: 30_000, match: { status: 'GENERATING' },
+      });
+
+      await eb.putEvent({
+        bus: 'advisory', targetService: 'advisory-bff', detailType: 'DECISION_PACKET_CREATED',
+        detail: {
+          __version: 1, tenantId: ctx.tenantId, decisionId, trigger: 'REBALANCE', status: 'PENDING',
+          proposedTrades: [{ symbol: 'AAPL', action: 'BUY', quantity: 1 }],
+          explanation: 'real decision overwrites generating', confirmationRequired: true,
+          createdAt: new Date().toISOString(), updatedAt: new Date().toISOString(),
+        },
+      });
+
+      const item = await table.waitForItem({
+        table: 'advisory-bff', pk, sk: 'DecisionReadModel', timeoutMs: 30_000, match: { status: 'PENDING' },
+      });
+      expect(item['status']).toBe('PENDING');
+      expect(Number(item['version'])).toBe(1);
+      expect(item['explanation']).toBe('real decision overwrites generating');
+    }, 120_000);
+
+    it('DECISION_CYCLE_FAILED (v1) projects FAILED; a late STARTED (v0) is dropped by the guard', async () => {
+      const decisionId = `integ-failed-${Date.now()}`;
+      const pk = `Decision#${ctx.tenantId}#${decisionId}`;
+
+      await eb.putEvent({
+        bus: 'advisory', targetService: 'advisory-bff', detailType: 'DECISION_CYCLE_STARTED',
+        detail: { decisionId, tenantId: ctx.tenantId, status: 'GENERATING', __version: 0 },
+      });
+      await table.waitForItem({
+        table: 'advisory-bff', pk, sk: 'DecisionReadModel', timeoutMs: 30_000, match: { status: 'GENERATING' },
+      });
+
+      await eb.putEvent({
+        bus: 'advisory', targetService: 'advisory-bff', detailType: 'DECISION_CYCLE_FAILED',
+        detail: { decisionId, tenantId: ctx.tenantId, status: 'FAILED', __version: 1 },
+      });
+      await table.waitForItem({
+        table: 'advisory-bff', pk, sk: 'DecisionReadModel', timeoutMs: 30_000, match: { status: 'FAILED' },
+      });
+
+      // Late STARTED (v0) after FAILED (v1): the guard (#__version < :version) drops it.
+      await eb.putEvent({
+        bus: 'advisory', targetService: 'advisory-bff', detailType: 'DECISION_CYCLE_STARTED',
+        detail: { decisionId, tenantId: ctx.tenantId, status: 'GENERATING', __version: 0 },
+      });
+      await new Promise((r) => setTimeout(r, 8_000));
+
+      const item = await table.waitForItem({
+        table: 'advisory-bff', pk, sk: 'DecisionReadModel', timeoutMs: 5_000,
+      });
+      expect(item['status']).toBe('FAILED');
+      expect(Number(item['version'])).toBe(1);
+    }, 120_000);
   });
 
   // ── AdvisoryStatus: P3 inFlightCount recompute ───────────────────────
