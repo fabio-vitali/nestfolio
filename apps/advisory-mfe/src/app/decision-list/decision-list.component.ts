@@ -33,17 +33,17 @@ import type { Decision } from '../stores/advisory.store';
         [title]="i18n.t('advisory.list.errorTitle')"
         [message]="i18n.t(error()!)"
       />
-    } @else if (decisions().length > 0) {
+    } @else if (realDecisions().length > 0) {
       <div class="decision-list" data-testid="advisory-decision-list">
         <h2 class="list-title">{{ i18n.t('advisory.list.title') }}</h2>
-        @if (displayedInFlightCount() > 0) {
+        @if (generating()) {
           <div class="generating-banner" data-testid="advisory-generating-banner">
             <span class="pi pi-spin pi-spinner"></span>
-            {{ i18n.t('advisory.list.generatingMore', { count: displayedInFlightCount() }) }}
+            {{ i18n.t('advisory.list.generatingTitle') }}
           </div>
         }
         <ul class="items">
-          @for (d of decisions(); track d.decisionId) {
+          @for (d of realDecisions(); track d.decisionId) {
             <li class="item">
               <a
                 class="item-link"
@@ -63,12 +63,20 @@ import type { Decision } from '../stores/advisory.store';
           }
         </ul>
       </div>
-    } @else if (displayedInFlightCount() > 0) {
+    } @else if (generating()) {
       <div data-testid="advisory-generating-state">
         <nf-empty-state
           icon="pi pi-spin pi-spinner"
           [title]="i18n.t('advisory.list.generatingTitle')"
           [message]="i18n.t('advisory.list.generatingHint')"
+        />
+      </div>
+    } @else if (failed()) {
+      <div data-testid="advisory-failed-state">
+        <nf-empty-state
+          icon="pi pi-exclamation-triangle"
+          [title]="i18n.t('advisory.list.failedTitle')"
+          [message]="i18n.t('advisory.list.failedHint')"
         />
       </div>
     } @else {
@@ -159,22 +167,49 @@ export class DecisionListComponent implements OnInit, OnDestroy {
   readonly loading = signal<boolean>(false);
   readonly loaded = signal<boolean>(false);
   readonly error = signal<string | null>(null);
-  readonly inFlightCount = signal<number>(0);
-  readonly lastTriggerAt = signal<string | null>(null);
 
-  private static readonly STALENESS_MS = 5 * 60 * 1000;
+  // Drives the staleness guard. Ticked by an interval in ngOnInit so the
+  // computed signals below re-evaluate over time; settable directly in tests.
+  readonly now = signal<number>(Date.now());
+  private tickHandle: ReturnType<typeof setInterval> | null = null;
 
-  readonly displayedInFlightCount = computed(() => {
-    const c = this.inFlightCount();
-    if (c <= 0) return 0;
-    const last = this.lastTriggerAt();
-    if (!last) return 0;
-    const ageMs = Date.now() - new Date(last).getTime();
-    return ageMs < DecisionListComponent.STALENESS_MS ? c : 0;
+  // A GENERATING row older than this (with no STARTED→PENDING/FAILED transition)
+  // renders as failed. Derived from AGENT_BUDGETS (PORTFOLIO_ENGINE 120s +
+  // ADVISORY_NARRATIVE 120s = 240s sequential) + ~2 min margin for
+  // ParallelProjections + AssemblePacket + EB→SQS→CDC propagation + clock skew.
+  // Covers uncatchable States.Runtime failures that emit no DECISION_CYCLE_FAILED.
+  static readonly STALE_CYCLE_MS = 6 * 60 * 1000;
+  private static readonly TICK_MS = 30 * 1000;
+
+  private isStaleGenerating(d: PendingDecisionListItem): boolean {
+    if (d.status !== 'GENERATING') return false;
+    const ageMs = this.now() - new Date(d.createdAt).getTime();
+    return ageMs >= DecisionListComponent.STALE_CYCLE_MS;
+  }
+
+  /** Rows that represent an actual decision — everything that is not a
+   *  cycle-lifecycle placeholder. These are the only rows shown in the list. */
+  readonly realDecisions = computed(() =>
+    this.decisions().filter((d) => d.status !== 'GENERATING' && d.status !== 'FAILED'),
+  );
+
+  /** True when a cycle is actively generating (a fresh, non-stale GENERATING row). */
+  readonly generating = computed(() =>
+    this.decisions().some((d) => d.status === 'GENERATING' && !this.isStaleGenerating(d)),
+  );
+
+  /** True when the latest signal is a failure and nothing is in flight / ready:
+   *  a FAILED row, or a GENERATING row that has gone stale (uncatchable failure). */
+  readonly failed = computed(() => {
+    if (this.realDecisions().length > 0 || this.generating()) return false;
+    return this.decisions().some(
+      (d) => d.status === 'FAILED' || (d.status === 'GENERATING' && this.isStaleGenerating(d)),
+    );
   });
 
   // Mirrors services/advisory/advisory-bff/src/graphql/js-function/get-pending-decisions.fn.js
-  // — keep in sync if backend filter changes.
+  // — keep in sync if backend filter changes. GENERATING/FAILED included so the
+  // cycle-lifecycle rows reach decisions() and drive the spinner/error UI.
   private static readonly PENDING_STATUSES = new Set<string>([
     'PENDING',
     'DRAFT',
@@ -183,35 +218,30 @@ export class DecisionListComponent implements OnInit, OnDestroy {
     'APPROVED',
     'CONFIRMATION_REQUIRED',
     'AWAITING_CONFIRMATION',
+    'GENERATING',
+    'FAILED',
   ]);
 
   async ngOnInit(): Promise<void> {
     this.loading.set(true);
     this.error.set(null);
+    this.tickHandle = setInterval(
+      () => this.now.set(Date.now()),
+      DecisionListComponent.TICK_MS,
+    );
 
     const tenantId = this.authStore.user()?.tenantId;
     if (tenantId) {
-      // Pattern B (R1): subscriptions BEFORE the queries fire so frames
-      // delivered during query resolution are not lost.
+      // Pattern B (R1): subscription BEFORE the query fires so frames delivered
+      // during query resolution are not lost.
       this.advisoryService.subscribeToDecisionListUpdates(tenantId, (frame) =>
         this.reconcile(frame),
       );
-      this.advisoryService.subscribeToAdvisoryStatusUpdates(tenantId, (snapshot) => {
-        this.inFlightCount.set(snapshot.inFlightCount);
-        this.lastTriggerAt.set(snapshot.lastTriggerAt);
-      });
     }
 
     try {
-      const [items, status] = await Promise.all([
-        this.advisoryService.getPendingDecisions(),
-        this.advisoryService.getAdvisoryStatus(),
-      ]);
+      const items = await this.advisoryService.getPendingDecisions();
       this.decisions.set(items);
-      if (status) {
-        this.inFlightCount.set(status.inFlightCount);
-        this.lastTriggerAt.set(status.lastTriggerAt);
-      }
       this.loaded.set(true);
     } catch (e: unknown) {
       this.error.set(parseError(e, 'errors.decision'));
@@ -221,8 +251,11 @@ export class DecisionListComponent implements OnInit, OnDestroy {
   }
 
   ngOnDestroy(): void {
+    if (this.tickHandle !== null) {
+      clearInterval(this.tickHandle);
+      this.tickHandle = null;
+    }
     this.advisoryService.unsubscribeFromDecisionListUpdates();
-    this.advisoryService.unsubscribeFromAdvisoryStatusUpdates();
   }
 
   private reconcile(frame: Decision): void {

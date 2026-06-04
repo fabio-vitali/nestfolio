@@ -144,24 +144,3 @@ export const ON_DECISION_UPDATE = `
   ${DECISION_FIELDS}
 `;
 
-export const GET_ADVISORY_STATUS = `
-  query GetAdvisoryStatus {
-    getAdvisoryStatus {
-      tenantId
-      inFlightCount
-      lastTriggerAt
-      updatedAt
-    }
-  }
-`;
-
-export const ON_ADVISORY_STATUS_UPDATE = `
-  subscription OnAdvisoryStatusUpdate($tenantId: ID!) {
-    onAdvisoryStatusUpdate(tenantId: $tenantId) {
-      tenantId
-      inFlightCount
-      lastTriggerAt
-      updatedAt
-    }
-  }
-`;
