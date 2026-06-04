@@ -53,9 +53,6 @@ describe('DecisionListComponent', () => {
       getPendingDecisions: jest.fn().mockResolvedValue(mockItems),
       subscribeToDecisionListUpdates: jest.fn(),
       unsubscribeFromDecisionListUpdates: jest.fn(),
-      getAdvisoryStatus: jest.fn().mockResolvedValue(null),
-      subscribeToAdvisoryStatusUpdates: jest.fn(),
-      unsubscribeFromAdvisoryStatusUpdates: jest.fn(),
     } as unknown as jest.Mocked<AdvisoryService>;
 
     await TestBed.configureTestingModule({
@@ -146,15 +143,6 @@ describe('DecisionListComponent', () => {
     await component.ngOnInit();
 
     expect(advisoryService.subscribeToDecisionListUpdates).toHaveBeenCalledWith(
-      'tenant-1',
-      expect.any(Function),
-    );
-  });
-
-  it('passes tenantId from authStore to subscribeToAdvisoryStatusUpdates', async () => {
-    await component.ngOnInit();
-
-    expect(advisoryService.subscribeToAdvisoryStatusUpdates).toHaveBeenCalledWith(
       'tenant-1',
       expect.any(Function),
     );
@@ -272,13 +260,29 @@ describe('DecisionListComponent', () => {
     expect(component.decisions()[0].decisionId).toBe(mockItems[0].decisionId);
   });
 
+  it('keeps a GENERATING frame for an unknown decisionId (drives the spinner)', async () => {
+    let cb!: (d: Decision) => void;
+    advisoryService.subscribeToDecisionListUpdates.mockImplementation(
+      (_t: string, fn: (d: Decision) => void) => { cb = fn; },
+    );
+    advisoryService.getPendingDecisions.mockResolvedValue([]);
+
+    await component.ngOnInit();
+    // Use a fresh createdAt (now) so the staleness guard does not flip it to failed
+    cb(frame({ decisionId: 'd-gen', status: 'GENERATING', createdAt: new Date().toISOString() }));
+
+    expect(component.decisions().map((d) => d.decisionId)).toEqual(['d-gen']);
+    expect(component.generating()).toBe(true);
+
+    component.ngOnDestroy(); // clear the interval started by ngOnInit
+  });
+
   it('unsubscribes from decision list updates on destroy', async () => {
     await component.ngOnInit();
 
     component.ngOnDestroy();
 
     expect(advisoryService.unsubscribeFromDecisionListUpdates).toHaveBeenCalled();
-    expect(advisoryService.unsubscribeFromAdvisoryStatusUpdates).toHaveBeenCalled();
   });
 
   it('skips subscription when authStore has no tenantId (still issues query)', async () => {
@@ -301,7 +305,106 @@ describe('DecisionListComponent', () => {
     await f.componentInstance.ngOnInit();
 
     expect(advisoryService.subscribeToDecisionListUpdates).not.toHaveBeenCalled();
-    expect(advisoryService.subscribeToAdvisoryStatusUpdates).not.toHaveBeenCalled();
     expect(advisoryService.getPendingDecisions).toHaveBeenCalled();
+  });
+});
+
+describe('DecisionListComponent — generating/failed routing (spec §7.2)', () => {
+  let component: DecisionListComponent;
+
+  function listItem(over: Partial<PendingDecisionListItem>): PendingDecisionListItem {
+    return {
+      decisionId: 'd-x',
+      status: 'PENDING',
+      trigger: 'DEPOSIT_DETECTED',
+      createdAt: '2026-06-04T10:00:00Z',
+      ...over,
+    };
+  }
+
+  beforeEach(async () => {
+    const advisoryService = {
+      getPendingDecisions: jest.fn().mockResolvedValue([]),
+      subscribeToDecisionListUpdates: jest.fn(),
+      unsubscribeFromDecisionListUpdates: jest.fn(),
+    } as unknown as jest.Mocked<AdvisoryService>;
+
+    await TestBed.configureTestingModule({
+      imports: [DecisionListComponent],
+      providers: [
+        provideRouter([]),
+        { provide: AdvisoryService, useValue: advisoryService },
+        { provide: I18nService, useValue: { t: (k: string) => k } },
+        {
+          provide: AuthStore,
+          useValue: { user: () => ({ tenantId: 'tenant-1', userId: 'u', username: 'u', email: 'e' }) },
+        },
+      ],
+    })
+      .overrideComponent(DecisionListComponent, {
+        set: { template: '<div>test</div>', imports: [], styles: [] },
+      })
+      .compileComponents();
+
+    component = TestBed.createComponent(DecisionListComponent).componentInstance;
+    component.now.set(new Date('2026-06-04T10:00:00Z').getTime());
+  });
+
+  it('GENERATING row, empty list -> generating, not failed, no real rows', () => {
+    component.decisions.set([listItem({ decisionId: 'd1', status: 'GENERATING' })]);
+    expect(component.realDecisions()).toEqual([]);
+    expect(component.generating()).toBe(true);
+    expect(component.failed()).toBe(false);
+  });
+
+  it('GENERATING + a real decision -> generating banner, list has only the real row', () => {
+    component.decisions.set([
+      listItem({ decisionId: 'd1', status: 'GENERATING' }),
+      listItem({ decisionId: 'd2', status: 'AWAITING_CONFIRMATION' }),
+    ]);
+    expect(component.realDecisions().map((d) => d.decisionId)).toEqual(['d2']);
+    expect(component.generating()).toBe(true);
+    expect(component.failed()).toBe(false);
+  });
+
+  it('FAILED row, no generation, no real rows -> failed', () => {
+    component.decisions.set([listItem({ decisionId: 'd1', status: 'FAILED' })]);
+    expect(component.realDecisions()).toEqual([]);
+    expect(component.generating()).toBe(false);
+    expect(component.failed()).toBe(true);
+  });
+
+  it('stale GENERATING (older than the ceiling) -> failed, not generating', () => {
+    component.decisions.set([
+      listItem({ decisionId: 'd1', status: 'GENERATING', createdAt: '2026-06-04T10:00:00Z' }),
+    ]);
+    component.now.set(new Date('2026-06-04T10:07:00Z').getTime());
+    expect(component.generating()).toBe(false);
+    expect(component.failed()).toBe(true);
+  });
+
+  it('fresh GENERATING (within the ceiling) -> still generating', () => {
+    component.decisions.set([
+      listItem({ decisionId: 'd1', status: 'GENERATING', createdAt: '2026-06-04T10:00:00Z' }),
+    ]);
+    component.now.set(new Date('2026-06-04T10:05:00Z').getTime());
+    expect(component.generating()).toBe(true);
+    expect(component.failed()).toBe(false);
+  });
+
+  it('a real decision overrides a stale GENERATING (no false failed)', () => {
+    component.decisions.set([
+      listItem({ decisionId: 'd1', status: 'GENERATING', createdAt: '2026-06-04T10:00:00Z' }),
+      listItem({ decisionId: 'd2', status: 'APPROVED' }),
+    ]);
+    component.now.set(new Date('2026-06-04T10:09:00Z').getTime());
+    expect(component.realDecisions().map((d) => d.decisionId)).toEqual(['d2']);
+    expect(component.failed()).toBe(false);
+  });
+
+  it('empty decisions -> neither generating nor failed (plain empty state)', () => {
+    component.decisions.set([]);
+    expect(component.generating()).toBe(false);
+    expect(component.failed()).toBe(false);
   });
 });
