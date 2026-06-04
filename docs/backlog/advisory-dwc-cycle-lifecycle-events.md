@@ -17,7 +17,7 @@ out_of_scope:
   - changing the DecisionPacket CDC __version emission (WS-1 only VERIFIES it already seeds __version:1 on insert; no producer change here)
   - uncatchable States.Runtime failures emitting FAILED (covered by WS-3 UI staleness guard; documented limitation only)
 spec: docs/superpowers/specs/2026-06-04-advisory-generating-state-design.md
-plan: null
+plan: docs/superpowers/plans/2026-06-04-advisory-dwc-cycle-lifecycle-events.md
 topic_memory: []
 validation_gate: null
 ---
