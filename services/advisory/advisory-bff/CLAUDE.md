@@ -34,7 +34,7 @@ Stack: services/advisory/advisory-bff/src/service.stack.ts
 
 ## Handlers
 - event-listener.ts — Ingress handler; dispatches DECISION_PACKET_CREATED + DECISION_PACKET_UPDATED to decisionSnapshot; drops degraded snapshots (no explanation + no trades) via skip()
-- advisory-status-projector.ts — DDB-stream consumer (P3 derived aggregate); recomputes AdvisoryStatus.inFlightCount post-commit by counting non-terminal DecisionReadModel rows via countInFlightDecisions; writes via projectVersioned; loop-guarded to skip AdvisoryStatus records
+- advisory-status-projector.ts — DDB-stream consumer (advisory-bff's own command-owned derived aggregate); recomputes AdvisoryStatus.inFlightCount post-commit by counting non-terminal DecisionReadModel rows via countInFlightDecisions; writes via update(..., { add: { __version: 1 } }) (atomic strictly-monotonic __version self-increment, was projectVersioned+Date.now()); loop-guarded to skip AdvisoryStatus records
 - decision-publisher.ts — DDB-stream consumer; broadcasts DecisionReadModel changes to MFE via AppSync publishDecisionUpdate mutation
 - event-publisher.ts — Egress CDC publisher
 
@@ -45,7 +45,7 @@ Stack: services/advisory/advisory-bff/src/service.stack.ts
 ## Read model
 - ReadModelOwnership registered in src/read-model-ownership.ts
   - P1 (projectVersioned): DecisionReadModel
-  - P3 (projectVersioned, derived): AdvisoryStatus
+  - CommandOwned (self-versioned derived aggregate via update+add:{__version:1}): AdvisoryStatus (owner; dashboard-bff holds the consumer-side Projection<'P3'> copy)
   - CommandOwned (AppSync fn.js PutItems): UserConfirmation, UserRejection, UserInteraction
 - Enforced by `nx run advisory-bff:typecheck` (test/types/read-model-ownership.type-test.ts)
 
