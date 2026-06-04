@@ -12,7 +12,7 @@ out_of_scope:
   - "No broadening to other nestfolio-e2e scenarios beyond advisory-generating-state.spec.ts and its two fixtures."
   - "No migration of the lone direct @aws-sdk/client-eventbridge import in inject-advisory-update.ts to the test-support wrapper (tracked separately: nestfolio-e2e-eventbridge-client-wrapper-migration)."
   - "No new production feature (e.g. a real count-before-row 'generating' signal) — if the empty-state is unreachable, resolve by re-targeting the test to the reachable state and/or removing dead UI, not by adding backend machinery."
-spec: null
+spec: docs/superpowers/specs/2026-06-04-advisory-generating-state-design.md
 plan: null
 topic_memory: [project_read_model_redesign.md]
 validation_gate: null
