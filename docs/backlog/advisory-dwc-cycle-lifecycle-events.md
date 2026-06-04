@@ -1,6 +1,6 @@
 ---
 id: advisory-dwc-cycle-lifecycle-events
-status: queued
+status: active
 rank: 1
 type: feature
 notes: "WS-1 of advisory-generating-failed-ux: decision-workflow-ctrl emits DECISION_CYCLE_STARTED (SF-start putEvents, decisionId, __version:0) + DECISION_CYCLE_FAILED (SF Catch on agent/assemble steps, __version:1); extends WorkflowStatus with GENERATING|FAILED; publishes both on advisoryBus."
@@ -9,7 +9,13 @@ references:
   - services/advisory/decision-workflow-ctrl/src/constructs/decision-state-machine.ts
   - services/advisory/decision-workflow-ctrl/src/domain/models.ts
   - services/advisory/decision-workflow-ctrl/src/domain/events.ts
-out_of_scope: []
+out_of_scope:
+  - advisory-bff projection of GENERATING/FAILED onto DecisionReadModel (WS-2)
+  - advisory-mfe UI rendering + staleness guard + e2e rewrite (WS-3)
+  - dashboard generating/failed reflection + dashboard e2e retarget (WS-4)
+  - post-packet failure surfacing (BLOCKED/REJECTED are existing decision statuses)
+  - changing the DecisionPacket CDC __version emission (WS-1 only VERIFIES it already seeds __version:1 on insert; no producer change here)
+  - uncatchable States.Runtime failures emitting FAILED (covered by WS-3 UI staleness guard; documented limitation only)
 spec: docs/superpowers/specs/2026-06-04-advisory-generating-state-design.md
 plan: null
 topic_memory: []
