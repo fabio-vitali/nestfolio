@@ -1,6 +1,6 @@
 ---
 id: advisory-status-recompute-monotonic-version
-status: active
+status: shipped
 rank: 11
 type: refactor
 out_of_scope:
@@ -15,7 +15,19 @@ references:
 topic_memory: [project_read_model_redesign.md]
 spec: docs/superpowers/specs/2026-06-04-advisory-status-monotonic-version-design.md
 plan: docs/superpowers/plans/2026-06-04-advisory-status-monotonic-version.md
-validation_gate: null
+validation_gate: |
+  Reclassified advisory-bff AdvisoryStatus P3 -> CommandOwned; swapped
+  projectVersioned(Date.now()) for update(..., { add: { __version: 1 } })
+  atomic self-increment. dashboard-bff consumer-side P3 unchanged.
+  Commits: 8dcb4245 (fix) + b80016ad (canonical doc §3/§4/§9) + 44d8da1b (service card).
+  - advisory-bff:typecheck PASS (type-test trip-wire flipped: projectVersioned now rejected, update allowed).
+  - advisory-bff:test PASS (34 tests; projector unit test rewritten to assert ADD #__version self-increment + no Date.now() version — regression lock).
+  - dashboard-bff:typecheck + dashboard-bff:test PASS (consumer-side P3 unchanged under the monotonic counter).
+  - event-processor:read-model-drift OK (0 drift; 44 registered, 25 excluded — R1–R6 all pass incl. R3 no fn.js writer).
+  - nx affected -t test,lint --base=origin/main PASS (28 projects).
+  - Deploy: dev-advisory-bff UPDATE_COMPLETE, AdvisoryStatusProjector Lambda updated (deploy.sh sandbox --prefix=dev --services=advisory-bff).
+  - Integration vs deployed dev: advisory-bff:test-integration "recomputes inFlightCount = count of non-terminal DecisionReadModel rows" PASS (51s; inFlightCount 2 -> 1 on real dev) — exercises the new update+add write path end-to-end.
+  - E2E: intentionally skipped (user-confirmed) — the same-ms collision is not e2e-reproducible and the integration test already validates the changed producer path on real dev.
 ---
 
 # AdvisoryStatus recompute: strictly-monotonic version (correct C1 fix)
