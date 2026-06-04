@@ -36,11 +36,16 @@ describe('AdvisoryBffStack', () => {
     expect(streamMappings.some(([id]) => id.startsWith('AdvisoryStatusProjector'))).toBe(true);
   });
 
-  it('Ingress subscribes to ONLY the two DecisionPacket snapshot events', () => {
+  it('Ingress subscribes to the two DecisionPacket snapshot events AND the two cycle-lifecycle events', () => {
     const t = synth();
     t.hasResourceProperties('AWS::Events::Rule', {
       EventPattern: {
-        'detail-type': ['DECISION_PACKET_CREATED', 'DECISION_PACKET_UPDATED'],
+        'detail-type': [
+          'DECISION_PACKET_CREATED',
+          'DECISION_PACKET_UPDATED',
+          'DECISION_CYCLE_STARTED',
+          'DECISION_CYCLE_FAILED',
+        ],
       },
     });
   });

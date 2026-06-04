@@ -18,15 +18,19 @@ export class AdvisoryBffStack extends ServiceStack {
 
     const ingress = new Ingress(this, 'Ingress', {
       state,
-      // Workstream 3: advisory-bff is now a P1 versioned projection of the single
-      // authoritative DecisionPacket producer. It subscribes ONLY to the full-row
-      // CDC snapshots (CREATED + UPDATED). The old status / trigger subscriptions
-      // (DECISION_APPROVED, DECISION_BLOCKED, USER_CONFIRMATION_REQUESTED, the SF
-      // trigger events) are gone — their effects now arrive inside the versioned
-      // snapshot, eliminating the cross-event races by construction.
+      // advisory-bff is a P1 versioned projection of the single authoritative
+      // DecisionPacket producer: it subscribes to the full-row CDC snapshots
+      // (CREATED + UPDATED), whose effects arrive inside the versioned snapshot.
+      // WS-2 adds the two SF-direct cycle-lifecycle events (emitted by
+      // decision-workflow-ctrl BEFORE any DecisionPacket exists): STARTED →
+      // GENERATING (v0), FAILED → FAILED (v1), projected onto the same
+      // DecisionReadModel row via the version guard. The Ingress $or source
+      // filter already accepts the SF-direct source (bare serviceName).
       eventTypes: [
         DecisionWorkflowEventTypes.DECISION_PACKET_CREATED,
         DecisionWorkflowEventTypes.DECISION_PACKET_UPDATED,
+        DecisionWorkflowEventTypes.DECISION_CYCLE_STARTED,
+        DecisionWorkflowEventTypes.DECISION_CYCLE_FAILED,
       ],
     });
 
