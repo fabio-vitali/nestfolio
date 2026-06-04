@@ -6,13 +6,11 @@
 
 ## ACTIVE
 
-_(none)_
-
+- [advisory-generating-state-e2e-accumulate-model-stale](backlog/advisory-generating-state-e2e-accumulate-model-stale.md) [feature] — WS-3 of advisory-generating-failed-ux: advisory-mfe renders generating + failed decision-cycle states (status-routed off DecisionReadModel) + staleness guard; rewrites the /advisory Playwright scenario that encoded the removed accumulate model; removes the dead lastTriggerAt/displayedInFlightCount plumbing.
 
 ## QUEUED
 
-1. [advisory-generating-state-e2e-accumulate-model-stale](backlog/advisory-generating-state-e2e-accumulate-model-stale.md) [feature] — WS-3 of advisory-generating-failed-ux: advisory-mfe renders generating + failed decision-cycle states (status-routed off DecisionReadModel) + staleness guard; rewrites the /advisory Playwright scenario that encoded the removed accumulate model; removes the dead lastTriggerAt/displayedInFlightCount plumbing.
-2. [dashboard-generating-failed-reflection](backlog/dashboard-generating-failed-reflection.md) [feature] — WS-4 of advisory-generating-failed-ux: the dashboard reflects generating + failed decision cycles (consistent feedback with /advisory). Opens with a small UX sub-design — distinct generating/failed indicator vs reusing advisory-alert-bar. Retargets the dashboard alert-bar e2e off the removed accumulate model.
+1. [dashboard-generating-failed-reflection](backlog/dashboard-generating-failed-reflection.md) [feature] — WS-4 of advisory-generating-failed-ux: the dashboard reflects generating + failed decision cycles (consistent feedback with /advisory). Opens with a small UX sub-design — distinct generating/failed indicator vs reusing advisory-alert-bar. Retargets the dashboard alert-bar e2e off the removed accumulate model.
 
 ## LATER
 
