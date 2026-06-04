@@ -123,6 +123,7 @@ The brainstorming / writing-plans / executing-plans / subagent-driven-developmen
 - Codebase is source of truth — verify before documenting or planning
 - Run tasks through `pnpm nx`, never the underlying tool directly
 - Always use AskUserQuestion widget for architectural decisions
+- **Reusable patterns are the primary objective.** Nestfolio exists first to define implementation patterns liftable *mostly as-is* into other projects/domains; working (well) software is necessary but secondary. This MUST heavily weight which AskUserQuestion option is marked "(Recommended)": pick the most reusable/generalizable/cleanly-abstracted option over the faster or more domain-coupled one, and **let reusability break ties.** State the pattern-reuse rationale in the recommendation. (user-memory `recommend-reusable-patterns`)
 - `docs/BACKLOG.md` discipline (above) — file-and-continue, single ACTIVE
 
 ## Pre-authorized actions (auto mode)
