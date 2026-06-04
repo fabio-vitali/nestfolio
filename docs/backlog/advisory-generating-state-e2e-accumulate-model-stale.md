@@ -16,7 +16,7 @@ out_of_scope:
   - "Any AdvisoryStatus read-model field additions — the row-backed status approach avoids them."
   - "Real full agent-pipeline e2e (injected events only, for determinism + cost)."
 spec: docs/superpowers/specs/2026-06-04-advisory-generating-state-design.md
-plan: null
+plan: docs/superpowers/plans/2026-06-04-advisory-generating-state-ws3.md
 topic_memory: []
 validation_gate: null
 ---
