@@ -13,7 +13,7 @@ notes: "advisory-bff advisory-status-projector recompute versions the AdvisorySt
 references:
   - services/advisory/advisory-bff/src/handlers/advisory-status-projector.ts
 topic_memory: [project_read_model_redesign.md]
-spec: null
+spec: docs/superpowers/specs/2026-06-04-advisory-status-monotonic-version-design.md
 plan: null
 validation_gate: null
 ---
