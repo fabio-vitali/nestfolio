@@ -6,6 +6,7 @@ import { IQueue } from 'aws-cdk-lib/aws-sqs';
 import { Ingress } from './ingress';
 import { Egress } from './egress';
 import { Orchestration } from './orchestration';
+import { Broadcaster } from './broadcaster';
 import { Monitoring } from '../observability/monitoring';
 import { ServiceDashboard } from '../observability/dashboard';
 import { NamingService } from '../utils/naming-service';
@@ -82,6 +83,7 @@ export class ServiceStack extends Stack {
     ingress?: Ingress;
     egress?: Egress;
     orchestration?: Orchestration;
+    broadcasters?: Broadcaster[];
     extraLambdas?: IFunction[];
     extraDlqs?: IQueue[];
     monitorBedrock?: boolean;
@@ -101,6 +103,10 @@ export class ServiceStack extends Stack {
     }
     if (opts.orchestration) {
       dlqs.push(opts.orchestration.dlq);
+    }
+    for (const broadcaster of opts.broadcasters ?? []) {
+      lambdaFunctions.push(broadcaster.handler);
+      dlqs.push(broadcaster.dlq);
     }
     if (opts.extraLambdas) {
       lambdaFunctions.push(...opts.extraLambdas);

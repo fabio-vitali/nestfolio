@@ -1,11 +1,7 @@
 import { join } from 'path';
 import { Construct } from 'constructs';
 import { PolicyStatement } from 'aws-cdk-lib/aws-iam';
-import { NodejsFunction } from 'aws-cdk-lib/aws-lambda-nodejs';
-import { StartingPosition } from 'aws-cdk-lib/aws-lambda';
-import { DynamoEventSource } from 'aws-cdk-lib/aws-lambda-event-sources';
-import { defaultLambdaProps } from '@nestfolio/cdk-constructs/utils';
-import { ServiceStack, ServiceStackProps, State, Ingress, Egress, Facade, discoverJsResolvers } from '@nestfolio/cdk-constructs/core';
+import { ServiceStack, ServiceStackProps, State, Ingress, Egress, Facade, Broadcaster, discoverJsResolvers } from '@nestfolio/cdk-constructs/core';
 import { MfeBucket } from '@nestfolio/cdk-constructs/extensions';
 import { InvestorBffEventTypes } from './domain/events';
 import { InvestorIngestEventTypes } from '@nestfolio/investor-adpt/domain';
@@ -109,32 +105,21 @@ export class InvestorBffStack extends ServiceStack {
       },
     });
 
-    // DDB-stream-driven funding publisher: fans Deposit / WithdrawalRequest P1 row
-    // status transitions out to clients via @aws_subscribe (onDepositUpdate /
+    // DDB-stream-driven funding broadcaster: fans Deposit / WithdrawalRequest P1
+    // row status transitions out to clients via @aws_subscribe (onDepositUpdate /
     // onWithdrawalUpdate). The projectVersioned write (deposit/withdrawal-lifecycle
     // transforms) is unchanged; this is a post-commit side effect off the stream —
     // no race with the engine's write. SECOND stream consumer on this table (Egress
-    // CDC is the first); DynamoDB allows up to 2 readers per shard.
-    const depositPublisher = new NodejsFunction(this, 'DepositPublisher', {
-      ...defaultLambdaProps(this),
+    // CDC is the first); DynamoDB allows up to 2 readers per shard. The construct
+    // owns the publisher Lambda's DLQ + bisectBatchOnError + AppSync IAM grant.
+    const depositBroadcaster = new Broadcaster(this, 'DepositBroadcaster', {
+      state,
       entry: join(__dirname, 'handlers', 'deposit-publisher.ts'),
-      environment: facade.graphqlUrl ? { APPSYNC_URL: facade.graphqlUrl } : {},
+      facade,
     });
-    depositPublisher.addEventSource(
-      new DynamoEventSource(state.getTable(), {
-        startingPosition: StartingPosition.LATEST,
-        retryAttempts: 3,
-      }),
-    );
-    if (facade.api) {
-      depositPublisher.addToRolePolicy(new PolicyStatement({
-        actions: ['appsync:GraphQL'],
-        resources: [`${facade.api.arn}/*`],
-      }));
-    }
 
     new MfeBucket(this, 'MfeBucket', { mfeKey: 'investor' });
 
-    this.addObservability({ ingress, egress });
+    this.addObservability({ ingress, egress, broadcasters: [depositBroadcaster] });
   }
 }
