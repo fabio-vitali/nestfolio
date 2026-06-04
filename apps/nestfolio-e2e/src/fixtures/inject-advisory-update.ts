@@ -4,23 +4,19 @@ import type { TestContext } from '@nestfolio/test-support';
 import type { FreshTenant } from '@nestfolio/e2e-feature-tests';
 
 /**
- * Emit DEPOSIT_DETECTED directly on the advisory EventBridge bus, scoped to
- * advisory-bff only (source `integration-test:advisory-bff`).
- *
- * Use when a test needs advisory-bff to increment `inFlightCount` without
- * starting the full agent pipeline. The advisory-bff Ingress `$or` rule passes
- * events whose source matches the prefix `integration-test:advisory-bff`.
- *
- * NOTE: This bypasses advisory-adpt, decision-workflow-ctrl, and dashboard-bff —
- * advisory-bff increments AdvisoryStatus.inFlightCount and emits
- * ADVISORY_STATUS_UPDATED, but no Step Functions execution starts and
- * dashboard-bff is not notified.
+ * Emit a single standard-envelope event onto a domain EventBridge bus, scoped to
+ * one consumer via `source: integration-test:<service>` so it passes that
+ * consumer's Ingress `$or` filter. Shared by the advisory cycle-event injectors.
  */
-export async function injectAdvisoryBffTriggerEvent(
+async function putScopedEvent(
   ctx: TestContext,
-  tenant: FreshTenant,
-): Promise<void> {
-  const busArn = await ctx.ssm.busArn('advisory');
+  busDomain: 'advisory' | 'investor',
+  source: string,
+  detailType: string,
+  subject: Record<string, unknown>,
+  context: Record<string, unknown>,
+): Promise<{ eventId: string }> {
+  const busArn = await ctx.ssm.busArn(busDomain);
   const eb = new EventBridgeClient({ region: ctx.region });
   const eventId = `e2e-${randomUUID()}`;
   const now = new Date().toISOString();
@@ -30,22 +26,9 @@ export async function injectAdvisoryBffTriggerEvent(
       Entries: [
         {
           EventBusName: busArn,
-          Source: `integration-test:advisory-bff`,
-          DetailType: 'DEPOSIT_DETECTED',
-          Detail: JSON.stringify({
-            id: eventId,
-            type: 'DEPOSIT_DETECTED',
-            timestamp: now,
-            subject: {
-              tenantId: tenant.tenantId,
-              amountCents: 100_000,
-            },
-            context: {
-              tenantId: tenant.tenantId,
-              userId: tenant.userId,
-              region: ctx.region,
-            },
-          }),
+          Source: source,
+          DetailType: detailType,
+          Detail: JSON.stringify({ id: eventId, type: detailType, timestamp: now, subject, context }),
         },
       ],
     }),
@@ -53,63 +36,116 @@ export async function injectAdvisoryBffTriggerEvent(
 
   if ((result.FailedEntryCount ?? 0) > 0) {
     throw new Error(
-      `injectAdvisoryBffTriggerEvent: PutEvents failed — ${result.Entries?.[0]?.ErrorMessage ?? 'unknown'}`,
+      `putScopedEvent(${detailType}): PutEvents failed — ${result.Entries?.[0]?.ErrorMessage ?? 'unknown'}`,
     );
   }
+  return { eventId };
+}
+
+const ADVISORY_BFF_SOURCE = 'integration-test:advisory-bff';
+
+function advisoryContext(ctx: TestContext, tenant: FreshTenant): Record<string, unknown> {
+  return { tenantId: tenant.tenantId, userId: tenant.userId, region: ctx.region };
 }
 
 /**
- * Emit DEPOSIT_DETECTED on the investor EventBridge bus, scoped to dashboard-bff
- * only (source `integration-test:dashboard-bff`).
- *
- * Use when a test needs dashboard-bff to increment `pendingDecisionsCount` (and
- * therefore trigger `hasAdvisoryAlerts()` → advisory-alert-bar visible) without
- * starting the full advisory pipeline. The dashboard-bff Ingress `$or` rule
- * passes events whose source matches the prefix `integration-test:dashboard-bff`.
- *
- * NOTE: This bypasses advisory-adpt and advisory-bff — only dashboard-bff is
- * notified. The dashboard WSS subscription (`onDashboardUpdate`) receives the
- * broadcast when dashboard-bff's CDC publisher fires after the DDB write.
+ * Emit DECISION_CYCLE_STARTED (a decision-workflow-ctrl SF-direct event) scoped
+ * to advisory-bff. advisory-bff projects status=GENERATING (v0) onto the
+ * DecisionReadModel row before any DecisionPacket exists.
+ */
+export async function injectDecisionCycleStarted(
+  ctx: TestContext,
+  tenant: FreshTenant,
+  decisionId: string,
+): Promise<void> {
+  await putScopedEvent(
+    ctx,
+    'advisory',
+    ADVISORY_BFF_SOURCE,
+    'DECISION_CYCLE_STARTED',
+    { decisionId, tenantId: tenant.tenantId, status: 'GENERATING', __version: 0 },
+    advisoryContext(ctx, tenant),
+  );
+}
+
+/**
+ * Emit DECISION_CYCLE_FAILED (same decisionId) scoped to advisory-bff. advisory-bff
+ * projects status=FAILED (v1), overwriting the GENERATING (v0) row via the version
+ * guard.
+ */
+export async function injectDecisionCycleFailed(
+  ctx: TestContext,
+  tenant: FreshTenant,
+  decisionId: string,
+): Promise<void> {
+  await putScopedEvent(
+    ctx,
+    'advisory',
+    ADVISORY_BFF_SOURCE,
+    'DECISION_CYCLE_FAILED',
+    { decisionId, tenantId: tenant.tenantId, status: 'FAILED', __version: 1 },
+    advisoryContext(ctx, tenant),
+  );
+}
+
+/**
+ * Emit a content DECISION_PACKET_CREATED (v1) scoped to advisory-bff. advisory-bff's
+ * decision-snapshot transform projects the full packet onto the DecisionReadModel
+ * row (AWAITING_CONFIRMATION), overwriting a prior GENERATING (v0). The subject
+ * carries a non-empty explanation + one proposedTrade so the transform's
+ * degraded-drop guard does not skip it; the proposedTrade matches ProposedTradeInput
+ * so the publishDecisionUpdate broadcast does not silently drop.
+ */
+export async function injectDecisionPacketCreated(
+  ctx: TestContext,
+  tenant: FreshTenant,
+  decisionId: string,
+): Promise<void> {
+  const now = new Date().toISOString();
+  await putScopedEvent(
+    ctx,
+    'advisory',
+    ADVISORY_BFF_SOURCE,
+    'DECISION_PACKET_CREATED',
+    {
+      decisionId,
+      tenantId: tenant.tenantId,
+      trigger: 'DEPOSIT_DETECTED',
+      status: 'AWAITING_CONFIRMATION',
+      proposedTrades: [
+        {
+          symbol: 'VOO',
+          assetClass: 'EQUITY',
+          side: 'BUY',
+          quantityOrAmountCents: 100_000,
+          targetWeightPercent: 60,
+          rationale: 'e2e generating-state scenario',
+        },
+      ],
+      explanation: 'Test recommendation for the e2e generating-state scenario.',
+      confirmationRequired: true,
+      __version: 1,
+      createdAt: now,
+      updatedAt: now,
+    },
+    advisoryContext(ctx, tenant),
+  );
+}
+
+/**
+ * Emit DEPOSIT_DETECTED on the investor bus, scoped to dashboard-bff. Used by the
+ * dashboard alert-bar scenario (retargeted by WS-4 dashboard-generating-failed-reflection).
  */
 export async function injectDashboardBffTriggerEvent(
   ctx: TestContext,
   tenant: FreshTenant,
 ): Promise<{ eventId: string }> {
-  const busArn = await ctx.ssm.busArn('investor');
-  const eb = new EventBridgeClient({ region: ctx.region });
-  const eventId = `e2e-${randomUUID()}`;
-  const now = new Date().toISOString();
-
-  const result = await eb.send(
-    new PutEventsCommand({
-      Entries: [
-        {
-          EventBusName: busArn,
-          Source: `integration-test:dashboard-bff`,
-          DetailType: 'DEPOSIT_DETECTED',
-          Detail: JSON.stringify({
-            id: eventId,
-            type: 'DEPOSIT_DETECTED',
-            timestamp: now,
-            subject: {
-              tenantId: tenant.tenantId,
-              amountCents: 100_000,
-            },
-            context: {
-              tenantId: tenant.tenantId,
-              userId: tenant.userId,
-              region: ctx.region,
-            },
-          }),
-        },
-      ],
-    }),
+  return putScopedEvent(
+    ctx,
+    'investor',
+    'integration-test:dashboard-bff',
+    'DEPOSIT_DETECTED',
+    { tenantId: tenant.tenantId, amountCents: 100_000 },
+    advisoryContext(ctx, tenant),
   );
-
-  if ((result.FailedEntryCount ?? 0) > 0) {
-    throw new Error(
-      `injectDashboardBffTriggerEvent: PutEvents failed — ${result.Entries?.[0]?.ErrorMessage ?? 'unknown'}`,
-    );
-  }
-  return { eventId };
 }

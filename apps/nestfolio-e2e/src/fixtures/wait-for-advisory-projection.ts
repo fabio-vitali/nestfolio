@@ -19,82 +19,29 @@ interface GetPendingDecisionsResult {
   };
 }
 
-interface AdvisoryStatusResult {
-  getAdvisoryStatus: {
-    tenantId: string;
-    inFlightCount: number;
-    lastTriggerAt: string | null;
-    updatedAt: string;
-  } | null;
-}
-
-type CombinedResult = GetPendingDecisionsResult & Partial<AdvisoryStatusResult>;
-
-const COMBINED_QUERY = `
-  query WaitForAdvisory {
-    getPendingDecisions(limit: 5) { items { decisionId status } }
-    getAdvisoryStatus { tenantId inFlightCount lastTriggerAt updatedAt }
-  }
-`;
-
 /**
- * Block until advisory-bff signals that the decision pipeline has advanced
- * far enough for the caller's purpose:
+ * Block until advisory-bff has materialised at least one DecisionReadModel row
+ * for the tenant — i.e., the projection the UI list reads is visible. After
+ * WS-3 this includes GENERATING/FAILED cycle-status rows (they pass the
+ * getPendingDecisions filter), so the generating scenario can wait on this
+ * before navigating, eliminating the EB→SQS→Lambda race against the component's
+ * initial query.
  *
- *  - Default (allowInFlightOnly = false): waits until at least one
- *    `DecisionReadModel` row exists — i.e., the full agent pipeline has
- *    materialised and advisory-bff's projection is visible to the UI list.
- *
- *  - allowInFlightOnly = true: succeeds as soon as EITHER a DecisionReadModel
- *    row exists OR `getAdvisoryStatus.inFlightCount > 0` (i.e., the trigger
- *    has been received and the in-flight banner is already observable). Use
- *    this fast-path for scenarios that want to assert the "generating" UX
- *    state before the agent pipeline completes.
- *
- * Why this exists in Step 8 rather than at the navigation: the dashboard
- * counter (Step 8 baseline) advances ~30 s before advisory-bff's projection
- * catches up, so passing Step 8 is NOT a sufficient barrier for Step 9. Without
- * this wait, the Step 9 navigation can land on `/advisory` and time out on the
- * 15 s POM before the row exists — masquerading as a UI bug when the real
- * issue is upstream pipeline latency.
- *
- * Polls the same queries the production UI fires, against the same
- * Cognito-authed AppSync endpoint — so this is observable user-side behaviour,
- * not a backend-only probe (see `feedback_e2e_ui_assertions_only.md`).
+ * Polls the same query the production UI fires, against the same Cognito-authed
+ * AppSync endpoint — observable user-side behaviour, not a backend-only probe
+ * (see feedback_e2e_ui_assertions_only.md).
  */
 export async function waitForAdvisoryDecisionRow(
   ctx: TestContext,
   tenant: FreshTenant,
-  opts?: { timeoutMs?: number; allowInFlightOnly?: boolean },
+  opts?: { timeoutMs?: number },
 ): Promise<void> {
   const advisory = bffClient(ctx, tenant).advisory;
-
-  if (opts?.allowInFlightOnly) {
-    // Use the combined query so we only hit AppSync once per poll cycle.
-    await waitForGraphQL<CombinedResult>(
-      advisory,
-      COMBINED_QUERY,
-      {},
-      (result) => {
-        const hasRow = (result.getPendingDecisions?.items?.length ?? 0) >= 1;
-        // Both inFlightCount AND lastTriggerAt must be non-null: the advisory-bff
-        // handler issues two separate DDB writes (accumulate + update). The component's
-        // displayedInFlightCount() returns 0 if lastTriggerAt is null even when
-        // inFlightCount > 0, so we must wait for both writes to land.
-        const inFlight =
-          (result.getAdvisoryStatus?.inFlightCount ?? 0) >= 1 &&
-          result.getAdvisoryStatus?.lastTriggerAt != null;
-        return hasRow || inFlight;
-      },
-      { timeoutMs: opts?.timeoutMs ?? 90_000, intervalMs: 2_000 },
-    );
-  } else {
-    await waitForGraphQL<GetPendingDecisionsResult>(
-      advisory,
-      GET_PENDING_DECISIONS,
-      { limit: 5 },
-      (result) => (result.getPendingDecisions?.items?.length ?? 0) >= 1,
-      { timeoutMs: opts?.timeoutMs ?? 90_000, intervalMs: 2_000 },
-    );
-  }
+  await waitForGraphQL<GetPendingDecisionsResult>(
+    advisory,
+    GET_PENDING_DECISIONS,
+    { limit: 5 },
+    (result) => (result.getPendingDecisions?.items?.length ?? 0) >= 1,
+    { timeoutMs: opts?.timeoutMs ?? 90_000, intervalMs: 2_000 },
+  );
 }
