@@ -372,6 +372,43 @@ describe('Decision SF state machine (post-precomputation rewire)', () => {
     expect(definition.States.EmitDecisionCycleStarted.Next).toBe('ResolveTriggerAmountCents');
   });
 
+  it('emits DECISION_CYCLE_FAILED via a shared handler (FAILED, __version 1) terminating in a Fail state', () => {
+    const s = definition.States.EmitDecisionCycleFailed;
+    expect(s).toBeDefined();
+    expect(s.Type).toBe('Task');
+    expect(s.Resource).toBe('arn:aws:states:::events:putEvents');
+    expect(s.ResultPath).toBeNull();
+    const entry = s.Parameters.Entries[0];
+    expect(entry.DetailType).toBe('DECISION_CYCLE_FAILED');
+    const detail = entry.Detail;
+    expect(detail.type).toBe('DECISION_CYCLE_FAILED');
+    // decisionId/tenantId survive because each Catch uses resultPath:'$.error'
+    expect(detail.subject['decisionId.$']).toBe('$.decisionId');
+    expect(detail.subject['tenantId.$']).toBe('$.tenantId');
+    expect(detail.subject.status).toBe('FAILED');
+    expect(detail.subject.__version).toBe(1);
+    // terminates the execution as FAILED
+    expect(s.Next).toBe('DecisionCycleFailed');
+    expect(definition.States.DecisionCycleFailed.Type).toBe('Fail');
+  });
+
+  it('catches pre-packet failures on the 4 pre-packet states → EmitDecisionCycleFailed (States.ALL, resultPath $.error)', () => {
+    for (const name of [
+      'ParallelProjections',
+      'InvokePortfolioEngine',
+      'InvokeAdvisoryNarrative',
+      'AssembleDecisionPacket',
+    ]) {
+      const st = definition.States[name];
+      expect(Array.isArray(st.Catch)).toBe(true);
+      const cat = st.Catch.find((c: any) => c.Next === 'EmitDecisionCycleFailed');
+      expect(cat).toBeDefined();
+      expect(cat.ErrorEquals).toContain('States.ALL');
+      // resultPath preserves the original state (decisionId/tenantId) — NOT default '$'
+      expect(cat.ResultPath).toBe('$.error');
+    }
+  });
+
   it('compliance choice + downstream states preserved', () => {
     expect(definition.States.ComplianceChoice).toBeDefined();
     expect(definition.States.ComplianceChoice.Type).toBe('Choice');

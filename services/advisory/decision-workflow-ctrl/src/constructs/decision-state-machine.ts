@@ -687,6 +687,66 @@ export class DecisionWorkflowDefinition extends Construct {
       .afterwards()
       .next(invokePortfolioEngine);
 
+    // --- WS-1: pre-packet failure signal ---
+    // Shared Catch handler for the four PRE-PACKET states (ParallelProjections,
+    // InvokePortfolioEngine, InvokeAdvisoryNarrative, AssembleDecisionPacket).
+    // Each addCatch uses resultPath:'$.error' so the original SF state
+    // (decisionId/tenantId/userId/region) is preserved for this envelope and the
+    // error object is nested under $.error (intentionally not forwarded onto the
+    // bus). __version:1 — a pre-packet failure means NO DecisionPacket row was
+    // created, so this is mutually exclusive with a content DECISION_PACKET_CREATED
+    // (also v1); the v1 overlap never materialises. Catchable failures only:
+    // agent SendTaskFailure / States.Timeout / Lambda errors. Uncatchable
+    // States.Runtime emits nothing here (feedback_states_runtime_uncatchable) —
+    // WS-3's UI staleness guard covers those. Source = serviceName, same as STARTED.
+    const emitCycleFailed = new sfn.CustomState(this, 'EmitDecisionCycleFailed', {
+      stateJson: {
+        Type: 'Task',
+        Resource: 'arn:aws:states:::events:putEvents',
+        Parameters: {
+          Entries: [
+            {
+              EventBusName: eventBus.eventBusName,
+              Source: serviceName,
+              DetailType: 'DECISION_CYCLE_FAILED',
+              Detail: {
+                'id.$': 'States.UUID()',
+                'type': 'DECISION_CYCLE_FAILED',
+                'timestamp.$': '$$.State.EnteredTime',
+                'subject': {
+                  'decisionId.$': '$.decisionId',
+                  'tenantId.$': '$.tenantId',
+                  'status': 'FAILED',
+                  '__version': 1,
+                },
+                'context': {
+                  'tenantId.$': '$.tenantId',
+                  'userId.$': '$.userId',
+                  'region.$': '$.region',
+                },
+              },
+            },
+          ],
+        },
+        ResultPath: null,
+      },
+    });
+    const decisionCycleFailed = new sfn.Fail(this, 'DecisionCycleFailed', {
+      comment: 'Pre-packet decision-cycle failure — DECISION_CYCLE_FAILED emitted',
+    });
+    emitCycleFailed.next(decisionCycleFailed);
+
+    // Attach the shared handler to every pre-packet state. One handler instance
+    // referenced by four Catch clauses — CDK incorporates it into the graph once.
+    const prePacketCatch: sfn.CatchProps = {
+      errors: ['States.ALL'],
+      resultPath: '$.error',
+    };
+    parallelProjections.addCatch(emitCycleFailed, prePacketCatch);
+    invokePortfolioEngine.addCatch(emitCycleFailed, prePacketCatch);
+    invokeAdvisoryNarrative.addCatch(emitCycleFailed, prePacketCatch);
+    assemblePacket.addCatch(emitCycleFailed, prePacketCatch);
+
     // --- Wire the chain ---
 
     // Both ResolveTriggerAmountCents branches (hit + miss) converge on
