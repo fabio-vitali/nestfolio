@@ -1,8 +1,14 @@
 ---
 id: advisory-status-recompute-monotonic-version
-status: queued
+status: active
 rank: 11
 type: refactor
+out_of_scope:
+  - "No change to dashboard-bff's advisory-status.ts P3 transform beyond confirming it stays correct under a monotonic counter __version (the carried version is consumed as-is; a counter is automatically monotonic)."
+  - "No change to the inFlightCount recompute logic itself (countInFlightDecisions / the non-terminal DecisionReadModel count is correct)."
+  - "No backfill/migration of existing AdvisoryStatus rows — the same-ms collision is benign and self-heals; the first new write seeds/continues the counter."
+  - "No re-attempt of the stream SequenceNumber approach (known dead end, code comment explains why)."
+  - "No application of any new reusable intent helper to other P3/derived aggregates in this workstream — generalisation beyond AdvisoryStatus is a separate promote-on-second-use-case item."
 notes: "advisory-bff advisory-status-projector recompute versions the AdvisoryStatus P3 row with Date.now(). Two recomputes for the same tenant in the same millisecond produce equal versions and the `#__version < :version` guard drops the fresher count. Benign today (the next DecisionReadModel change re-triggers the recompute; 1ms-apart counts are near-identical). The C1 attempt to fix this with max stream SequenceNumber was WRONG and reverted (2026-06-03, dashboard-advisory-readmodel-fixes): DecisionReadModel rows are keyed Decision#<tenant>#<id> (per-decision pk) so a tenant's decisions span DIFFERENT stream shards whose SequenceNumbers are non-comparable — max() is non-monotonic and the recompute never wrote (caught by the advisory-bff integration recompute test). A correct strictly-monotonic version needs a different mechanism (e.g. an atomic self-increment ADD #__version :1 on the AdvisoryStatus row, which changes the write from projectVersioned-with-external-version to a command-owned-style self-increment, and must keep dashboard-bff's P3 projection keyed on the carried __version monotonic)."
 references:
   - services/advisory/advisory-bff/src/handlers/advisory-status-projector.ts
