@@ -8,7 +8,9 @@ Stack: services/advisory/advisory-bff/src/service.stack.ts
 
 ## Ingress
 - advisoryBus → advisory-bff-ingress (SQS → Lambda)
-  Subscriptions: DECISION_PACKET_CREATED, DECISION_PACKET_UPDATED
+  Subscriptions: DECISION_PACKET_CREATED, DECISION_PACKET_UPDATED, DECISION_CYCLE_STARTED, DECISION_CYCLE_FAILED
+  (WS-2: the two SF-direct cycle-lifecycle events project GENERATING/FAILED onto the DecisionReadModel
+  row before any packet exists; the Ingress $or source filter accepts the bare serviceName source.)
   (Workstream 3: DECISION_APPROVED, DECISION_BLOCKED, USER_CONFIRMATION_REQUESTED, and all 7 SF
   trigger events removed — their effects arrive inside the versioned CDC snapshot, eliminating
   cross-event races by construction.)
@@ -41,6 +43,7 @@ Stack: services/advisory/advisory-bff/src/service.stack.ts
 ## Transforms
 - decision-snapshot.ts — single transform for DECISION_PACKET_CREATED + DECISION_PACKET_UPDATED; projects the full CDC subject (DecisionPacket NewImage) into DecisionReadModel P1 via projectVersioned; returns undefined (→ skip()) for degraded snapshots (no explanation AND no proposedTrades)
   (Removed: decision-packet-created.ts, decision-status-changed.ts, decision-trigger-received.ts)
+- decision-cycle-status.ts — WS-2 transform for DECISION_CYCLE_STARTED + DECISION_CYCLE_FAILED; projects a MINIMAL versioned DecisionReadModel P1 row (decisionId/tenantId/status/createdAt/updatedAt) via projectVersioned — STARTED→GENERATING (v0), FAILED→FAILED (v1). createdAt/updatedAt come from the envelope timestamp. The version guard lets a content DECISION_PACKET_CREATED (v1) overwrite GENERATING (v0) and drops a late STARTED.
 
 ## Read model
 - ReadModelOwnership registered in src/read-model-ownership.ts
@@ -58,6 +61,7 @@ Stack: services/advisory/advisory-bff/src/service.stack.ts
 - Mutation: publishAdvisoryStatusUpdate(tenantId, inFlightCount, lastTriggerAt, updatedAt) @aws_iam
 - Subscription: onAdvisoryStatusUpdate(tenantId) @aws_subscribe(publishAdvisoryStatusUpdate) @aws_cognito_user_pools @aws_iam
 - Type: AdvisoryStatus { tenantId, inFlightCount, lastTriggerAt, updatedAt }
+- DecisionStatus enum includes GENERATING (WS-2) + FAILED so cycle-status rows broadcast via publishDecisionUpdate without enum-validation failure.
 
 ## MFE Hosting
 - MfeBucket (mfeKey=advisory): S3 bucket "{account}-{prefix}-nestfolio-mfe-advisory"
