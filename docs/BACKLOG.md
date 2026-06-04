@@ -16,7 +16,7 @@ _(none)_
 
 ## LATER
 
-- [advisory-bff-decision-publisher-proposedtrade-shape-mismatch](backlog/advisory-bff-decision-publisher-proposedtrade-shape-mismatch.md) [bug] — advisory-bff decision-publisher broadcast fails for DECISION_PACKET rows — trade payload shape doesn't match ProposedTradeInput (field-not-defined + NonNull-coerced-null). Pre-existing; surfaced in WS-2 enum-poison check.
+- [advisory-bff-decision-publisher-proposedtrade-shape-mismatch](backlog/advisory-bff-decision-publisher-proposedtrade-shape-mismatch.md) [refactor] — advisory-bff integration fixtures send a {symbol,action,quantity} trade shape that doesn't match ProposedTradeInput, so decision-publisher's broadcast silently fails in-test (DDB-row asserts stay green) → zero live-push coverage for decision rows. Production is FINE (real producer emits the correct shape). Test-quality gap, not a prod bug.
 - [advisory-handler-type-narrowing-debt](backlog/advisory-handler-type-narrowing-debt.md) [refactor] — materializeToTable overload mismatch + intents missing on inferred handler return types across IP/MI/PE/AN advisory services
 - [advisory-narrative-ctrl-eager-write-refactor](backlog/advisory-narrative-ctrl-eager-write-refactor.md) [refactor] — Refactor advisory-narrative-ctrl handler to write AgentInvocation HEAD row eagerly before Memory reads, so integration tests see the row in ~5s instead of ~30-40s.
 - [advisory-narrative-ctrl-memory-retry-env-plumb](backlog/advisory-narrative-ctrl-memory-retry-env-plumb.md) [tooling] — Plumb MEMORY_READ_RETRY_DELAYS_MS_OVERRIDE as Lambda env var on dev so integration test can tighten waitForItem 60s→10s. Risk: dev/prod Memory-consistency skew.
