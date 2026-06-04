@@ -694,8 +694,12 @@ export class DecisionWorkflowDefinition extends Construct {
     // (decisionId/tenantId/userId/region) is preserved for this envelope and the
     // error object is nested under $.error (intentionally not forwarded onto the
     // bus). __version:1 — a pre-packet failure means NO DecisionPacket row was
-    // created, so this is mutually exclusive with a content DECISION_PACKET_CREATED
-    // (also v1); the v1 overlap never materialises. Catchable failures only:
+    // created (AssemblePacket either writes-and-succeeds or fails before writing),
+    // so FAILED and a content DECISION_PACKET_CREATED (also v1) are normally mutually
+    // exclusive. In the rare case AssemblePacket wrote the row before erroring, both
+    // arrive at v1; WS-2's strict version guard (#__version < :version) deterministically
+    // keeps the first writer, leaving the row coherently PENDING or FAILED — never corrupt.
+    // Catchable failures only:
     // agent SendTaskFailure / States.Timeout / Lambda errors. Uncatchable
     // States.Runtime emits nothing here (feedback_states_runtime_uncatchable) —
     // WS-3's UI staleness guard covers those. Source = serviceName, same as STARTED.
