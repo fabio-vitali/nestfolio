@@ -2,12 +2,33 @@ import { createHandlers } from '../../../src/handlers/event-listener';
 import { DecisionWorkflowEventTypes } from '@nestfolio/decision-workflow-ctrl/events';
 
 describe('advisory-bff event-listener', () => {
-  it('subscribes to ONLY the two DecisionPacket snapshot events', () => {
+  it('subscribes to the two DecisionPacket snapshot events AND the two cycle-lifecycle events', () => {
     const handlers = createHandlers();
 
-    expect(Object.keys(handlers)).toHaveLength(2);
+    expect(Object.keys(handlers)).toHaveLength(4);
     expect(handlers).toHaveProperty(DecisionWorkflowEventTypes.DECISION_PACKET_CREATED);
     expect(handlers).toHaveProperty(DecisionWorkflowEventTypes.DECISION_PACKET_UPDATED);
+    expect(handlers).toHaveProperty(DecisionWorkflowEventTypes.DECISION_CYCLE_STARTED);
+    expect(handlers).toHaveProperty(DecisionWorkflowEventTypes.DECISION_CYCLE_FAILED);
+  });
+
+  it('cycle events dispatch the decisionCycleStatus transform (GENERATING v0 / FAILED v1)', () => {
+    const handlers = createHandlers();
+    const cases = [
+      { eventType: DecisionWorkflowEventTypes.DECISION_CYCLE_STARTED, status: 'GENERATING', version: 0 },
+      { eventType: DecisionWorkflowEventTypes.DECISION_CYCLE_FAILED, status: 'FAILED', version: 1 },
+    ];
+    for (const c of cases) {
+      const subject = { decisionId: 'd1', tenantId: 't1', status: c.status, __version: c.version };
+      const ctx = { tenantId: 't1', eventId: 'e1', eventType: c.eventType, timestamp: '2026-01-01T00:00:00.000Z' };
+      const intent = handlers[c.eventType]({ subject } as never, ctx as never) as {
+        _tag: string; typename: string; version: number; fields: Record<string, unknown>;
+      };
+      expect(intent._tag).toBe('projectVersioned');
+      expect(intent.typename).toBe('DecisionReadModel');
+      expect(intent.version).toBe(c.version);
+      expect(intent.fields['status']).toBe(c.status);
+    }
   });
 
   it('both CREATED and UPDATED dispatch the decisionSnapshot transform', () => {
