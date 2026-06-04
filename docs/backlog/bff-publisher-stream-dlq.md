@@ -1,6 +1,6 @@
 ---
 id: bff-publisher-stream-dlq
-status: active
+status: shipped
 rank: 10
 type: infra
 notes: "BFF stream-broadcast publishers (dashboard + deposit) are the only stream-infra in the repo written as raw inline NodejsFunction + DynamoEventSource, bypassing the construct family — and they lack a DLQ/bisect. Extract a 7th first-class construct (Broadcaster) that encapsulates the publisher + DLQ + bisect + onFailure + AppSync IAM grant, refactor both stacks onto it, and auto-wire it into addObservability (typed broadcasters:[] option) so the DLQ-depth + Lambda alarms fall out for free."
@@ -18,7 +18,25 @@ out_of_scope:
 spec: null
 plan: null
 topic_memory: [project_read_model_redesign.md]
-validation_gate: null
+validation_gate: |
+  Shipped 2026-06-04 via the Broadcaster construct (7th first-class construct).
+  Code: a43dcf05 (broadcaster.ts + addObservability broadcasters:[] + both BFF
+  stacks refactored); cards/doc-sweep: 0a448cfc.
+  - nx affected -t test,lint --base=origin/main → 37 projects green.
+  - cdk-constructs unit: 21 suites / 349 tests (incl broadcaster.test.ts 13/13:
+    DLQ 14d, bisectBatchOnError, onFailure SqsDlq, appsync grant present/absent, env).
+  - Stack regression: dashboard-bff service.stack.test.ts 3/3 (1 stream consumer =
+    DashboardBroadcaster, DLQ+bisect+onFailure); investor-bff 2/2 (2 stream consumers
+    = Egress + DepositBroadcaster, every consumer DLQ+bisect).
+  - Deploy (sandbox, prefix=dev): dev-dashboard-bff + dev-investor-bff UPDATE_COMPLETE;
+    clean logical-ID replacement (old DashboardPublisher/DepositPublisher Lambda +
+    EventSourceMapping deleted, new Broadcaster ones created); investor-bff momentary
+    3-stream-consumer window rode through with no throttling.
+  - Integration (live dev): dashboard-bff 21/21, investor-bff 20/20.
+  - Involved e2e (live dev): funding fund-account + withdraw-cash 2/2 (DepositBroadcaster
+    onDeposit/onWithdrawal live-push end-to-end).
+  Follow-up filed: broadcaster-construct-doc-sweep (parking) — pattern-level 6→7 docs
+  (cdk-patterns/create-service SKILL.md + root CLAUDE.md) blocked by auto-mode guard.
 ---
 
 # BFF stream-broadcast publishers have no DLQ / bisectBatchOnError
