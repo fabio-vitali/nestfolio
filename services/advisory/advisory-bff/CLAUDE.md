@@ -44,7 +44,7 @@ Stack: services/advisory/advisory-bff/src/service.stack.ts
 ## Transforms
 - decision-snapshot.ts — single transform for DECISION_PACKET_CREATED + DECISION_PACKET_UPDATED; projects the full CDC subject (DecisionPacket NewImage) into DecisionReadModel P1 via projectVersioned; returns undefined (→ skip()) for degraded snapshots (no explanation AND no proposedTrades)
   (Removed: decision-packet-created.ts, decision-status-changed.ts, decision-trigger-received.ts)
-- decision-cycle-status.ts — WS-2 transform for DECISION_CYCLE_STARTED + DECISION_CYCLE_FAILED; projects a MINIMAL versioned DecisionReadModel P1 row (decisionId/tenantId/status/createdAt/updatedAt) via projectVersioned — STARTED→GENERATING (v0), FAILED→FAILED (v1). createdAt/updatedAt come from the envelope timestamp. The version guard lets a content DECISION_PACKET_CREATED (v1) overwrite GENERATING (v0) and drops a late STARTED.
+- decision-cycle-status.ts — WS-2 transform for DECISION_CYCLE_STARTED + DECISION_CYCLE_FAILED; projects a MINIMAL versioned DecisionReadModel P1 row (decisionId/tenantId/status/trigger=''/createdAt/updatedAt) via projectVersioned — STARTED→GENERATING (v0), FAILED→FAILED (v1). createdAt/updatedAt come from the envelope timestamp. `trigger` is written '' (WS-3) because getPendingDecisions selects DecisionPacket.trigger as String! — a missing trigger fails the whole list query; the value is cosmetic (these rows are filtered out of the visible list). The version guard lets a content DECISION_PACKET_CREATED (v1) overwrite GENERATING (v0) and drops a late STARTED.
 
 ## Read model
 - ReadModelOwnership registered in src/read-model-ownership.ts

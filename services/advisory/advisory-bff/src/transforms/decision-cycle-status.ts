@@ -29,6 +29,11 @@ export const decisionCycleStatus = (
     decisionId: p.decisionId,
     tenantId: p.tenantId,
     status: p.status,
+    // getPendingDecisions selects DecisionPacket.trigger (String!, non-nullable);
+    // the cycle events carry no trigger, so write '' to keep the row query-valid.
+    // Cosmetic only — GENERATING/FAILED rows are filtered out of the visible list
+    // (advisory-mfe routes them to the spinner/error state, never a list item).
+    trigger: '',
     version: p.__version,
     createdAt: uow.event.timestamp,
     updatedAt: uow.event.timestamp,

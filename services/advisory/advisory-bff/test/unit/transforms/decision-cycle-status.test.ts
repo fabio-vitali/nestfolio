@@ -15,7 +15,7 @@ describe('decisionCycleStatus transform', () => {
       ),
     ).toEqual(
       projectVersioned('DecisionReadModel', {
-        decisionId: 'd1', tenantId: 't1', status: 'GENERATING', version: 0, createdAt: TS, updatedAt: TS,
+        decisionId: 'd1', tenantId: 't1', status: 'GENERATING', trigger: '', version: 0, createdAt: TS, updatedAt: TS,
       }, { version: 0, overrides: { pk: 'Decision#t1#d1', sk: 'DecisionReadModel' } }),
     );
   });
@@ -27,9 +27,22 @@ describe('decisionCycleStatus transform', () => {
       ),
     ).toEqual(
       projectVersioned('DecisionReadModel', {
-        decisionId: 'd1', tenantId: 't1', status: 'FAILED', version: 1, createdAt: TS, updatedAt: TS,
+        decisionId: 'd1', tenantId: 't1', status: 'FAILED', trigger: '', version: 1, createdAt: TS, updatedAt: TS,
       }, { version: 1, overrides: { pk: 'Decision#t1#d1', sk: 'DecisionReadModel' } }),
     );
+  });
+
+  // Regression: the cycle-status row MUST carry a (non-undefined) trigger.
+  // getPendingDecisions resolves DecisionPacket.trigger as String! (non-nullable);
+  // a row without trigger makes the whole list query fail with "Cannot return null
+  // for non-nullable type: 'String' .../trigger" and the /advisory page errors out
+  // instead of showing the generating/failed state (caught by the WS-3 Playwright e2e).
+  it('writes a non-null trigger so the row is valid for getPendingDecisions (String!)', () => {
+    const intent = decisionCycleStatus(
+      makeUow('DECISION_CYCLE_STARTED', { decisionId: 'd3', tenantId: 't3', status: 'GENERATING', __version: 0 }) as any,
+    ) as { fields: Record<string, unknown> };
+    expect(intent.fields).toHaveProperty('trigger');
+    expect(typeof intent.fields['trigger']).toBe('string');
   });
 
   it('carries the subject __version into the intent version (the DDB ordering guard input)', () => {
