@@ -66,6 +66,7 @@ monotonic version top-level in its emitted events:
 | investor-bff | `Mandate` → `MANDATE_ISSUED`/`MANDATE_REVOKED` | `__version` | seed `__version: 1` on issue; revoke resolver `if_not_exists(#v,:zero)+:one` |
 | market-intelligence-ctrl | `MarketSnapshot` → `MARKET_SNAPSHOT_UPDATED` | `__version` | `update(..., { add: { __version: 1 } })` upsert |
 | investor-profile-ctrl | `InvestorProfileSnapshot` → `INVESTOR_PROFILE_SNAPSHOT_*` | `__version` | `update(..., { add: { __version: 1 } })` upsert |
+| advisory-bff | `AdvisoryStatus` → `ADVISORY_STATUS_UPDATED` | `__version` | `update(..., { add: { __version: 1 } })` upsert (self-driven derived rollup) |
 | ledger-ctrl | `LedgerEntryEvent` (derived event row, `__typename='LedgerEntryEvent'`; source table row is `LedgerEntry`) → `LEDGER_ENTRY_RECORDED` | `lastEventSequence` | reducer-accumulated monotonic sequence |
 
 `ledger-ctrl` is the one **grandfathered exception**: it carries `lastEventSequence`
@@ -90,7 +91,7 @@ A projection row is **exactly one** of:
 |---|---|---|---|
 | **P1** | Versioned snapshot | `projectVersioned` | Full row state from one authoritative producer + monotonic version guard. The standard choice for most read rows. |
 | **P2** | Append-only log | `record` | Event-id-idempotent appends; order-independent. `RecentActivity`, `HistoryEntry`, `Checkpoint`. |
-| **P3** | Derived aggregate | Computed read (NOT `accumulate`) | Counts/rollups **computed over owned rows** or projected from an authoritative aggregate emitted by the owner. Never accumulated from disparate event types. `AdvisoryStatus` in-flight count is the canonical example. |
+| **P3** | Derived aggregate | Computed read (NOT `accumulate`) | A **consumer's** derived copy of an authoritative aggregate emitted by the owner, projected via `projectVersioned` keyed on the carried version. Never accumulated from disparate event types. `dashboard-bff`'s P3 copy of the announced `AdvisoryStatus` aggregate is the canonical example. NOTE: an **owner's** self-driven derived rollup that self-manages its own `__version` (e.g. `advisory-bff`'s `AdvisoryStatus`, recomputed from its own decision rows) is **command-owned**, written via `update(..., { add: { __version: 1 } })` — not P3. |
 
 Command-owned rows are **not** projections. They use field-level `update` (and `record` for
 the one-time seed write — see §6).
@@ -241,7 +242,8 @@ callers and migration authors must be aware.
 | `UserConfirmation`, `Rejection`, `Interaction` | local user action | command-owned |
 | `CashBalance`, `PortfolioSummary`, `PositionSnapshot`, `InvestorSnapshot`, `PortfolioLatest`, `Position`, `SnapshotAt`, `Simulation*` | external (ledger / investor) | projection P1 |
 | `DecisionReadModel` | external (decision-workflow / compliance) | projection P1 (producer emits versioned snapshots) |
-| `AdvisoryStatus` in-flight count | derived from owned decision rows | projection P3 |
+| `AdvisoryStatus` (advisory-bff, owner) | derived from its own decision rows; self-increments `__version` via `update`+`add` | command-owned |
+| `AdvisoryStatus` (dashboard-bff, consumer) | projected from `ADVISORY_STATUS_UPDATED` | projection P3 |
 | `RecentActivity`, `HistoryEntry`, `Checkpoint` | append log | projection P2 |
 | `Deposit`, `Withdrawal` (+ structurally `Order`) | external (broker / ledger settles) | projection P1 (intent → command event; settlement drives the row) |
 
