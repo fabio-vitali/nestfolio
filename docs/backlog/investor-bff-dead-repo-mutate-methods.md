@@ -1,6 +1,6 @@
 ---
 id: investor-bff-dead-repo-mutate-methods
-status: queued
+status: shipped
 rank: 9
 type: refactor
 notes: "5 InvestorProfileRepository mutate-methods have no live callers; one (upsertReadOnlyBalance) would violate CashBalance P1 ownership if revived."
@@ -9,7 +9,26 @@ out_of_scope: []
 spec: null
 plan: null
 topic_memory: [project_read_model_redesign.md]
-validation_gate: null
+validation_gate: |
+  Shipped on main, commit 5da53065 (Simple lane, no worktree). Deleted all 5
+  dead methods (setGoal/updateGoal/grantMandate/setOperatingMode/
+  upsertReadOnlyBalance) + the orphaned validateGoalFields helper + the unused
+  NotRetryableError/Goal/Mandate/OperatingMode/MandateLevel/RebalanceCadence
+  imports + the corresponding unit-test blocks. 2 files, +1/-391.
+  Zero-live-callers proof: repo-wide `grep -rn` for each method name — every
+  match outside the deleted unit-test blocks is a GraphQL field-name string
+  (set-goal/update-goal resolvers in facade.test.ts, updateGoal mutation in
+  e2e/integration tests), NOT a `repo.<method>(` call. upsertReadOnlyBalance had
+  zero refs anywhere. The 7 live methods (getProfile, revokeMandate,
+  setExecutionMode, addNotification, getNotifications, markNotificationRead,
+  getUnreadCount) are untouched.
+  Validation: `pnpm nx affected -t test,lint --base=origin/main` GREEN — 28
+  projects, investor-bff unit + lint included (ts-jest compile covers the
+  import/method removal; lint covers unused-symbol cleanup). detect-doc-
+  derivation=false. Deploy SKIPPED by user decision: behavior-preserving
+  dead-code removal (no executed code path changes), so the path-based
+  detect-deploy-needed=true is a known false positive and a deploy/integration
+  run surfaces no new information beyond the green unit+lint.
 ---
 
 # investor-bff dead repository mutate-methods
