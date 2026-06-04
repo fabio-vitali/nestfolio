@@ -1,6 +1,6 @@
 ---
 id: advisory-bff-cycle-status-projection
-status: queued
+status: active
 rank: 2
 type: feature
 notes: "WS-2 of advisory-generating-failed-ux: advisory-bff subscribes to DECISION_CYCLE_STARTED/FAILED and projects status GENERATING/FAILED onto the DecisionReadModel P1 row via projectVersioned (version-guarded, idempotent, order-agnostic). DecisionReadModel stays P1."
@@ -9,7 +9,12 @@ references:
   - services/advisory/advisory-bff/src/handlers/event-listener.ts
   - services/advisory/advisory-bff/src/transforms/decision-snapshot.ts
   - services/advisory/advisory-bff/src/service.stack.ts
-out_of_scope: []
+out_of_scope:
+  - "advisory-mfe rendering: component status-routing, get-pending-decisions.fn.js status filter, staleness guard, i18n (WS-3)"
+  - "dashboard generating/failed reflection (WS-4)"
+  - "DWC cycle-event emission + SF Catch (WS-1, shipped 2026-06-04)"
+  - "Any AdvisoryStatus read-model field additions or read-model-ownership registration change — DecisionReadModel stays Projection<'P1'>, same typename + intent"
+  - "e2e / Playwright scenario rewrites (WS-3 owns /advisory, WS-4 owns dashboard)"
 spec: docs/superpowers/specs/2026-06-04-advisory-generating-state-design.md
 plan: null
 topic_memory: []
