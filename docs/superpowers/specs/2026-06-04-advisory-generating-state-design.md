@@ -65,6 +65,26 @@ spinner never flickers over a completed decision.
 
 ---
 
+## 2a. Decomposition into workstreams (mini-program)
+
+This feature is too large for one workstream. It is decomposed into a curated
+QUEUED set so that **draining QUEUED ⇒ the feature is complete** (mirroring the
+read-model program). This spec is the design umbrella; each workstream below is a
+backlog file referencing this spec.
+
+| WS | id | Scope (this spec §) | Rank |
+|----|-----|--------------------|------|
+| Design | `advisory-generating-failed-ux-design` | This spec + decomposition (shipped Doc-layer) | — |
+| WS-1 | `advisory-dwc-cycle-lifecycle-events` | §3 — DWC emits STARTED/FAILED + WorkflowStatus + SF Catch | 1 |
+| WS-2 | `advisory-bff-cycle-status-projection` | §4 — advisory-bff projects GENERATING/FAILED onto DecisionReadModel | 2 |
+| WS-3 | `advisory-generating-state-e2e-accumulate-model-stale` | §5 + §7.3 (test 1) — advisory-mfe UI + staleness + /advisory e2e rewrite + dead-`lastTriggerAt` cleanup | 3 |
+| WS-4 | `dashboard-generating-failed-reflection` | §6 + §7.3 (test 2) — dashboard reflects generating/failed + dashboard e2e retarget | 4 |
+
+Build order is the rank order (WS-2 needs WS-1's events; WS-3 + WS-4 need WS-2's
+statuses). WS-1 is independently deployable (events ignored until WS-2 consumes
+them). Each WS runs its own spec-referenced plan → implement → deploy → validate
+cycle via `/backlog-next`.
+
 ## 3. decision-workflow-ctrl changes
 
 ### 3.1 Status model — `src/domain/models.ts`
@@ -181,12 +201,16 @@ Add `advisory.list.failedTitle` / `advisory.list.failedHint` (reuse existing
 
 ---
 
-## 6. dashboard-bff (optional, default: out)
-Lighting the dashboard `advisory-alert-bar` during generation would require
-`GENERATING` to flow into `pendingDecisionsCount`. That count is advisory-bff's
-recompute over `IN_FLIGHT_STATUSES`; adding `GENERATING` there would also surface
-generation on the dashboard. **Default: out of scope** (keep the dashboard alert
-bar tied to real pending decisions). Revisit only if the product wants it.
+## 6. dashboard-bff — reflect generating + failed (in scope, WS-4)
+The dashboard must also tell the user a cycle is generating / has failed, so the
+feedback is consistent across `/dashboard` and `/advisory`. The existing
+`advisory-alert-bar` semantically means "decisions ready to review", so reusing it
+for "generating" would be misleading. WS-4 opens with a small UX sub-design:
+**a distinct generating/failed indicator on the dashboard vs. extending the
+alert bar.** Signal source: advisory-bff already announces its aggregate via
+`ADVISORY_STATUS_UPDATED` (P3 → dashboard `pendingDecisionsCount`); WS-4 decides
+whether to carry a separate generating/failed count on that announcement or
+surface it another way. WS-4 also retargets the second e2e test (§7.3).
 
 ---
 
@@ -237,7 +261,6 @@ was written for.
 ---
 
 ## 9. Out of scope
-- dashboard-bff generating signal (§6).
 - Post-packet failure surfacing (BLOCKED/REJECTED are existing decision statuses).
 - Migrating `inject-advisory-update.ts` off the direct `@aws-sdk/client-eventbridge`
   import (tracked: `nestfolio-e2e-eventbridge-client-wrapper-migration`).

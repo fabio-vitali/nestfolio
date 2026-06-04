@@ -6,12 +6,15 @@
 
 ## ACTIVE
 
-- [advisory-generating-state-e2e-accumulate-model-stale](backlog/advisory-generating-state-e2e-accumulate-model-stale.md) [bug] — advisory-generating-state.spec.ts (Playwright) encodes the removed pre-WS3 accumulate model (DEPOSIT_DETECTED -> count++); both tests are broken vs the current recompute architecture, and the generating-empty-state may be unreachable now.
+_(none)_
+
 
 ## QUEUED
 
-_(none)_
-
+1. [advisory-dwc-cycle-lifecycle-events](backlog/advisory-dwc-cycle-lifecycle-events.md) [feature] — WS-1 of advisory-generating-failed-ux: decision-workflow-ctrl emits DECISION_CYCLE_STARTED (SF-start putEvents, decisionId, __version:0) + DECISION_CYCLE_FAILED (SF Catch on agent/assemble steps, __version:1); extends WorkflowStatus with GENERATING|FAILED; publishes both on advisoryBus.
+2. [advisory-bff-cycle-status-projection](backlog/advisory-bff-cycle-status-projection.md) [feature] — WS-2 of advisory-generating-failed-ux: advisory-bff subscribes to DECISION_CYCLE_STARTED/FAILED and projects status GENERATING/FAILED onto the DecisionReadModel P1 row via projectVersioned (version-guarded, idempotent, order-agnostic). DecisionReadModel stays P1.
+3. [advisory-generating-state-e2e-accumulate-model-stale](backlog/advisory-generating-state-e2e-accumulate-model-stale.md) [feature] — WS-3 of advisory-generating-failed-ux: advisory-mfe renders generating + failed decision-cycle states (status-routed off DecisionReadModel) + staleness guard; rewrites the /advisory Playwright scenario that encoded the removed accumulate model; removes the dead lastTriggerAt/displayedInFlightCount plumbing.
+4. [dashboard-generating-failed-reflection](backlog/dashboard-generating-failed-reflection.md) [feature] — WS-4 of advisory-generating-failed-ux: the dashboard reflects generating + failed decision cycles (consistent feedback with /advisory). Opens with a small UX sub-design — distinct generating/failed indicator vs reusing advisory-alert-bar. Retargets the dashboard alert-bar e2e off the removed accumulate model.
 
 ## LATER
 
