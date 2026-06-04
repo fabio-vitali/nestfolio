@@ -34,25 +34,34 @@ describe('advisory-status-projector', () => {
     countMock.mockReset();
   });
 
-  it('recomputes AdvisoryStatus on a DecisionReadModel stream record', async () => {
+  it('recomputes AdvisoryStatus via an atomic __version self-increment (UpdateCommand)', async () => {
     countMock.mockResolvedValue(3);
 
     await handler(streamEvent([{ __typename: 'DecisionReadModel', tenantId: 't1', pk: 'Decision#t1#d1' }]));
 
     expect(countMock).toHaveBeenCalledWith('t1');
-    // Match over ALL intercepted sends by row shape, NOT commandCalls(PutCommand):
-    // the write is built by IntentExecutor inside @nestfolio/event-processor, which
-    // constructs its PutCommand from event-processor's own copy of @aws-sdk/lib-dynamodb.
-    // onAnyCommand() still intercepts (the DynamoDBDocumentClient class is shared), but
-    // commandCalls(PutCommand) fails the instanceof identity check across the duplicate
-    // copy and returns [] on real (non-symlinked) node_modules — the symlinked worktree
-    // masked it. See feedback_worktree_symlink_masks_test_failures.
-    const put = (ddbMock.calls() as Array<{ args: [{ input: { Item?: Record<string, unknown> } }] }>)
-      .find((c) => c.args[0].input.Item?.sk === 'AdvisoryStatus');
-    expect(put).toBeDefined();
-    expect(put!.args[0].input.Item!.inFlightCount).toBe(3);
-    expect(put!.args[0].input.Item!.__typename).toBe('AdvisoryStatus');
-    expect(put!.args[0].input.Item!.pk).toBe('T#t1');
+    // The write is an UpdateCommand (update intent), NOT a PutItem — match by Key.sk.
+    // (commandCalls(UpdateCommand) fails the instanceof identity check across
+    // event-processor's duplicate @aws-sdk/lib-dynamodb copy, so match over raw calls.
+    // See feedback_worktree_symlink_masks_test_failures.)
+    type UpdateInput = {
+      Key?: Record<string, unknown>;
+      UpdateExpression?: string;
+      ExpressionAttributeNames?: Record<string, string>;
+      ExpressionAttributeValues?: Record<string, unknown>;
+    };
+    const call = (ddbMock.calls() as Array<{ args: [{ input: UpdateInput }] }>)
+      .find((c) => c.args[0].input.Key?.sk === 'AdvisoryStatus');
+    expect(call).toBeDefined();
+    const input = call!.args[0].input;
+    expect(input.Key!.pk).toBe('T#t1');
+    // Recomputed inFlightCount written via SET.
+    expect(Object.values(input.ExpressionAttributeNames!)).toContain('inFlightCount');
+    expect(Object.values(input.ExpressionAttributeValues!)).toContain(3);
+    // REGRESSION (the fix): __version is bumped via an atomic ADD self-increment,
+    // NOT a precomputed Date.now() version on a projectVersioned PutItem.
+    expect(Object.values(input.ExpressionAttributeNames!)).toContain('__version');
+    expect(input.UpdateExpression).toMatch(/\bADD\b/);
   });
 
   it('ignores AdvisoryStatus records (no recompute loop)', async () => {
