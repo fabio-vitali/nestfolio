@@ -1,6 +1,6 @@
 ---
 id: advisory-bff-cycle-status-projection
-status: active
+status: shipped
 rank: 2
 type: feature
 notes: "WS-2 of advisory-generating-failed-ux: advisory-bff subscribes to DECISION_CYCLE_STARTED/FAILED and projects status GENERATING/FAILED onto the DecisionReadModel P1 row via projectVersioned (version-guarded, idempotent, order-agnostic). DecisionReadModel stays P1."
@@ -18,7 +18,20 @@ out_of_scope:
 spec: docs/superpowers/specs/2026-06-04-advisory-generating-state-design.md
 plan: docs/superpowers/plans/2026-06-04-advisory-bff-cycle-status-projection.md
 topic_memory: []
-validation_gate: null
+validation_gate: |
+  Commits 2c60c014..8ecc203c (7) on worktree branch. Unit: advisory-bff:test 39/39;
+  typecheck + lint green; nx affected -t test,lint --base=origin/main 28 projects green;
+  read-model drift 0 (DecisionReadModel stays Projection<'P1'>). Code review found + fixed
+  a missing readable `version` field (8ecc203c). Deploy: dev-advisory-bff UPDATE_COMPLETE
+  (all 9 resources; AppSync GraphQLSchema = GENERATING enum + Ingress Rule = 2 new
+  detail-types). Integration vs dev: advisory-bff:test-integration 10/10 PASS (276s),
+  incl. 3 new cycle-status tests (GENERATING v0 projects; content packet v1 overwrites;
+  FAILED v1 lands + late STARTED v0 dropped), no flakes. Enum-poison check: zero
+  DecisionStatus enum errors in DecisionPublisher logs (GENERATING broadcasts cleanly).
+  Side-finding (pre-existing, filed): advisory-bff integration fixtures send a
+  {symbol,action,quantity} trade shape that doesn't match ProposedTradeInput, so the
+  decision-publisher broadcast fails for DECISION_PACKET test rows (tests assert the DDB
+  row only) — orthogonal to WS-2, identical on origin/main.
 ---
 
 # WS-2 — advisory-bff cycle-status projection
