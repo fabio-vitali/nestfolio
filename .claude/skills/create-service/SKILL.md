@@ -66,7 +66,7 @@ description: Scaffold a new service — Nx project, file structure, CDK stack, e
   ```
   **IMPORTANT:** `observability` must be destructured from `resolvePipelineConfig()` AND passed to the stack constructor.
 
-- [ ] 3. **Write CDK stack** — extend ServiceStack with `serviceDir: __dirname`, create State explicitly (if needed), add Ingress/Egress/Orchestration per `cdk-patterns` (6-construct model)
+- [ ] 3. **Write CDK stack** — extend ServiceStack with `serviceDir: __dirname`, create State explicitly (if needed), add Ingress/Egress/Orchestration/Broadcaster per `cdk-patterns` (7-construct model)
   ```ts
   super(scope, id, { ...props, serviceDir: __dirname });
   ```

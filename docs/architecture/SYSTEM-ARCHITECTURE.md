@@ -94,7 +94,7 @@ The 2026-03-01 baseline named **five domains**: Investor, Advisory, Execution, P
 
 2. **Single-writer per DDB row.** Each stream of state has exactly one writer service; projections are read-only consumers. Race conditions are prevented at the source rather than reconciled downstream. See §11.
 
-3. **6-construct CDK pattern.** Every service stack composes from a fixed catalogue of constructs, each consumer-instantiated and explicitly wired via props. Cite: `libs/cdk-constructs/src/core/` (`state.ts`, `ingress.ts`, `egress.ts`, `facade.ts`, `orchestration.ts`) and `libs/cdk-constructs/src/extensions/agent-runtime.ts`.
+3. **7-construct CDK pattern.** Every service stack composes from a fixed catalogue of constructs, each consumer-instantiated and explicitly wired via props. Cite: `libs/cdk-constructs/src/core/` (`state.ts`, `ingress.ts`, `egress.ts`, `facade.ts`, `orchestration.ts`, `broadcaster.ts`) and `libs/cdk-constructs/src/extensions/agent-runtime.ts`.
 
    | Construct | Purpose |
    |---|---|
@@ -103,6 +103,7 @@ The 2026-03-01 baseline named **five domains**: Investor, Advisory, Execution, P
    | `Egress` | DDB-stream → declarative event-typing → EventBridge emission |
    | `Facade` | AppSync GraphQL API + Cognito + IAM (BFFs) |
    | `Orchestration` | Step Functions state machines |
+   | `Broadcaster` | DDB-stream → AppSync `@aws_subscribe` live-update publisher + DLQ (BFFs) |
    | `AgentRuntime` (extension) | Bedrock AgentCore Runtime + ECR image + observability |
 
 4. **Deterministic orchestration + governed agents.** The "thinking parts" are governed AI agents (LangGraph + Bedrock Claude); the "doing parts" are deterministic Step Functions state machines that fan out to agents and reduce their outputs. Compliance is rule-based (§8), not LLM-based.

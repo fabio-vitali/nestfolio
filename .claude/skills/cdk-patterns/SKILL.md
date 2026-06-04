@@ -1,14 +1,14 @@
 ---
 name: cdk-patterns
-description: CDK 6-construct pattern reference for Nestfolio services. Use when creating or modifying service stacks, adding constructs, wiring observability, or understanding the ServiceStack API.
+description: CDK 7-construct pattern reference for Nestfolio services. Use when creating or modifying service stacks, adding constructs (including Broadcaster), wiring observability, or understanding the ServiceStack API.
 ---
 
-# CDK 6-Construct Pattern Reference
+# CDK 7-Construct Pattern Reference
 
 ## When This Skill Applies
 
 - Creating a new service stack (`service.stack.ts`)
-- Adding Ingress, Egress, Facade, AgentRuntime, or Orchestration constructs
+- Adding Ingress, Egress, Facade, AgentRuntime, Orchestration, or Broadcaster constructs
 - Wiring observability via `addObservability()`
 - Adapting a service that has no state (adapter pattern)
 - Connecting EventBridge → Step Functions
@@ -60,6 +60,7 @@ this.addObservability({
   ingress,            // optional — exposes handler + dlq
   egress,             // optional — exposes dlq
   orchestration,      // optional — exposes state machine metrics
+  broadcasters: [],   // optional — Broadcaster constructs (alarms on DLQ depth + publisher Lambda errors)
   extraLambdas: [],   // additional Lambda functions to monitor
   extraDlqs: [],      // additional DLQs
   monitorBedrock: false,
@@ -79,7 +80,7 @@ this.addObservability({ ingress, egress, orchestration });
 
 ---
 
-## 6-Construct Pattern
+## 7-Construct Pattern
 
 ### 1. State
 
@@ -417,9 +418,44 @@ myTask.addCatch(handleError, { errors: ['States.Timeout'], resultPath: '$.error'
 
 ---
 
-### 7. CircuitBreakerHealDefinition
+### 7. Broadcaster
+
+**File:** `libs/cdk-constructs/src/core/broadcaster.ts`
+
+Wires: DynamoDB Stream → publisher Lambda → AppSync `@aws_subscribe` publish mutations. The 7th core construct fans read-model row mutations out to subscribed clients as live updates. It mirrors `Egress`'s reliability shape — a dead-letter queue with `bisectBatchOnError` so a single poison-pill record can't drop the whole batch of good broadcasts.
+
+Broadcasts are **best-effort post-commit side effects**: the persisted read-model row remains the source of truth, and a dropped broadcast is a missed *live* update (a client refresh re-reads the row), not lost data. The DLQ + alarm make drops visible instead of silent.
+
+```ts
+export interface BroadcasterProps {
+  state: State;                          // required — supplies the DDB table whose stream drives the broadcast
+  entry: string;                         // required — publisher handler file (e.g. handlers/dashboard-publisher.ts)
+  facade: Facade;                        // required — supplies AppSync endpoint; injects APPSYNC_URL + grants appsync:GraphQL
+  environment?: Record<string, string>;  // extra env vars merged into the publisher Lambda
+  lambdaProps?: Partial<NodejsFunctionProps>; // override timeout, memorySize, etc.
+  retryAttempts?: number;                // DDB stream retry attempts before DLQ, default 3
+}
+```
+
+When `facade.graphqlUrl` is present it is injected as the `APPSYNC_URL` env var; when `facade.api` is present the handler is granted `appsync:GraphQL` (scoped to `${facade.api.arn}/*`) so it can invoke the publish mutations over IAM. The event source uses `StartingPosition.LATEST`, `bisectBatchOnError: true`, and routes failures to an `SqsDlq` (14-day retention, KMS-managed).
+
+**Public members:**
+```ts
+broadcaster.handler  // NodejsFunction
+broadcaster.dlq      // Queue
+```
+
+Wire into observability via `addObservability({ broadcasters: [broadcaster] })` so the `Monitoring` construct alarms on DLQ depth and publisher Lambda errors. Used by `dashboard-bff` and `investor-bff`.
+
+> **`@aws_subscribe` filter contract:** every subscription filter arg must be present on the mutation return type, the resolver response, AND the publisher's mutation selection set — otherwise broadcasts silently drop. See user-memory `feedback_appsync_subscribe_filter_args.md`.
+
+---
+
+### 8. CircuitBreakerHealDefinition
 
 **File:** `libs/cdk-constructs/src/core/circuit-breaker-heal.ts`
+
+> **Not a core construct** — this is a specialized *definition helper* that produces a `DefinitionBody` for the Orchestration construct (#6), not a standalone member of the service construct family. It is documented here for proximity to the constructs it composes with.
 
 Generic circuit breaker healing workflow — produces a `DefinitionBody` for use with the Orchestration construct. The workflow: health-check loop (HTTP:Invoke with retry) → close breaker (DDB UpdateItem) → emit closed event (DDB PutItem for CDC). On exhaustion → escalate (DDB PutItem for CDC) → Fail state.
 
@@ -617,7 +653,7 @@ this.naming.ssmServicePath('api/endpoint') // "/nestfolio/dev-investor-bff/api/e
 
 | Archetype | Constructs | Example |
 |---|---|---|
-| **BFF** | State + Ingress + Egress + Facade | `investor-bff` |
+| **BFF** | State + Ingress + Egress + Facade + Broadcaster | `investor-bff` |
 | **Hub** | Ingress (cross-domain bus lookup, no state) | `execution-hub` |
 | **Broker Adapter** | State + Ingress + Egress | `broker-sim-adpt` |
 | **Ingestion Adapter** | Ingress (no state) | `advisory-adpt` |
@@ -638,6 +674,7 @@ this.naming.ssmServicePath('api/endpoint') // "/nestfolio/dev-investor-bff/api/e
 - `libs/cdk-constructs/src/extensions/agent-runtime.ts` — AgentRuntime (Bedrock AgentCore)
 - `libs/cdk-constructs/src/extensions/knowledge-base.ts` — KnowledgeBase (S3 Vector Bucket + Bedrock KB)
 - `libs/cdk-constructs/src/core/orchestration.ts` — Orchestration (Step Functions + EventBridge triggers)
+- `libs/cdk-constructs/src/core/broadcaster.ts` — Broadcaster (DDB Streams → AppSync `@aws_subscribe` publisher + DLQ)
 - `libs/cdk-constructs/src/utils/lambda-profiles.ts` — LambdaProfile interface, handlerProps, adapterProps, reducerProps, agentProps
 - `libs/cdk-constructs/src/utils/naming-service.ts` — NamingService, getPrefix, discoverSubsystem
 - `services/ledger/ledger-ctrl/src/service.stack.ts` — Full example: State + Ingress + Egress + extra DDB stream consumer

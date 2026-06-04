@@ -1,17 +1,23 @@
 ---
 id: broadcaster-construct-doc-sweep
-status: parking
+status: shipped
 type: tooling
-notes: "The Broadcaster construct (added by bff-publisher-stream-dlq) promotes the canonical CDK pattern 6→7, but the pattern-level docs still say '6-construct' and don't define Broadcaster. The cdk-patterns + create-service SKILL.md and root CLAUDE.md edits are blocked by the auto-mode self-modification guard in an automated /backlog-next session — do them atomically in an interactive/authorized session so the doc layer never half-updates."
+notes: "Swept the pattern-level docs from 6→7 constructs and defined Broadcaster. cdk-patterns SKILL.md gained a §7 Broadcaster section (CircuitBreakerHealDefinition renumbered →§8, flagged as a definition helper not a core construct); create-service SKILL.md, agent-system.md, SYSTEM-ARCHITECTURE.md §97 + construct table, root CLAUDE.md, and user MEMORY.md all now read '7-construct'. Run in an interactive session because the .claude/skills/** + root CLAUDE.md edits are blocked by the auto-mode self-modification guard."
 references: []
-out_of_scope: []
+out_of_scope:
+  - "docs/superpowers/plans/* and docs/superpowers/specs/* — point-in-time artifacts, accurate as written when '6-construct' was current"
+  - "docs/architecture/SERVICE-INVENTORY.md §610 '2026-04 rewrite aligned to the 6-construct pattern' — historical evolution note, left unchanged"
+  - "docs/backlog/bff-publisher-stream-dlq.md — predecessor workstream record stating 'promotes 6-construct pattern to 7', historically accurate"
+  - "No code, CDK, or construct-API changes — Broadcaster construct + its consumers (dashboard-bff, investor-bff) and JSDoc were already current from bff-publisher-stream-dlq"
 spec: null
 plan: null
 topic_memory: []
-validation_gate: null
+validation_gate: "Doc-only sweep — no code/deploy. detect-doc-derivation=false, detect-deploy-needed=false, `nx affected -t test,lint --base=origin/main` = No tasks were run. grep '6-construct' across docs/.claude/CLAUDE.md returns only the three intentional historical artifacts above. All six prose targets now read '7-construct' and define Broadcaster."
 ---
 
 # Document the Broadcaster construct (6→7 construct-pattern doc sweep)
+
+> **SHIPPED 2026-06-04** (interactive `/backlog-next` session — the unblock condition the parking note named). All six prose targets below now read "7-construct" and define Broadcaster; cdk-patterns SKILL.md carries the full §7 Broadcaster reference. See `validation_gate`.
 
 `bff-publisher-stream-dlq` added a 7th first-class construct, `Broadcaster`
 (`libs/cdk-constructs/src/core/broadcaster.ts`), and refactored the two BFF

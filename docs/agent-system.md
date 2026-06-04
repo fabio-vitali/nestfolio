@@ -112,7 +112,7 @@ command invoked via `/init-docs` and Claude will never trigger it automatically.
 | `create-event` | Define TypeScript schema → register → CDC or explicit emit → adapter rules → consumer updates |
 | `create-data-flow` | Design, implement, and document a cross-domain event flow |
 | `create-mfe` | MFE conventions, routing, BFF integration, shared UI components |
-| `cdk-patterns` | 6-construct pattern reference: State, Ingress, Egress, Facade, AgentRuntime, Orchestration |
+| `cdk-patterns` | 7-construct pattern reference: State, Ingress, Egress, Facade, AgentRuntime, Orchestration, Broadcaster |
 | `event-processor-patterns` | Pipeline types, handler structure, DLQ config, test harnesses |
 | `testing-patterns` | Directory convention, unit test harnesses, CDK assertions, naming |
 | `create-integration-test` | Scaffold integration tests: determine pattern (A–E), config, fixtures, assertions |
