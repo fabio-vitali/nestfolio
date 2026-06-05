@@ -12,7 +12,7 @@ Stack: services/investor/dashboard-bff/src/service.stack.ts
   (Workstream 3: removed ORDER_FILLED, ORDER_REJECTED, ORDER_CANCELLED, PORTFOLIO_DRIFT_DETECTED, and MANDATE_ISSUED — these were the accumulate-based trigger events; replaced by ADVISORY_STATUS_UPDATED which receives advisory-bff's authoritative P3 announcement forwarded via investor-adpt.)
 
 ## Transforms
-- advisory-status.ts — (Workstream 3) P3 projection: on ADVISORY_STATUS_UPDATED, calls `projectVersioned('AdvisoryStatus', { pendingDecisionsCount: subject.inFlightCount }, { version: subject.__version, … })`. Maps producer field `inFlightCount` → read-model field `pendingDecisionsCount`. No `accumulate`. Returns undefined if `__version` is absent.
+- advisory-status.ts — (Workstream 3; extended WS-4) P3 projection: on ADVISORY_STATUS_UPDATED, calls `projectVersioned('AdvisoryStatus', { pendingDecisionsCount: subject.inFlightCount, generatingCount, failedCount, oldestGeneratingAt }, { version: subject.__version, … })`. Maps producer field `inFlightCount` → read-model `pendingDecisionsCount`; carries WS-4 cycle signals `generatingCount`/`failedCount`/`oldestGeneratingAt` (`?? 0`/`?? null` defaults so a not-yet-redeployed producer that omits them stays correct). No `accumulate`. Returns undefined if `__version` is absent.
 - recent-activity.ts — dispatches DECISION_PACKET_CREATED and USER_CONFIRMATION_REQUESTED (and other activity-relevant events) to the activity feed; rows are LIVE-broadcast via publishActivityUpdate → onActivityUpdate
 - investor-snapshot.ts — (Workstream 4) version-guarded P1 projection (`projectVersioned`) of the composite INVESTOR_PROFILE_* payload: reads `goalType`/`riskLevel`/`operatingMode` plus stable `onboardedAt` (from `payload.onboardingCompletedAt`, present on every CDC full-row emit so a full-row write never wipes it), keyed on investor-bff's row `__version`. Returns undefined if `__version` is absent.
 - portfolio-summary.ts — version-guarded P1 projection (`projectVersioned`) from the authoritative ledger snapshot on BALANCE_UPDATED / PORTFOLIO_UPDATED: writes full row `cashBalanceCents`, `positionCount`, `totalValueCents`, keyed on `lastEventSequence` as `__version`
@@ -44,7 +44,7 @@ Stack: services/investor/dashboard-bff/src/service.stack.ts
 
 ## Handlers
 - event-listener.ts — Ingress event handler
-- dashboard-publisher.ts — DDB-stream-driven broadcaster: fires publishDashboardUpdate on AdvisoryStatus mutation and publishActivityUpdate on Activity insert (keyed by __typename)
+- dashboard-publisher.ts — DDB-stream-driven broadcaster: fires publishDashboardUpdate on AdvisoryStatus mutation and publishActivityUpdate on Activity insert (keyed by __typename). (WS-4: `whenChanged` widened to ['pendingDecisionsCount','generatingCount','failedCount','oldestGeneratingAt'] so a cycle-start that moves only generatingCount still broadcasts; the publishDashboardUpdate selection + mapImage carry the 3 new fields per the @aws_subscribe silent-drop rule.)
 
 ## Tests
 - unit/service.stack.test.ts (Broadcaster wiring: DLQ + bisectBatchOnError on the DDB-stream consumer)
