@@ -44,7 +44,7 @@ Stack: services/investor/dashboard-bff/src/service.stack.ts
 
 ## Handlers
 - event-listener.ts — Ingress event handler
-- dashboard-publisher.ts — DDB-stream-driven broadcaster: fires publishDashboardUpdate on AdvisoryStatus mutation and publishActivityUpdate on Activity insert (keyed by __typename). (WS-4: `whenChanged` widened to ['pendingDecisionsCount','generatingCount','failedCount','oldestGeneratingAt'] so a cycle-start that moves only generatingCount still broadcasts; the publishDashboardUpdate selection + mapImage carry the 3 new fields per the @aws_subscribe silent-drop rule.)
+- dashboard-publisher.ts — DDB-stream-driven broadcaster: fires publishDashboardUpdate on **AdvisoryStatus** and **PortfolioSummary** row mutations, and publishActivityUpdate on Activity insert (keyed by __typename, falling back to sk). PortfolioSummary broadcasts on INSERT + on whenChanged ['totalValueCents','cashBalanceCents','positionCount'] (gated on the KPI values, not updatedAt). The shared publishDashboardUpdate mutation now carries both $advisoryStatus and $portfolioSummary (each optional; a broadcast sends only its own surface, the other resolves null and the client ignores it).
 
 ## Tests
 - unit/service.stack.test.ts (Broadcaster wiring: DLQ + bisectBatchOnError on the DDB-stream consumer)
