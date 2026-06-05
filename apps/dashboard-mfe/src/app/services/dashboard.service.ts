@@ -13,6 +13,7 @@ import { LogoutOrchestrator } from '@nestfolio/shell';
 import type {
   DashboardData,
   AdvisoryStatus,
+  PortfolioSummary,
   PositionSnapshot,
   ActivityEntry,
   SimulationSummary,
@@ -79,7 +80,12 @@ export class DashboardService {
    */
   subscribeToDashboardUpdates(
     tenantId: string,
-  ): Observable<{ onDashboardUpdate: { advisoryStatus: AdvisoryStatus | null } | null }> {
+  ): Observable<{
+    onDashboardUpdate: {
+      advisoryStatus: AdvisoryStatus | null;
+      portfolioSummary: PortfolioSummary | null;
+    } | null;
+  }> {
     return this.graphql.subscribe(ON_DASHBOARD_UPDATE, { tenantId });
   }
 

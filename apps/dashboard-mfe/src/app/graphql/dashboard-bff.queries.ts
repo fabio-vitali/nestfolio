@@ -118,11 +118,15 @@ export const GET_SIMULATION_SUMMARY = `
 export const ON_DASHBOARD_UPDATE = `
   subscription OnDashboardUpdate($tenantId: ID!) {
     onDashboardUpdate(tenantId: $tenantId) {
+      portfolioSummary {
+        ...PortfolioSummaryFields
+      }
       advisoryStatus {
         ...AdvisoryStatusFields
       }
     }
   }
+  ${PORTFOLIO_SUMMARY_FIELDS}
   ${ADVISORY_STATUS_FIELDS}
 `;
 
