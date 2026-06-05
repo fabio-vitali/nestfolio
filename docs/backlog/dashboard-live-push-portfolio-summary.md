@@ -1,7 +1,6 @@
 ---
 id: dashboard-live-push-portfolio-summary
-status: active
-rank: 1
+status: shipped
 type: bug
 notes: "TRANSPORT-ONLY, now unblocked (2026-06-05): live-push broadcast for PortfolioSummary KPI cards. The materialization half is DONE — bff-read-model-materialization-redesign (all 7 WS) shipped, so portfolio-summary.ts now writes cashBalanceCents/positionCount atomically with no accumulate double-count. Only the AppSync broadcast transport remains; the Dashboard.portfolioSummary schema field + a portfolioSummary:null resolver stub already exist (half-wired). Adopted ACTIVE 2026-06-05: scope = PortfolioSummary only (rank-2 PositionSnapshot stays separate); extract a shared @nestfolio/ui subscribe-then-reconcile helper now (refactor the Activity channel onto it + use for the PortfolioSummary/dashboard channel = 2 callers across keyed-collection + scalar shapes)."
 references: []
@@ -13,7 +12,7 @@ out_of_scope:
 spec: null
 plan: docs/superpowers/plans/2026-06-05-dashboard-live-push-portfolio-summary.md
 topic_memory: []
-validation_gate: null
+validation_gate: "Shipped 2026-06-05 on worktree-dashboard-live-push-portfolio-summary (commits 20fdebb3 helper → b0220a68 docstring). 9 TDD tasks, subagent-driven with per-task spec+quality review + a final holistic review (READY TO MERGE: end-to-end contract consistent across row→broadcast→resolver→subscription→store→UI; both broadcast surfaces coexist on the shared mutation; LWW prevents reconnect clobber; broadcaster has no read-model-ownership obligation). Gates: unit 222 green (ui 80 / dashboard-bff 51 / dashboard-mfe 91); `nx affected -t test,lint --base=origin/main` 34 projects green; deploy.sh sandbox --prefix=dev --services=dashboard-bff SUCCESS in 50s — AppSync GraphQLSchema + publishDashboardUpdate FunctionConfiguration UPDATE_COMPLETE (schema-deploy smoke for PortfolioSummaryInput + new arg) + dashboard-mfe bundle uploaded to dev; dashboard-bff integration 21/21 green against deployed dev. Live-delivery e2e: NO scenario exists (integration doesn't cover @aws_subscribe; needs the WSS harness) → filed parking follow-up dashboard-portfolio-summary-live-push-e2e-scenario. Reusable deliverable: @nestfolio/ui subscribeThenReconcile helper (2 callers — Activity keyed-collection + PortfolioSummary scalar)."
 ---
 
 # Dashboard PortfolioSummary live-push gap
