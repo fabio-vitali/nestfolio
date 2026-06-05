@@ -10,6 +10,7 @@ type Mutation {
   publishDashboardUpdate(
     tenantId: ID!
     advisoryStatus: AdvisoryStatusInput
+    portfolioSummary: PortfolioSummaryInput
   ): Dashboard!
     @aws_iam
   publishActivityUpdate(
@@ -31,6 +32,13 @@ input AdvisoryStatusInput {
   generatingCount: Int!
   failedCount: Int!
   oldestGeneratingAt: String
+  updatedAt: String!
+}
+
+input PortfolioSummaryInput {
+  totalValueCents: Int!
+  cashBalanceCents: Int!
+  positionCount: Int!
   updatedAt: String!
 }
 
