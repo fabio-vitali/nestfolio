@@ -20,7 +20,7 @@ describe('advisoryStatus transform (P3 projection)', () => {
     ).toEqual(
       projectVersioned(
         'AdvisoryStatus',
-        { pendingDecisionsCount: 3 },
+        { pendingDecisionsCount: 3, generatingCount: 0, failedCount: 0, oldestGeneratingAt: null },
         { version: 99, overrides: { pk: 'T#t1', sk: 'AdvisoryStatus' } },
       ),
     );
@@ -28,5 +28,35 @@ describe('advisoryStatus transform (P3 projection)', () => {
 
   it('drops a subject with no __version (cannot order)', () => {
     expect(advisoryStatus(makeUow({ tenantId: 't1', inFlightCount: 3 }) as any)).toBeUndefined();
+  });
+
+  it('projects the generating/failed cycle signals onto the P3 row', () => {
+    expect(
+      advisoryStatus(makeUow({
+        tenantId: 't1', inFlightCount: 0, generatingCount: 1, failedCount: 0,
+        oldestGeneratingAt: '2026-06-05T09:00:00.000Z', __version: 5,
+      }) as any),
+    ).toEqual(
+      projectVersioned(
+        'AdvisoryStatus',
+        {
+          pendingDecisionsCount: 0, generatingCount: 1, failedCount: 0,
+          oldestGeneratingAt: '2026-06-05T09:00:00.000Z',
+        },
+        { version: 5, overrides: { pk: 'T#t1', sk: 'AdvisoryStatus' } },
+      ),
+    );
+  });
+
+  it('defaults the new fields when an older producer omits them (rollout safety)', () => {
+    expect(
+      advisoryStatus(makeUow({ tenantId: 't1', inFlightCount: 2, __version: 7 }) as any),
+    ).toEqual(
+      projectVersioned(
+        'AdvisoryStatus',
+        { pendingDecisionsCount: 2, generatingCount: 0, failedCount: 0, oldestGeneratingAt: null },
+        { version: 7, overrides: { pk: 'T#t1', sk: 'AdvisoryStatus' } },
+      ),
+    );
   });
 });
