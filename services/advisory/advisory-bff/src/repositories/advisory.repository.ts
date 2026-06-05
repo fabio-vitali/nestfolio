@@ -101,23 +101,38 @@ export class AdvisoryRepository extends TableRepository {
     };
   });
 
-  /** Non-terminal decision statuses for the in-flight count (P3 derived aggregate). */
+  /** Non-terminal statuses that participate in the AdvisoryStatus aggregate. */
   static readonly IN_FLIGHT_STATUSES = ['PENDING', 'AWAITING_CONFIRMATION'] as const;
+  static readonly CYCLE_STATUSES = ['GENERATING', 'FAILED'] as const;
+  static readonly AGGREGATE_STATUSES = [
+    ...AdvisoryRepository.IN_FLIGHT_STATUSES,
+    ...AdvisoryRepository.CYCLE_STATUSES,
+  ] as const;
 
-  /** Count this tenant's DecisionReadModel rows in a non-terminal status. Paginates the COUNT. */
-  readonly countInFlightDecisions = this.log('countInFlightDecisions', async (
+  /**
+   * Derive the full AdvisoryStatus aggregate for a tenant in ONE paginated query.
+   * Reads only `status`+`createdAt` of this tenant's non-terminal DecisionReadModel
+   * rows and tallies every signal in a single pass. Replaces the prior COUNT-only
+   * `countInFlightDecisions` — cleaner, one round-trip per page, and the single
+   * reusable derivation surface.
+   */
+  readonly deriveAdvisoryAggregate = this.log('deriveAdvisoryAggregate', async (
     tenantId: string,
-  ): Promise<number> => {
-    const statuses = AdvisoryRepository.IN_FLIGHT_STATUSES;
-    let total = 0;
+  ): Promise<{
+    inFlightCount: number; generatingCount: number; failedCount: number;
+    oldestGeneratingAt: string | null;
+  }> => {
+    const statuses = AdvisoryRepository.AGGREGATE_STATUSES;
+    let inFlightCount = 0, generatingCount = 0, failedCount = 0;
+    let oldestGeneratingAt: string | null = null;
     let lastKey: Record<string, unknown> | undefined;
     do {
       const result = await this.docClient.send(new QueryCommand({
         TableName: this.tableName,
         IndexName: 'tenantId-index',
-        Select: 'COUNT',
         KeyConditionExpression: 'tenantId = :tenantId AND #typ = :typename',
         FilterExpression: `#status IN (${statuses.map((_, i) => `:s${i}`).join(', ')})`,
+        ProjectionExpression: '#status, createdAt',
         ExpressionAttributeNames: { '#status': 'status', '#typ': '__typename' },
         ExpressionAttributeValues: {
           ':tenantId': tenantId, ':typename': 'DecisionReadModel',
@@ -125,10 +140,24 @@ export class AdvisoryRepository extends TableRepository {
         },
         ...(lastKey ? { ExclusiveStartKey: lastKey } : {}),
       }));
-      total += result.Count ?? 0;
+      for (const row of result.Items ?? []) {
+        const status = row['status'];
+        if (status === 'PENDING' || status === 'AWAITING_CONFIRMATION') {
+          inFlightCount++;
+        } else if (status === 'FAILED') {
+          failedCount++;
+        } else if (status === 'GENERATING') {
+          generatingCount++;
+          const createdAt = typeof row['createdAt'] === 'string' ? row['createdAt'] : null;
+          // ISO-8601 strings sort lexicographically, so `<` gives the earliest.
+          if (createdAt && (oldestGeneratingAt === null || createdAt < oldestGeneratingAt)) {
+            oldestGeneratingAt = createdAt;
+          }
+        }
+      }
       lastKey = result.LastEvaluatedKey;
     } while (lastKey);
-    return total;
+    return { inFlightCount, generatingCount, failedCount, oldestGeneratingAt };
   });
 
   readonly getDecisionHistory = this.log('getDecisionHistory', async (

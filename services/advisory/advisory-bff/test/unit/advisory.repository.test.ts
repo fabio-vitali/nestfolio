@@ -263,30 +263,52 @@ describe('AdvisoryRepository', () => {
     });
   });
 
-  describe('countInFlightDecisions', () => {
-    it('counts non-terminal DecisionReadModel rows for a tenant', async () => {
-      mockSend.mockResolvedValueOnce({ Count: 2, Items: [], LastEvaluatedKey: undefined });
+  describe('deriveAdvisoryAggregate', () => {
+    it('derives the full aggregate in one query (counts + oldest generating)', async () => {
+      mockSend.mockResolvedValueOnce({
+        Items: [
+          { status: 'PENDING' },
+          { status: 'AWAITING_CONFIRMATION' },
+          { status: 'GENERATING', createdAt: '2026-06-05T10:00:00.000Z' },
+          { status: 'GENERATING', createdAt: '2026-06-05T09:00:00.000Z' },
+          { status: 'FAILED' },
+        ],
+        LastEvaluatedKey: undefined,
+      });
 
-      const n = await repo.countInFlightDecisions('t1');
+      const agg = await repo.deriveAdvisoryAggregate('t1');
 
       const call = mockSend.mock.calls[0][0];
       expect(call._type).toBe('Query');
       expect(call.input.IndexName).toBe('tenantId-index');
-      expect(call.input.Select).toBe('COUNT');
       expect(call.input.FilterExpression).toContain('#status IN');
-      expect(n).toBe(2);
+      expect(call.input.ProjectionExpression).toContain('createdAt');
+      expect(agg).toEqual({
+        inFlightCount: 2, generatingCount: 2, failedCount: 1,
+        oldestGeneratingAt: '2026-06-05T09:00:00.000Z',
+      });
     });
 
-    it('paginates the COUNT across LastEvaluatedKey pages', async () => {
-      mockSend
-        .mockResolvedValueOnce({ Count: 2, LastEvaluatedKey: { pk: 'x' } })
-        .mockResolvedValueOnce({ Count: 3, LastEvaluatedKey: undefined });
+    it('returns zeros and null when there are no non-terminal rows', async () => {
+      mockSend.mockResolvedValueOnce({ Items: [], LastEvaluatedKey: undefined });
+      expect(await repo.deriveAdvisoryAggregate('t1')).toEqual({
+        inFlightCount: 0, generatingCount: 0, failedCount: 0, oldestGeneratingAt: null,
+      });
+    });
 
-      const n = await repo.countInFlightDecisions('t1');
+    it('paginates across LastEvaluatedKey pages', async () => {
+      mockSend
+        .mockResolvedValueOnce({ Items: [{ status: 'GENERATING', createdAt: '2026-06-05T08:00:00.000Z' }], LastEvaluatedKey: { pk: 'x' } })
+        .mockResolvedValueOnce({ Items: [{ status: 'PENDING' }], LastEvaluatedKey: undefined });
+
+      const agg = await repo.deriveAdvisoryAggregate('t1');
 
       expect(mockSend).toHaveBeenCalledTimes(2);
       expect(mockSend.mock.calls[1][0].input.ExclusiveStartKey).toEqual({ pk: 'x' });
-      expect(n).toBe(5);
+      expect(agg).toEqual({
+        inFlightCount: 1, generatingCount: 1, failedCount: 0,
+        oldestGeneratingAt: '2026-06-05T08:00:00.000Z',
+      });
     });
   });
 
