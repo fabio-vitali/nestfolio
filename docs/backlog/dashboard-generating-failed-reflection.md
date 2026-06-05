@@ -1,6 +1,6 @@
 ---
 id: dashboard-generating-failed-reflection
-status: queued
+status: active
 rank: 4
 type: feature
 notes: "WS-4 of advisory-generating-failed-ux: the dashboard reflects generating + failed decision cycles (consistent feedback with /advisory). Opens with a small UX sub-design — distinct generating/failed indicator vs reusing advisory-alert-bar. Retargets the dashboard alert-bar e2e off the removed accumulate model."
@@ -9,7 +9,12 @@ references:
   - services/investor/dashboard-bff/src/transforms/advisory-status.ts
   - apps/nestfolio-e2e/src/scenarios/advisory-generating-state.spec.ts
   - apps/nestfolio-e2e/src/fixtures/inject-advisory-update.ts
-out_of_scope: []
+out_of_scope:
+  - "The /advisory surface (WS-3, shipped) — WS-4 is dashboard-only."
+  - "DWC cycle-event emission (WS-1) and advisory-bff DecisionReadModel projection (WS-2) — WS-4 consumes existing signals, does not change them."
+  - "Post-packet failure surfacing (BLOCKED/REJECTED are existing decision statuses)."
+  - "Migrating inject-advisory-update.ts off the direct @aws-sdk/client-eventbridge import (tracked: nestfolio-e2e-eventbridge-client-wrapper-migration)."
+  - "Real full agent-pipeline e2e (use injected events for determinism + cost)."
 spec: docs/superpowers/specs/2026-06-04-advisory-generating-state-design.md
 plan: null
 topic_memory: []
