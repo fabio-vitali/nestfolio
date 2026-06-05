@@ -30,6 +30,9 @@ describe('DashboardStore', () => {
 
   const mockAdvisory: AdvisoryStatus = {
     pendingDecisionsCount: 3,
+    generatingCount: 0,
+    failedCount: 0,
+    oldestGeneratingAt: null,
     updatedAt: '2026-03-01T00:00:00Z',
   };
 
@@ -208,6 +211,49 @@ describe('DashboardStore', () => {
     store.setError('fail');
     expect(store.error()).toBe('fail');
     expect(store.loading()).toBe(false);
+  });
+
+  describe('advisory cycle derivation', () => {
+    const FIXED_NOW = Date.parse('2026-06-05T12:00:00.000Z');
+    const advisory = (over: Partial<AdvisoryStatus>): AdvisoryStatus => ({
+      pendingDecisionsCount: 0, generatingCount: 0, failedCount: 0,
+      oldestGeneratingAt: null, updatedAt: '2026-06-05T12:00:00Z', ...over,
+    });
+
+    it('advisoryGenerating is true for a fresh GENERATING row', () => {
+      store.setNow(FIXED_NOW);
+      store.setAdvisoryStatus(advisory({ generatingCount: 1, oldestGeneratingAt: '2026-06-05T11:59:00.000Z' }));
+      expect(store.advisoryGenerating()).toBe(true);
+      expect(store.advisoryFailed()).toBe(false);
+    });
+
+    it('advisoryFailed is true for a FAILED row with nothing pending/generating', () => {
+      store.setNow(FIXED_NOW);
+      store.setAdvisoryStatus(advisory({ failedCount: 1 }));
+      expect(store.advisoryGenerating()).toBe(false);
+      expect(store.advisoryFailed()).toBe(true);
+    });
+
+    it('a stale GENERATING row (older than the ceiling) becomes failed', () => {
+      store.setNow(FIXED_NOW);
+      store.setAdvisoryStatus(advisory({ generatingCount: 1, oldestGeneratingAt: '2026-06-05T11:50:00.000Z' }));
+      expect(store.advisoryGenerating()).toBe(false);
+      expect(store.advisoryFailed()).toBe(true);
+    });
+
+    it('pending decisions suppress the failed banner', () => {
+      store.setNow(FIXED_NOW);
+      store.setAdvisoryStatus(advisory({ pendingDecisionsCount: 2, failedCount: 1 }));
+      expect(store.advisoryFailed()).toBe(false);
+      expect(store.advisoryGenerating()).toBe(false);
+    });
+
+    it('neither banner when idle', () => {
+      store.setNow(FIXED_NOW);
+      store.setAdvisoryStatus(advisory({}));
+      expect(store.advisoryGenerating()).toBe(false);
+      expect(store.advisoryFailed()).toBe(false);
+    });
   });
 });
 

@@ -37,7 +37,21 @@ export interface ActivityEntry {
 
 export interface AdvisoryStatus {
   pendingDecisionsCount: number;
+  generatingCount: number;
+  failedCount: number;
+  oldestGeneratingAt: string | null;
   updatedAt: string;
+}
+
+// Keep in sync with advisory-mfe decision-list.component.ts STALE_CYCLE_MS.
+// A GENERATING signal older than this (with no transition) renders as failed —
+// covers uncatchable States.Runtime failures that emit no DECISION_CYCLE_FAILED.
+// TODO(extract-shared-advisory-cycle-state-helper): fold into @nestfolio/ui.
+const STALE_CYCLE_MS = 6 * 60 * 1000;
+
+function generatingFresh(s: AdvisoryStatus | null, now: number): boolean {
+  return !!s && s.generatingCount > 0 && !!s.oldestGeneratingAt
+    && now - Date.parse(s.oldestGeneratingAt) < STALE_CYCLE_MS;
 }
 
 export interface InvestorSnapshot {
@@ -71,6 +85,7 @@ interface DashboardState {
   positions: PositionSnapshot[];
   activities: ActivityEntry[];
   simulationSummary: SimulationSummary | null;
+  now: number;
 }
 
 const initialState: DashboardState = {
@@ -80,6 +95,7 @@ const initialState: DashboardState = {
   positions: [],
   activities: [],
   simulationSummary: null,
+  now: Date.now(),
 };
 
 export const DashboardStore = signalStore(
@@ -104,6 +120,13 @@ export const DashboardStore = signalStore(
       const status = store.advisoryStatus();
       return (status?.pendingDecisionsCount ?? 0) > 0;
     }),
+    advisoryGenerating: computed(() => generatingFresh(store.advisoryStatus(), store.now())),
+    advisoryFailed: computed(() => {
+      const s = store.advisoryStatus();
+      if (!s || (s.pendingDecisionsCount ?? 0) > 0) return false;
+      if (generatingFresh(s, store.now())) return false;
+      return s.failedCount > 0 || s.generatingCount > 0;
+    }),
     isLoaded: computed(() => store.portfolioSummary() !== null),
     hasSimulationData: computed(() => store.simulationSummary() !== null),
     simulationAdvantagePercent: computed(() => store.simulationSummary()?.returnDifferencePercent ?? 0),
@@ -118,6 +141,9 @@ export const DashboardStore = signalStore(
     },
     setAdvisoryStatus(advisoryStatus: AdvisoryStatus | null): void {
       patchState(store, { advisoryStatus });
+    },
+    setNow(now: number): void {
+      patchState(store, { now });
     },
     setPositions(positions: PositionSnapshot[]): void {
       patchState(store, { positions });
