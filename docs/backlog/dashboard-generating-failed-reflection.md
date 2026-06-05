@@ -18,7 +18,7 @@ out_of_scope:
   - "Migrating inject-advisory-update.ts off the direct @aws-sdk/client-eventbridge import (tracked: nestfolio-e2e-eventbridge-client-wrapper-migration)."
   - "Real full agent-pipeline e2e (use injected events for determinism + cost)."
 spec: docs/superpowers/specs/2026-06-05-dashboard-generating-failed-reflection-design.md
-plan: null
+plan: docs/superpowers/plans/2026-06-05-dashboard-generating-failed-reflection.md
 topic_memory: []
 validation_gate: null
 ---
