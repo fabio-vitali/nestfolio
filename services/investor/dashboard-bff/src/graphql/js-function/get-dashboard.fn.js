@@ -34,9 +34,15 @@ export function response(ctx) {
     oldestGeneratingAt: rawAs.oldestGeneratingAt ?? null,
     updatedAt: rawAs.updatedAt || util.time.nowISO8601(),
   } : null;
+  // A TransactGetItems miss returns a keyless object (not null), so guard on `sk`
+  // exactly like portfolioSummary above — without it a tenant with no
+  // InvestorSnapshot row returns `{}`, and the non-nullable `updatedAt: String!`
+  // resolves to null and fails the WHOLE getDashboard query.
+  const rawIs = items[2];
+  const investorSnapshot = (rawIs && rawIs.sk) ? rawIs : null;
   return {
     portfolioSummary,
     advisoryStatus,
-    investorSnapshot: items[2] || null,
+    investorSnapshot,
   };
 }
