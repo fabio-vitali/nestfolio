@@ -5,9 +5,15 @@ import { broadcastFromStream } from '@nestfolio/event-processor';
 // RESPONSE (not input args). Without selecting tenantId, the filter never
 // matches and the broadcast silently drops on the server side.
 const PUBLISH_DASHBOARD_UPDATE = `
-  mutation PublishDashboardUpdate($tenantId: ID!, $advisoryStatus: AdvisoryStatusInput) {
-    publishDashboardUpdate(tenantId: $tenantId, advisoryStatus: $advisoryStatus) {
+  mutation PublishDashboardUpdate($tenantId: ID!, $advisoryStatus: AdvisoryStatusInput, $portfolioSummary: PortfolioSummaryInput) {
+    publishDashboardUpdate(tenantId: $tenantId, advisoryStatus: $advisoryStatus, portfolioSummary: $portfolioSummary) {
       tenantId
+      portfolioSummary {
+        totalValueCents
+        cashBalanceCents
+        positionCount
+        updatedAt
+      }
       advisoryStatus {
         pendingDecisionsCount
         generatingCount
@@ -59,6 +65,25 @@ export const handler = broadcastFromStream({
             generatingCount: Number(item['generatingCount'] ?? 0),
             failedCount: Number(item['failedCount'] ?? 0),
             oldestGeneratingAt: item['oldestGeneratingAt'] != null ? String(item['oldestGeneratingAt']) : null,
+            updatedAt: String(item['updatedAt'] ?? new Date().toISOString()),
+          },
+        };
+      },
+    },
+    PortfolioSummary: {
+      mutation: PUBLISH_DASHBOARD_UPDATE,
+      // skipInsert default false — first PortfolioSummary materialisation also
+      // broadcasts. Gate MODIFY on the KPI values (not updatedAt, which always
+      // changes) so a no-op snapshot rewrite does not spam the channel.
+      whenChanged: ['totalValueCents', 'cashBalanceCents', 'positionCount'],
+      mapImage: (item) => {
+        const tenantId = String(item['pk'] ?? '').slice(2); // 'T#<tenantId>' → '<tenantId>'
+        return {
+          tenantId,
+          portfolioSummary: {
+            totalValueCents: Number(item['totalValueCents'] ?? 0),
+            cashBalanceCents: Number(item['cashBalanceCents'] ?? 0),
+            positionCount: Number(item['positionCount'] ?? 0),
             updatedAt: String(item['updatedAt'] ?? new Date().toISOString()),
           },
         };

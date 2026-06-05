@@ -90,10 +90,48 @@ describe('dashboard-publisher', () => {
     });
   });
 
+  it('broadcasts publishDashboardUpdate with portfolioSummary (MODIFY, KPI changed)', async () => {
+    await handler(streamEvent({
+      eventName: 'MODIFY',
+      oldImage: { pk: 'T#tenant1', sk: 'PortfolioSummary', __typename: 'PortfolioSummary', totalValueCents: 1000, cashBalanceCents: 1000, positionCount: 0, __version: 1, updatedAt: '2026-05-01T00:00:00Z' },
+      newImage: { pk: 'T#tenant1', sk: 'PortfolioSummary', __typename: 'PortfolioSummary', totalValueCents: 250000, cashBalanceCents: 200000, positionCount: 2, __version: 2, updatedAt: '2026-05-01T12:00:00Z' },
+    }), {} as never, () => {});
+    expect(postAppSyncMutation).toHaveBeenCalledTimes(1);
+    const call = (postAppSyncMutation as jest.Mock).mock.calls[0][0];
+    expect(call.variables).toMatchObject({
+      tenantId: 'tenant1',
+      portfolioSummary: {
+        totalValueCents: 250000,
+        cashBalanceCents: 200000,
+        positionCount: 2,
+        updatedAt: '2026-05-01T12:00:00Z',
+      },
+    });
+  });
+
+  it('broadcasts portfolioSummary on INSERT (first materialisation)', async () => {
+    await handler(streamEvent({
+      eventName: 'INSERT',
+      newImage: { pk: 'T#tenant1', sk: 'PortfolioSummary', __typename: 'PortfolioSummary', totalValueCents: 100000, cashBalanceCents: 100000, positionCount: 0, __version: 1, updatedAt: '2026-05-01T00:00:00Z' },
+    }), {} as never, () => {});
+    expect(postAppSyncMutation).toHaveBeenCalledTimes(1);
+    const call = (postAppSyncMutation as jest.Mock).mock.calls[0][0];
+    expect(call.variables.portfolioSummary).toMatchObject({ totalValueCents: 100000, positionCount: 0 });
+  });
+
+  it('skips a PortfolioSummary MODIFY when no KPI field changed', async () => {
+    await handler(streamEvent({
+      eventName: 'MODIFY',
+      oldImage: { pk: 'T#tenant1', sk: 'PortfolioSummary', __typename: 'PortfolioSummary', totalValueCents: 100000, cashBalanceCents: 100000, positionCount: 0, __version: 1, updatedAt: '2026-05-01T00:00:00Z' },
+      newImage: { pk: 'T#tenant1', sk: 'PortfolioSummary', __typename: 'PortfolioSummary', totalValueCents: 100000, cashBalanceCents: 100000, positionCount: 0, __version: 2, updatedAt: '2026-05-01T00:05:00Z' },
+    }), {} as never, () => {});
+    expect(postAppSyncMutation).not.toHaveBeenCalled();
+  });
+
   it('skips records whose typename has no broadcast entry', async () => {
     await handler(streamEvent({
       eventName: 'INSERT',
-      newImage: { pk: 'T#tenant1', sk: 'PortfolioSummary', __typename: 'PortfolioSummary', totalValueCents: 1 },
+      newImage: { pk: 'T#tenant1', sk: 'InvestorSnapshot', __typename: 'InvestorSnapshot', goalType: 'GROWTH' },
     }), {} as never, () => {});
     expect(postAppSyncMutation).not.toHaveBeenCalled();
   });
