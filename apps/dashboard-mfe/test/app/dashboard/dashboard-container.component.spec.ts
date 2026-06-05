@@ -164,4 +164,62 @@ describe('DashboardContainerComponent', () => {
 
     component.ngOnDestroy();                                        // cancel pending retry timer
   });
+
+  it('applies a live portfolioSummary frame to the store', async () => {
+    const dashFrame$ = new Subject<{
+      onDashboardUpdate: {
+        advisoryStatus: import('../../../src/app/stores/dashboard.store').AdvisoryStatus | null;
+        portfolioSummary: import('../../../src/app/stores/dashboard.store').PortfolioSummary | null;
+      } | null;
+    }>();
+    mockService.subscribeToDashboardUpdates = jest.fn(() => dashFrame$);
+
+    const authStore = TestBed.inject(AuthStore);
+    authStore.setAuthenticated({
+      userId: 'user-1', username: 'user-1', email: 'user@example.com',
+      tenantId: 'tenant-1', onboardingCompletedAt: '2026-01-01T00:00:00Z',
+    });
+    const setSpy = jest.spyOn(store, 'setPortfolioSummary');
+
+    await component.ngOnInit();
+    dashFrame$.next({
+      onDashboardUpdate: {
+        advisoryStatus: null,
+        portfolioSummary: {
+          totalValueCents: 999999, cashBalanceCents: 500000, positionCount: 3,
+          updatedAt: '2026-06-05T12:00:00Z',
+        },
+      },
+    });
+
+    expect(mockService.subscribeToDashboardUpdates).toHaveBeenCalledWith('tenant-1');
+    expect(setSpy).toHaveBeenCalledWith(expect.objectContaining({ totalValueCents: 999999 }));
+    expect(store.portfolioSummary()?.totalValueCents).toBe(999999);
+  });
+
+  it('backfills via getDashboard when the dashboard subscription reconnects', async () => {
+    const dashFrame$ = new Subject<{
+      onDashboardUpdate: {
+        advisoryStatus: import('../../../src/app/stores/dashboard.store').AdvisoryStatus | null;
+        portfolioSummary: import('../../../src/app/stores/dashboard.store').PortfolioSummary | null;
+      } | null;
+    }>();
+    mockService.subscribeToDashboardUpdates = jest.fn(() => dashFrame$);
+
+    const authStore = TestBed.inject(AuthStore);
+    authStore.setAuthenticated({
+      userId: 'user-1', username: 'user-1', email: 'user@example.com',
+      tenantId: 'tenant-1', onboardingCompletedAt: '2026-01-01T00:00:00Z',
+    });
+
+    await component.ngOnInit();
+    expect(mockService.getDashboard).toHaveBeenCalledTimes(1); // initial load
+
+    dashFrame$.error(new Error('ws dropped'));                 // simulate reconnect
+    await Promise.resolve();
+    await Promise.resolve();
+
+    expect(mockService.getDashboard).toHaveBeenCalledTimes(2); // backfill (force refresh)
+    component.ngOnDestroy();                                    // cancel pending retry timer
+  });
 });

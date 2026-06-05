@@ -17,6 +17,7 @@ import { ComparisonCardComponent } from './comparison-card.component';
 import { ExecutionModeBadgeComponent } from './execution-mode-badge.component';
 
 const ACTIVITY_RECONNECT_BACKOFF_MS = 2_000;
+const DASHBOARD_RECONNECT_BACKOFF_MS = 2_000;
 
 @Component({
   selector: 'app-dashboard-container',
@@ -190,16 +191,20 @@ export class DashboardContainerComponent implements OnInit, OnDestroy {
   private subscribeToUpdates(): void {
     const tenantId = this.authStore.user()?.tenantId;
     if (!tenantId) return;
-    this.updateSubscription = this.dashboardService
-      .subscribeToDashboardUpdates(tenantId)
-      .subscribe({
-        next: (data) => {
-          const advisoryStatus = data?.onDashboardUpdate?.advisoryStatus;
-          if (advisoryStatus) {
-            this.store.setAdvisoryStatus(advisoryStatus);
-          }
-        },
-      });
+    this.updateSubscription = subscribeThenReconcile({
+      source: this.dashboardService.subscribeToDashboardUpdates(tenantId),
+      onFrame: (data) => {
+        const update = data?.onDashboardUpdate;
+        if (update?.portfolioSummary) {
+          this.store.setPortfolioSummary(update.portfolioSummary);
+        }
+        if (update?.advisoryStatus) {
+          this.store.setAdvisoryStatus(update.advisoryStatus);
+        }
+      },
+      onReconnect: () => this.backfillDashboard(),
+      reconnectBackoffMs: DASHBOARD_RECONNECT_BACKOFF_MS,
+    });
     this.activitySubscription = subscribeThenReconcile({
       source: this.dashboardService.subscribeToActivityUpdates(tenantId),
       onFrame: (data) => {
@@ -240,6 +245,15 @@ export class DashboardContainerComponent implements OnInit, OnDestroy {
     try {
       const activities = await this.dashboardService.getRecentActivity(20);
       this.store.mergeActivities(activities);
+    } catch {
+      // best-effort; the next reconnect or a manual reload recovers
+    }
+  }
+
+  private async backfillDashboard(): Promise<void> {
+    try {
+      const dashboard = await this.dashboardService.getDashboard(true); // force refresh
+      this.store.setDashboard(dashboard); // guarded setters prevent clobbering a newer live frame
     } catch {
       // best-effort; the next reconnect or a manual reload recovers
     }
