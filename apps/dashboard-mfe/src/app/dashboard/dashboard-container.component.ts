@@ -1,10 +1,10 @@
 import { Component, inject, OnDestroy, OnInit } from '@angular/core';
-import { retry, timer, type Subscription } from 'rxjs';
+import { type Subscription } from 'rxjs';
 import { CommonModule } from '@angular/common';
 import { MessageModule } from 'primeng/message';
 import { I18nService } from '@nestfolio/shell/i18n';
 import { AuthStore, parseError } from '@nestfolio/shell';
-import { LoadingSkeletonComponent } from '@nestfolio/ui';
+import { LoadingSkeletonComponent, subscribeThenReconcile } from '@nestfolio/ui';
 import { DashboardStore } from '../stores/dashboard.store';
 import { DashboardService } from '../services/dashboard.service';
 import { KpiCardsComponent } from './kpi-cards.component';
@@ -200,26 +200,17 @@ export class DashboardContainerComponent implements OnInit, OnDestroy {
           }
         },
       });
-    this.activitySubscription = this.dashboardService
-      .subscribeToActivityUpdates(tenantId)
-      .pipe(
-        retry({
-          delay: () => {
-            // WS dropped: re-query to recover rows missed while disconnected,
-            // then re-subscribe after a short backoff.
-            void this.backfillActivities();
-            return timer(ACTIVITY_RECONNECT_BACKOFF_MS);
-          },
-        }),
-      )
-      .subscribe({
-        next: (data) => {
-          const activity = data?.onActivityUpdate?.activity;
-          if (activity) {
-            this.store.addActivity(activity);
-          }
-        },
-      });
+    this.activitySubscription = subscribeThenReconcile({
+      source: this.dashboardService.subscribeToActivityUpdates(tenantId),
+      onFrame: (data) => {
+        const activity = data?.onActivityUpdate?.activity;
+        if (activity) {
+          this.store.addActivity(activity);
+        }
+      },
+      onReconnect: () => this.backfillActivities(),
+      reconnectBackoffMs: ACTIVITY_RECONNECT_BACKOFF_MS,
+    });
   }
 
   private async loadDashboard(): Promise<void> {
