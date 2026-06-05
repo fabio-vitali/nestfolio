@@ -1,8 +1,9 @@
 ---
 id: dashboard-live-push-position-snapshots
-status: parking
+status: queued
+rank: 2
 type: bug
-notes: "TRANSPORT-ONLY (re-scoped 2026-05-29): live-push broadcast for the holdings list. Position-row materialization correctness is covered by bff-read-model-materialization-redesign. Revisit transport on the clean read model after that lands; paired with dashboard-live-push-portfolio-summary."
+notes: "TRANSPORT-ONLY, now unblocked (2026-06-05): live-push broadcast for the holdings list. Position-row materialization is DONE — bff-read-model-materialization-redesign shipped, so position-snapshot.ts materializes each holding via projectVersioned. Only transport remains; fully greenfield (no publishPositionUpdate/onPositionUpdate/PositionBroadcast/client-merge yet). Paired with dashboard-live-push-portfolio-summary (rank 1)."
 references: []
 out_of_scope: []
 spec: null
@@ -19,7 +20,7 @@ UX impact: holdings table is the most-watched widget post-trade; staleness here 
 
 Surfaced 2026-05-28 during `happy-path-pendingcount-wss-decrement-race` brainstorming (Option 1 — Activity-broadcast — audit of dashboard live-push coverage). Note: positions are an ARRAY, not a scalar snapshot — design choice between (a) per-symbol delta broadcast (each row mutation pushes one symbol) and (b) full-list snapshot (refresh the entire array on any mutation). (a) scales better for tenants with many positions; (b) is simpler. Pick (a) vs (b) via brainstorming against the now-concrete Activity-broadcast per-surface pattern.
 
-Promoted to QUEUED (rank 2) on 2026-05-29 boundary review alongside `dashboard-live-push-portfolio-summary` (rank 1): the gating dependency — the Activity live-broadcast workstream — shipped 2026-05-29, making its per-surface pattern concrete. Same file (`dashboard-publisher.ts`) and same fix shape as rank 1; intended to be executed as a pair.
+Scoped during the 2026-05-29 boundary review alongside `dashboard-live-push-portfolio-summary`: the gating dependency — the Activity live-broadcast workstream — shipped 2026-05-29, making its per-surface pattern concrete. Same file (`dashboard-publisher.ts`) and same fix shape; intended to be executed as a pair.
 
 Next step: pick (a) vs (b) via brainstorming, then mirror the Activity-broadcast surface design (separate `publishPositionUpdate` mutation + `onPositionUpdate` subscription if delta, or extend `publishDashboardUpdate` if full-list).
 
@@ -36,12 +37,16 @@ reconnect re-query, this path inherits the same mount→subscribe gap. Consider
 extracting a shared `subscribe-then-reconcile` helper at that point
 (rule-of-three: Activity + PortfolioSummary + PositionSnapshot).
 
-## Re-scoped 2026-05-29 — deferred behind read-model redesign
+## Now unblocked (2026-06-05) — materialization shipped, transport remains
 
-Deferred alongside `dashboard-live-push-portfolio-summary` pending
-`bff-read-model-materialization-redesign` (ACTIVE). **Transport decision already
-resolved in the 2026-05-29 brainstorming** (carry forward, do not re-litigate):
-**per-symbol delta**, not full-list. The publisher is DDB-stream-driven (one
+The materialization dependency `bff-read-model-materialization-redesign` has **shipped**
+(`services/investor/dashboard-bff/src/transforms/position-snapshot.ts` now materializes
+each holding via `projectVersioned`), so this is promoted to QUEUED alongside
+`dashboard-live-push-portfolio-summary`. Unlike that half-wired surface, the position
+transport is **fully greenfield** (re-verified 2026-06-05): no `publishPositionUpdate`
+mutation, no `onPositionUpdate` subscription, no `PositionBroadcast` type, and no client
+merge exist yet. **Transport decision already resolved in the 2026-05-29 brainstorming**
+(carry forward, do not re-litigate): **per-symbol delta**, not full-list. The publisher is DDB-stream-driven (one
 changed row per stream record), so a delta maps 1:1 to a frame exactly like
 Activity; full-list would force a fan-in re-query of all rows per single-row
 change and collapse the client merge back to wholesale-replace (the clobber the

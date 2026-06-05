@@ -1,6 +1,6 @@
 ---
 id: investor-bff-13-latent-tsc-errors
-status: parking
+status: dropped
 rank: null
 type: bug
 references: []
@@ -15,3 +15,10 @@ notes: "13 latent tsc --noEmit errors; not a deploy blocker (esbuild strips type
 # investor-bff has 13 latent `tsc --noEmit` errors
 
 Branded `TenantId`/`UserId` cast mismatches in `services/investor/investor-bff/src/transforms/{onboarding-completed,balance-updated,notification-created,user-registered}.ts`; `transactWrite` protected-access leak at `services/investor/investor-bff/src/transforms/onboarding-completed.ts:39` (transform calls a base-class protected method from outside the class); `timestamp` not on `TableEntry` / `EventPayload` interfaces (used in repository writes + broadcast-listener). Pre-existed Task 1.10; verified at parent commit `0378ec25`. NOT a Phase 9 deploy blocker — Lambda bundling uses esbuild (strips types) and CDK synth uses `ts-node` transpile-only; jest passes 72/72. Filed during InvestorProfile collapse workstream 2026-05-03. Promote as a focused cleanup pass when type debt becomes load-bearing (e.g. when a fresh service onboard lands a developer who trusts `tsc --noEmit` as a quality gate).
+
+**Dropped 2026-06-05** — obsolete. Re-verified against current code: `pnpm nx run
+investor-bff:typecheck` exits 0 with zero errors. The 13 latent errors were resolved
+incidentally by the read-model-ownership program — `timestamp` is now on the `TableEntry`
+interface, the four named transform files no longer carry the branded-cast mismatches, and
+the `onboarding-completed.ts` `transactWrite` call is a public repository method (not a
+protected-access leak). Nothing left to clean.

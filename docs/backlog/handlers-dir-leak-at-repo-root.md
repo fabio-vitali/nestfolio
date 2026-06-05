@@ -1,6 +1,6 @@
 ---
 id: handlers-dir-leak-at-repo-root
-status: parking
+status: dropped
 type: bug
 notes: "Empty handlers/ dir leaks at repo root from some CDK synth/test path (egress.test.ts uses os.tmpdir() correctly; the leaker is unknown). Gitignored 2026-05-18; investigate when /backlog-next or CDK tests are next touched."
 references:
@@ -55,3 +55,13 @@ Promote when: `cdk-constructs` is next refactored, OR if `handlers/` reappears a
 ## Related
 
 - [[backlog-next-closing-phase-friction]] § A.2 — surfaced during the same root-clutter sweep.
+
+## Dropped 2026-06-05
+
+Cosmetic only, no longer manifesting. The library antipattern persists (the `handlers/`
+default is still hardcoded at `libs/cdk-constructs/src/core/egress.ts:55` and
+`ingress.ts:68` — the files moved from `src/` to `src/core/` since this was filed), but the
+promotion trigger fired (cdk-constructs was refactored to add the Broadcaster construct) and
+**no stray `handlers/` directory exists at repo root today**. Zero correctness impact, and
+the dir was gitignored in 2026-05. Not worth tracking. If an empty `handlers/` reappears
+after a clean checkout — which would implicate a CI step — re-file fresh with that evidence.
