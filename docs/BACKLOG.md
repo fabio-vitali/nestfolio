@@ -6,12 +6,12 @@
 
 ## ACTIVE
 
-_(none)_
-
+- [extract-shared-advisory-cycle-state-helper](backlog/extract-shared-advisory-cycle-state-helper.md) [refactor] — Fold the duplicated advisory-cycle-state derivation + STALE_CYCLE_MS into one @nestfolio/ui helper used by advisory-mfe + dashboard-mfe.
 
 ## QUEUED
 
-1. [extract-shared-advisory-cycle-state-helper](backlog/extract-shared-advisory-cycle-state-helper.md) [refactor] — Fold the duplicated advisory-cycle-state derivation + STALE_CYCLE_MS into one @nestfolio/ui helper used by advisory-mfe + dashboard-mfe.
+_(none)_
+
 
 ## LATER
 
