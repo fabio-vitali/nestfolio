@@ -1,6 +1,6 @@
 ---
 id: dashboard-generating-failed-reflection
-status: active
+status: shipped
 rank: 4
 type: feature
 notes: "WS-4 of advisory-generating-failed-ux: the dashboard reflects generating + failed decision cycles (consistent feedback with /advisory). Opens with a small UX sub-design — distinct generating/failed indicator vs reusing advisory-alert-bar. Retargets the dashboard alert-bar e2e off the removed accumulate model."
@@ -20,7 +20,30 @@ out_of_scope:
 spec: docs/superpowers/specs/2026-06-05-dashboard-generating-failed-reflection-design.md
 plan: docs/superpowers/plans/2026-06-05-dashboard-generating-failed-reflection.md
 topic_memory: []
-validation_gate: null
+validation_gate: |
+  Shipped 2026-06-05 on branch worktree-dashboard-generating-failed-reflection
+  (commits d7c5b4aa..15609863). WS-4 of advisory-generating-failed-ux.
+  - Producer: advisory-bff deriveAdvisoryAggregate (single tenantId-index query →
+    inFlight/generating/failed/oldestGeneratingAt; replaced countInFlightDecisions),
+    projector writes all 4 on the atomic-__version AdvisoryStatus row.
+  - Consumer: dashboard-bff advisory-status.ts projects the 3 new fields (P3,
+    version-guarded, ?? defaults); schema AdvisoryStatus + AdvisoryStatusInput +
+    getDashboard resolver + dashboard-publisher selection/mapImage/whenChanged.
+  - dashboard-mfe: store derivation (advisoryGenerating/advisoryFailed + 6-min
+    staleness tick), presentational advisory-cycle-status banner (distinct from the
+    alert bar), container wiring, en-GB/it-IT i18n. setupComponentTest extended
+    (overrideTemplate:null → real-template render) — backward-compatible, shell:test
+    167/167.
+  - Pre-existing bug found + fixed (bea504fe): getDashboard returned a keyless {}
+    for a missing InvestorSnapshot → non-nullable updatedAt null → whole query
+    errored; guarded on .sk like portfolioSummary. Regression test deferred:
+    dashboard-getdashboard-missing-row-integration-test.
+  Validation: nx affected -t test,lint green (35 projects); advisory-bff +
+  dashboard-bff typecheck green; dashboard-mfe:build clean; dashboard-bff
+  integration 21/21 (incl. the generating/failed projection assertion); scoped
+  Playwright 'dashboard reflects generating, failed, then ready-to-review' 2x
+  consecutive green vs deployed dev. Deployed: advisory-bff, dashboard-bff
+  (+resolver fix), all 5 MFEs + host.
 ---
 
 # WS-4 — dashboard generating + failed reflection
