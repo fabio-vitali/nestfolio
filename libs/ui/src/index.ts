@@ -22,3 +22,7 @@ export { EmptyStateComponent } from './shared/empty-state/empty-state.component'
 export { LoadingSkeletonComponent } from './shared/loading-skeleton/loading-skeleton.component';
 export { ExpandableComponent } from './shared/expandable/expandable.component';
 export { AgentBadgeComponent } from './shared/agent-badge/agent-badge.component';
+
+// Shared - Advisory cycle state
+export { STALE_CYCLE_MS, deriveAdvisoryCycleState } from './shared/advisory/advisory-cycle-state';
+export type { AdvisoryCycleStateInput, AdvisoryCycleState } from './shared/advisory/advisory-cycle-state';
