@@ -133,15 +133,32 @@ export const DashboardStore = signalStore(
     simulationAdvantagePercent: computed(() => store.simulationSummary()?.returnDifferencePercent ?? 0),
   })),
   withMethods((store) => ({
-    setDashboard(data: DashboardData): void {
-      patchState(store, {
-        portfolioSummary: data.portfolioSummary,
-        advisoryStatus: data.advisoryStatus,
-        investorSnapshot: data.investorSnapshot,
-      });
+    // Live last-write-wins by `updatedAt`: drop a STRICTLY-older frame, never
+    // overwrite a live value with null. Equal timestamps still apply (idempotent
+    // last-write-wins, matching the prior unguarded behaviour). Lets the
+    // reconnect backfill snapshot coexist with a newer live frame.
+    setPortfolioSummary(incoming: PortfolioSummary | null): void {
+      if (!incoming) return;
+      const current = store.portfolioSummary();
+      if (current && incoming.updatedAt < current.updatedAt) return;
+      patchState(store, { portfolioSummary: incoming });
     },
-    setAdvisoryStatus(advisoryStatus: AdvisoryStatus | null): void {
-      patchState(store, { advisoryStatus });
+    setAdvisoryStatus(incoming: AdvisoryStatus | null): void {
+      if (!incoming) {
+        patchState(store, { advisoryStatus: null });
+        return;
+      }
+      const current = store.advisoryStatus();
+      if (current && incoming.updatedAt < current.updatedAt) return;
+      patchState(store, { advisoryStatus: incoming });
+    },
+    setDashboard(data: DashboardData): void {
+      // investorSnapshot has no live channel — apply directly. The two live
+      // surfaces go through the guarded setters so a (re-query) snapshot can't
+      // clobber a newer live frame.
+      patchState(store, { investorSnapshot: data.investorSnapshot });
+      this.setPortfolioSummary(data.portfolioSummary);
+      this.setAdvisoryStatus(data.advisoryStatus);
     },
     setNow(now: number): void {
       patchState(store, { now });

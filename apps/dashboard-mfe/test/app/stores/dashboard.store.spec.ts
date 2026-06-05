@@ -255,6 +255,49 @@ describe('DashboardStore', () => {
       expect(store.advisoryFailed()).toBe(false);
     });
   });
+
+  describe('live last-write-wins setters', () => {
+    const summaryAt = (updatedAt: string, totalValueCents = 1): PortfolioSummary => ({
+      totalValueCents, cashBalanceCents: 0, positionCount: 0, updatedAt,
+    });
+    const advisoryAt = (updatedAt: string, pendingDecisionsCount = 1): AdvisoryStatus => ({
+      pendingDecisionsCount, generatingCount: 0, failedCount: 0, oldestGeneratingAt: null, updatedAt,
+    });
+
+    it('setPortfolioSummary applies a newer frame', () => {
+      store.setPortfolioSummary(summaryAt('2026-03-01T00:00:00Z', 100));
+      store.setPortfolioSummary(summaryAt('2026-03-02T00:00:00Z', 200));
+      expect(store.portfolioSummary()?.totalValueCents).toBe(200);
+    });
+
+    it('setPortfolioSummary drops a strictly-older frame', () => {
+      store.setPortfolioSummary(summaryAt('2026-03-02T00:00:00Z', 200));
+      store.setPortfolioSummary(summaryAt('2026-03-01T00:00:00Z', 100)); // older
+      expect(store.portfolioSummary()?.totalValueCents).toBe(200);
+    });
+
+    it('setPortfolioSummary never clobbers a live value with null', () => {
+      store.setPortfolioSummary(summaryAt('2026-03-02T00:00:00Z', 200));
+      store.setPortfolioSummary(null);
+      expect(store.portfolioSummary()?.totalValueCents).toBe(200);
+    });
+
+    it('setAdvisoryStatus drops a strictly-older frame', () => {
+      store.setAdvisoryStatus(advisoryAt('2026-03-02T00:00:00Z', 5));
+      store.setAdvisoryStatus(advisoryAt('2026-03-01T00:00:00Z', 1)); // older
+      expect(store.advisoryStatus()?.pendingDecisionsCount).toBe(5);
+    });
+
+    it('setDashboard does not clobber a newer live portfolioSummary with an older snapshot', () => {
+      store.setPortfolioSummary(summaryAt('2026-03-02T00:00:00Z', 200)); // live frame
+      store.setDashboard({
+        portfolioSummary: summaryAt('2026-03-01T00:00:00Z', 100), // older backfill snapshot
+        advisoryStatus: null,
+        investorSnapshot: null,
+      });
+      expect(store.portfolioSummary()?.totalValueCents).toBe(200);
+    });
+  });
 });
 
 function entry(id: string, ts = '2026-05-28T00:00:00Z'): ActivityEntry {
