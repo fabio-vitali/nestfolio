@@ -26,3 +26,7 @@ export { AgentBadgeComponent } from './shared/agent-badge/agent-badge.component'
 // Shared - Advisory cycle state
 export { STALE_CYCLE_MS, deriveAdvisoryCycleState } from './shared/advisory/advisory-cycle-state';
 export type { AdvisoryCycleStateInput, AdvisoryCycleState } from './shared/advisory/advisory-cycle-state';
+
+// Shared - Realtime transport
+export { subscribeThenReconcile } from './shared/realtime/subscribe-then-reconcile';
+export type { SubscribeThenReconcileOptions } from './shared/realtime/subscribe-then-reconcile';
