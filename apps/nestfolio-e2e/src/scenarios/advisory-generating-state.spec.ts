@@ -4,8 +4,10 @@ import {
   injectDecisionCycleStarted,
   injectDecisionCycleFailed,
   injectDecisionPacketCreated,
+  injectAdvisoryStatusUpdated,
 } from '../fixtures/inject-advisory-update';
 import { waitForAdvisoryDecisionRow } from '../fixtures/wait-for-advisory-projection';
+import { waitForDashboardAdvisoryStatus } from '../fixtures/wait-for-dashboard-advisory';
 
 test.describe('advisory generating + failed state', () => {
   /**
@@ -75,12 +77,49 @@ test.describe('advisory generating + failed state', () => {
   });
 
   /**
-   * Dashboard alert-bar coverage is retargeted off the removed accumulate model
-   * by WS-4 (dashboard-generating-failed-reflection). Skipped here so this file
-   * stays green until WS-4 rewrites it against the reachable
-   * ADVISORY_STATUS_UPDATED → pendingDecisionsCount path.
+   * Dashboard reflects the cycle: a fresh GENERATING aggregate shows the dashboard
+   * generating banner (deterministic on-mount query after the row exists); a FAILED
+   * announcement flips it to the failed banner live via onDashboardUpdate; a
+   * pendingDecisionsCount announcement then shows the "ready to review" alert bar
+   * (the reachable path the removed accumulate test was rewritten onto).
+   * UI-only assertions (per the e2e charter); versions strictly increase.
    */
-  test.skip('dashboard alert bar appears at trigger time via subscription', async () => {
-    // Intentionally skipped — see WS-4 dashboard-generating-failed-reflection.
+  test('dashboard reflects generating, failed, then ready-to-review', async ({
+    ctx,
+    tenant,
+    onboardedPage,
+  }) => {
+    // GENERATING: project the row first, then load so the on-mount query returns it.
+    await injectAdvisoryStatusUpdated(ctx, tenant, {
+      generatingCount: 1,
+      oldestGeneratingAt: new Date().toISOString(),
+      version: 1,
+    });
+    await waitForDashboardAdvisoryStatus(ctx, tenant, (s) => s.generatingCount >= 1, {
+      timeoutMs: 60_000,
+    });
+
+    await onboardedPage.goto('/dashboard');
+    await expect(
+      onboardedPage.locator('[data-testid=dashboard-advisory-generating]'),
+    ).toBeVisible({ timeout: 15_000 });
+
+    // FAILED arrives while mounted → delivered live by the WSS subscription.
+    await injectAdvisoryStatusUpdated(ctx, tenant, { failedCount: 1, version: 2 });
+    await expect(
+      onboardedPage.locator('[data-testid=dashboard-advisory-failed]'),
+    ).toBeVisible({ timeout: 30_000 });
+    await expect(
+      onboardedPage.locator('[data-testid=dashboard-advisory-generating]'),
+    ).toBeHidden();
+
+    // Decisions become ready to review → the alert bar (failed banner clears).
+    await injectAdvisoryStatusUpdated(ctx, tenant, { pendingDecisionsCount: 2, version: 3 });
+    await expect(
+      onboardedPage.locator('[data-testid=advisory-alert-bar]'),
+    ).toBeVisible({ timeout: 30_000 });
+    await expect(
+      onboardedPage.locator('[data-testid=dashboard-advisory-failed]'),
+    ).toBeHidden();
   });
 });
