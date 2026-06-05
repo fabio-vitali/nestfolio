@@ -1,11 +1,15 @@
 ---
 id: dashboard-live-push-portfolio-summary
-status: queued
+status: active
 rank: 1
 type: bug
-notes: "TRANSPORT-ONLY, now unblocked (2026-06-05): live-push broadcast for PortfolioSummary KPI cards. The materialization half is DONE — bff-read-model-materialization-redesign (all 7 WS) shipped, so portfolio-summary.ts now writes cashBalanceCents/positionCount atomically with no accumulate double-count. Only the AppSync broadcast transport remains; the Dashboard.portfolioSummary schema field + a portfolioSummary:null resolver stub already exist (half-wired)."
+notes: "TRANSPORT-ONLY, now unblocked (2026-06-05): live-push broadcast for PortfolioSummary KPI cards. The materialization half is DONE — bff-read-model-materialization-redesign (all 7 WS) shipped, so portfolio-summary.ts now writes cashBalanceCents/positionCount atomically with no accumulate double-count. Only the AppSync broadcast transport remains; the Dashboard.portfolioSummary schema field + a portfolioSummary:null resolver stub already exist (half-wired). Adopted ACTIVE 2026-06-05: scope = PortfolioSummary only (rank-2 PositionSnapshot stays separate); extract a shared @nestfolio/ui subscribe-then-reconcile helper now (refactor the Activity channel onto it + use for the PortfolioSummary/dashboard channel = 2 callers across keyed-collection + scalar shapes)."
 references: []
-out_of_scope: []
+out_of_scope:
+  - "PositionSnapshot live-push (rank-2 dashboard-live-push-position-snapshots) — stays a separate workstream; it is greenfield (new onPositionUpdate channel + PositionBroadcast mutation + dedupe-by-symbol client merge). It becomes a trivial 3rd caller of the helper extracted here."
+  - "Any new subscription channel for PortfolioSummary — per Approach A it rides the EXISTING onDashboardUpdate / Dashboard channel; no new GraphQL Subscription field is added."
+  - "PortfolioSummary read-model materialization — already shipped (portfolio-summary.ts projectVersioned, bff-read-model-materialization-redesign). This workstream is transport-only."
+  - "investorSnapshot live-push on the Dashboard channel — out of scope; only portfolioSummary (new) + advisoryStatus (LWW-guard added) are wired this round."
 spec: null
 plan: null
 topic_memory: []
@@ -79,3 +83,27 @@ forward when reactivated, do not re-litigate):
   `publishDashboardUpdate`; `publish-dashboard-update.fn.js` already returns a
   hardcoded `portfolioSummary: null` ready to wire; add a `PortfolioSummary`
   entry to the `dashboard-publisher.ts` broadcasts map.
+
+## Out of scope (adopted ACTIVE 2026-06-05)
+
+Two scope/architecture decisions taken at adoption (AskUserQuestion, reusability-weighted):
+
+1. **Scope = PortfolioSummary only.** Rank-2 `dashboard-live-push-position-snapshots`
+   stays a separate workstream. It is greenfield (new `onPositionUpdate` channel +
+   `PositionBroadcast` mutation + dedupe-by-symbol client merge) and would ~2x this
+   workstream. It becomes a trivial 3rd caller of the helper extracted here.
+2. **Extract the shared `subscribe-then-reconcile` helper NOW** (resolving the body's
+   internal tension between "route through the shared helper" and "extract at the
+   3-surface rule-of-three"). The helper lands with **2 callers across both state
+   shapes** — Activity (keyed collection, refactored onto it) + PortfolioSummary
+   (scalar) — which already proves generality without waiting for PositionSnapshot.
+   This serves the reusable-patterns-primary mandate (CLAUDE.md § Hard Constraints).
+
+Explicitly NOT in this workstream:
+
+- PositionSnapshot live-push and any new GraphQL subscription channel — PortfolioSummary
+  rides the existing `onDashboardUpdate` / `Dashboard` channel (Approach A).
+- PortfolioSummary read-model materialization — already shipped (transport-only here).
+- `investorSnapshot` live-push — only `portfolioSummary` (new) + `advisoryStatus`
+  (LWW-guard added so the helper's reconnect re-query can't clobber a newer live frame)
+  are wired on the Dashboard channel this round.
