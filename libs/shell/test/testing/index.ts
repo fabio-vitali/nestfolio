@@ -23,21 +23,34 @@ export async function setupComponentTest<T>(
   config: {
     providers?: Provider[];
     imports?: any[];
-    overrideTemplate?: string;
+    /**
+     * Provide a template string to replace the component template in the test.
+     * Defaults to `'<div>test</div>'` (stub) for backward compatibility.
+     * Pass `null` to render the component's REAL template (use when the test
+     * needs to assert on rendered DOM elements).
+     */
+    overrideTemplate?: string | null;
   } = {},
 ): Promise<ComponentFixture<T>> {
-  await TestBed.configureTestingModule({
+  const module = TestBed.configureTestingModule({
     imports: [component, ...(config.imports ?? [])],
     providers: config.providers ?? [],
-  })
-    .overrideComponent(component, {
+  });
+
+  const templateOverride =
+    config.overrideTemplate === undefined ? '<div>test</div>' : config.overrideTemplate;
+
+  if (templateOverride !== null) {
+    module.overrideComponent(component, {
       set: {
-        template: config.overrideTemplate ?? '<div>test</div>',
+        template: templateOverride,
         imports: [],
         styles: [],
       },
-    })
-    .compileComponents();
+    });
+  }
+
+  await module.compileComponents();
 
   return TestBed.createComponent(component);
 }
