@@ -74,8 +74,9 @@ export class DashboardService {
 
   /**
    * Live updates: dashboard-bff fires `publishDashboardUpdate` IAM-signed from
-   * a DDB-stream-driven Lambda whenever `AdvisoryStatus` mutates. The
-   * subscription's `tenantId` argument matches the mutation's `tenantId`
+   * a DDB-stream-driven Lambda whenever the `AdvisoryStatus` or `PortfolioSummary`
+   * row mutates (each broadcast carries only its own surface; the other is null).
+   * The subscription's `tenantId` argument matches the mutation's `tenantId`
    * argument, so AppSync only delivers frames for the current tenant.
    */
   subscribeToDashboardUpdates(
