@@ -41,19 +41,30 @@ function streamEvent(record: {
 describe('dashboard-publisher', () => {
   beforeEach(() => (postAppSyncMutation as jest.Mock).mockReset().mockResolvedValue(undefined));
 
-  it('broadcasts publishDashboardUpdate when AdvisoryStatus row changes (MODIFY)', async () => {
+  it('broadcasts publishDashboardUpdate with the full advisory aggregate (MODIFY)', async () => {
     await handler(streamEvent({
       eventName: 'MODIFY',
-      oldImage: { pk: 'T#tenant1', sk: 'AdvisoryStatus', pendingDecisionsCount: 1, updatedAt: '2026-05-01T00:00:00Z' },
-      newImage: { pk: 'T#tenant1', sk: 'AdvisoryStatus', pendingDecisionsCount: 2, updatedAt: '2026-05-01T12:00:00Z' },
+      oldImage: { pk: 'T#tenant1', sk: 'AdvisoryStatus', pendingDecisionsCount: 1, generatingCount: 0, failedCount: 0, updatedAt: '2026-05-01T00:00:00Z' },
+      newImage: { pk: 'T#tenant1', sk: 'AdvisoryStatus', pendingDecisionsCount: 2, generatingCount: 0, failedCount: 0, updatedAt: '2026-05-01T12:00:00Z' },
     }), {} as never, () => {});
     expect(postAppSyncMutation).toHaveBeenCalledTimes(1);
     const call = (postAppSyncMutation as jest.Mock).mock.calls[0][0];
     expect(call.variables).toMatchObject({
       tenantId: 'tenant1',
-      advisoryStatus: {
-        pendingDecisionsCount: 2,
-      },
+      advisoryStatus: { pendingDecisionsCount: 2, generatingCount: 0, failedCount: 0 },
+    });
+  });
+
+  it('broadcasts when only generatingCount changes (cycle start, pending unchanged)', async () => {
+    await handler(streamEvent({
+      eventName: 'MODIFY',
+      oldImage: { pk: 'T#tenant1', sk: 'AdvisoryStatus', pendingDecisionsCount: 0, generatingCount: 0, failedCount: 0, updatedAt: '2026-05-01T00:00:00Z' },
+      newImage: { pk: 'T#tenant1', sk: 'AdvisoryStatus', pendingDecisionsCount: 0, generatingCount: 1, failedCount: 0, oldestGeneratingAt: '2026-05-01T00:05:00Z', updatedAt: '2026-05-01T00:05:00Z' },
+    }), {} as never, () => {});
+    expect(postAppSyncMutation).toHaveBeenCalledTimes(1);
+    const call = (postAppSyncMutation as jest.Mock).mock.calls[0][0];
+    expect(call.variables.advisoryStatus).toMatchObject({
+      generatingCount: 1, oldestGeneratingAt: '2026-05-01T00:05:00Z',
     });
   });
 
@@ -75,7 +86,7 @@ describe('dashboard-publisher', () => {
     const call = (postAppSyncMutation as jest.Mock).mock.calls[0][0];
     expect(call.variables).toMatchObject({
       tenantId: 'tenant1',
-      advisoryStatus: { pendingDecisionsCount: 0 },
+      advisoryStatus: { pendingDecisionsCount: 0, generatingCount: 0, failedCount: 0, oldestGeneratingAt: null },
     });
   });
 

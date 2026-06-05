@@ -10,6 +10,9 @@ const PUBLISH_DASHBOARD_UPDATE = `
       tenantId
       advisoryStatus {
         pendingDecisionsCount
+        generatingCount
+        failedCount
+        oldestGeneratingAt
         updatedAt
       }
     }
@@ -46,13 +49,16 @@ export const handler = broadcastFromStream({
       // skipInsert default false — first AdvisoryStatus materialisation also
       // broadcasts (matches pre-migration semantics: the prior handler fired on
       // both INSERT and MODIFY without a change-gate).
-      whenChanged: ['pendingDecisionsCount'],
+      whenChanged: ['pendingDecisionsCount', 'generatingCount', 'failedCount', 'oldestGeneratingAt'],
       mapImage: (item) => {
         const tenantId = String(item['pk'] ?? '').slice(2); // 'T#<tenantId>' → '<tenantId>'
         return {
           tenantId,
           advisoryStatus: {
             pendingDecisionsCount: Number(item['pendingDecisionsCount'] ?? 0),
+            generatingCount: Number(item['generatingCount'] ?? 0),
+            failedCount: Number(item['failedCount'] ?? 0),
+            oldestGeneratingAt: item['oldestGeneratingAt'] != null ? String(item['oldestGeneratingAt']) : null,
             updatedAt: String(item['updatedAt'] ?? new Date().toISOString()),
           },
         };

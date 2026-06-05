@@ -29,6 +29,9 @@ export function response(ctx) {
   const rawAs = items[1];
   const advisoryStatus = rawAs ? {
     pendingDecisionsCount: rawAs.pendingDecisionsCount || 0,
+    generatingCount: rawAs.generatingCount || 0,
+    failedCount: rawAs.failedCount || 0,
+    oldestGeneratingAt: rawAs.oldestGeneratingAt ?? null,
     updatedAt: rawAs.updatedAt || util.time.nowISO8601(),
   } : null;
   return {
