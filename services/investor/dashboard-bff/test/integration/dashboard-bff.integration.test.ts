@@ -755,12 +755,15 @@ describe('dashboard-bff', () => {
   // version-guarded on `__version`: an idempotent overwrite, NOT an accumulate.
 
   describe('AdvisoryStatus pendingDecisionsCount (P3 projection)', () => {
-    it('projects the announced aggregate (inFlightCount → pendingDecisionsCount)', async () => {
+    it('projects the announced aggregate (counts + oldest generating)', async () => {
       await eb.putEvent({
         bus: 'investor',
         targetService: 'dashboard-bff',
         detailType: 'ADVISORY_STATUS_UPDATED',
-        detail: { tenantId: ctx.tenantId, inFlightCount: 3, __version: 1_000 },
+        detail: {
+          tenantId: ctx.tenantId, inFlightCount: 3, generatingCount: 1, failedCount: 0,
+          oldestGeneratingAt: '2026-06-05T09:00:00.000Z', __version: 1_000,
+        },
       });
 
       const item = await table.waitForItem({
@@ -774,6 +777,9 @@ describe('dashboard-bff', () => {
       expect(item['__typename']).toBe('AdvisoryStatus');
       expect(item['tenantId']).toBe(ctx.tenantId);
       expect(item['pendingDecisionsCount']).toBe(3);
+      expect(item['generatingCount']).toBe(1);
+      expect(item['failedCount']).toBe(0);
+      expect(item['oldestGeneratingAt']).toBe('2026-06-05T09:00:00.000Z');
       expect(item['__version']).toBe(1_000);
     }, 120_000);
 
