@@ -5,10 +5,12 @@ import { DynamoDBDocumentClient } from '@aws-sdk/lib-dynamodb';
 
 const ddbMock = mockClient(DynamoDBDocumentClient);
 
-const countMock = jest.fn<Promise<number>, [string]>();
+const aggregateMock = jest.fn<Promise<{
+  inFlightCount: number; generatingCount: number; failedCount: number; oldestGeneratingAt: string | null;
+}>, [string]>();
 jest.mock('../../../src/repositories/advisory.repository', () => ({
   AdvisoryRepository: jest.fn().mockImplementation(() => ({
-    countInFlightDecisions: countMock,
+    deriveAdvisoryAggregate: aggregateMock,
   })),
 }));
 
@@ -31,19 +33,18 @@ describe('advisory-status-projector', () => {
   beforeEach(() => {
     ddbMock.reset();
     ddbMock.onAnyCommand().resolves({});
-    countMock.mockReset();
+    aggregateMock.mockReset();
   });
 
-  it('recomputes AdvisoryStatus via an atomic __version self-increment (UpdateCommand)', async () => {
-    countMock.mockResolvedValue(3);
+  it('recomputes AdvisoryStatus (4 fields) via an atomic __version self-increment', async () => {
+    aggregateMock.mockResolvedValue({
+      inFlightCount: 3, generatingCount: 1, failedCount: 0,
+      oldestGeneratingAt: '2026-06-05T09:00:00.000Z',
+    });
 
     await handler(streamEvent([{ __typename: 'DecisionReadModel', tenantId: 't1', pk: 'Decision#t1#d1' }]));
 
-    expect(countMock).toHaveBeenCalledWith('t1');
-    // The write is an UpdateCommand (update intent), NOT a PutItem — match by Key.sk.
-    // (commandCalls(UpdateCommand) fails the instanceof identity check across
-    // event-processor's duplicate @aws-sdk/lib-dynamodb copy, so match over raw calls.
-    // See feedback_worktree_symlink_masks_test_failures.)
+    expect(aggregateMock).toHaveBeenCalledWith('t1');
     type UpdateInput = {
       Key?: Record<string, unknown>;
       UpdateExpression?: string;
@@ -55,29 +56,30 @@ describe('advisory-status-projector', () => {
     expect(call).toBeDefined();
     const input = call!.args[0].input;
     expect(input.Key!.pk).toBe('T#t1');
-    // Recomputed inFlightCount written via SET.
-    expect(Object.values(input.ExpressionAttributeNames!)).toContain('inFlightCount');
-    expect(Object.values(input.ExpressionAttributeValues!)).toContain(3);
-    // REGRESSION (the fix): __version is bumped via an atomic ADD self-increment,
-    // NOT a precomputed Date.now() version on a projectVersioned PutItem.
-    expect(Object.values(input.ExpressionAttributeNames!)).toContain('__version');
+    const names = Object.values(input.ExpressionAttributeNames!);
+    expect(names).toEqual(expect.arrayContaining([
+      'inFlightCount', 'generatingCount', 'failedCount', 'oldestGeneratingAt', '__version',
+    ]));
+    const values = Object.values(input.ExpressionAttributeValues!);
+    expect(values).toEqual(expect.arrayContaining([3, 1, 0, '2026-06-05T09:00:00.000Z']));
+    // __version is bumped via an atomic ADD self-increment, NOT a Date.now() PutItem.
     expect(input.UpdateExpression).toMatch(/\bADD\b/);
   });
 
   it('ignores AdvisoryStatus records (no recompute loop)', async () => {
     await handler(streamEvent([{ __typename: 'AdvisoryStatus', tenantId: 't1', pk: 'T#t1' }]));
 
-    expect(countMock).not.toHaveBeenCalled();
+    expect(aggregateMock).not.toHaveBeenCalled();
   });
 
   it('recomputes once per tenant even with multiple DecisionReadModel records', async () => {
-    countMock.mockResolvedValue(1);
+    aggregateMock.mockResolvedValue({ inFlightCount: 1, generatingCount: 0, failedCount: 0, oldestGeneratingAt: null });
 
     await handler(streamEvent([
       { __typename: 'DecisionReadModel', tenantId: 't1', pk: 'Decision#t1#d1' },
       { __typename: 'DecisionReadModel', tenantId: 't1', pk: 'Decision#t1#d2' },
     ]));
 
-    expect(countMock).toHaveBeenCalledTimes(1);
+    expect(aggregateMock).toHaveBeenCalledTimes(1);
   });
 });

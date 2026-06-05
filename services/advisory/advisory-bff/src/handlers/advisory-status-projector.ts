@@ -14,10 +14,11 @@ const repo = new AdvisoryRepository(TABLE, ddbClient);
 const executor = new IntentExecutor({ docClient, tableName: TABLE });
 
 // AdvisoryStatus is advisory-bff's OWN command-owned derived aggregate.
-// `inFlightCount` is RECOMPUTED post-commit by counting this tenant's
-// non-terminal DecisionReadModel rows (a pure function of the projected rows),
-// then written with an atomic self-increment of `__version` via
-// `update(..., { add: { __version: 1 } })`. The loop guard (skip AdvisoryStatus
+// The aggregate (inFlightCount/generatingCount/failedCount/oldestGeneratingAt) is
+// RECOMPUTED post-commit by deriveAdvisoryAggregate (one query over this tenant's
+// non-terminal DecisionReadModel rows), then written with an atomic self-increment
+// of __version via update(..., { add: { __version: 1 } }).
+// The loop guard (skip AdvisoryStatus
 // records) prevents the projector's own writes from re-triggering a recompute.
 //
 // VERSION = atomic counter (ADD #__version :1), NOT wall clock. A prior version
@@ -45,11 +46,10 @@ export const handler = async (event: DynamoDBStreamEvent): Promise<void> => {
   }
 
   for (const tenantId of tenants) {
-    const inFlightCount = await repo.countInFlightDecisions(tenantId);
-    // System-originated recompute: no end-user request context. The
-    // RequestContext fields are required by EventContext; supply system
-    // sentinels — pickRequestContext copies them onto the AdvisoryStatus row
-    // (harmless: the row is keyed/queried by pk/tenantId, never by userId).
+    const { inFlightCount, generatingCount, failedCount, oldestGeneratingAt } =
+      await repo.deriveAdvisoryAggregate(tenantId);
+    // System-originated recompute: no end-user request context. RequestContext
+    // sentinels are copied onto the row (harmless — keyed/queried by pk/tenantId).
     const ctx: EventContext = {
       tenantId: asTenantId(tenantId),
       userId: asUserId('system'),
@@ -61,10 +61,9 @@ export const handler = async (event: DynamoDBStreamEvent): Promise<void> => {
       record: {},
     };
     await executor.execute(
-      update('AdvisoryStatus', { tenantId, inFlightCount }, {
-        add: { __version: 1 },
-        overrides: { pk: `T#${tenantId}`, sk: 'AdvisoryStatus' },
-      }),
+      update('AdvisoryStatus',
+        { tenantId, inFlightCount, generatingCount, failedCount, oldestGeneratingAt },
+        { add: { __version: 1 }, overrides: { pk: `T#${tenantId}`, sk: 'AdvisoryStatus' } }),
       ctx,
     );
   }
