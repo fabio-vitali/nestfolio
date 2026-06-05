@@ -75,32 +75,53 @@ dashboard-mfe advisory-cycle-status component (distinct banner) + client stalene
 ## 3. advisory-bff changes (producer aggregate)
 
 ### 3.1 Repository — `src/repositories/advisory.repository.ts`
-Add a derivation method alongside `countInFlightDecisions` (leave that one as-is):
+**Replace** the COUNT-only `countInFlightDecisions` with a single consolidated
+derivation that reads this tenant's non-terminal rows **once** and computes every
+aggregate signal in one pass:
 
 ```ts
-/** Cycle-lifecycle signals for the AdvisoryStatus aggregate. Queries this tenant's
- *  GENERATING/FAILED DecisionReadModel rows (status + createdAt only), paginating. */
-readonly deriveCycleSignals = this.log('deriveCycleSignals', async (
+/** Non-terminal statuses that participate in the AdvisoryStatus aggregate. */
+static readonly IN_FLIGHT_STATUSES = ['PENDING', 'AWAITING_CONFIRMATION'] as const;
+static readonly CYCLE_STATUSES = ['GENERATING', 'FAILED'] as const;
+static readonly AGGREGATE_STATUSES = [
+  ...AdvisoryRepository.IN_FLIGHT_STATUSES,
+  ...AdvisoryRepository.CYCLE_STATUSES,
+] as const;
+
+/** Derive the full AdvisoryStatus aggregate for a tenant in ONE query. */
+readonly deriveAdvisoryAggregate = this.log('deriveAdvisoryAggregate', async (
   tenantId: string,
-): Promise<{ generatingCount: number; failedCount: number; oldestGeneratingAt: string | null }> => {
-  // tenantId-index Query, KeyCondition tenantId + __typename='DecisionReadModel',
-  // FilterExpression #status IN ('GENERATING','FAILED'),
+): Promise<{
+  inFlightCount: number; generatingCount: number; failedCount: number;
+  oldestGeneratingAt: string | null;
+}> => {
+  // ONE tenantId-index Query, KeyCondition tenantId + __typename='DecisionReadModel',
+  // FilterExpression #status IN (AGGREGATE_STATUSES),
   // ProjectionExpression '#status, createdAt', paginated over LastEvaluatedKey.
-  // Tally generatingCount / failedCount; oldestGeneratingAt = min(createdAt) over GENERATING.
+  // Single-pass tally:
+  //   inFlightCount      = # PENDING + AWAITING_CONFIRMATION
+  //   generatingCount    = # GENERATING
+  //   failedCount        = # FAILED
+  //   oldestGeneratingAt = min(createdAt) over GENERATING rows, else null
 });
 ```
 
-The GENERATING/FAILED row cardinality per tenant is tiny (≤ a handful), so loading
-their `status`+`createdAt` is cheaper than three separate `Select: COUNT` passes.
+`countInFlightDecisions` is **removed** — its only caller was the projector (verified:
+the rest are its own unit tests); the no-deprecation rule makes the breaking swap
+free on dev. This is cleaner (one method, not three COUNT passes), more performant
+(one round-trip per page instead of a separate COUNT scan), and the single method is
+the reusable "advisory aggregate derivation" surface. Projecting only
+`status`+`createdAt` keeps each row tiny; non-terminal cardinality per tenant is a
+handful, so one page is the norm. The named status constants keep the filter and the
+tally in sync.
 
 ### 3.2 Projector — `src/handlers/advisory-status-projector.ts`
-In the per-tenant recompute loop, call `deriveCycleSignals(tenantId)` alongside
-`countInFlightDecisions(tenantId)` and write all four fields in the existing
-`update('AdvisoryStatus', …, { add: { __version: 1 } })`:
+In the per-tenant recompute loop, call the single derivation and write all four fields
+in the existing atomic update:
 
 ```ts
-const inFlightCount = await repo.countInFlightDecisions(tenantId);
-const { generatingCount, failedCount, oldestGeneratingAt } = await repo.deriveCycleSignals(tenantId);
+const { inFlightCount, generatingCount, failedCount, oldestGeneratingAt } =
+  await repo.deriveAdvisoryAggregate(tenantId);
 await executor.execute(
   update('AdvisoryStatus',
     { tenantId, inFlightCount, generatingCount, failedCount, oldestGeneratingAt },
@@ -251,9 +272,14 @@ injection in order.
 ## 7. Testing
 
 ### 7.1 advisory-bff unit
-- `deriveCycleSignals`: GENERATING rows → `generatingCount` + `oldestGeneratingAt` =
-  earliest; FAILED rows → `failedCount`; no cycle rows → `{0, 0, null}`.
-- projector recompute: writes the four fields with the atomic `__version` increment.
+- `deriveAdvisoryAggregate` (replaces the `countInFlightDecisions` tests in
+  `test/unit/advisory.repository.test.ts`): mixed-status fixture → correct
+  `inFlightCount` (PENDING+AWAITING_CONFIRMATION), `generatingCount`, `failedCount`,
+  and `oldestGeneratingAt` = earliest GENERATING `createdAt`; no non-terminal rows →
+  `{0, 0, 0, null}`; pagination over `LastEvaluatedKey` tallies across pages.
+- projector recompute (`test/unit/handlers/advisory-status-projector.test.ts`): swap
+  the mock from `countInFlightDecisions` to `deriveAdvisoryAggregate`; assert the four
+  fields are written with the atomic `__version` increment.
 
 ### 7.2 dashboard-bff
 - `advisory-status.ts` transform unit: maps the new subject fields; `?? 0`/`?? null`
