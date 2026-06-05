@@ -11,7 +11,7 @@ out_of_scope:
   - "PortfolioSummary read-model materialization — already shipped (portfolio-summary.ts projectVersioned, bff-read-model-materialization-redesign). This workstream is transport-only."
   - "investorSnapshot live-push on the Dashboard channel — out of scope; only portfolioSummary (new) + advisoryStatus (LWW-guard added) are wired this round."
 spec: null
-plan: null
+plan: docs/superpowers/plans/2026-06-05-dashboard-live-push-portfolio-summary.md
 topic_memory: []
 validation_gate: null
 ---
