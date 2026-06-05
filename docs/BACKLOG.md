@@ -6,13 +6,11 @@
 
 ## ACTIVE
 
-_(none)_
-
+- [dashboard-live-push-portfolio-summary](backlog/dashboard-live-push-portfolio-summary.md) [bug] — TRANSPORT-ONLY, now unblocked (2026-06-05): live-push broadcast for PortfolioSummary KPI cards. The materialization half is DONE — bff-read-model-materialization-redesign (all 7 WS) shipped, so portfolio-summary.ts now writes cashBalanceCents/positionCount atomically with no accumulate double-count. Only the AppSync broadcast transport remains; the Dashboard.portfolioSummary schema field + a portfolioSummary:null resolver stub already exist (half-wired). Adopted ACTIVE 2026-06-05: scope = PortfolioSummary only (rank-2 PositionSnapshot stays separate); extract a shared @nestfolio/ui subscribe-then-reconcile helper now (refactor the Activity channel onto it + use for the PortfolioSummary/dashboard channel = 2 callers across keyed-collection + scalar shapes).
 
 ## QUEUED
 
-1. [dashboard-live-push-portfolio-summary](backlog/dashboard-live-push-portfolio-summary.md) [bug] — TRANSPORT-ONLY, now unblocked (2026-06-05): live-push broadcast for PortfolioSummary KPI cards. The materialization half is DONE — bff-read-model-materialization-redesign (all 7 WS) shipped, so portfolio-summary.ts now writes cashBalanceCents/positionCount atomically with no accumulate double-count. Only the AppSync broadcast transport remains; the Dashboard.portfolioSummary schema field + a portfolioSummary:null resolver stub already exist (half-wired).
-2. [dashboard-live-push-position-snapshots](backlog/dashboard-live-push-position-snapshots.md) [bug] — TRANSPORT-ONLY, now unblocked (2026-06-05): live-push broadcast for the holdings list. Position-row materialization is DONE — bff-read-model-materialization-redesign shipped, so position-snapshot.ts materializes each holding via projectVersioned. Only transport remains; fully greenfield (no publishPositionUpdate/onPositionUpdate/PositionBroadcast/client-merge yet). Paired with dashboard-live-push-portfolio-summary (rank 1).
+1. [dashboard-live-push-position-snapshots](backlog/dashboard-live-push-position-snapshots.md) [bug] — TRANSPORT-ONLY, now unblocked (2026-06-05): live-push broadcast for the holdings list. Position-row materialization is DONE — bff-read-model-materialization-redesign shipped, so position-snapshot.ts materializes each holding via projectVersioned. Only transport remains; fully greenfield (no publishPositionUpdate/onPositionUpdate/PositionBroadcast/client-merge yet). Paired with dashboard-live-push-portfolio-summary (rank 1).
 
 ## LATER
 
