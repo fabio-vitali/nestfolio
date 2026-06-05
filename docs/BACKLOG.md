@@ -6,12 +6,12 @@
 
 ## ACTIVE
 
-_(none)_
-
+- [dashboard-generating-failed-reflection](backlog/dashboard-generating-failed-reflection.md) [feature] — WS-4 of advisory-generating-failed-ux: the dashboard reflects generating + failed decision cycles (consistent feedback with /advisory). Opens with a small UX sub-design — distinct generating/failed indicator vs reusing advisory-alert-bar. Retargets the dashboard alert-bar e2e off the removed accumulate model.
 
 ## QUEUED
 
-1. [dashboard-generating-failed-reflection](backlog/dashboard-generating-failed-reflection.md) [feature] — WS-4 of advisory-generating-failed-ux: the dashboard reflects generating + failed decision cycles (consistent feedback with /advisory). Opens with a small UX sub-design — distinct generating/failed indicator vs reusing advisory-alert-bar. Retargets the dashboard alert-bar e2e off the removed accumulate model.
+_(none)_
+
 
 ## LATER
 
