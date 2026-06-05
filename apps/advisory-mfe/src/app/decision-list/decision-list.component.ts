@@ -5,6 +5,8 @@ import {
   EmptyStateComponent,
   LoadingSkeletonComponent,
   StatusBadgeComponent,
+  deriveAdvisoryCycleState,
+  type AdvisoryCycleStateInput,
 } from '@nestfolio/ui';
 import { I18nService } from '@nestfolio/shell/i18n';
 import { AuthStore, parseError } from '@nestfolio/shell';
@@ -173,19 +175,7 @@ export class DecisionListComponent implements OnInit, OnDestroy {
   readonly now = signal<number>(Date.now());
   private tickHandle: ReturnType<typeof setInterval> | null = null;
 
-  // A GENERATING row older than this (with no STARTED→PENDING/FAILED transition)
-  // renders as failed. Derived from AGENT_BUDGETS (PORTFOLIO_ENGINE 120s +
-  // ADVISORY_NARRATIVE 120s = 240s sequential) + ~2 min margin for
-  // ParallelProjections + AssemblePacket + EB→SQS→CDC propagation + clock skew.
-  // Covers uncatchable States.Runtime failures that emit no DECISION_CYCLE_FAILED.
-  static readonly STALE_CYCLE_MS = 6 * 60 * 1000;
   private static readonly TICK_MS = 30 * 1000;
-
-  private isStaleGenerating(d: PendingDecisionListItem): boolean {
-    if (d.status !== 'GENERATING') return false;
-    const ageMs = this.now() - new Date(d.createdAt).getTime();
-    return ageMs >= DecisionListComponent.STALE_CYCLE_MS;
-  }
 
   /** Rows that represent an actual decision — everything that is not a
    *  cycle-lifecycle placeholder. These are the only rows shown in the list. */
@@ -193,19 +183,32 @@ export class DecisionListComponent implements OnInit, OnDestroy {
     this.decisions().filter((d) => d.status !== 'GENERATING' && d.status !== 'FAILED'),
   );
 
+  // Folds the per-row decision list down to the aggregate shape shared with the
+  // dashboard surface; the 6-minute staleness ceiling itself lives once in
+  // @nestfolio/ui (deriveAdvisoryCycleState). `oldestGeneratingAt` is the
+  // earliest in-flight GENERATING row — the one most likely to have gone stale.
+  private readonly cycleInput = computed<AdvisoryCycleStateInput>(() => {
+    const generatingRows = this.decisions().filter((d) => d.status === 'GENERATING');
+    const oldestGeneratingAt = generatingRows.reduce<string | null>(
+      (oldest, d) =>
+        oldest === null || Date.parse(d.createdAt) < Date.parse(oldest) ? d.createdAt : oldest,
+      null,
+    );
+    return {
+      generatingCount: generatingRows.length,
+      failedCount: this.decisions().filter((d) => d.status === 'FAILED').length,
+      oldestGeneratingAt,
+      pendingDecisionsCount: this.realDecisions().length,
+      now: this.now(),
+    };
+  });
+
   /** True when a cycle is actively generating (a fresh, non-stale GENERATING row). */
-  readonly generating = computed(() =>
-    this.decisions().some((d) => d.status === 'GENERATING' && !this.isStaleGenerating(d)),
-  );
+  readonly generating = computed(() => deriveAdvisoryCycleState(this.cycleInput()).generating);
 
   /** True when the latest signal is a failure and nothing is in flight / ready:
    *  a FAILED row, or a GENERATING row that has gone stale (uncatchable failure). */
-  readonly failed = computed(() => {
-    if (this.realDecisions().length > 0 || this.generating()) return false;
-    return this.decisions().some(
-      (d) => d.status === 'FAILED' || (d.status === 'GENERATING' && this.isStaleGenerating(d)),
-    );
-  });
+  readonly failed = computed(() => deriveAdvisoryCycleState(this.cycleInput()).failed);
 
   // Mirrors services/advisory/advisory-bff/src/graphql/js-function/get-pending-decisions.fn.js
   // — keep in sync if backend filter changes. GENERATING/FAILED included so the

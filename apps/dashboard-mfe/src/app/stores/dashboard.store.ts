@@ -7,6 +7,7 @@ import {
   withDevtools,
   withLogoutReset,
 } from '@nestfolio/shell';
+import { deriveAdvisoryCycleState, type AdvisoryCycleStateInput } from '@nestfolio/ui';
 
 export interface PortfolioSummary {
   totalValueCents: number;
@@ -43,15 +44,16 @@ export interface AdvisoryStatus {
   updatedAt: string;
 }
 
-// Keep in sync with advisory-mfe decision-list.component.ts STALE_CYCLE_MS.
-// A GENERATING signal older than this (with no transition) renders as failed —
-// covers uncatchable States.Runtime failures that emit no DECISION_CYCLE_FAILED.
-// TODO(extract-shared-advisory-cycle-state-helper): fold into @nestfolio/ui.
-const STALE_CYCLE_MS = 6 * 60 * 1000;
-
-function generatingFresh(s: AdvisoryStatus | null, now: number): boolean {
-  return !!s && s.generatingCount > 0 && !!s.oldestGeneratingAt
-    && now - Date.parse(s.oldestGeneratingAt) < STALE_CYCLE_MS;
+// Maps the AdvisoryStatus aggregate row onto the shared cycle-state helper input.
+// The staleness ceiling now lives once in @nestfolio/ui (deriveAdvisoryCycleState).
+function cycleInput(s: AdvisoryStatus | null, now: number): AdvisoryCycleStateInput {
+  return {
+    generatingCount: s?.generatingCount ?? 0,
+    failedCount: s?.failedCount ?? 0,
+    oldestGeneratingAt: s?.oldestGeneratingAt ?? null,
+    pendingDecisionsCount: s?.pendingDecisionsCount ?? 0,
+    now,
+  };
 }
 
 export interface InvestorSnapshot {
@@ -120,13 +122,12 @@ export const DashboardStore = signalStore(
       const status = store.advisoryStatus();
       return (status?.pendingDecisionsCount ?? 0) > 0;
     }),
-    advisoryGenerating: computed(() => generatingFresh(store.advisoryStatus(), store.now())),
-    advisoryFailed: computed(() => {
-      const s = store.advisoryStatus();
-      if (!s || (s.pendingDecisionsCount ?? 0) > 0) return false;
-      if (generatingFresh(s, store.now())) return false;
-      return s.failedCount > 0 || s.generatingCount > 0;
-    }),
+    advisoryGenerating: computed(
+      () => deriveAdvisoryCycleState(cycleInput(store.advisoryStatus(), store.now())).generating,
+    ),
+    advisoryFailed: computed(
+      () => deriveAdvisoryCycleState(cycleInput(store.advisoryStatus(), store.now())).failed,
+    ),
     isLoaded: computed(() => store.portfolioSummary() !== null),
     hasSimulationData: computed(() => store.simulationSummary() !== null),
     simulationAdvantagePercent: computed(() => store.simulationSummary()?.returnDifferencePercent ?? 0),
