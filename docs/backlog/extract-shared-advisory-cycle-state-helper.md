@@ -1,6 +1,6 @@
 ---
 id: extract-shared-advisory-cycle-state-helper
-status: active
+status: shipped
 rank: 1
 type: refactor
 notes: "Fold the duplicated advisory-cycle-state derivation + STALE_CYCLE_MS into one @nestfolio/ui helper used by advisory-mfe + dashboard-mfe."
@@ -13,7 +13,7 @@ out_of_scope:
 spec: null
 plan: null
 topic_memory: []
-validation_gate: null
+validation_gate: "Helper + test 66291ef4; consumer swap bb5e5ed4. `nx affected -t test lint --base=origin/main` → 'Successfully ran targets test, lint for 6 projects' (ui + advisory-mfe + dashboard-mfe + investor-mfe + ledger-mfe + nestfolio-host), all PASS. ui 14 suites/77 tests (11 new helper unit tests, both branches + exactly-at-ceiling boundary); advisory-mfe 7 suites/113 tests (incl. all §7.2 generating/failed routing); dashboard-mfe 12 suites/84 tests (incl. advisory-cycle derivation). Behavior-preserving extraction, fully unit-covered — frontend deploy + Playwright skipped by user decision 2026-06-05 (no backend service, no affected integration/e2e-feature scenarios)."
 ---
 
 # Extract shared advisory-cycle-state derivation into @nestfolio/ui
@@ -39,3 +39,14 @@ Cheapest next step: add the pure helper + unit test in `@nestfolio/ui`, then swa
 the two call sites (the advisory-mfe swap is the only touch into shipped WS-3 code
 and should be validated by its existing component unit + the `/advisory`
 Playwright scenario).
+
+**Shipped 2026-06-05.** `deriveAdvisoryCycleState({ generatingCount, failedCount,
+oldestGeneratingAt, pendingDecisionsCount, now }) → { generating, failed }` plus
+`STALE_CYCLE_MS` now live once in `libs/ui/src/shared/advisory/advisory-cycle-state.ts`
+(exported from `@nestfolio/ui`). dashboard-mfe drops its local `STALE_CYCLE_MS` +
+`generatingFresh`; advisory-mfe drops its static `STALE_CYCLE_MS` + `isStaleGenerating`
+and folds its decision list into the aggregate input (`oldestGeneratingAt` = earliest
+GENERATING row). Both surfaces now share one staleness ceiling — they cannot drift.
+Behavior is identical at the single-cycle norm; the rare multi-concurrent-cycle
+staleness case is intentionally unified onto the dashboard's oldest-fresh semantic
+(was newest-fresh in advisory-mfe; untested edge, documented in `out_of_scope`).
