@@ -134,9 +134,12 @@ export async function injectDecisionPacketCreated(
 
 /**
  * Emit DEPOSIT_DETECTED on the investor bus, scoped to dashboard-bff. Used by the
- * dashboard alert-bar scenario (retargeted by WS-4 dashboard-generating-failed-reflection).
+ * happy-path journey to prove the `onActivityUpdate` WSS subscription broadcasts
+ * an activity row without driving the real agent pipeline (investor-adpt drops the
+ * integration-test source, so no Bedrock cost). Keyed by `eventId` so the
+ * `waitForActivityByEventId` assertion is unambiguous.
  */
-export async function injectDashboardBffTriggerEvent(
+export async function injectDepositDetected(
   ctx: TestContext,
   tenant: FreshTenant,
 ): Promise<{ eventId: string }> {
@@ -146,6 +149,41 @@ export async function injectDashboardBffTriggerEvent(
     'integration-test:dashboard-bff',
     'DEPOSIT_DETECTED',
     { tenantId: tenant.tenantId, amountCents: 100_000 },
+    advisoryContext(ctx, tenant),
+  );
+}
+
+/**
+ * Emit ADVISORY_STATUS_UPDATED on the investor bus, scoped to dashboard-bff (the
+ * same event advisory-bff's aggregate announces, forwarded by investor-adpt). This
+ * drives dashboard-bff's P3 projection directly — the dashboard generating/failed +
+ * alert-bar UI under test. `pendingDecisionsCount` maps to the producer's
+ * `inFlightCount` subject field; `version` must strictly increase per tenant.
+ */
+export async function injectAdvisoryStatusUpdated(
+  ctx: TestContext,
+  tenant: FreshTenant,
+  fields: {
+    pendingDecisionsCount?: number;
+    generatingCount?: number;
+    failedCount?: number;
+    oldestGeneratingAt?: string | null;
+    version: number;
+  },
+): Promise<{ eventId: string }> {
+  return putScopedEvent(
+    ctx,
+    'investor',
+    'integration-test:dashboard-bff',
+    'ADVISORY_STATUS_UPDATED',
+    {
+      tenantId: tenant.tenantId,
+      inFlightCount: fields.pendingDecisionsCount ?? 0,
+      generatingCount: fields.generatingCount ?? 0,
+      failedCount: fields.failedCount ?? 0,
+      oldestGeneratingAt: fields.oldestGeneratingAt ?? null,
+      __version: fields.version,
+    },
     advisoryContext(ctx, tenant),
   );
 }

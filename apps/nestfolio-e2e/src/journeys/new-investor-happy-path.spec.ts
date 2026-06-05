@@ -5,7 +5,7 @@ import { DashboardPage } from '../pages/dashboard.page';
 import { InvestorPage } from '../pages/investor.page';
 import { AdvisoryPage } from '../pages/advisory.page';
 import { HostPage } from '../pages/host.page';
-import { injectDashboardBffTriggerEvent } from '../fixtures/inject-advisory-update';
+import { injectDepositDetected } from '../fixtures/inject-advisory-update';
 import { waitForAdvisoryDecisionRow } from '../fixtures/wait-for-advisory-projection';
 // Spike 1.3 concluded `initiateDeposit` defaults to ENABLED when no flag row
 // exists, so Phase 4 Task 4.2 was skipped. The import below stays commented;
@@ -149,7 +149,7 @@ test('new-investor-happy-path: onboarding → deposit → decision → logout', 
     // The dashboard is mounted with an active subscription; with no page
     // reload between this inject and the assert below, the only path the
     // Activity row can travel is the `onActivityUpdate` WSS broadcast.
-    const { eventId } = await injectDashboardBffTriggerEvent(ctx, tenant);
+    const { eventId } = await injectDepositDetected(ctx, tenant);
     await dashboard.waitForActivityByEventId(eventId, 30_000);
 
     // Wait for advisory-bff's projection to actually carry the decision row
