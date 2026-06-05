@@ -1,6 +1,7 @@
 ---
 id: extract-shared-advisory-cycle-state-helper
-status: parking
+status: queued
+rank: 1
 type: refactor
 notes: "Fold the duplicated advisory-cycle-state derivation + STALE_CYCLE_MS into one @nestfolio/ui helper used by advisory-mfe + dashboard-mfe."
 references: []
@@ -25,8 +26,10 @@ oldestGeneratingAt, pendingDecisionsCount, now })` → `{ generating, failed }` 
 the `STALE_CYCLE_MS` ceiling into `@nestfolio/ui` (a shared lib both MFEs already
 import), then point both surfaces at it and delete the two copies.
 
-**Promote when** a third consumer needs the derivation, or to remove the
-keep-in-sync duplication.
+**Promoted 2026-06-05** (user direction) to remove the keep-in-sync duplication
+and the `/advisory`↔`/dashboard` staleness-ceiling drift risk it carries — a single
+`STALE_CYCLE_MS` source so the two surfaces cannot silently diverge — per the
+reusable-patterns objective, without waiting for a third consumer.
 
 Cheapest next step: add the pure helper + unit test in `@nestfolio/ui`, then swap
 the two call sites (the advisory-mfe swap is the only touch into shipped WS-3 code

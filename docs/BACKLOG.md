@@ -11,8 +11,7 @@ _(none)_
 
 ## QUEUED
 
-_(none)_
-
+1. [extract-shared-advisory-cycle-state-helper](backlog/extract-shared-advisory-cycle-state-helper.md) [refactor] — Fold the duplicated advisory-cycle-state derivation + STALE_CYCLE_MS into one @nestfolio/ui helper used by advisory-mfe + dashboard-mfe.
 
 ## LATER
 
@@ -39,7 +38,6 @@ _(none)_
 - [event-processor-explicit-idempotency-api](backlog/event-processor-explicit-idempotency-api.md) [refactor] — event-processor `record()` defaults to event-id-scoped idempotency silently; misuse is a common source of at-least-once bugs (reconciliation-ctrl content-key fix, ledger-ctrl version drift hint at the pattern). Add explicit API distinction to make the choice harder to miss.
 - [event-processor-intent-result-discriminated-union](backlog/event-processor-intent-result-discriminated-union.md) [refactor] — IntentResult._tag is `string`, not a discriminated union like WriteIntent — executor returns lose downstream narrowing.
 - [execution-ctrl-mandate-recheck-order-boundary](backlog/execution-ctrl-mandate-recheck-order-boundary.md) [refactor] — Defense-in-depth — re-read mandate before broker submission on L1 auto-execute.
-- [extract-shared-advisory-cycle-state-helper](backlog/extract-shared-advisory-cycle-state-helper.md) [refactor] — Fold the duplicated advisory-cycle-state derivation + STALE_CYCLE_MS into one @nestfolio/ui helper used by advisory-mfe + dashboard-mfe.
 - [flow-docs-generator-rich-diagrams](backlog/flow-docs-generator-rich-diagrams.md) [design] — Extend tools/generate-flow-docs.mjs + flows/SCHEMA.md so .flow.yaml can express the rich sequence diagrams currently only achievable via hand-edits to the generated .md.
 - [generalise-appsync-iam-publisher-lib](backlog/generalise-appsync-iam-publisher-lib.md) [refactor] — Three callers — rule-of-three threshold; copies all do their own SigV4 setup.
 - [handlers-dir-leak-at-repo-root](backlog/handlers-dir-leak-at-repo-root.md) [bug] — Empty handlers/ dir leaks at repo root from some CDK synth/test path (egress.test.ts uses os.tmpdir() correctly; the leaker is unknown). Gitignored 2026-05-18; investigate when /backlog-next or CDK tests are next touched.
