@@ -1,11 +1,15 @@
 ---
 id: extract-shared-advisory-cycle-state-helper
-status: queued
+status: active
 rank: 1
 type: refactor
 notes: "Fold the duplicated advisory-cycle-state derivation + STALE_CYCLE_MS into one @nestfolio/ui helper used by advisory-mfe + dashboard-mfe."
 references: []
-out_of_scope: []
+out_of_scope:
+  - "Changing the 6-minute STALE_CYCLE_MS value itself — extract verbatim, do not retune."
+  - "The dashboard transport/materialization residuals (dashboard-live-push-portfolio-summary, dashboard-live-push-position-snapshots, advisory-status-recompute-monotonic-version) — independent backlog items."
+  - "advisory-mfe reconcile()/subscription plumbing + the get-pending-decisions.fn.js PENDING_STATUSES keep-in-sync note — untouched."
+  - "Any new generating/failed product behavior — this is a behavior-preserving extraction (single-cycle case identical; the multi-concurrent-cycle staleness semantic is intentionally unified onto the dashboard's oldest-fresh rule)."
 spec: null
 plan: null
 topic_memory: []
