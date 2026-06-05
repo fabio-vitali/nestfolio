@@ -12,6 +12,7 @@ import { PositionsTableComponent } from './positions-table.component';
 import { AllocationChartComponent } from './allocation-chart.component';
 import { ActivityFeedComponent } from './activity-feed.component';
 import { AdvisoryAlertBarComponent } from './advisory-alert-bar.component';
+import { AdvisoryCycleStatusComponent } from './advisory-cycle-status.component';
 import { ComparisonCardComponent } from './comparison-card.component';
 import { ExecutionModeBadgeComponent } from './execution-mode-badge.component';
 
@@ -29,6 +30,7 @@ const ACTIVITY_RECONNECT_BACKOFF_MS = 2_000;
     AllocationChartComponent,
     ActivityFeedComponent,
     AdvisoryAlertBarComponent,
+    AdvisoryCycleStatusComponent,
     ComparisonCardComponent,
     ExecutionModeBadgeComponent,
   ],
@@ -55,6 +57,11 @@ const ACTIVITY_RECONNECT_BACKOFF_MS = 2_000;
             [advisoryStatus]="store.advisoryStatus()"
           />
         </div>
+
+        <app-advisory-cycle-status
+          [generating]="store.advisoryGenerating()"
+          [failed]="store.advisoryFailed()"
+        />
 
         <div class="main-content">
           <div class="positions-panel">
@@ -160,9 +167,12 @@ export class DashboardContainerComponent implements OnInit, OnDestroy {
   readonly store = inject(DashboardStore);
   private updateSubscription: Subscription | null = null;
   private activitySubscription: Subscription | null = null;
+  private nowTickHandle: ReturnType<typeof setInterval> | null = null;
 
   async ngOnInit(): Promise<void> {
     this.subscribeToUpdates();   // establish subscriptions BEFORE the snapshot query
+    this.store.setNow(Date.now());
+    this.nowTickHandle = setInterval(() => this.store.setNow(Date.now()), 30_000);
     await this.loadDashboard();  // merge() absorbs any frame that arrived meanwhile
   }
 
@@ -171,6 +181,10 @@ export class DashboardContainerComponent implements OnInit, OnDestroy {
     this.updateSubscription = null;
     this.activitySubscription?.unsubscribe();
     this.activitySubscription = null;
+    if (this.nowTickHandle !== null) {
+      clearInterval(this.nowTickHandle);
+      this.nowTickHandle = null;
+    }
   }
 
   private subscribeToUpdates(): void {

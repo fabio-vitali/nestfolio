@@ -71,7 +71,10 @@
       "pendingCount": "Pending Decisions",
       "lastRecommendation": "Last Recommendation",
       "lastStatus": "Last Status",
-      "viewAll": "View All Advisory"
+      "viewAll": "View All Advisory",
+      "generatingTitle": "Generating your advice…",
+      "failedTitle": "Advice generation failed",
+      "failedHint": "Please try again shortly."
     },
     "comparison": {
       "title": "Simulation Comparison",

@@ -71,7 +71,10 @@
       "pendingCount": "Decisioni in Attesa",
       "lastRecommendation": "Ultima Raccomandazione",
       "lastStatus": "Ultimo Stato",
-      "viewAll": "Vedi Tutta la Consulenza"
+      "viewAll": "Vedi Tutta la Consulenza",
+      "generatingTitle": "Generazione della consulenza…",
+      "failedTitle": "Generazione della consulenza non riuscita",
+      "failedHint": "Riprova tra poco."
     },
     "comparison": {
       "title": "Confronto Simulazione",

@@ -36,6 +36,9 @@ const ACTIVITY_ENTRY_FIELDS = `
 const ADVISORY_STATUS_FIELDS = `
   fragment AdvisoryStatusFields on AdvisoryStatus {
     pendingDecisionsCount
+    generatingCount
+    failedCount
+    oldestGeneratingAt
     updatedAt
   }
 `;
