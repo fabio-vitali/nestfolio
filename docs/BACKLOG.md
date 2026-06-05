@@ -6,8 +6,7 @@
 
 ## ACTIVE
 
-_(none)_
-
+- [nx-affected-overbroad-cyclic-service-graph](backlog/nx-affected-overbroad-cyclic-service-graph.md) [tooling] — ACTIVE design umbrella (promoted from parking 2026-06-05). Structural fix for the cyclic cross-service nx graph: extract PER-PRODUCER event-contract leaf libs (one nx project per producer, scope:platform, modelled on libs/event-types) so no service imports another. Outcome: nx affected becomes precise (28→1 for non-contract code changes), all cycles dissolve, and the compile-time contract tripwire is PRESERVED + extended to payload shapes. Per-producer granularity LOCKED 2026-06-05 (user, over per-domain/single-lib). Investigation confirmed: all cross-service edges are contract-only (events / -adpt domain / agent-budgets, zero service-code coupling); contracts are pure + self-contained (depend only on event-types/zod); eslint allow-list already special-cases these imports. This umbrella ships ONLY the design spec; implementation decomposes into separate queued WSs (Complex/worktree).
 
 ## QUEUED
 
@@ -46,7 +45,6 @@ _(none)_
 - [ledger-bff-order-history-generic-eventtype](backlog/ledger-bff-order-history-generic-eventtype.md) [bug] — getOrderHistory shows generic LEDGER_ENTRY_RECORDED rows (snapshot-summary payload), not real order events — producer derives entries from snapshot diffs.
 - [nestfolio-e2e-eventbridge-client-wrapper-migration](backlog/nestfolio-e2e-eventbridge-client-wrapper-migration.md) [refactor] — apps/nestfolio-e2e/src/fixtures/inject-advisory-update.ts is the lone file in the Playwright app that imports @aws-sdk/client-eventbridge directly — migrate to EventBridgeClient from @nestfolio/test-support for consistency with the Jest e2e app.
 - [nestfolio-e2e-workflow-no-aws-credentials](backlog/nestfolio-e2e-workflow-no-aws-credentials.md) [bug] — Moved to LATER 2026-05-15 — investigation revealed scope is full CI bring-up (OIDC IAM role + secret provisioning), not a workflow YAML edit. Deferred to dedicated CI-pipeline workstream once the system is stable.
-- [nx-affected-overbroad-cyclic-service-graph](backlog/nx-affected-overbroad-cyclic-service-graph.md) [tooling] — nx affected marks ALL 28 backend projects affected for ANY single backend src .ts change (deterministic, survives nx reset). Root: dense + CYCLIC nx project graph from cross-service /events + /domain contract imports. Makes `nx affected -t test-integration` blast the whole backend; CI cost + flake-surface + wasted runs. Operational mitigation: scope to the changed service directly.
 - [nx-daemon-self-upgrade-pollutes-pnpm-lock](backlog/nx-daemon-self-upgrade-pollutes-pnpm-lock.md) [bug] — nx daemon respawn (triggered by nx-console / nx-mcp polling) runs `pnpm add -D nx@latest --ignore-scripts`, which scans the repo root, finds leaked tmp-* dirs, registers them as pnpm workspace importers in pnpm-lock.yaml. Every IDE/MCP poll = new pnpm-lock drift.
 - [pinned-retry-prompt-interference-agent-factory](backlog/pinned-retry-prompt-interference-agent-factory.md) [bug] — γ.4 retry stacks two corrective directives; cleaner separation needed.
 - [playwright-rebalance-after-weight-drift-detector](backlog/playwright-rebalance-after-weight-drift-detector.md) [tooling] — Re-add Playwright rebalance coverage on top of a real organic trigger once weight-drift-detector ships. Deleted 2026-05-27 in playwright-rebalance-real-agents-maxvms-remediation as speculative coverage of a not-yet-built production feature.

@@ -1,10 +1,13 @@
 ---
 id: nx-affected-overbroad-cyclic-service-graph
-status: parking
+status: active
 type: tooling
-notes: "nx affected marks ALL 28 backend projects affected for ANY single backend src .ts change (deterministic, survives nx reset). Root: dense + CYCLIC nx project graph from cross-service /events + /domain contract imports. Makes `nx affected -t test-integration` blast the whole backend; CI cost + flake-surface + wasted runs. Operational mitigation: scope to the changed service directly."
+notes: "ACTIVE design umbrella (promoted from parking 2026-06-05). Structural fix for the cyclic cross-service nx graph: extract PER-PRODUCER event-contract leaf libs (one nx project per producer, scope:platform, modelled on libs/event-types) so no service imports another. Outcome: nx affected becomes precise (28→1 for non-contract code changes), all cycles dissolve, and the compile-time contract tripwire is PRESERVED + extended to payload shapes. Per-producer granularity LOCKED 2026-06-05 (user, over per-domain/single-lib). Investigation confirmed: all cross-service edges are contract-only (events / -adpt domain / agent-budgets, zero service-code coupling); contracts are pure + self-contained (depend only on event-types/zod); eslint allow-list already special-cases these imports. This umbrella ships ONLY the design spec; implementation decomposes into separate queued WSs (Complex/worktree)."
 references: []
-out_of_scope: []
+out_of_scope:
+  - "Implementation/migration of the contract libs — each migration batch is a separate queued WS (Complex/worktree) defined by the spec's decomposition; this umbrella ships only the spec doc."
+  - "Per-domain (4-lib) and single-lib granularities — evaluated and rejected in favour of per-producer 2026-06-05."
+  - "The operational mitigation (scope integration to the changed service in /backlog-next 6.4 + integration-test skill) — separate concern, tracked independently if still wanted."
 spec: null
 plan: null
 topic_memory: []
@@ -94,3 +97,48 @@ propagation rule was not pinned, but the cyclic dense contract-import graph is t
 Confirm whether the `@nestfolio/<svc>/events` + `/domain` exports are pure contract
 definitions (no service business logic). If so, option (2)/(3) is a mechanical move to a
 leaf lib. Pairs with the architecture's stated `event-types` branded-name pattern.
+
+## Decision (2026-06-05) — option (2) STRUCTURAL, **per-producer** granularity LOCKED
+
+Promoted from parking by explicit user direction. The "cheapest next step" above was
+executed as a live-code investigation; findings (all from clean `main`):
+
+- **All cross-service edges are contract-only.** Classifying every cross-service alias
+  import: the only non-`/events`, non-`-adpt/domain` edge is
+  `@nestfolio/decision-workflow-ctrl/agent-budgets` (2 importers) — same class (a shared
+  contract subpath, already in the eslint `allow:` list). **Zero** service-code→service-code
+  imports. ⇒ extracting contracts to leaf libs **fully** de-couples the service graph.
+- **Contracts are pure + self-contained.** `*/events` = branded name-maps depending only on
+  `@nestfolio/event-types`. `*-adpt/domain` re-exports names **plus shared payload
+  contracts** (`ProposedTrade`, `MandateLevel`, broker-alpaca's `schemas.ts` → only `zod`).
+  Hosting these in the contract lib is what extends the compile-time tripwire from
+  **names** to **payload shapes**.
+- **`libs/event-types` is the template:** `tags: ["scope:platform","type:lib"]`, plain
+  `@nx/js:tsc` build, single `src/index.ts`. Every domain scope's `depConstraints` already
+  permit depending on `scope:platform`.
+- **The eslint allow-list is the team's own evidence** these imports are a special class:
+  `@nestfolio/.+/events`, `-adpt/domain`, `agent-budgets` sit in the `allow:` escape-hatch,
+  bypassing per-scope `depConstraints`. Silencing the *lint* error did nothing about the
+  *nx graph* edge — the disconnect this fix closes (allow-list entries can then be removed).
+
+**Graph (producer → distinct consumer services), 17 cross-consumed producers.** Cycles
+confirmed: `investor-bff ↔ investor-ctrl`; size-4 SCC
+`{decision-workflow-ctrl, advisory-bff, compliance-ctrl, investor-profile-ctrl}` (via
+dwc→investor-profile-ctrl→compliance-ctrl→dwc). All cycles are contract-only → dissolved.
+
+**Granularity decision.** Cyclicity + the non-contract flood (28→1) are fixed at *any*
+granularity (the leaf is a leaf); granularity only trades contract-change precision vs
+project count. **Per-producer (17 leaf libs) LOCKED** — it delivers the stated strategy
+exactly: a contract change breaks *only* that contract's real consumers, names *and*
+payloads, nothing spurious. Per-domain (4 libs) and single-lib were the lighter-weight
+alternatives, rejected. Lowest-churn migration noted: move the contract file under the new
+lib + **repoint the existing `@nestfolio/<svc>/events` path mapping** so consumers don't
+change a line (only producers' own relative `./events` imports flip to the alias).
+
+**Deliverable of THIS umbrella:** a design spec in `docs/superpowers/specs/`, decomposing
+the migration into a curated set of queued implementation WSs (each Complex/worktree) such
+that draining them = graph clean + affected precise + tripwire extended. Open design
+questions for the brainstorm: lib layout/naming (`libs/contracts/<producer>` vs under
+`event-types`); keep-alias vs rename the import specifier; fold payload schemas in now vs a
+follow-up; `agent-budgets` handling; migration batching + per-batch verification (the
+`nx show projects --affected` 28→1 assertion); eslint allow-list cleanup sequencing.
