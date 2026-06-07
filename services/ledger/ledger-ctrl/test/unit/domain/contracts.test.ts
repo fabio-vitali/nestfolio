@@ -2,6 +2,7 @@ import {
   LedgerSnapshotSchema,
   BalanceUpdatedSubjectSchema,
   PortfolioUpdatedSubjectSchema,
+  LedgerEntrySubjectSchema,
 } from '../../../src/domain/contracts';
 
 const snapshot = {
@@ -23,5 +24,11 @@ describe('ledger-ctrl contracts', () => {
   it('PortfolioUpdatedSubjectSchema parses a real PortfolioEvent subject', () => {
     const subject = { tenantId: 't', streamType: 'live', positions: snapshot.positions, positionCount: 1, totalValueCents: 250_00, snapshot };
     expect(() => PortfolioUpdatedSubjectSchema.parse(subject)).not.toThrow();
+  });
+  it('LedgerEntrySubjectSchema parses a real LedgerEntryEvent subject and requires tenantId', () => {
+    const subject = { tenantId: 't', streamType: 'live', lastEventSequence: 7, snapshot };
+    expect(() => LedgerEntrySubjectSchema.parse(subject)).not.toThrow();
+    const { tenantId: _omitted, ...withoutTenantId } = subject;
+    expect(() => LedgerEntrySubjectSchema.parse(withoutTenantId)).toThrow();
   });
 });

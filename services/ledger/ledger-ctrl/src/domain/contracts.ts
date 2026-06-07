@@ -41,9 +41,9 @@ export type PortfolioUpdatedSubject = z.infer<typeof PortfolioUpdatedSubjectSche
 
 /** LEDGER_ENTRY_RECORDED subject. */
 export const LedgerEntrySubjectSchema = z.object({
+  tenantId: z.string(),
   streamType: z.string().optional(),
-  lastEventSequence: z.number().optional(),
-  snapshotAt: z.string().optional(),
-  snapshot: LedgerSnapshotSchema.optional(),
+  lastEventSequence: z.number(),
+  snapshot: LedgerSnapshotSchema,
 });
 export type LedgerEntrySubject = z.infer<typeof LedgerEntrySubjectSchema>;
