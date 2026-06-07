@@ -1,14 +1,9 @@
-import { projectVersioned, type WriteIntent } from '@nestfolio/event-processor';
+import { projectVersioned, parseSubject, type WriteIntent } from '@nestfolio/event-processor';
 import type { UnitOfWork, BusEvent } from '@nestfolio/event-processor';
+import { z } from 'zod';
+import { LedgerSnapshotSchema } from '@nestfolio/ledger-ctrl/contracts';
 
-type LedgerPosition = {
-  symbol?: string;
-  quantity?: number;
-  averageCostBasis?: number;
-  totalCostBasis?: number;
-  lastFillPrice?: number;
-};
-type LedgerSnapshot = { positions?: Record<string, LedgerPosition>; lastEventSequence?: number };
+const PositionSnapshotSubjectSchema = z.object({ snapshot: LedgerSnapshotSchema });
 
 /**
  * Projects one PositionSnapshot row per holding from the authoritative ledger
@@ -23,17 +18,15 @@ export const positionSnapshot = (
 ): WriteIntent[] => {
   const { event } = uow;
   const { tenantId, userId, region } = event.context;
-  const subject = event.subject as Record<string, unknown>;
-  const snapshot = (subject?.snapshot ?? subject) as LedgerSnapshot | undefined;
+  const { snapshot } = parseSubject(uow as UnitOfWork<BusEvent<unknown>>, PositionSnapshotSubjectSchema);
 
-  const version = snapshot?.lastEventSequence;
-  if (typeof version !== 'number') return [];
+  const version = snapshot.lastEventSequence;
 
-  const entries = Object.entries(snapshot?.positions ?? {});
+  const entries = Object.entries(snapshot.positions);
   if (entries.length === 0) return [];
 
-  const marketValueCentsOf = (p: LedgerPosition) =>
-    Math.round((p.quantity ?? 0) * (p.lastFillPrice ?? 0) * 100);
+  const marketValueCentsOf = (p: { quantity: number; lastFillPrice: number }) =>
+    Math.round(p.quantity * p.lastFillPrice * 100);
   const totalMarketValueCents = entries.reduce((sum, [, p]) => sum + marketValueCentsOf(p), 0);
 
   return entries.map(([key, pos]) => {
@@ -47,12 +40,12 @@ export const positionSnapshot = (
         region,
         symbol,
         assetClass: 'EQUITY',
-        quantity: pos.quantity ?? 0,
-        avgCostBasisCents: Math.round((pos.averageCostBasis ?? 0) * 100),
-        currentPriceCents: Math.round((pos.lastFillPrice ?? 0) * 100),
+        quantity: pos.quantity,
+        avgCostBasisCents: Math.round(pos.averageCostBasis * 100),
+        currentPriceCents: Math.round(pos.lastFillPrice * 100),
         marketValueCents,
         weightPercent: totalMarketValueCents > 0 ? (marketValueCents / totalMarketValueCents) * 100 : 0,
-        unrealizedPnlCents: marketValueCents - Math.round((pos.totalCostBasis ?? 0) * 100),
+        unrealizedPnlCents: marketValueCents - Math.round(pos.totalCostBasis * 100),
       },
       { version, overrides: { pk: `T#${tenantId}`, sk: `PositionSnapshot#${symbol}` } },
     );

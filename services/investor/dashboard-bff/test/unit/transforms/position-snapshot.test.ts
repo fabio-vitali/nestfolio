@@ -1,3 +1,4 @@
+import { z } from 'zod';
 import { positionSnapshot } from '../../../src/transforms/position-snapshot';
 import type { UnitOfWork, BusEvent } from '@nestfolio/event-processor';
 
@@ -18,6 +19,7 @@ const makeUow = (subject: Record<string, unknown>): TestUow => ({
 // AAPL: 10 @ $150 → 150000c market (75%); MSFT: 5 @ $100 → 50000c market (25%).
 const snapshot = {
   lastEventSequence: 9,
+  cashBalanceCents: 0,
   positions: {
     AAPL: { symbol: 'AAPL', quantity: 10, averageCostBasis: 100, totalCostBasis: 1000, lastFillPrice: 150 },
     MSFT: { symbol: 'MSFT', quantity: 5, averageCostBasis: 200, totalCostBasis: 1000, lastFillPrice: 100 },
@@ -58,12 +60,17 @@ describe('positionSnapshot transform', () => {
   });
 
   it('returns an empty array when the snapshot has no positions', () => {
-    expect(positionSnapshot(makeUow({ snapshot: { positions: {}, lastEventSequence: 1 } }))).toEqual([]);
+    expect(positionSnapshot(makeUow({ snapshot: { positions: {}, lastEventSequence: 1, cashBalanceCents: 0 } }))).toEqual([]);
   });
 
-  it('drops (returns empty array) when lastEventSequence is absent', () => {
-    expect(positionSnapshot(makeUow({ snapshot: {
+  it('throws ZodError when the snapshot violates the ledger contract (missing lastEventSequence)', () => {
+    expect(() => positionSnapshot(makeUow({ snapshot: {
       positions: { AAPL: { symbol: 'AAPL', quantity: 1, averageCostBasis: 1, totalCostBasis: 1, lastFillPrice: 1 } },
-    } }))).toEqual([]);
+      cashBalanceCents: 0,
+    } }))).toThrow(z.ZodError);
+  });
+
+  it('throws ZodError when the subject wrapper is absent (no snapshot key)', () => {
+    expect(() => positionSnapshot(makeUow({ positions: {} }))).toThrow(z.ZodError);
   });
 });
