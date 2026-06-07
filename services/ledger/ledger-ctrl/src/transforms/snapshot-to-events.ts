@@ -1,4 +1,5 @@
 import { record, type RecordIntent } from '@nestfolio/event-processor';
+import type { LedgerSnapshot } from '../domain/contracts';
 
 export interface SnapshotRecord {
   pk: string;
@@ -29,7 +30,7 @@ export function snapshotToEvents(
     positions: current.positions,
     cashBalanceCents: current.cashBalanceCents,
     lastEventSequence,
-  };
+  } satisfies Pick<LedgerSnapshot, 'cashBalanceCents' | 'lastEventSequence'> & { positions: typeof current.positions };
 
   const balanceChanged = !previous || current.cashBalanceCents !== previous.cashBalanceCents;
   const positionsChanged = !previous || JSON.stringify(current.positions) !== JSON.stringify(previous.positions);
