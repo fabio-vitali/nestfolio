@@ -11,7 +11,7 @@ export const balanceUpdated = (
     userId?: string;
     region?: string;
   };
-  const payload = parseSubject(uow as UnitOfWork<BusEvent<unknown>>, BalanceUpdatedSubjectSchema);
+  const payload = parseSubject(uow, BalanceUpdatedSubjectSchema);
 
   const balanceCents = payload.cashBalanceCents;
   const version = Number(payload.snapshot.lastEventSequence);

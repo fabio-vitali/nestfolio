@@ -15,7 +15,7 @@ export const ledgerEntryRecorded = (
     userId?: string;
     region?: string;
   };
-  const payload = parseSubject(uow as UnitOfWork<BusEvent<unknown>>, LedgerEntrySubjectSchema);
+  const payload = parseSubject(uow, LedgerEntrySubjectSchema);
 
   const snapshot = payload.snapshot;
   const streamType = payload.streamType ?? 'actual';

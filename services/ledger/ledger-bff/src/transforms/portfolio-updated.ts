@@ -11,7 +11,7 @@ export const portfolioUpdated = (
     userId?: string;
     region?: string;
   };
-  const payload = parseSubject(uow as UnitOfWork<BusEvent<unknown>>, PortfolioUpdatedSubjectSchema);
+  const payload = parseSubject(uow, PortfolioUpdatedSubjectSchema);
 
   const positions = payload.positions;
   const version = Number(payload.snapshot.lastEventSequence);
