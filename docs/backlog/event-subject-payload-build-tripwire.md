@@ -10,7 +10,7 @@ out_of_scope:
   - "Graph restructuring / the '17 per-producer contract libs' idea — explicitly not required (graph is already bounded); a contracts-lib home may still be weighed as a mechanism option."
   - "Renaming/reshaping event names — the name tripwire already works; this workstream adds the PAYLOAD tripwire only."
 spec: docs/superpowers/specs/2026-06-07-event-subject-payload-build-tripwire-design.md
-plan: null
+plan: docs/superpowers/plans/2026-06-07-event-subject-payload-build-tripwire.md
 topic_memory: []
 validation_gate: null
 ---
