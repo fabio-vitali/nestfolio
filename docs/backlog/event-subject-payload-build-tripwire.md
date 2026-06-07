@@ -9,7 +9,7 @@ out_of_scope:
   - "nx-affected precision tooling — separate item nx-affected-true-affected-resolver; this workstream is type coupling, not the affected-set resolver."
   - "Graph restructuring / the '17 per-producer contract libs' idea — explicitly not required (graph is already bounded); a contracts-lib home may still be weighed as a mechanism option."
   - "Renaming/reshaping event names — the name tripwire already works; this workstream adds the PAYLOAD tripwire only."
-spec: null
+spec: docs/superpowers/specs/2026-06-07-event-subject-payload-build-tripwire-design.md
 plan: null
 topic_memory: []
 validation_gate: null
