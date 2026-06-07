@@ -1,12 +1,7 @@
-import { projectVersioned, type WriteIntent } from '@nestfolio/event-processor';
+import { projectVersioned, parseSubject, type WriteIntent } from '@nestfolio/event-processor';
 import type { UnitOfWork, BusEvent } from '@nestfolio/event-processor';
-
-type LedgerPosition = { quantity?: number; lastFillPrice?: number };
-type LedgerSnapshot = {
-  cashBalanceCents?: number;
-  positions?: Record<string, LedgerPosition>;
-  lastEventSequence?: number;
-};
+import { LedgerSnapshotSchema } from '@nestfolio/ledger-ctrl/contracts';
+import { z } from 'zod';
 
 /**
  * Projects the PortfolioSummary read row from the authoritative ledger snapshot
@@ -21,15 +16,10 @@ export const portfolioSummary = (
 ): WriteIntent | undefined => {
   const { event } = uow;
   const { tenantId, userId, region } = event.context;
-  const subject = event.subject as Record<string, unknown>;
-  const snapshot = (subject?.snapshot ?? subject) as LedgerSnapshot | undefined;
-
-  if (!snapshot || snapshot.cashBalanceCents === undefined) return undefined;
-
+  const { snapshot } = parseSubject(uow, z.object({ snapshot: LedgerSnapshotSchema }));
   const version = snapshot.lastEventSequence;
-  if (typeof version !== 'number') return undefined;
 
-  const positions = snapshot.positions ?? {};
+  const positions = snapshot.positions;
   // Holdings are quantity > 0; fully-exited symbols persist in the snapshot at
   // quantity 0 (the reducer keeps them) and must not inflate the count.
   const held = Object.values(positions).filter((p) => (p.quantity ?? 0) > 0);

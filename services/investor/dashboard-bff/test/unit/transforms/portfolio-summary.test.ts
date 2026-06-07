@@ -1,5 +1,6 @@
 import { portfolioSummary } from '../../../src/transforms/portfolio-summary';
 import type { UnitOfWork, BusEvent } from '@nestfolio/event-processor';
+import { z } from 'zod';
 
 type TestUow = UnitOfWork<BusEvent<Record<string, unknown>>>;
 
@@ -43,16 +44,12 @@ describe('portfolioSummary transform', () => {
     });
   });
 
-  it('accepts a bare snapshot payload (no `snapshot` wrapper)', () => {
-    expect(portfolioSummary(makeUow('BALANCE_UPDATED', { ...snapshot }))).toMatchObject({
-      _tag: 'projectVersioned',
-      version: 7,
-      fields: { cashBalanceCents: 5000, positionCount: 2, totalValueCents: 205000 },
-    });
+  it('throws ZodError on a bare snapshot (no `snapshot` wrapper) — enforces envelope contract', () => {
+    expect(() => portfolioSummary(makeUow('BALANCE_UPDATED', { ...snapshot }))).toThrow(z.ZodError);
   });
 
-  it('returns undefined when no snapshot/cashBalance is present', () => {
-    expect(portfolioSummary(makeUow('RECONCILIATION_COMPLETED', { foo: 'bar' }))).toBeUndefined();
+  it('throws ZodError when the subject has no snapshot key', () => {
+    expect(() => portfolioSummary(makeUow('RECONCILIATION_COMPLETED', { foo: 'bar' }))).toThrow(z.ZodError);
   });
 
   it('excludes zero-quantity (fully-exited) positions from positionCount', () => {
@@ -70,8 +67,20 @@ describe('portfolioSummary transform', () => {
     });
   });
 
-  it('drops (returns undefined) when lastEventSequence is absent', () => {
+  it('throws ZodError when lastEventSequence is absent in the snapshot', () => {
     const noVersion = { cashBalanceCents: 5000, positions: {} };
-    expect(portfolioSummary(makeUow('PORTFOLIO_UPDATED', { snapshot: noVersion }))).toBeUndefined();
+    expect(() => portfolioSummary(makeUow('PORTFOLIO_UPDATED', { snapshot: noVersion }))).toThrow(z.ZodError);
+  });
+
+  it('throws ZodError when the snapshot violates the ledger contract', () => {
+    const uow = {
+      event: {
+        id: 'e1', type: 'BALANCE_UPDATED', timestamp: 't',
+        subject: { tenantId: 't', snapshot: { positions: {}, cashBalanceCents: 'NaN', lastEventSequence: 1 } },
+        context: { tenantId: 't', userId: 'u', region: 'us-east-1' },
+      },
+      payload: {}, record: {},
+    };
+    expect(() => portfolioSummary(uow as never)).toThrow(z.ZodError);
   });
 });
