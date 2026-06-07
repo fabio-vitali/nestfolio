@@ -1,3 +1,4 @@
+import { z } from 'zod';
 import { mockClient } from 'aws-sdk-client-mock';
 import { DynamoDBDocumentClient } from '@aws-sdk/lib-dynamodb';
 import { DynamoDBClient } from '@aws-sdk/client-dynamodb';
@@ -50,16 +51,15 @@ describe('balanceUpdated transform', () => {
     );
   });
 
-  it('defaults version to 0 when the event carries no snapshot sequence', () => {
-    const intent = balanceUpdated({
+  it('throws ZodError when the event subject violates the ledger contract (missing snapshot)', () => {
+    expect(() => balanceUpdated({
       event: {
         id: 'e1', type: 'BALANCE_UPDATED', timestamp: '2026-01-01T00:00:00.000Z',
         subject: { tenantId: 't1', userId: 'u1', cashBalanceCents: 1 },
         context: { tenantId: 't1' },
       },
       payload: {}, record: {},
-    } as Parameters<typeof balanceUpdated>[0]) as { version: number };
-    expect(intent.version).toBe(0);
+    } as Parameters<typeof balanceUpdated>[0])).toThrow(z.ZodError);
   });
 
   describe('version guard (executor)', () => {
