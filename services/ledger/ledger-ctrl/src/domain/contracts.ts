@@ -21,6 +21,9 @@ export type LedgerSnapshot = z.infer<typeof LedgerSnapshotSchema>;
 /** BALANCE_UPDATED subject (the BalanceEvent record). */
 export const BalanceUpdatedSubjectSchema = z.object({
   tenantId: z.string(),
+  // userId is present on the DDB record via pickRequestContext in the intent executor;
+  // the changeDataCapture pipeline publishes the full DDB record as the event subject.
+  userId: z.string().optional(),
   streamType: z.string().optional(),
   cashBalanceCents: z.number(),
   totalValueCents: z.number().optional(),

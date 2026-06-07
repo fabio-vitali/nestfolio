@@ -21,6 +21,14 @@ describe('ledger-ctrl contracts', () => {
     const subject = { tenantId: 't', streamType: 'live', cashBalanceCents: 100_00, totalValueCents: 250_00, snapshot };
     expect(() => BalanceUpdatedSubjectSchema.parse(subject)).not.toThrow();
   });
+  it('BalanceUpdatedSubjectSchema accepts optional userId from pickRequestContext', () => {
+    // userId is injected onto the DDB record by the intent executor (pickRequestContext)
+    // and published as part of the subject by the changeDataCapture pipeline.
+    const withUserId = { tenantId: 't', userId: 'u1', cashBalanceCents: 100_00, snapshot };
+    expect(() => BalanceUpdatedSubjectSchema.parse(withUserId)).not.toThrow();
+    const parsed = BalanceUpdatedSubjectSchema.parse(withUserId);
+    expect(parsed.userId).toBe('u1');
+  });
   it('PortfolioUpdatedSubjectSchema parses a real PortfolioEvent subject', () => {
     const subject = { tenantId: 't', streamType: 'live', positions: snapshot.positions, positionCount: 1, totalValueCents: 250_00, snapshot };
     expect(() => PortfolioUpdatedSubjectSchema.parse(subject)).not.toThrow();
