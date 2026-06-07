@@ -1,16 +1,6 @@
-import { projectVersioned, record, type WriteIntent } from '@nestfolio/event-processor';
+import { projectVersioned, record, parseSubject, type WriteIntent } from '@nestfolio/event-processor';
 import type { UnitOfWork, BusEvent } from '@nestfolio/event-processor';
-
-type BalancePayload = {
-  cashBalanceCents: number;
-  deltaCents: number;
-  streamType?: string;
-  snapshot?: {
-    positions: Record<string, unknown>;
-    cashBalanceCents: number;
-    lastEventSequence: number;
-  };
-};
+import { BalanceUpdatedSubjectSchema } from '@nestfolio/ledger-ctrl/contracts';
 
 export const balanceUpdated = (
   uow: UnitOfWork<BusEvent<Record<string, unknown>, Record<string, unknown>>>,
@@ -21,12 +11,14 @@ export const balanceUpdated = (
     userId?: string;
     region?: string;
   };
-  const payload = event.subject as BalancePayload & Record<string, unknown>;
+  const payload = parseSubject(uow as UnitOfWork<BusEvent<unknown>>, BalanceUpdatedSubjectSchema);
 
-  const balanceCents = payload.cashBalanceCents ?? 0;
-  const version = Number(payload.snapshot?.lastEventSequence ?? 0);
+  const balanceCents = payload.cashBalanceCents;
+  const version = Number(payload.snapshot.lastEventSequence);
 
-  const intents: WriteIntent[] = [
+  const streamType = payload.streamType ?? 'actual';
+
+  return [
     projectVersioned('PortfolioLatest', {
       tenantId,
       userId,
@@ -36,25 +28,17 @@ export const balanceUpdated = (
       version,
       overrides: { pk: `Portfolio#${tenantId}`, sk: 'Latest' },
     }),
+    record('SnapshotAt', {
+      tenantId,
+      userId,
+      region,
+      streamType,
+      snapshotAt: event.timestamp,
+      cashBalanceCents: payload.snapshot.cashBalanceCents,
+      positions: payload.snapshot.positions,
+    }, {
+      pk: `SnapshotAt#${tenantId}#${streamType}`,
+      sk: event.timestamp,
+    }),
   ];
-
-  if (payload.snapshot) {
-    const streamType = payload.streamType ?? 'actual';
-    intents.push(
-      record('SnapshotAt', {
-        tenantId,
-        userId,
-        region,
-        streamType,
-        snapshotAt: event.timestamp,
-        cashBalanceCents: payload.snapshot.cashBalanceCents,
-        positions: payload.snapshot.positions,
-      }, {
-        pk: `SnapshotAt#${tenantId}#${streamType}`,
-        sk: event.timestamp,
-      }),
-    );
-  }
-
-  return intents.length === 1 ? intents[0] : intents;
 };

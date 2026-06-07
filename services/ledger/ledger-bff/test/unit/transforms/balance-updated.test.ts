@@ -1,6 +1,11 @@
+import { z } from 'zod';
 import { balanceUpdated } from '../../../src/transforms/balance-updated';
 
 describe('balanceUpdated transform', () => {
+  const pos = (symbol: string) => ({
+    symbol, quantity: 10, averageCostBasis: 150, totalCostBasis: 1500, lastFillPrice: 155,
+  });
+
   const makeUow = (subject: Record<string, unknown>) => ({
     event: {
       id: 'e1',
@@ -13,16 +18,18 @@ describe('balanceUpdated transform', () => {
     record: {},
   });
 
-  it('writes a versioned PortfolioLatest projection keyed on snapshot.lastEventSequence', () => {
-    const result = balanceUpdated(makeUow({
+  const validSubject = {
+    tenantId: 't1',
+    cashBalanceCents: 950_000,
+    snapshot: {
+      positions: { VTI: pos('VTI') },
       cashBalanceCents: 950_000,
-      deltaCents: -50_000,
-      snapshot: {
-        positions: { VTI: { symbol: 'VTI', quantity: 10 } },
-        cashBalanceCents: 950_000,
-        lastEventSequence: 7,
-      },
-    }) as Parameters<typeof balanceUpdated>[0]);
+      lastEventSequence: 7,
+    },
+  };
+
+  it('writes a versioned PortfolioLatest projection keyed on snapshot.lastEventSequence', () => {
+    const result = balanceUpdated(makeUow(validSubject) as Parameters<typeof balanceUpdated>[0]);
 
     const intents = (Array.isArray(result) ? result : [result]) as Array<Record<string, unknown>>;
     const latest = intents.find((i) => i.typename === 'PortfolioLatest');
@@ -35,15 +42,8 @@ describe('balanceUpdated transform', () => {
     expect((latest!.fields as Record<string, unknown>).cashBalanceCents).toBe(950_000);
   });
 
-  it('writes SnapshotAt as an append-only record (P2) when snapshot is present', () => {
-    const result = balanceUpdated(makeUow({
-      cashBalanceCents: 950_000,
-      snapshot: {
-        positions: { VTI: { symbol: 'VTI', quantity: 10 } },
-        cashBalanceCents: 950_000,
-        lastEventSequence: 7,
-      },
-    }) as Parameters<typeof balanceUpdated>[0]);
+  it('writes SnapshotAt as an append-only record (P2) alongside PortfolioLatest', () => {
+    const result = balanceUpdated(makeUow(validSubject) as Parameters<typeof balanceUpdated>[0]);
 
     const intents = result as Array<Record<string, unknown>>;
     expect(Array.isArray(intents)).toBe(true);
@@ -56,16 +56,15 @@ describe('balanceUpdated transform', () => {
     });
   });
 
-  it('defaults version to 0 when no snapshot present (legacy/simplified event)', () => {
-    const result = balanceUpdated(makeUow({
-      cashBalanceCents: 500_000,
-    }) as Parameters<typeof balanceUpdated>[0]);
+  it('throws ZodError when the subject violates the ledger contract (missing snapshot)', () => {
+    expect(() =>
+      balanceUpdated(makeUow({ tenantId: 't1', cashBalanceCents: 500_000 }) as Parameters<typeof balanceUpdated>[0]),
+    ).toThrow(z.ZodError);
+  });
 
-    const intent = result as Record<string, unknown>;
-    expect(intent).toMatchObject({
-      _tag: 'projectVersioned',
-      typename: 'PortfolioLatest',
-      version: 0,
-    });
+  it('throws ZodError when tenantId is absent', () => {
+    expect(() =>
+      balanceUpdated(makeUow({ cashBalanceCents: 500_000, snapshot: { positions: {}, cashBalanceCents: 500_000, lastEventSequence: 1 } }) as Parameters<typeof balanceUpdated>[0]),
+    ).toThrow(z.ZodError);
   });
 });

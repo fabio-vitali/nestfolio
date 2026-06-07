@@ -1,3 +1,4 @@
+import { z } from 'zod';
 import { portfolioUpdated } from '../../../src/transforms/portfolio-updated';
 
 describe('portfolioUpdated transform', () => {
@@ -17,8 +18,11 @@ describe('portfolioUpdated transform', () => {
     symbol, quantity: 10, averageCostBasis: 150, totalCostBasis: 1500, lastFillPrice: 155,
   });
 
+  const emptySnapshot = { positions: {} as Record<string, typeof pos extends (...args: infer _) => infer R ? R : never>, cashBalanceCents: 0, lastEventSequence: 12 };
+
   it('writes versioned Position projections keyed on snapshot.lastEventSequence', () => {
     const result = portfolioUpdated(makeUow({
+      tenantId: 't1',
       positions: { AAPL: pos('AAPL'), MSFT: pos('MSFT') },
       snapshot: { positions: {}, cashBalanceCents: 0, lastEventSequence: 12 },
     }) as Parameters<typeof portfolioUpdated>[0]);
@@ -35,8 +39,9 @@ describe('portfolioUpdated transform', () => {
     expect((aapl!.fields as Record<string, unknown>).quantity).toBe(10);
   });
 
-  it('writes SnapshotAt as an append-only record (P2) when snapshot is present', () => {
+  it('writes SnapshotAt as an append-only record (P2) alongside Position projections', () => {
     const result = portfolioUpdated(makeUow({
+      tenantId: 't1',
       positions: { AAPL: pos('AAPL') },
       snapshot: { positions: {}, cashBalanceCents: 0, lastEventSequence: 12 },
     }) as Parameters<typeof portfolioUpdated>[0]);
@@ -51,12 +56,9 @@ describe('portfolioUpdated transform', () => {
     });
   });
 
-  it('defaults version to 0 when no snapshot present', () => {
-    const result = portfolioUpdated(makeUow({
-      positions: { AAPL: pos('AAPL') },
-    }) as Parameters<typeof portfolioUpdated>[0]);
-
-    const intent = result as Record<string, unknown>;
-    expect(intent).toMatchObject({ _tag: 'projectVersioned', typename: 'Position', version: 0 });
+  it('throws ZodError when the subject violates the ledger contract (missing snapshot)', () => {
+    expect(() =>
+      portfolioUpdated(makeUow({ tenantId: 't1', positions: { AAPL: pos('AAPL') } }) as Parameters<typeof portfolioUpdated>[0]),
+    ).toThrow(z.ZodError);
   });
 });

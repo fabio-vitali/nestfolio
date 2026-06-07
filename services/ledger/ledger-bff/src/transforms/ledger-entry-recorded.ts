@@ -1,23 +1,6 @@
-import { record, projectVersioned, type WriteIntent } from '@nestfolio/event-processor';
+import { record, projectVersioned, parseSubject, type WriteIntent } from '@nestfolio/event-processor';
 import type { UnitOfWork, BusEvent } from '@nestfolio/event-processor';
-
-type PositionRecord = {
-  symbol: string;
-  quantity: number;
-  averageCostBasis: number;
-  totalCostBasis: number;
-  lastFillPrice: number;
-};
-
-type LedgerEntryPayload = {
-  streamType?: string;
-  lastEventSequence?: number;
-  snapshot?: {
-    positions: Record<string, PositionRecord>;
-    cashBalanceCents: number;
-    lastEventSequence: number;
-  };
-};
+import { LedgerEntrySubjectSchema } from '@nestfolio/ledger-ctrl/contracts';
 
 // Zero-pad the monotonic ledger sequence so DynamoDB sorts HistoryEntry rows by
 // recency. 8 digits supports up to ~100M entries per tenant stream.
@@ -32,13 +15,13 @@ export const ledgerEntryRecorded = (
     userId?: string;
     region?: string;
   };
-  const payload = event.subject as LedgerEntryPayload & Record<string, unknown>;
+  const payload = parseSubject(uow as UnitOfWork<BusEvent<unknown>>, LedgerEntrySubjectSchema);
 
   const snapshot = payload.snapshot;
   const streamType = payload.streamType ?? 'actual';
-  const sequenceNo = Number(snapshot?.lastEventSequence ?? payload.lastEventSequence ?? 0);
-  const cashBalanceCents = snapshot?.cashBalanceCents ?? 0;
-  const positions = snapshot?.positions ?? {};
+  const sequenceNo = Number(snapshot.lastEventSequence);
+  const cashBalanceCents = snapshot.cashBalanceCents;
+  const positions = snapshot.positions;
 
   // Simulated stream: version-guarded projections fed from the snapshot. No
   // order-history / checkpoint rows — those describe the real account timeline.
@@ -62,10 +45,10 @@ export const ledgerEntryRecorded = (
           userId,
           region,
           symbol,
-          quantity: position.quantity ?? 0,
-          averageCostBasis: position.averageCostBasis ?? 0,
-          totalCostBasis: position.totalCostBasis ?? 0,
-          lastFillPrice: position.lastFillPrice ?? 0,
+          quantity: position.quantity,
+          averageCostBasis: position.averageCostBasis,
+          totalCostBasis: position.totalCostBasis,
+          lastFillPrice: position.lastFillPrice,
         }, {
           version: sequenceNo,
           overrides: { pk: `Simulation#${tenantId}`, sk: `Position#${symbol}` },

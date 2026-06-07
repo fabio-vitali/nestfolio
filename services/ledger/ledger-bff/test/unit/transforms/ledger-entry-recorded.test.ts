@@ -1,3 +1,4 @@
+import { z } from 'zod';
 import { ledgerEntryRecorded } from '../../../src/transforms/ledger-entry-recorded';
 
 describe('ledgerEntryRecorded transform', () => {
@@ -15,6 +16,7 @@ describe('ledgerEntryRecorded transform', () => {
 
   // The shape the real ledger-ctrl producer emits (LedgerEntryEvent).
   const actualSubject = {
+    tenantId: 't1',
     streamType: 'actual',
     lastEventSequence: 42,
     snapshot: {
@@ -61,6 +63,7 @@ describe('ledgerEntryRecorded transform', () => {
 
   it('writes versioned Simulation + SimulationPosition and NO history/checkpoint for a simulated entry', () => {
     const result = ledgerEntryRecorded(makeUow({
+      tenantId: 't1',
       streamType: 'simulated',
       lastEventSequence: 9,
       snapshot: {
@@ -94,17 +97,11 @@ describe('ledgerEntryRecorded transform', () => {
     expect(intents.find((i) => i.typename === 'Checkpoint')).toBeUndefined();
   });
 
-  it('falls back to sequence 0 (sk 00000000) for an actual entry with no snapshot', () => {
-    const result = ledgerEntryRecorded(
-      makeUow({ streamType: 'actual' }) as Parameters<typeof ledgerEntryRecorded>[0],
-    );
-    const intents = result as Array<Record<string, unknown>>;
-    const hist = intents.find((i) => i.typename === 'HistoryEntry');
-    expect(hist).toMatchObject({
-      typename: 'HistoryEntry',
-      overrides: { pk: 'History#t1', sk: '00000000' },
-    });
-    expect((hist!.fields as Record<string, unknown>).sequenceNo).toBe(0);
-    expect((hist!.fields as Record<string, unknown>).cashBalanceCents).toBeUndefined();
+  it('throws ZodError when the subject violates the ledger contract (missing snapshot)', () => {
+    expect(() =>
+      ledgerEntryRecorded(
+        makeUow({ tenantId: 't1', streamType: 'actual', lastEventSequence: 42 }) as Parameters<typeof ledgerEntryRecorded>[0],
+      ),
+    ).toThrow(z.ZodError);
   });
 });

@@ -14,6 +14,7 @@ const makeUow = (lastEventSequence: number) => ({
     type: 'BALANCE_UPDATED',
     timestamp: '2026-01-01T00:00:00.000Z',
     subject: {
+      tenantId: 't1',
       cashBalanceCents: 500_000,
       snapshot: { positions: {}, cashBalanceCents: 500_000, lastEventSequence },
     },

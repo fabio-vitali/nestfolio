@@ -1,23 +1,6 @@
-import { projectVersioned, record, type WriteIntent } from '@nestfolio/event-processor';
+import { projectVersioned, record, parseSubject, type WriteIntent } from '@nestfolio/event-processor';
 import type { UnitOfWork, BusEvent } from '@nestfolio/event-processor';
-
-type PositionRecord = {
-  symbol: string;
-  quantity: number;
-  averageCostBasis: number;
-  totalCostBasis: number;
-  lastFillPrice: number;
-};
-
-type PortfolioPayload = {
-  positions: Record<string, PositionRecord>;
-  streamType?: string;
-  snapshot?: {
-    positions: Record<string, PositionRecord>;
-    cashBalanceCents: number;
-    lastEventSequence: number;
-  };
-};
+import { PortfolioUpdatedSubjectSchema } from '@nestfolio/ledger-ctrl/contracts';
 
 export const portfolioUpdated = (
   uow: UnitOfWork<BusEvent<Record<string, unknown>, Record<string, unknown>>>,
@@ -28,10 +11,12 @@ export const portfolioUpdated = (
     userId?: string;
     region?: string;
   };
-  const payload = event.subject as PortfolioPayload & Record<string, unknown>;
+  const payload = parseSubject(uow as UnitOfWork<BusEvent<unknown>>, PortfolioUpdatedSubjectSchema);
 
-  const positions = payload.positions ?? {};
-  const version = Number(payload.snapshot?.lastEventSequence ?? 0);
+  const positions = payload.positions;
+  const version = Number(payload.snapshot.lastEventSequence);
+  const streamType = payload.streamType ?? 'actual';
+
   const intents: WriteIntent[] = [];
 
   for (const [symbol, position] of Object.entries(positions)) {
@@ -41,10 +26,10 @@ export const portfolioUpdated = (
         userId,
         region,
         symbol,
-        quantity: position.quantity ?? 0,
-        averageCostBasis: position.averageCostBasis ?? 0,
-        totalCostBasis: position.totalCostBasis ?? 0,
-        lastFillPrice: position.lastFillPrice ?? 0,
+        quantity: position.quantity,
+        averageCostBasis: position.averageCostBasis,
+        totalCostBasis: position.totalCostBasis,
+        lastFillPrice: position.lastFillPrice,
       }, {
         version,
         overrides: { pk: `Portfolio#${tenantId}`, sk: `Position#${symbol}` },
@@ -52,23 +37,20 @@ export const portfolioUpdated = (
     );
   }
 
-  if (payload.snapshot) {
-    const streamType = payload.streamType ?? 'actual';
-    intents.push(
-      record('SnapshotAt', {
-        tenantId,
-        userId,
-        region,
-        streamType,
-        snapshotAt: event.timestamp,
-        cashBalanceCents: payload.snapshot.cashBalanceCents,
-        positions: payload.snapshot.positions,
-      }, {
-        pk: `SnapshotAt#${tenantId}#${streamType}`,
-        sk: event.timestamp,
-      }),
-    );
-  }
+  intents.push(
+    record('SnapshotAt', {
+      tenantId,
+      userId,
+      region,
+      streamType,
+      snapshotAt: event.timestamp,
+      cashBalanceCents: payload.snapshot.cashBalanceCents,
+      positions: payload.snapshot.positions,
+    }, {
+      pk: `SnapshotAt#${tenantId}#${streamType}`,
+      sk: event.timestamp,
+    }),
+  );
 
   return intents.length === 1 ? intents[0] : intents;
 };
