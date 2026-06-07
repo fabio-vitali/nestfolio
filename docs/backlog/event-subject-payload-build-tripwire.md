@@ -1,11 +1,14 @@
 ---
 id: event-subject-payload-build-tripwire
-status: queued
+status: active
 rank: 1
 type: refactor
 notes: "Complete the intended typed-Subject design so PAYLOAD changes (not just event-name changes) break consumer builds. Today consumers import producer *EventTypes NAME maps (name changes DO break builds) but type event payloads as the generic BusEvent<Record<string,unknown>> / EventPayload and re-declare payload shapes locally with `as` casts (e.g. dashboard-bff/src/transforms/portfolio-summary.ts `type LedgerSnapshot` + `event.subject as Record<string,unknown>`). The BusEvent<Subject> mechanism already exists; only ProposedTrade (advisory-adpt/domain, 3 sites) is actually cross-coupled. Scope: producers export their canonical event Subject types as contracts; consumers type handlers/transforms against the IMPORTED Subjects, removing local re-declarations + casts (kills the prefer-libraries-over-casts anti-pattern). Needs brainstorming on mechanism + producer/consumer scope. Split 2026-06-07 from the disproven nx-affected-overbroad-cyclic-service-graph item."
 references: []
-out_of_scope: []
+out_of_scope:
+  - "nx-affected precision tooling — separate item nx-affected-true-affected-resolver; this workstream is type coupling, not the affected-set resolver."
+  - "Graph restructuring / the '17 per-producer contract libs' idea — explicitly not required (graph is already bounded); a contracts-lib home may still be weighed as a mechanism option."
+  - "Renaming/reshaping event names — the name tripwire already works; this workstream adds the PAYLOAD tripwire only."
 spec: null
 plan: null
 topic_memory: []
