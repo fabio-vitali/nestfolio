@@ -1,13 +1,10 @@
 ---
 id: nx-affected-overbroad-cyclic-service-graph
-status: active
+status: dropped
 type: tooling
-notes: "ACTIVE design umbrella (promoted from parking 2026-06-05). Structural fix for the cyclic cross-service nx graph: extract PER-PRODUCER event-contract leaf libs (one nx project per producer, scope:platform, modelled on libs/event-types) so no service imports another. Outcome: nx affected becomes precise (28→1 for non-contract code changes), all cycles dissolve, and the compile-time contract tripwire is PRESERVED + extended to payload shapes. Per-producer granularity LOCKED 2026-06-05 (user, over per-domain/single-lib). Investigation confirmed: all cross-service edges are contract-only (events / -adpt domain / agent-budgets, zero service-code coupling); contracts are pure + self-contained (depend only on event-types/zod); eslint allow-list already special-cases these imports. This umbrella ships ONLY the design spec; implementation decomposes into separate queued WSs (Complex/worktree)."
+notes: "DROPPED 2026-06-07 — premise DISPROVEN by investigation. The stated root cause ('dense cyclic cross-service contract-import graph makes nx affected over-broad') is WRONG: the dependency graph is bounded and correct (ui→6 control matches nx exactly; dashboard-bff has 0 dependents); breaking both SCCs → still 28; broker-sim-adpt (zero cross-service contracts, 0 dependents) → still 28. The 28-affected is an nx 22.5.4 `affected` over-approximation over the event-processor-coupled backend blob, unrelated to the cross-service Subject-import design — which is sound. The proposed 17 per-producer contract libs would NOT fix it. Superseded by two correctly-scoped queued items: nx-affected-true-affected-resolver (the real #2 fix) and event-subject-payload-build-tripwire (the real payload-safety #1). See those for the full evidence."
 references: []
-out_of_scope:
-  - "Implementation/migration of the contract libs — each migration batch is a separate queued WS (Complex/worktree) defined by the spec's decomposition; this umbrella ships only the spec doc."
-  - "Per-domain (4-lib) and single-lib granularities — evaluated and rejected in favour of per-producer 2026-06-05."
-  - "The operational mitigation (scope integration to the changed service in /backlog-next 6.4 + integration-test skill) — separate concern, tracked independently if still wanted."
+out_of_scope: []
 spec: null
 plan: null
 topic_memory: []
@@ -15,6 +12,16 @@ validation_gate: null
 ---
 
 # `nx affected` is over-broad for backend changes (cyclic cross-service graph)
+
+> **DROPPED 2026-06-07 — premise disproven.** Everything below this banner reflects
+> the original (incorrect) hypothesis that a cyclic cross-service contract graph
+> caused the over-report. A full investigation disproved it: the graph is bounded and
+> correct, cycles are not the cause, and a service with zero cross-service contracts
+> over-reports identically. The 28-affected is an nx 22.5.4 `affected`
+> over-approximation tied to the universal `event-processor` lib. The 17-contract-lib
+> plan was aimed at the wrong cause. **Superseded by `nx-affected-true-affected-resolver`
+> (the real fix) and `event-subject-payload-build-tripwire` (the real payload-safety
+> goal).** Retained for history; do not action.
 
 ## Symptom (reproducible, deterministic)
 
