@@ -5,7 +5,7 @@ import { BalanceUpdatedSubjectSchema } from '@nestfolio/ledger-ctrl/contracts';
 export const balanceUpdated = (
   uow: UnitOfWork<BusEvent<Record<string, unknown>, Record<string, unknown>>>,
 ): WriteIntent => {
-  const s = parseSubject(uow as UnitOfWork<BusEvent<unknown>>, BalanceUpdatedSubjectSchema);
+  const s = parseSubject(uow, BalanceUpdatedSubjectSchema);
   const version = Number(s.snapshot.lastEventSequence);
   return projectVersioned('CashBalance', {
     tenantId: s.tenantId,
