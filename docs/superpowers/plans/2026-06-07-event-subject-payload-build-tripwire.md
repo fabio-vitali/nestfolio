@@ -24,6 +24,22 @@
 - **Optional vs required:** model a field `z.optional()` only when the producer legitimately omits it sometimes. Fields the producer always emits are required, so their absence is a genuine contract violation that throws.
 - **Drift gate (applies to every consumer retype):** after importing a schema, if a consumer reads a field that is NOT in the producer's schema, **STOP**. Either (a) the field IS genuinely emitted — add it to the producer schema; or (b) the read is dead/wrong — fix the consumer and file the finding via `backlog-add`. Do not paper over it by widening the schema to `Record<string,unknown>`.
 
+### Cross-cutting steps learned from the reference pair (apply to EVERY consumer task 4-9)
+
+1. **jest `moduleNameMapper` per imported contract.** Consumer `jest.config.js` files do NOT auto-derive aliases from `tsconfig.base.json` — each cross-service alias is listed manually. For every new `@nestfolio/<svc>/contracts` import a consumer gains, ADD a matching entry to that consumer's `services/<domain>/<consumer>/jest.config.js` `moduleNameMapper`, e.g.:
+   `'^@nestfolio/ledger-ctrl/contracts$': '<rootDir>/../../ledger/ledger-ctrl/src/domain/contracts.ts',`
+   (mirror the sibling cross-service entries already in that file; path is `<rootDir>/../../<domain>/<producer>/src/domain/contracts.ts`). Omitting this makes the unit tests fail to resolve the import.
+
+2. **Multi-event transforms MUST discriminate on `event.type`.** Before retyping, read the consumer's `handlers/event-listener.ts` to see which event types are routed to the transform. If a transform is routed MORE THAN ONE event type and they have DIFFERENT subject shapes (e.g. `portfolio-summary` is routed BALANCE_UPDATED, PORTFOLIO_UPDATED, AND RECONCILIATION_COMPLETED — the last carries no `snapshot`), gate with an event-type allowlist and no-op the others, so a legitimately-different event is NOT parsed against the wrong contract and DLQ'd:
+   ```ts
+   const SNAPSHOT_EVENT_TYPES = new Set(['BALANCE_UPDATED', 'PORTFOLIO_UPDATED']);
+   if (!SNAPSHOT_EVENT_TYPES.has(uow.event.type)) return undefined; // documented no-op
+   const { snapshot } = parseSubject(uow, …);
+   ```
+   A genuinely malformed instance of an event the transform DOES own still throws. Preserve any existing documented no-op behavior (check the integration tests). If events routed together share the SAME shape (e.g. DEPOSIT_DETECTED/SETTLED/FAILED all carry FundingSnapshot), no gate is needed.
+
+3. **Producers lack an `nx typecheck` target** (only the 12 consumer-ish services have one). For a PRODUCER's own `satisfies`/contract typecheck, use `npx tsc --noEmit -p services/<domain>/<producer>/tsconfig.json` instead of `pnpm nx typecheck <producer>`. (Task 10 direct-`tsc`s every touched producer; a follow-up may add typecheck targets to producers.)
+
 ---
 
 ## Task 1: `parseSubject` seam helper in `event-processor`
