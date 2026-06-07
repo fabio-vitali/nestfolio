@@ -18,7 +18,7 @@ export const positionSnapshot = (
 ): WriteIntent[] => {
   const { event } = uow;
   const { tenantId, userId, region } = event.context;
-  const { snapshot } = parseSubject(uow as UnitOfWork<BusEvent<unknown>>, PositionSnapshotSubjectSchema);
+  const { snapshot } = parseSubject(uow, PositionSnapshotSubjectSchema);
 
   const version = snapshot.lastEventSequence;
 
