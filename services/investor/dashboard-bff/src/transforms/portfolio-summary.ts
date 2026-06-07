@@ -3,6 +3,12 @@ import type { UnitOfWork, BusEvent } from '@nestfolio/event-processor';
 import { LedgerSnapshotSchema } from '@nestfolio/ledger-ctrl/contracts';
 import { z } from 'zod';
 
+// Of the three event types the event-listener routes here, only these two carry a
+// ledger snapshot. RECONCILIATION_COMPLETED carries a ReconciliationResult (no
+// `snapshot`) and is a deliberate no-op — NOT a contract violation, so it must not
+// reach `parseSubject` (which would throw it to the DLQ).
+const SNAPSHOT_EVENT_TYPES = new Set(['BALANCE_UPDATED', 'PORTFOLIO_UPDATED']);
+
 /**
  * Projects the PortfolioSummary read row from the authoritative ledger snapshot
  * carried on BALANCE_UPDATED / PORTFOLIO_UPDATED. Full-row, version-guarded write
@@ -16,6 +22,7 @@ export const portfolioSummary = (
 ): WriteIntent | undefined => {
   const { event } = uow;
   const { tenantId, userId, region } = event.context;
+  if (!SNAPSHOT_EVENT_TYPES.has(event.type)) return undefined; // e.g. RECONCILIATION_COMPLETED is a no-op here
   const { snapshot } = parseSubject(uow, z.object({ snapshot: LedgerSnapshotSchema }));
   const version = snapshot.lastEventSequence;
 

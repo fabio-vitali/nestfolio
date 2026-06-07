@@ -48,8 +48,12 @@ describe('portfolioSummary transform', () => {
     expect(() => portfolioSummary(makeUow('BALANCE_UPDATED', { ...snapshot }))).toThrow(z.ZodError);
   });
 
-  it('throws ZodError when the subject has no snapshot key', () => {
-    expect(() => portfolioSummary(makeUow('RECONCILIATION_COMPLETED', { foo: 'bar' }))).toThrow(z.ZodError);
+  it('no-ops (returns undefined) for RECONCILIATION_COMPLETED — different event, no snapshot', () => {
+    expect(portfolioSummary(makeUow('RECONCILIATION_COMPLETED', { foo: 'bar' }))).toBeUndefined();
+  });
+
+  it('throws ZodError on a snapshot-owned event (BALANCE_UPDATED) missing the snapshot key', () => {
+    expect(() => portfolioSummary(makeUow('BALANCE_UPDATED', { foo: 'bar' }))).toThrow(z.ZodError);
   });
 
   it('excludes zero-quantity (fully-exited) positions from positionCount', () => {
@@ -69,7 +73,7 @@ describe('portfolioSummary transform', () => {
 
   it('throws ZodError when lastEventSequence is absent in the snapshot', () => {
     const noVersion = { cashBalanceCents: 5000, positions: {} };
-    expect(() => portfolioSummary(makeUow('PORTFOLIO_UPDATED', { snapshot: noVersion }))).toThrow(z.ZodError);
+    expect(() => portfolioSummary(makeUow('BALANCE_UPDATED', { snapshot: noVersion }))).toThrow(z.ZodError);
   });
 
   it('throws ZodError when the snapshot violates the ledger contract', () => {
