@@ -19,6 +19,7 @@ describe('ledgerEntryRecorded transform', () => {
     tenantId: 't1',
     streamType: 'actual',
     lastEventSequence: 42,
+    snapshotAt: '2026-01-01T00:00:00.000Z',
     snapshot: {
       positions: { AAPL: { symbol: 'AAPL', quantity: 5, averageCostBasis: 150, totalCostBasis: 750, lastFillPrice: 150 } },
       cashBalanceCents: 250_000,
@@ -66,6 +67,7 @@ describe('ledgerEntryRecorded transform', () => {
       tenantId: 't1',
       streamType: 'simulated',
       lastEventSequence: 9,
+      snapshotAt: '2026-01-01T00:00:00.000Z',
       snapshot: {
         positions: { AAPL: { symbol: 'AAPL', quantity: 12, averageCostBasis: 148, totalCostBasis: 1776, lastFillPrice: 155 } },
         cashBalanceCents: 950_000,

@@ -45,6 +45,8 @@ describe('ledger-bff', () => {
         targetService: 'ledger-bff',
         detailType: 'BALANCE_UPDATED',
         detail: {
+          tenantId: ctx.tenantId,
+          userId: ctx.userId,
           cashBalanceCents: 500000,
           deltaCents: 50000,
           snapshot: { positions: {}, cashBalanceCents: 500000, lastEventSequence: 1 },
@@ -152,6 +154,8 @@ describe('ledger-bff', () => {
         targetService: 'ledger-bff',
         detailType: 'BALANCE_UPDATED',
         detail: {
+          tenantId: ctx.tenantId,
+          userId: ctx.userId,
           cashBalanceCents: 2_000_000,
           snapshot: { positions: {}, cashBalanceCents: 2_000_000, lastEventSequence: 20 },
         },
@@ -173,6 +177,8 @@ describe('ledger-bff', () => {
         targetService: 'ledger-bff',
         detailType: 'BALANCE_UPDATED',
         detail: {
+          tenantId: ctx.tenantId,
+          userId: ctx.userId,
           cashBalanceCents: 111,
           snapshot: { positions: {}, cashBalanceCents: 111, lastEventSequence: 10 },
         },
@@ -197,6 +203,8 @@ describe('ledger-bff', () => {
         targetService: 'ledger-bff',
         detailType: 'BALANCE_UPDATED',
         detail: {
+          tenantId: ctx.tenantId,
+          userId: ctx.userId,
           cashBalanceCents: 3_000_000,
           snapshot: { positions: {}, cashBalanceCents: 3_000_000, lastEventSequence: 30 },
         },
@@ -246,6 +254,8 @@ describe('ledger-bff', () => {
         targetService: 'ledger-bff',
         detailType: 'BALANCE_UPDATED',
         detail: {
+          tenantId: ctx.tenantId,
+          userId: ctx.userId,
           cashBalanceCents: 1_000_000,
           deltaCents: 50_000,
           snapshot: {

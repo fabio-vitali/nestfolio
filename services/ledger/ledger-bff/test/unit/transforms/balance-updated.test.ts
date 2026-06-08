@@ -20,6 +20,7 @@ describe('balanceUpdated transform', () => {
 
   const validSubject = {
     tenantId: 't1',
+    userId: 'u1',
     cashBalanceCents: 950_000,
     snapshot: {
       positions: { VTI: pos('VTI') },
