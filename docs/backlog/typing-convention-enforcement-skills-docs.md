@@ -3,7 +3,7 @@ id: typing-convention-enforcement-skills-docs
 status: queued
 rank: 3
 type: tooling
-notes: "Prevent regressions of the kind event-subject-payload-build-tripwire fixed by CODIFYING + ENFORCING the typing conventions in the create-*/audit-* skills + architecture docs + (optionally) a check-script. Three conventions to enforce: (1) EVENT SUBJECTS — read-model transforms type the subject via parseSubject + an imported producer-owned zod contract; NEVER `event.subject as <LocalType>`/`as Record<string,unknown>` + a locally re-declared payload type. (2) CONTRACT-HOME / IMPORT RULE — intra-domain: consumer imports the producer's `<svc>/contracts` directly (service→service OK); cross-domain: the contract lives in the PRODUCER's domain adapter `/domain` (the ProposedTrade precedent) and the consumer imports from the adapter — NEVER two services importing each other's `/contracts` directly (that created the broker-ctrl↔investor-bff project cycle this workstream had to fix). (3) ROW + EVENT SHARE ONE SUBJECT TYPE — BusEvent<T> (platform/bus.ts) and TableEntry<T> (platform/table.ts) are generic over the SAME T by design; the producer Subject contract types BOTH the event (BusEvent<T>) AND the persisted row (TableEntry<T>) — rows should be TableEntry<Subject>, not a hand-rolled interface; 2026-06-08 audit found 8 row types re-declaring pk/sk/__typename inline instead (TaxLot, SnapshotRecord, SecFiling, decision-workflow InvestorProfileSnapshotProjectionRow + MarketSnapshotProjectionRow, investor-profile-ctrl InvestorProfileSnapshotRow, market-intelligence-ctrl MarketSnapshotRow, portfolio-engine + advisory-narrative AgentCompletionRow/AgentFailureRow). create-* skills should scaffold all three correctly; audit-* skills should FLAG violations; arch docs (SYSTEM-ARCHITECTURE, agent-system, cdk-patterns, create-service/create-event SKILL.md) document the rules; consider a tools/ check-script (like check-read-model-drift.mjs) wired into pre-commit/CI. Filed 2026-06-08 at user request after the typing workstream. May warrant a brief design pass on enforcement mechanism (skill-prose vs lint-rule vs both)."
+notes: "Prevent regressions of the kind event-subject-payload-build-tripwire fixed by CODIFYING + ENFORCING the typing conventions in the create-*/audit-* skills + architecture docs + (optionally) a check-script. Five conventions to enforce: (1) EVENT SUBJECTS — read-model transforms type the subject via parseSubject + an imported producer-owned zod contract; NEVER `event.subject as <LocalType>`/`as Record<string,unknown>` + a locally re-declared payload type. (2) CONTRACT-HOME / IMPORT RULE — intra-domain: consumer imports the producer's `<svc>/contracts` directly (service→service OK); cross-domain: the contract lives in the PRODUCER's domain adapter `/domain` (the ProposedTrade precedent) and the consumer imports from the adapter — NEVER two services importing each other's `/contracts` directly (that created the broker-ctrl↔investor-bff project cycle this workstream had to fix). (3) ROW + EVENT SHARE ONE SUBJECT TYPE — BusEvent<T> (platform/bus.ts) and TableEntry<T> (platform/table.ts) are generic over the SAME T by design; the producer Subject contract types BOTH the event (BusEvent<T>) AND the persisted row (TableEntry<T>) — rows should be TableEntry<Subject>, not a hand-rolled interface; 2026-06-08 audit found 8 row types re-declaring pk/sk/__typename inline instead (TaxLot, SnapshotRecord, SecFiling, decision-workflow InvestorProfileSnapshotProjectionRow + MarketSnapshotProjectionRow, investor-profile-ctrl InvestorProfileSnapshotRow, market-intelligence-ctrl MarketSnapshotRow, portfolio-engine + advisory-narrative AgentCompletionRow/AgentFailureRow). (4) CLEAN MODEL NAMES — contracts named after the clean domain/event concept, NO `Subject` suffix (`<Name>Schema` + `<Name>` type); on clash prefer the event-aligned name (LedgerEntryRecorded not LedgerEntry; InvestorProfileUpdated not InvestorProfile). (5) CONTEXT GENERIC S — parameterize the second generic `S` of BOTH BusEvent<T,S> and TableEntry<T,S> with `RequestContext` (or a domain extension), for event AND row consistently; never drop it. create-* skills should scaffold all five correctly; audit-* skills should FLAG violations; arch docs (SYSTEM-ARCHITECTURE, agent-system, cdk-patterns, create-service/create-event SKILL.md) document the rules; consider a tools/ check-script (like check-read-model-drift.mjs) wired into pre-commit/CI. Filed 2026-06-08 at user request after the typing workstream. May warrant a brief design pass on enforcement mechanism (skill-prose vs lint-rule vs both)."
 references:
   - "docs/superpowers/specs/2026-06-07-event-subject-payload-build-tripwire-design.md"
 out_of_scope: []
@@ -17,14 +17,14 @@ validation_gate: null
 
 ## Why
 
-The `event-subject-payload-build-tripwire` workstream established three conventions
+The `event-subject-payload-build-tripwire` workstream established several conventions
 but nothing yet PREVENTS future code from regressing them. Two real regressions
 already happened *during* that workstream and had to be caught by hand / by lint:
 a cross-domain **project cycle** (broker-ctrl↔investor-bff, from two services
 importing each other's `/contracts`), and the original anti-pattern itself (untyped
 `event.subject as <LocalType>` casts). This item makes the conventions self-enforcing.
 
-## The three conventions to codify + enforce
+## The conventions to codify + enforce
 
 1. **Event Subjects → `parseSubject` + imported producer contract.** A read-model
    transform/handler reads the subject via `parseSubject(uow_or_payload, Schema)`
@@ -52,8 +52,26 @@ importing each other's `/contracts`), and the original anti-pattern itself (unty
    NOT a hand-rolled interface re-declaring `pk`/`sk`/`__typename` inline — reuse the
    Subject contract (or, where there's no event, a plain `TableEntry<{...fields}>`).
    The 8 bypasses below should each become `TableEntry<…>`, reusing the relevant
-   Subject contract where one exists (e.g. `InvestorProfileSnapshotRow` →
-   `TableEntry<InvestorProfileSnapshotSubject>`).
+   contract where one exists (e.g. `InvestorProfileSnapshotRow` →
+   `TableEntry<InvestorProfileSnapshot>`).
+
+4. **Clean model names — NO `Subject` (or other noise) suffix.** A contract is named
+   after the clean domain/event concept: schema `<Name>Schema`, inferred type `<Name>`
+   — NOT `<Name>SubjectSchema` / `<Name>Subject`. (This workstream initially mis-suffixed
+   every contract `…Subject` and had to rename them to `BalanceUpdated`, `PortfolioUpdated`,
+   `MarketSnapshot`, `InvestorProfileSnapshot`, `NotificationCreated`, `DepositInitiated`,
+   `WithdrawalInitiated`, `LedgerEntryRecorded`, `InvestorProfileUpdated`,
+   `SimDepositCompleted`.) Where the clean name clashes, prefer the **event-aligned**
+   name: `LedgerEntryRecorded` not `LedgerEntry` (clashes with the event-processor
+   sourcing `LedgerEntry`); `InvestorProfileUpdated` not `InvestorProfile` (clashes with
+   the investor-bff domain model).
+
+5. **Context generic `S` = `RequestContext` (or an extension).** Both `BusEvent<T,S>`
+   and `TableEntry<T,S>` take the request context as their second generic `S`
+   (default `RequestContext` — tenantId/userId/region). Always parameterize `S` with
+   `RequestContext` (or a domain extension of it) for BOTH the event AND the row, so the
+   request context is carried consistently end-to-end; never drop it or substitute an
+   ad-hoc context type.
 
 ## Work
 
