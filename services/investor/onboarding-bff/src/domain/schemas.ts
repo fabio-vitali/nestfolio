@@ -53,14 +53,21 @@ export type GoLiveConfirmedRecord = z.infer<typeof GoLiveConfirmedRecordSchema>;
 /** Shape of the CDC record written on onboarding completion.
  *  Raw onboarding vocabulary — no investor-domain knowledge. */
 export const OnboardingCompletedRecordSchema = z.object({
-  email: z.string().email(),
+  // email is bundled onto the row when available; the wizard does not always
+  // capture it (USER_REGISTERED also carries it), so it is optional and format
+  // is not enforced at the consumer seam.
+  email: z.string().optional(),
   goal: z.object({ objective: z.string() }),
   horizonYears: z.number().int().min(1).max(30),
   accountMode: z.enum(['simulation', 'live']),
   capitalAmount: z.number().nonnegative(),
   currency: z.string().length(3),
-  riskTolerance: z.number().int().min(0).max(3),
-  riskExperience: z.number().int().min(0).max(3),
+  // riskTolerance/riskExperience are the RAW tolerance/experience indices the
+  // onboarding agent records on the row (compute-risk clamps to 0-3 only for its
+  // own score derivation); the row can carry the un-clamped value, so the contract
+  // accepts any number and the consumer's risk service normalizes it.
+  riskTolerance: z.number(),
+  riskExperience: z.number(),
   operatingMode: z.enum(['CONSERVATIVE', 'BALANCED', 'AGGRESSIVE']),
   mandateAccepted: z.literal(true),
 });

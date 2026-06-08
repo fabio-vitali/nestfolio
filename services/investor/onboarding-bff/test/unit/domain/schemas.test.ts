@@ -90,10 +90,25 @@ describe('OnboardingCompletedRecordSchema', () => {
     expect(OnboardingCompletedRecordSchema.parse(record)).toBeDefined();
   });
 
-  it('rejects a record missing email', () => {
+  it('accepts a record without email (optional) and with un-clamped raw risk indices', () => {
+    // The real onboarding row may omit email and stores the RAW tolerance/experience
+    // indices (the agent's compute-risk only clamps to 0-3 for its own score).
     const record = {
-      tenantId: '550e8400-e29b-41d4-a716-446655440000',
-      userId: 'user-1',
+      goal: { objective: 'Retirement savings' },
+      horizonYears: 10,
+      accountMode: 'simulation',
+      capitalAmount: 25000,
+      currency: 'EUR',
+      riskTolerance: 7,
+      riskExperience: 5,
+      operatingMode: 'BALANCED',
+      mandateAccepted: true,
+    };
+    expect(OnboardingCompletedRecordSchema.parse(record)).toBeDefined();
+  });
+
+  it('rejects a record missing a required domain field (operatingMode)', () => {
+    const record = {
       goal: { objective: 'Retirement savings' },
       horizonYears: 10,
       accountMode: 'simulation',
@@ -101,7 +116,6 @@ describe('OnboardingCompletedRecordSchema', () => {
       currency: 'EUR',
       riskTolerance: 2,
       riskExperience: 1,
-      operatingMode: 'BALANCED',
       mandateAccepted: true,
     };
     expect(() => OnboardingCompletedRecordSchema.parse(record)).toThrow();
