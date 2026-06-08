@@ -2,6 +2,7 @@ import { skip, type WriteIntent, type EventPayload, type EventContext } from '@n
 import { getUUID, getTime, type TableEntry } from '@nestfolio/event-processor';
 import { InvestorProfileRepository } from '../repositories/investor-profile.repository';
 import { computeRiskProfile } from '../domain/risk-profile.service';
+import type { InvestorProfileSubject } from '../domain/contracts';
 
 interface OnboardingCompletedSubject {
   tenantId: string;
@@ -70,7 +71,7 @@ export async function onboardingCompleted(
             createdAt: now,
             updatedAt: now,
             timestamp: now,
-          } satisfies TableEntry,
+          } satisfies TableEntry & Pick<InvestorProfileSubject, 'tenantId' | 'userId' | 'operatingMode' | 'goal' | 'riskProfile'>,
         },
       },
       {

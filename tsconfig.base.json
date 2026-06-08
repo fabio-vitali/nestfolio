@@ -40,6 +40,7 @@
       "@nestfolio/event-processor/*": ["libs/event-processor/src/*"],
       "@nestfolio/event-types": ["libs/event-types/src/index.ts"],
       "@nestfolio/investor-bff/events": ["services/investor/investor-bff/src/domain/events.ts"],
+      "@nestfolio/investor-bff/contracts": ["services/investor/investor-bff/src/domain/contracts.ts"],
       "@nestfolio/investor-ctrl/events": ["services/investor/investor-ctrl/src/domain/events.ts"],
       "@nestfolio/onboarding-bff/events": ["services/investor/onboarding-bff/src/domain/events.ts"],
       "@nestfolio/advisory-bff/events": ["services/advisory/advisory-bff/src/domain/events.ts"],
