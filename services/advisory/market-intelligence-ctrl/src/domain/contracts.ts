@@ -9,10 +9,10 @@ import { MarketAnalysisOutputSchema } from '../agents/schemas';
  * update() intent in handlers/event-listener.ts (region, agentOutput).
  * MarketAnalysisOutputSchema is reused from agents/schemas.ts (zod-only, no side effects).
  */
-export const MarketSnapshotSubjectSchema = z.object({
+export const MarketSnapshotSchema = z.object({
   region: z.string(),
   agentOutput: MarketAnalysisOutputSchema,
   __version: z.number().optional(),
 });
 
-export type MarketSnapshotSubject = z.infer<typeof MarketSnapshotSubjectSchema>;
+export type MarketSnapshot = z.infer<typeof MarketSnapshotSchema>;

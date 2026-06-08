@@ -3,7 +3,7 @@ import { materializeToTable, requireEnv, logger, getUUID, getTime, pickRequestCo
 import { ExecutionModeRepository } from '../repositories/execution-mode.repository';
 import { BrokerCtrlRoutedEventTypes, BrokerCtrlInboundEventTypes, BrokerCtrlEventTypes } from '../domain/events';
 import { fundingCarrier } from '../domain/funding';
-import { DepositInitiatedSubjectSchema, WithdrawalInitiatedSubjectSchema } from '@nestfolio/investor-adpt/domain';
+import { DepositInitiatedSchema, WithdrawalInitiatedSchema } from '@nestfolio/investor-adpt/domain';
 
 const BUS_NAME = requireEnv('BUS_NAME');
 const SERVICE_NAME = 'broker-ctrl';
@@ -21,7 +21,7 @@ async function emitToEventBridge(detailType: string, subject: Record<string, unk
 
 function routeDeposit(deps: ModeDeps) {
   return async (payload: EventPayload, ctx: EventContext): Promise<WriteIntent> => {
-    const subject = parseSubject(payload, DepositInitiatedSubjectSchema);
+    const subject = parseSubject(payload, DepositInitiatedSchema);
     const mode = await deps.getMode(ctx.tenantId);
     const executionMode = mode === 'live' ? 'live' : 'simulation';
     const detailType = mode === 'live'
@@ -50,7 +50,7 @@ function routeDeposit(deps: ModeDeps) {
 
 function routeWithdrawal(deps: ModeDeps) {
   return async (payload: EventPayload, ctx: EventContext): Promise<WriteIntent> => {
-    const subject = parseSubject(payload, WithdrawalInitiatedSubjectSchema);
+    const subject = parseSubject(payload, WithdrawalInitiatedSchema);
     const mode = await deps.getMode(ctx.tenantId);
     const executionMode = mode === 'live' ? 'live' : 'simulation';
     const detailType = mode === 'live'

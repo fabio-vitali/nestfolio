@@ -7,7 +7,7 @@ import { z } from 'zod';
  * Shape is verified against InvestorProfileSnapshotRow in domain/models.ts and the
  * update() intent in handlers/event-listener.ts (agentOutput, sourceEventId, tenantId, userId).
  */
-export const InvestorProfileSnapshotSubjectSchema = z.object({
+export const InvestorProfileSnapshotSchema = z.object({
   tenantId: z.string(),
   userId: z.string(),
   agentOutput: z.object({
@@ -24,4 +24,4 @@ export const InvestorProfileSnapshotSubjectSchema = z.object({
   __version: z.number().optional(),
 });
 
-export type InvestorProfileSnapshotSubject = z.infer<typeof InvestorProfileSnapshotSubjectSchema>;
+export type InvestorProfileSnapshot = z.infer<typeof InvestorProfileSnapshotSchema>;

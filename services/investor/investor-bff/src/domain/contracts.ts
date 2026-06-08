@@ -25,10 +25,10 @@ export type InvestorProfileRisk = z.infer<typeof InvestorProfileRiskSchema>;
 
 // DEPOSIT_INITIATED / WITHDRAWAL_INITIATED subjects are cross-domain (consumed by
 // execution/broker-ctrl), so their contracts live in the producer's domain adapter:
-// @nestfolio/investor-adpt/domain (DepositInitiatedSubjectSchema / WithdrawalInitiatedSubjectSchema).
+// @nestfolio/investor-adpt/domain (DepositInitiatedSchema / WithdrawalInitiatedSchema).
 
 /** Subject shape for INVESTOR_PROFILE_CREATED / INVESTOR_PROFILE_UPDATED. */
-export const InvestorProfileSubjectSchema = z.object({
+export const InvestorProfileUpdatedSchema = z.object({
   tenantId: z.string(),
   userId: z.string(),
   operatingMode: z.enum(['CONSERVATIVE', 'BALANCED', 'AGGRESSIVE']),
@@ -37,4 +37,4 @@ export const InvestorProfileSubjectSchema = z.object({
   onboardingCompletedAt: z.string().optional(),
   __version: z.number().optional(),
 });
-export type InvestorProfileSubject = z.infer<typeof InvestorProfileSubjectSchema>;
+export type InvestorProfileUpdated = z.infer<typeof InvestorProfileUpdatedSchema>;

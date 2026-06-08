@@ -8,7 +8,7 @@ import {
   requireEnv,
   type WriteIntent,
 } from '@nestfolio/event-processor';
-import type { NotificationCreatedSubject } from '../domain/contracts';
+import type { NotificationCreated } from '../domain/contracts';
 import '../read-model-ownership';
 import { InvestorBffEventTypes } from '@nestfolio/investor-bff/events';
 import { AdvisoryCrossDomainEventTypes } from '@nestfolio/advisory-adpt/domain';
@@ -199,7 +199,7 @@ function buildNotificationRecord(
       timestamp: now,
       createdAt: now,
       updatedAt: now,
-    } satisfies TableEntry & Pick<NotificationCreatedSubject, 'relatedEntityType' | 'relatedEntityId'>,
+    } satisfies TableEntry & Pick<NotificationCreated, 'relatedEntityType' | 'relatedEntityId'>,
     { pk: `Notification#${tenantId}#${notificationId}`, sk: 'Notification' },
   );
 }

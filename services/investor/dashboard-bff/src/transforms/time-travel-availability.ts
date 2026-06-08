@@ -1,6 +1,6 @@
 import { projectVersioned, parseSubject, type WriteIntent } from '@nestfolio/event-processor';
 import type { UnitOfWork, BusEvent } from '@nestfolio/event-processor';
-import { LedgerEntrySubjectSchema } from '@nestfolio/ledger-ctrl/contracts';
+import { LedgerEntryRecordedSchema } from '@nestfolio/ledger-ctrl/contracts';
 
 /**
  * Versioned P1 projection of TimeTravelAvailability from LEDGER_ENTRY_RECORDED.
@@ -13,7 +13,7 @@ export const timeTravelAvailability = (
 ): WriteIntent | undefined => {
   const { event } = uow;
   const { tenantId, userId, region } = event.context;
-  const payload = parseSubject(uow, LedgerEntrySubjectSchema);
+  const payload = parseSubject(uow, LedgerEntryRecordedSchema);
 
   const version = payload.lastEventSequence;
   const snapshotAt = payload.snapshotAt;

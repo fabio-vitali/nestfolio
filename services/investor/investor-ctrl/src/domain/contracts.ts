@@ -1,10 +1,10 @@
 // Producer-owned event payload contracts for investor-ctrl. Imports ONLY zod.
-// NotificationCreatedSubjectSchema models the subject of NOTIFICATION_CREATED events
+// NotificationCreatedSchema models the subject of NOTIFICATION_CREATED events
 // emitted by investor-ctrl's CDC Egress. Consumers (e.g. investor-bff) import this
 // schema via @nestfolio/investor-ctrl/contracts and parse at runtime with parseSubject.
 import { z } from 'zod';
 
-export const NotificationCreatedSubjectSchema = z.object({
+export const NotificationCreatedSchema = z.object({
   tenantId: z.string(),
   // userId is CDC-stamped via pickRequestContext on the Notification row
   userId: z.string(),
@@ -19,4 +19,4 @@ export const NotificationCreatedSubjectSchema = z.object({
   relatedEntityId: z.string(),
 });
 
-export type NotificationCreatedSubject = z.infer<typeof NotificationCreatedSubjectSchema>;
+export type NotificationCreated = z.infer<typeof NotificationCreatedSchema>;

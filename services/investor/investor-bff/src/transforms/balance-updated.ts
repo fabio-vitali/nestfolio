@@ -1,11 +1,11 @@
 import { projectVersioned, parseSubject, type WriteIntent } from '@nestfolio/event-processor';
 import type { UnitOfWork, BusEvent } from '@nestfolio/event-processor';
-import { BalanceUpdatedSubjectSchema } from '@nestfolio/ledger-ctrl/contracts';
+import { BalanceUpdatedSchema } from '@nestfolio/ledger-ctrl/contracts';
 
 export const balanceUpdated = (
   uow: UnitOfWork<BusEvent<Record<string, unknown>, Record<string, unknown>>>,
 ): WriteIntent => {
-  const s = parseSubject(uow, BalanceUpdatedSubjectSchema);
+  const s = parseSubject(uow, BalanceUpdatedSchema);
   const version = Number(s.snapshot.lastEventSequence);
   return projectVersioned('CashBalance', {
     tenantId: s.tenantId,

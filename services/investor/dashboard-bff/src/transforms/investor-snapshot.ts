@@ -1,6 +1,6 @@
 import { projectVersioned, parseSubject, type WriteIntent } from '@nestfolio/event-processor';
 import type { UnitOfWork, BusEvent } from '@nestfolio/event-processor';
-import { InvestorProfileSubjectSchema } from '@nestfolio/investor-bff/contracts';
+import { InvestorProfileUpdatedSchema } from '@nestfolio/investor-bff/contracts';
 
 /**
  * Versioned P1 projection of the InvestorSnapshot row from the composite
@@ -21,7 +21,7 @@ export const investorSnapshot = (
 ): WriteIntent | undefined => {
   const { event } = uow;
   const { tenantId, userId, region } = event.context;
-  const payload = parseSubject(uow, InvestorProfileSubjectSchema);
+  const payload = parseSubject(uow, InvestorProfileUpdatedSchema);
 
   const version = payload.__version;
   if (typeof version !== 'number') return undefined;

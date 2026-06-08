@@ -1,6 +1,6 @@
 export { InvestorCrossDomainEventTypes, InvestorIngestEventTypes } from './events';
-export { DepositInitiatedSubjectSchema, WithdrawalInitiatedSubjectSchema } from './contracts';
-export type { DepositInitiatedSubject, WithdrawalInitiatedSubject } from './contracts';
+export { DepositInitiatedSchema, WithdrawalInitiatedSchema } from './contracts';
+export type { DepositInitiated, WithdrawalInitiated } from './contracts';
 
 /** Mandate level determines whether user confirmation is required. */
 export type MandateLevel = 'ADVISORY' | 'DISCRETIONARY';

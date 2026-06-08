@@ -1,4 +1,4 @@
-import { InvestorProfileSubjectSchema } from '../../../src/domain/contracts';
+import { InvestorProfileUpdatedSchema } from '../../../src/domain/contracts';
 
 const validSubject = {
   tenantId: 'tenant-123',
@@ -21,39 +21,39 @@ const validSubject = {
   __version: 1,
 };
 
-describe('InvestorProfileSubjectSchema', () => {
+describe('InvestorProfileUpdatedSchema', () => {
   it('parses a representative InvestorProfile subject', () => {
-    const result = InvestorProfileSubjectSchema.safeParse(validSubject);
+    const result = InvestorProfileUpdatedSchema.safeParse(validSubject);
     expect(result.success).toBe(true);
   });
 
   it('parses when optional fields are absent', () => {
     const { onboardingCompletedAt: _onboardingCompletedAt, __version, ...minimal } = validSubject;
-    const result = InvestorProfileSubjectSchema.safeParse(minimal);
+    const result = InvestorProfileUpdatedSchema.safeParse(minimal);
     expect(result.success).toBe(true);
   });
 
   it('throws when goal is absent', () => {
     const { goal: _goal, ...withoutGoal } = validSubject;
-    const result = InvestorProfileSubjectSchema.safeParse(withoutGoal);
+    const result = InvestorProfileUpdatedSchema.safeParse(withoutGoal);
     expect(result.success).toBe(false);
   });
 
   it('throws when riskProfile is absent', () => {
     const { riskProfile: _riskProfile, ...withoutRisk } = validSubject;
-    const result = InvestorProfileSubjectSchema.safeParse(withoutRisk);
+    const result = InvestorProfileUpdatedSchema.safeParse(withoutRisk);
     expect(result.success).toBe(false);
   });
 
   it('throws when goal.objective is absent', () => {
     const { objective: _objective, ...goalWithoutObjective } = validSubject.goal;
-    const result = InvestorProfileSubjectSchema.safeParse({ ...validSubject, goal: goalWithoutObjective });
+    const result = InvestorProfileUpdatedSchema.safeParse({ ...validSubject, goal: goalWithoutObjective });
     expect(result.success).toBe(false);
   });
 
   it('throws when riskProfile.score is absent', () => {
     const { score: _score, ...riskWithoutScore } = validSubject.riskProfile;
-    const result = InvestorProfileSubjectSchema.safeParse({ ...validSubject, riskProfile: riskWithoutScore });
+    const result = InvestorProfileUpdatedSchema.safeParse({ ...validSubject, riskProfile: riskWithoutScore });
     expect(result.success).toBe(false);
   });
 });

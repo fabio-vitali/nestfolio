@@ -229,7 +229,7 @@ describe('snapshot-projector — LedgerSnapshot', () => {
   });
 
   it('LedgerSnapshot throws ZodError when snapshot.lastEventSequence is absent (schema enforcement)', async () => {
-    // PortfolioUpdatedSubjectSchema → LedgerSnapshotSchema requires lastEventSequence: z.number().
+    // PortfolioUpdatedSchema → LedgerSnapshotSchema requires lastEventSequence: z.number().
     // A subject missing it is a producer contract violation caught at parse time (ZodError),
     // routed to the event-processor DLQ/poison-pill path.
     await expect(

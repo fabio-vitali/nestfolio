@@ -10,7 +10,7 @@ import { z } from 'zod';
  * Fields: depositId, amountCents, currency, userId, tenantId, sourceEventId, timestamp.
  * userId is explicitly written to the row (not pickRequestContext — it is spread from subject).
  */
-export const SimDepositCompletedSubjectSchema = z.object({
+export const SimDepositCompletedSchema = z.object({
   depositId: z.string(),
   amountCents: z.number().int().positive(),
   currency: z.string(),
@@ -19,4 +19,4 @@ export const SimDepositCompletedSubjectSchema = z.object({
   sourceEventId: z.string(),
   timestamp: z.string(),
 });
-export type SimDepositCompletedSubject = z.infer<typeof SimDepositCompletedSubjectSchema>;
+export type SimDepositCompleted = z.infer<typeof SimDepositCompletedSchema>;

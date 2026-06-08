@@ -1,6 +1,6 @@
 import { projectVersioned, record, parseSubject, type WriteIntent } from '@nestfolio/event-processor';
 import type { UnitOfWork, BusEvent } from '@nestfolio/event-processor';
-import { BalanceUpdatedSubjectSchema } from '@nestfolio/ledger-ctrl/contracts';
+import { BalanceUpdatedSchema } from '@nestfolio/ledger-ctrl/contracts';
 
 export const balanceUpdated = (
   uow: UnitOfWork<BusEvent<Record<string, unknown>, Record<string, unknown>>>,
@@ -11,7 +11,7 @@ export const balanceUpdated = (
     userId?: string;
     region?: string;
   };
-  const payload = parseSubject(uow, BalanceUpdatedSubjectSchema);
+  const payload = parseSubject(uow, BalanceUpdatedSchema);
 
   const balanceCents = payload.cashBalanceCents;
   const version = Number(payload.snapshot.lastEventSequence);

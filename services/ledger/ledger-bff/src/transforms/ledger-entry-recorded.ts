@@ -1,6 +1,6 @@
 import { record, projectVersioned, parseSubject, type WriteIntent } from '@nestfolio/event-processor';
 import type { UnitOfWork, BusEvent } from '@nestfolio/event-processor';
-import { LedgerEntrySubjectSchema } from '@nestfolio/ledger-ctrl/contracts';
+import { LedgerEntryRecordedSchema } from '@nestfolio/ledger-ctrl/contracts';
 
 // Zero-pad the monotonic ledger sequence so DynamoDB sorts HistoryEntry rows by
 // recency. 8 digits supports up to ~100M entries per tenant stream.
@@ -15,7 +15,7 @@ export const ledgerEntryRecorded = (
     userId?: string;
     region?: string;
   };
-  const payload = parseSubject(uow, LedgerEntrySubjectSchema);
+  const payload = parseSubject(uow, LedgerEntryRecordedSchema);
 
   const snapshot = payload.snapshot;
   const streamType = payload.streamType ?? 'actual';

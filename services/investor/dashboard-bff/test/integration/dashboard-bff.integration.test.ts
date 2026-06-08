@@ -215,7 +215,7 @@ describe('dashboard-bff', () => {
         targetService: 'dashboard-bff',
         detailType: 'LEDGER_ENTRY_RECORDED',
         detail: {
-          // Mirror the producer's LedgerEntrySubject contract: tenantId + snapshot
+          // Mirror the producer's LedgerEntryRecorded contract: tenantId + snapshot
           // are required on the subject (snapshot-to-events.ts emits them), and
           // snapshotAt is now carried top-level for the TimeTravel projection.
           tenantId: ctx.tenantId,

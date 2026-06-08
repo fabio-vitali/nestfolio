@@ -1,6 +1,6 @@
 import { projectVersioned, record, parseSubject, type WriteIntent } from '@nestfolio/event-processor';
 import type { UnitOfWork, BusEvent } from '@nestfolio/event-processor';
-import { PortfolioUpdatedSubjectSchema } from '@nestfolio/ledger-ctrl/contracts';
+import { PortfolioUpdatedSchema } from '@nestfolio/ledger-ctrl/contracts';
 
 export const portfolioUpdated = (
   uow: UnitOfWork<BusEvent<Record<string, unknown>, Record<string, unknown>>>,
@@ -11,7 +11,7 @@ export const portfolioUpdated = (
     userId?: string;
     region?: string;
   };
-  const payload = parseSubject(uow, PortfolioUpdatedSubjectSchema);
+  const payload = parseSubject(uow, PortfolioUpdatedSchema);
 
   const positions = payload.positions;
   const version = Number(payload.snapshot.lastEventSequence);

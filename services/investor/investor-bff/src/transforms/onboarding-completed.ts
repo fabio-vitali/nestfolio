@@ -2,7 +2,7 @@ import { skip, parseSubject, type WriteIntent, type EventPayload, type EventCont
 import { getUUID, getTime, type TableEntry } from '@nestfolio/event-processor';
 import { InvestorProfileRepository } from '../repositories/investor-profile.repository';
 import { computeRiskProfile } from '../domain/risk-profile.service';
-import type { InvestorProfileSubject } from '../domain/contracts';
+import type { InvestorProfileUpdated } from '../domain/contracts';
 import { OnboardingCompletedRecordSchema } from '@nestfolio/onboarding-bff/contracts';
 
 export async function onboardingCompleted(
@@ -58,7 +58,7 @@ export async function onboardingCompleted(
             createdAt: now,
             updatedAt: now,
             timestamp: now,
-          } satisfies TableEntry & Pick<InvestorProfileSubject, 'tenantId' | 'userId' | 'operatingMode' | 'goal' | 'riskProfile'>,
+          } satisfies TableEntry & Pick<InvestorProfileUpdated, 'tenantId' | 'userId' | 'operatingMode' | 'goal' | 'riskProfile'>,
         },
       },
       {

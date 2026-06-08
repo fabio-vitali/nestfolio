@@ -8,11 +8,11 @@ import {
   type WriteIntent,
 } from '@nestfolio/event-processor';
 import { InvestorProfileEventTypes } from '@nestfolio/investor-profile-ctrl/events';
-import { InvestorProfileSnapshotSubjectSchema } from '@nestfolio/investor-profile-ctrl/contracts';
+import { InvestorProfileSnapshotSchema } from '@nestfolio/investor-profile-ctrl/contracts';
 import { MarketIntelligenceEventTypes } from '@nestfolio/market-intelligence-ctrl/events';
-import { MarketSnapshotSubjectSchema } from '@nestfolio/market-intelligence-ctrl/contracts';
+import { MarketSnapshotSchema } from '@nestfolio/market-intelligence-ctrl/contracts';
 import { LedgerCtrlEventTypes } from '@nestfolio/ledger-ctrl/events';
-import { PortfolioUpdatedSubjectSchema } from '@nestfolio/ledger-ctrl/contracts';
+import { PortfolioUpdatedSchema } from '@nestfolio/ledger-ctrl/contracts';
 import {
   PROJECTED_IP_SNAPSHOT_SK,
   PROJECTED_MARKET_SNAPSHOT_SK,
@@ -26,7 +26,7 @@ function projectIpSnapshot(
   payload: EventPayload,
   ctx: EventContext,
 ): WriteIntent | undefined {
-  const subject = parseSubject(payload, InvestorProfileSnapshotSubjectSchema);
+  const subject = parseSubject(payload, InvestorProfileSnapshotSchema);
   const tenantId = subject.tenantId;
   const userId = subject.userId;
   const agentOutput = subject.agentOutput;
@@ -51,7 +51,7 @@ function projectIpSnapshot(
 }
 
 function projectMarketSnapshot(payload: EventPayload): WriteIntent | undefined {
-  const subject = parseSubject(payload, MarketSnapshotSubjectSchema);
+  const subject = parseSubject(payload, MarketSnapshotSchema);
   const region = subject.region;
   const agentOutput = subject.agentOutput;
   if (!agentOutput) {
@@ -76,7 +76,7 @@ function projectMarketSnapshot(payload: EventPayload): WriteIntent | undefined {
 }
 
 function projectLedgerSnapshot(payload: EventPayload, ctx: EventContext): WriteIntent | undefined {
-  const subject = parseSubject(payload, PortfolioUpdatedSubjectSchema);
+  const subject = parseSubject(payload, PortfolioUpdatedSchema);
   const tenantId = subject.tenantId;
   const snapshot = subject.snapshot;
   if (!snapshot) {

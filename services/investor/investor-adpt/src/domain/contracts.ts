@@ -11,7 +11,7 @@ import { z } from 'zod';
  * which advisory produces and execution-ctrl consumes). Breaks the
  * broker-ctrl ↔ investor-bff circular dependency.
  */
-export const DepositInitiatedSubjectSchema = z.object({
+export const DepositInitiatedSchema = z.object({
   depositId: z.string(),
   amountCents: z.number().int().positive(),
   currency: z.string(),
@@ -22,7 +22,7 @@ export const DepositInitiatedSubjectSchema = z.object({
   initiatedAt: z.string().optional(),
   timestamp: z.string(),
 });
-export type DepositInitiatedSubject = z.infer<typeof DepositInitiatedSubjectSchema>;
+export type DepositInitiated = z.infer<typeof DepositInitiatedSchema>;
 
 /**
  * Subject shape for WITHDRAWAL_INITIATED.
@@ -34,7 +34,7 @@ export type DepositInitiatedSubject = z.infer<typeof DepositInitiatedSubjectSche
  * matching the ProposedTrade precedent. Breaks the broker-ctrl ↔ investor-bff
  * circular dependency.
  */
-export const WithdrawalInitiatedSubjectSchema = z.object({
+export const WithdrawalInitiatedSchema = z.object({
   withdrawalId: z.string(),
   amountCents: z.number().int().positive(),
   currency: z.string(),
@@ -45,4 +45,4 @@ export const WithdrawalInitiatedSubjectSchema = z.object({
   requestedAt: z.string().optional(),
   timestamp: z.string(),
 });
-export type WithdrawalInitiatedSubject = z.infer<typeof WithdrawalInitiatedSubjectSchema>;
+export type WithdrawalInitiated = z.infer<typeof WithdrawalInitiatedSchema>;

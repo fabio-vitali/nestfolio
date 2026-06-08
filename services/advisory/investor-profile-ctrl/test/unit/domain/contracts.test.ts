@@ -1,5 +1,5 @@
 import {
-  InvestorProfileSnapshotSubjectSchema,
+  InvestorProfileSnapshotSchema,
 } from '../../../src/domain/contracts';
 
 const validAgentOutput = {
@@ -14,7 +14,7 @@ const validAgentOutput = {
 };
 
 describe('investor-profile-ctrl contracts', () => {
-  it('InvestorProfileSnapshotSubjectSchema parses a full CDC snapshot subject', () => {
+  it('InvestorProfileSnapshotSchema parses a full CDC snapshot subject', () => {
     const subject = {
       tenantId: 'tenant-1',
       userId: 'user-1',
@@ -22,7 +22,7 @@ describe('investor-profile-ctrl contracts', () => {
       sourceEventId: 'evt-abc',
       __version: 3,
     };
-    const parsed = InvestorProfileSnapshotSubjectSchema.parse(subject);
+    const parsed = InvestorProfileSnapshotSchema.parse(subject);
     expect(parsed.tenantId).toBe('tenant-1');
     expect(parsed.userId).toBe('user-1');
     expect(parsed.agentOutput.riskCategory).toBe('AGGRESSIVE');
@@ -37,7 +37,7 @@ describe('investor-profile-ctrl contracts', () => {
       userId: 'user-1',
       agentOutput: validAgentOutput,
     };
-    const parsed = InvestorProfileSnapshotSubjectSchema.parse(subject);
+    const parsed = InvestorProfileSnapshotSchema.parse(subject);
     expect(parsed.sourceEventId).toBeUndefined();
     expect(parsed.__version).toBeUndefined();
   });
@@ -48,7 +48,7 @@ describe('investor-profile-ctrl contracts', () => {
       userId: 'user-1',
       agentOutput: validAgentOutput,
     };
-    expect(() => InvestorProfileSnapshotSubjectSchema.parse(without)).toThrow();
+    expect(() => InvestorProfileSnapshotSchema.parse(without)).toThrow();
   });
 
   it('requires userId', () => {
@@ -57,7 +57,7 @@ describe('investor-profile-ctrl contracts', () => {
       userId: 'user-1',
       agentOutput: validAgentOutput,
     };
-    expect(() => InvestorProfileSnapshotSubjectSchema.parse(without)).toThrow();
+    expect(() => InvestorProfileSnapshotSchema.parse(without)).toThrow();
   });
 
   it('riskCategory must be one of CONSERVATIVE | MODERATE | AGGRESSIVE', () => {
@@ -66,13 +66,13 @@ describe('investor-profile-ctrl contracts', () => {
       userId: 'user-1',
       agentOutput: { ...validAgentOutput, riskCategory: 'UNKNOWN' },
     };
-    expect(() => InvestorProfileSnapshotSubjectSchema.parse(invalidSubject)).toThrow();
+    expect(() => InvestorProfileSnapshotSchema.parse(invalidSubject)).toThrow();
   });
 
   it('agentOutput shape is verified — missing riskScore throws', () => {
     const { riskScore: _omitted, ...withoutRiskScore } = validAgentOutput;
     expect(() =>
-      InvestorProfileSnapshotSubjectSchema.parse({
+      InvestorProfileSnapshotSchema.parse({
         tenantId: 'tenant-1',
         userId: 'user-1',
         agentOutput: withoutRiskScore,

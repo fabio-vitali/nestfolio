@@ -19,7 +19,7 @@ export const LedgerSnapshotSchema = z.object({
 export type LedgerSnapshot = z.infer<typeof LedgerSnapshotSchema>;
 
 /** BALANCE_UPDATED subject (the BalanceEvent record). */
-export const BalanceUpdatedSubjectSchema = z.object({
+export const BalanceUpdatedSchema = z.object({
   tenantId: z.string(),
   // userId is always stamped on the published subject by pickRequestContext in the
   // intent executor (changeDataCapture publishes the full DDB record as the subject),
@@ -30,10 +30,10 @@ export const BalanceUpdatedSubjectSchema = z.object({
   totalValueCents: z.number().optional(),
   snapshot: LedgerSnapshotSchema,
 });
-export type BalanceUpdatedSubject = z.infer<typeof BalanceUpdatedSubjectSchema>;
+export type BalanceUpdated = z.infer<typeof BalanceUpdatedSchema>;
 
 /** PORTFOLIO_UPDATED subject (the PortfolioEvent record). */
-export const PortfolioUpdatedSubjectSchema = z.object({
+export const PortfolioUpdatedSchema = z.object({
   // tenantId is stamped by snapshotToEvents (snapshot-to-events.ts line ~52) and
   // published as part of the CDC subject — required here so consumers can key the
   // projected row without falling back to ctx.tenantId.
@@ -44,10 +44,10 @@ export const PortfolioUpdatedSubjectSchema = z.object({
   totalValueCents: z.number().optional(),
   snapshot: LedgerSnapshotSchema,
 });
-export type PortfolioUpdatedSubject = z.infer<typeof PortfolioUpdatedSubjectSchema>;
+export type PortfolioUpdated = z.infer<typeof PortfolioUpdatedSchema>;
 
 /** LEDGER_ENTRY_RECORDED subject. */
-export const LedgerEntrySubjectSchema = z.object({
+export const LedgerEntryRecordedSchema = z.object({
   tenantId: z.string(),
   streamType: z.string().optional(),
   lastEventSequence: z.number(),
@@ -56,4 +56,4 @@ export const LedgerEntrySubjectSchema = z.object({
   snapshotAt: z.string(),
   snapshot: LedgerSnapshotSchema,
 });
-export type LedgerEntrySubject = z.infer<typeof LedgerEntrySubjectSchema>;
+export type LedgerEntryRecorded = z.infer<typeof LedgerEntryRecordedSchema>;
