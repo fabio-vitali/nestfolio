@@ -39,9 +39,12 @@ genuinely polymorphic / opaque / dynamic reads that the census never targeted.
   `execution-ctrl` event-listener / order-lifecycle (envelope Record; the trades
   themselves already use the typed `ProposedTrade` from `advisory-adpt/domain`).
 
-## Why parked
+## Scope / priority
 
 Most are appropriately `Record` today (the data is genuinely dynamic/composite). The
 highest-value subset (advisory agent handoff payloads) is really a typed-inter-agent-
-handoff design, not a mechanical retype. Promote when that design happens or when a
-specific handler needs build-tripwire protection.
+handoff design, not a mechanical retype — that part should get a brief design pass rather
+than a blind retype. Queued (rank 5, low priority) at the user's request after the
+typing workstream: assess each handler, type the ones with a single producer + specific
+reads, give the polymorphic feed/KB readers a consumer-owned view schema (like
+recent-activity), and leave genuinely-opaque blobs as `Record`.
