@@ -34,6 +34,9 @@ export type BalanceUpdatedSubject = z.infer<typeof BalanceUpdatedSubjectSchema>;
 
 /** PORTFOLIO_UPDATED subject (the PortfolioEvent record). */
 export const PortfolioUpdatedSubjectSchema = z.object({
+  // tenantId is stamped by snapshotToEvents (snapshot-to-events.ts line ~52) and
+  // published as part of the CDC subject — required here so consumers can key the
+  // projected row without falling back to ctx.tenantId.
   tenantId: z.string(),
   streamType: z.string().optional(),
   positions: z.record(LedgerPositionSchema),

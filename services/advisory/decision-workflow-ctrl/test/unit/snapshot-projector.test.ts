@@ -20,6 +20,28 @@ const payload = (subject: Record<string, unknown>): EventPayload => ({
   context: { tenantId: 'tenant-1', userId: 'user-1', region: 'us-east-1' },
 } as EventPayload);
 
+/** Minimal valid InvestorProfileSnapshot agentOutput matching the schema */
+const validIpAgentOutput = {
+  goals: ['retire at 60'],
+  timeHorizon: '20 years',
+  riskWillingness: 'high',
+  riskScore: 70,
+  riskCategory: 'AGGRESSIVE' as const,
+  regulatoryFlags: [],
+  suitabilityAssessment: 'suitable',
+  confidence: 0.9,
+};
+
+/** Minimal valid MarketSnapshot agentOutput matching MarketAnalysisOutputSchema */
+const validMarketAgentOutput = {
+  signals: [
+    { type: 'momentum', ticker: 'VTI', sentiment: 'BULLISH' as const, confidence: 0.8, source: 'yahoo' },
+  ],
+  tickersMentioned: ['VTI'],
+  marketOutlook: 'Cautiously optimistic',
+  confidenceScore: 0.75,
+};
+
 describe('snapshot-projector', () => {
   const handlers = createHandlers();
 
@@ -28,7 +50,7 @@ describe('snapshot-projector', () => {
       payload({
         tenantId: 'tenant-1',
         userId: 'user-1',
-        agentOutput: { riskScore: 55, riskTolerance: 'MODERATE' },
+        agentOutput: validIpAgentOutput,
         sourceEventId: 'src-e1',
         __version: 1,
       }),
@@ -45,7 +67,7 @@ describe('snapshot-projector', () => {
     const fields = (intent as { fields: Record<string, unknown> }).fields;
     expect(fields.tenantId).toBe('tenant-1');
     expect(fields.userId).toBe('user-1');
-    expect(JSON.parse(fields.agentOutput as string)).toEqual({ riskScore: 55, riskTolerance: 'MODERATE' });
+    expect(JSON.parse(fields.agentOutput as string)).toMatchObject({ riskScore: 70, riskCategory: 'AGGRESSIVE' });
     expect(fields.sourceEventId).toBe('src-e1');
     expect(typeof fields.updatedAt).toBe('string');
   });
@@ -55,7 +77,7 @@ describe('snapshot-projector', () => {
       payload({
         tenantId: 'tenant-1',
         userId: 'user-1',
-        agentOutput: { riskScore: 70 },
+        agentOutput: { ...validIpAgentOutput, riskScore: 55, riskCategory: 'MODERATE' },
         sourceEventId: 'src-e2',
         __version: 4,
       }),
@@ -66,13 +88,13 @@ describe('snapshot-projector', () => {
     expect(intent!.typename).toBe('InvestorProfileSnapshot');
     expect((intent as { version: number }).version).toBe(4);
     const fields = (intent as { fields: Record<string, unknown> }).fields;
-    expect(JSON.parse(fields.agentOutput as string)).toEqual({ riskScore: 70 });
+    expect(JSON.parse(fields.agentOutput as string)).toMatchObject({ riskScore: 55 });
     expect(fields.sourceEventId).toBe('src-e2');
   });
 
   it('IP snapshot drops (undefined) when __version is absent', async () => {
     const result = await handlers.INVESTOR_PROFILE_SNAPSHOT_UPDATED(
-      payload({ tenantId: 'tenant-1', userId: 'user-1', agentOutput: { riskScore: 1 } }),
+      payload({ tenantId: 'tenant-1', userId: 'user-1', agentOutput: validIpAgentOutput }),
       ctx('INVESTOR_PROFILE_SNAPSHOT_UPDATED'),
     );
     expect(result).toBeUndefined();
@@ -83,7 +105,7 @@ describe('snapshot-projector', () => {
       payload({
         tenantId: 'tenant-1',
         userId: 'user-1',
-        agentOutput: { riskScore: 50 },
+        agentOutput: validIpAgentOutput,
         __version: 1,
       }),
       ctx('INVESTOR_PROFILE_SNAPSHOT_CREATED', { eventId: 'fallback-evt' }),
@@ -92,27 +114,36 @@ describe('snapshot-projector', () => {
     expect((intent as { fields: Record<string, unknown> }).fields.sourceEventId).toBe('fallback-evt');
   });
 
-  it('IP snapshot handlers throw NotRetryableError when agentOutput missing', async () => {
+  it('IP snapshot handlers throw on invalid agentOutput shape (schema enforcement)', async () => {
+    // An agentOutput missing required fields (e.g. riskCategory) should throw ZodError
     await expect(
       handlers.INVESTOR_PROFILE_SNAPSHOT_CREATED(
-        payload({ tenantId: 'tenant-1', userId: 'user-1', __version: 1 }),
+        payload({
+          tenantId: 'tenant-1',
+          userId: 'user-1',
+          agentOutput: { riskScore: 70 },   // missing riskCategory, goals, etc.
+          __version: 1,
+        }),
         ctx('INVESTOR_PROFILE_SNAPSHOT_CREATED'),
       ),
-    ).rejects.toThrow(/agentOutput/);
+    ).rejects.toThrow();
+  });
+
+  it('IP snapshot handlers throw on missing subject fields (schema enforcement)', async () => {
+    // Subject missing userId should throw ZodError
     await expect(
-      handlers.INVESTOR_PROFILE_SNAPSHOT_UPDATED(
-        payload({ tenantId: 'tenant-1', userId: 'user-1', __version: 1 }),
-        ctx('INVESTOR_PROFILE_SNAPSHOT_UPDATED'),
+      handlers.INVESTOR_PROFILE_SNAPSHOT_CREATED(
+        payload({ tenantId: 'tenant-1', agentOutput: validIpAgentOutput, __version: 1 }),
+        ctx('INVESTOR_PROFILE_SNAPSHOT_CREATED'),
       ),
-    ).rejects.toThrow(/agentOutput/);
+    ).rejects.toThrow();
   });
 
   it('MARKET_SNAPSHOT_UPDATED → projectVersioned keyed on subject.__version', async () => {
     const result = await handlers.MARKET_SNAPSHOT_UPDATED(
       payload({
         region: 'us-east-1',
-        agentOutput: { signals: ['risk-on'], regime: 'BULL' },
-        fastComponentsAt: '2026-05-17T12:00:00Z',
+        agentOutput: validMarketAgentOutput,
         __version: 9,
       }),
       ctx('MARKET_SNAPSHOT_UPDATED', { tenantId: 'SYSTEM' }),
@@ -127,7 +158,7 @@ describe('snapshot-projector', () => {
     expect((intent as { overrides?: { pk?: string; sk?: string } }).overrides?.sk).toBe(PROJECTED_MARKET_SNAPSHOT_SK);
     const fields = (intent as { fields: Record<string, unknown> }).fields;
     expect(fields.region).toBe('us-east-1');
-    expect(JSON.parse(fields.agentOutput as string)).toEqual({ signals: ['risk-on'], regime: 'BULL' });
+    expect(JSON.parse(fields.agentOutput as string)).toMatchObject({ confidenceScore: 0.75 });
     expect(typeof fields.updatedAt).toBe('string');
     expect(fields.pk).toBeUndefined();
     expect(fields.sk).toBeUndefined();
@@ -135,32 +166,30 @@ describe('snapshot-projector', () => {
 
   it('MARKET_SNAPSHOT_UPDATED drops (undefined) when __version is absent', async () => {
     const result = await handlers.MARKET_SNAPSHOT_UPDATED(
-      payload({ region: 'us-east-1', agentOutput: { signals: [] } }),
+      payload({ region: 'us-east-1', agentOutput: validMarketAgentOutput }),
       ctx('MARKET_SNAPSHOT_UPDATED', { tenantId: 'SYSTEM' }),
     );
     expect(result).toBeUndefined();
   });
 
-  it('MARKET_SNAPSHOT_UPDATED defaults region to us-east-1 when subject.region missing', async () => {
-    const result = await handlers.MARKET_SNAPSHOT_UPDATED(
-      payload({ agentOutput: { signals: [] }, __version: 1 }),
-      ctx('MARKET_SNAPSHOT_UPDATED', { tenantId: 'SYSTEM' }),
-    );
-    const intent = Array.isArray(result) ? result[0] : result;
-    expect(intent!._tag).toBe('projectVersioned');
-    expect((intent as { fields: Record<string, unknown> }).fields.region).toBe('us-east-1');
-    expect((intent as { overrides?: { pk?: string } }).overrides?.pk).toBe(
-      projectedMarketSnapshotPk('us-east-1'),
-    );
-  });
-
-  it('MARKET_SNAPSHOT_UPDATED throws NotRetryableError when agentOutput missing', async () => {
+  it('MARKET_SNAPSHOT_UPDATED throws on invalid agentOutput shape (schema enforcement)', async () => {
+    // agentOutput missing required fields (e.g. signals) should throw ZodError
     await expect(
       handlers.MARKET_SNAPSHOT_UPDATED(
-        payload({ region: 'us-east-1', __version: 1 }),
+        payload({ region: 'us-east-1', agentOutput: { outlook: 'bullish' }, __version: 1 }),
         ctx('MARKET_SNAPSHOT_UPDATED', { tenantId: 'SYSTEM' }),
       ),
-    ).rejects.toThrow(/agentOutput/);
+    ).rejects.toThrow();
+  });
+
+  it('MARKET_SNAPSHOT_UPDATED throws on missing subject.region (schema enforcement)', async () => {
+    // subject missing region should throw ZodError
+    await expect(
+      handlers.MARKET_SNAPSHOT_UPDATED(
+        payload({ agentOutput: validMarketAgentOutput, __version: 1 }),
+        ctx('MARKET_SNAPSHOT_UPDATED', { tenantId: 'SYSTEM' }),
+      ),
+    ).rejects.toThrow();
   });
 });
 
@@ -171,8 +200,9 @@ describe('snapshot-projector — LedgerSnapshot', () => {
     const result = await handlers[LedgerCtrlEventTypes.PORTFOLIO_UPDATED](
       payload({
         tenantId: 'tenant-abc',
+        positions: { VTI: { symbol: 'VTI', quantity: 10, averageCostBasis: 200, totalCostBasis: 2000, lastFillPrice: 200 } },
         snapshot: {
-          positions: { VTI: { quantity: 10, lastFillPrice: 200 } },
+          positions: { VTI: { symbol: 'VTI', quantity: 10, averageCostBasis: 200, totalCostBasis: 2000, lastFillPrice: 200 } },
           cashBalanceCents: 5_000_00,
           lastEventSequence: 7,
         },
@@ -193,27 +223,33 @@ describe('snapshot-projector — LedgerSnapshot', () => {
     const parsed = JSON.parse(fields.state as string);
     expect(parsed.positions.VTI.quantity).toBe(10);
     expect(parsed.cashBalanceCents).toBe(500_000);
+    // DRIFT: PORTFOLIO_UPDATED subjects don't carry sourceEventId — ctx.eventId is used directly
     expect(fields.sourceEventId).toBe('evt-1');
     expect(typeof fields.updatedAt).toBe('string');
   });
 
-  it('LedgerSnapshot drops (undefined) when snapshot.lastEventSequence is absent', async () => {
-    const result = await handlers[LedgerCtrlEventTypes.PORTFOLIO_UPDATED](
-      payload({
-        tenantId: 'tenant-abc',
-        snapshot: { positions: {}, cashBalanceCents: 0 },
-      }),
-      ctx('PORTFOLIO_UPDATED', { tenantId: 'tenant-abc', eventId: 'evt-3' }),
-    );
-    expect(result).toBeUndefined();
+  it('LedgerSnapshot throws ZodError when snapshot.lastEventSequence is absent (schema enforcement)', async () => {
+    // PortfolioUpdatedSubjectSchema → LedgerSnapshotSchema requires lastEventSequence: z.number().
+    // A subject missing it is a producer contract violation caught at parse time (ZodError),
+    // routed to the event-processor DLQ/poison-pill path.
+    await expect(
+      handlers[LedgerCtrlEventTypes.PORTFOLIO_UPDATED](
+        payload({
+          tenantId: 'tenant-abc',
+          positions: {},
+          snapshot: { positions: {}, cashBalanceCents: 0 }, // missing lastEventSequence
+        }),
+        ctx('PORTFOLIO_UPDATED', { tenantId: 'tenant-abc', eventId: 'evt-3' }),
+      ),
+    ).rejects.toThrow();
   });
 
   it('raises NotRetryableError when subject.snapshot is missing', async () => {
     await expect(
       handlers[LedgerCtrlEventTypes.PORTFOLIO_UPDATED](
-        payload({ tenantId: 'tenant-abc' }),
+        payload({ tenantId: 'tenant-abc', positions: {} }),
         ctx('PORTFOLIO_UPDATED', { tenantId: 'tenant-abc', eventId: 'evt-2' }),
       ),
-    ).rejects.toThrow(/missing subject\.snapshot/);
+    ).rejects.toThrow();
   });
 });

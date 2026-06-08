@@ -1,14 +1,18 @@
 import {
   materializeToTable,
   projectVersioned,
+  parseSubject,
   NotRetryableError,
   type EventPayload,
   type EventContext,
   type WriteIntent,
 } from '@nestfolio/event-processor';
 import { InvestorProfileEventTypes } from '@nestfolio/investor-profile-ctrl/events';
+import { InvestorProfileSnapshotSubjectSchema } from '@nestfolio/investor-profile-ctrl/contracts';
 import { MarketIntelligenceEventTypes } from '@nestfolio/market-intelligence-ctrl/events';
+import { MarketSnapshotSubjectSchema } from '@nestfolio/market-intelligence-ctrl/contracts';
 import { LedgerCtrlEventTypes } from '@nestfolio/ledger-ctrl/events';
+import { PortfolioUpdatedSubjectSchema } from '@nestfolio/ledger-ctrl/contracts';
 import {
   PROJECTED_IP_SNAPSHOT_SK,
   PROJECTED_MARKET_SNAPSHOT_SK,
@@ -22,10 +26,10 @@ function projectIpSnapshot(
   payload: EventPayload,
   ctx: EventContext,
 ): WriteIntent | undefined {
-  const subject = payload.subject ?? {};
-  const tenantId = (subject.tenantId as string) ?? ctx.tenantId;
-  const userId = (subject.userId as string) ?? tenantId;
-  const agentOutput = subject.agentOutput as Record<string, unknown> | undefined;
+  const subject = parseSubject(payload, InvestorProfileSnapshotSubjectSchema);
+  const tenantId = subject.tenantId;
+  const userId = subject.userId;
+  const agentOutput = subject.agentOutput;
   if (!agentOutput) {
     throw new NotRetryableError(
       `${ctx.eventType} missing subject.agentOutput for tenant=${tenantId} user=${userId}`,
@@ -37,7 +41,7 @@ function projectIpSnapshot(
     tenantId,
     userId,
     agentOutput: JSON.stringify(agentOutput),
-    sourceEventId: (subject.sourceEventId as string) ?? ctx.eventId,
+    sourceEventId: subject.sourceEventId ?? ctx.eventId,
     updatedAt: new Date().toISOString(),
   };
   return projectVersioned('InvestorProfileSnapshot', fields, {
@@ -47,9 +51,9 @@ function projectIpSnapshot(
 }
 
 function projectMarketSnapshot(payload: EventPayload): WriteIntent | undefined {
-  const subject = payload.subject ?? {};
-  const region = (subject.region as string) ?? 'us-east-1';
-  const agentOutput = subject.agentOutput as Record<string, unknown> | undefined;
+  const subject = parseSubject(payload, MarketSnapshotSubjectSchema);
+  const region = subject.region;
+  const agentOutput = subject.agentOutput;
   if (!agentOutput) {
     throw new NotRetryableError(
       `MARKET_SNAPSHOT_UPDATED missing subject.agentOutput for region=${region}`,
@@ -72,11 +76,9 @@ function projectMarketSnapshot(payload: EventPayload): WriteIntent | undefined {
 }
 
 function projectLedgerSnapshot(payload: EventPayload, ctx: EventContext): WriteIntent | undefined {
-  const subject = payload.subject ?? {};
-  const tenantId = (subject.tenantId as string) ?? ctx.tenantId;
-  const snapshot = subject.snapshot as
-    | { positions: Record<string, unknown>; cashBalanceCents: number; lastEventSequence: number }
-    | undefined;
+  const subject = parseSubject(payload, PortfolioUpdatedSubjectSchema);
+  const tenantId = subject.tenantId;
+  const snapshot = subject.snapshot;
   if (!snapshot) {
     throw new NotRetryableError(
       `${ctx.eventType} missing subject.snapshot for tenant=${tenantId}`,
@@ -91,7 +93,9 @@ function projectLedgerSnapshot(payload: EventPayload, ctx: EventContext): WriteI
       cashBalanceCents: snapshot.cashBalanceCents,
     }),
     lastEventSequence: snapshot.lastEventSequence,
-    sourceEventId: (subject.sourceEventId as string) ?? ctx.eventId,
+    // DRIFT NOTE: PORTFOLIO_UPDATED subjects do not carry sourceEventId.
+    // Use ctx.eventId directly as the canonical source reference.
+    sourceEventId: ctx.eventId,
     updatedAt: new Date().toISOString(),
   };
   // PORTFOLIO_UPDATED is both create + update. projectVersioned's guard
