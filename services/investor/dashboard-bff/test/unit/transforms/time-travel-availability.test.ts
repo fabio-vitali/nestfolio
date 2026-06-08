@@ -1,3 +1,4 @@
+import { z } from 'zod';
 import { projectVersioned } from '@nestfolio/event-processor';
 import type { UnitOfWork, BusEvent } from '@nestfolio/event-processor';
 import { timeTravelAvailability } from '../../../src/transforms/time-travel-availability';
@@ -17,10 +18,21 @@ describe('timeTravelAvailability transform', () => {
     record: {},
   }) as unknown as TestUow;
 
-  it('returns projectVersioned keyed on subject.lastEventSequence', () => {
-    expect(
-      timeTravelAvailability(makeUow({ snapshotAt: '2026-01-01T12:00:00.000Z', lastEventSequence: 12 })),
-    ).toEqual(
+  // The shape the real ledger-ctrl producer emits (LedgerEntryEvent).
+  const validSubject = {
+    tenantId: 't1',
+    streamType: 'actual',
+    lastEventSequence: 12,
+    snapshotAt: '2026-01-01T12:00:00.000Z',
+    snapshot: {
+      positions: { AAPL: { symbol: 'AAPL', quantity: 5, averageCostBasis: 150, totalCostBasis: 750, lastFillPrice: 150 } },
+      cashBalanceCents: 250_000,
+      lastEventSequence: 12,
+    },
+  };
+
+  it('returns projectVersioned keyed on subject.lastEventSequence using the emitted snapshotAt', () => {
+    expect(timeTravelAvailability(makeUow(validSubject))).toEqual(
       projectVersioned('TimeTravelAvailability', {
         tenantId: 't1',
         userId: 'u1',
@@ -35,23 +47,13 @@ describe('timeTravelAvailability transform', () => {
     );
   });
 
-  it('falls back to event timestamp for snapshotAt', () => {
-    expect(timeTravelAvailability(makeUow({ lastEventSequence: 3 }))).toEqual(
-      projectVersioned('TimeTravelAvailability', {
-        tenantId: 't1',
-        userId: 'u1',
-        region: 'us-east-1',
-        available: true,
-        snapshotAt: '2026-01-01T00:00:00.000Z',
-        latestDate: '2026-01-01',
-      }, {
-        version: 3,
-        overrides: { pk: 'T#t1', sk: 'TimeTravelAvailability' },
-      }),
-    );
+  it('throws ZodError when lastEventSequence is absent (contract violation)', () => {
+    const { lastEventSequence: _omitted, ...withoutSeq } = validSubject;
+    expect(() => timeTravelAvailability(makeUow(withoutSeq))).toThrow(z.ZodError);
   });
 
-  it('drops (undefined) when lastEventSequence is absent', () => {
-    expect(timeTravelAvailability(makeUow({ snapshotAt: '2026-01-01T12:00:00.000Z' }))).toBeUndefined();
+  it('throws ZodError when snapshotAt is absent (contract violation)', () => {
+    const { snapshotAt: _omitted, ...withoutSnapshotAt } = validSubject;
+    expect(() => timeTravelAvailability(makeUow(withoutSnapshotAt))).toThrow(z.ZodError);
   });
 });
