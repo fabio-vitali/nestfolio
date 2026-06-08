@@ -1,3 +1,3 @@
 export { ExecutionCrossDomainEventTypes, ExecutionIngestEventTypes } from './events';
-export { DepositInitiatedSubjectSchema, WithdrawalInitiatedSubjectSchema } from './contracts';
-export type { DepositInitiatedSubject, WithdrawalInitiatedSubject } from './contracts';
+export { FundingSnapshotSchema } from './contracts';
+export type { FundingSnapshot } from './contracts';

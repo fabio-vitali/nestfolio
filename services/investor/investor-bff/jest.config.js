@@ -13,6 +13,7 @@ module.exports = {
     '^@nestfolio/investor-ctrl/events$': '<rootDir>/../../investor/investor-ctrl/src/domain/events.ts',
     '^@nestfolio/investor-ctrl/contracts$': '<rootDir>/../../investor/investor-ctrl/src/domain/contracts.ts',
     '^@nestfolio/investor-adpt/domain$': '<rootDir>/../../investor/investor-adpt/src/domain/index.ts',
+    '^@nestfolio/execution-adpt/domain$': '<rootDir>/../../execution/execution-adpt/src/domain/index.ts',
     '^@nestfolio/ledger-adpt/domain$': '<rootDir>/../../ledger/ledger-adpt/src/domain/index.ts',
     '^@nestfolio/ledger-ctrl/contracts$': '<rootDir>/../../ledger/ledger-ctrl/src/domain/contracts.ts',
     '^@nestfolio/onboarding-bff/contracts$': '<rootDir>/../../investor/onboarding-bff/src/domain/contracts.ts',

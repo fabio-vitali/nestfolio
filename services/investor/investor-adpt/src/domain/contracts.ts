@@ -1,34 +1,48 @@
 import { z } from 'zod';
 
 /**
- * CDC subject shape emitted by broker-ctrl for every funding lifecycle transition
- * (DEPOSIT_REQUESTED, DEPOSIT_DETECTED, DEPOSIT_SETTLED, DEPOSIT_FAILED,
- *  WITHDRAWAL_REQUESTED, WITHDRAWAL_SETTLED, WITHDRAWAL_FAILED).
+ * Subject shape for DEPOSIT_INITIATED.
+ * Emitted from the DepositIntent DDB row (initiate-deposit.fn.js resolver in investor-bff).
+ * Produced by the investor domain; forwarded to ExecutionBus by execution-adpt and
+ * consumed by broker-ctrl to route deposits to the correct adapter (sim or alpaca).
  *
- * Forwarded to InvestorBus by investor-adpt; projected by investor-bff into
- * Deposit and WithdrawalRequest read-model rows.
- *
- * Owned here (cross-domain adapter) to break the broker-ctrl ↔ investor-bff
- * circular dependency — matching the ProposedTrade precedent in advisory-adpt/domain.
+ * Owned here in the PRODUCER's cross-domain adapter (investor-adpt/domain) —
+ * matching the ProposedTrade precedent (advisory-adpt/domain owns ProposedTrade,
+ * which advisory produces and execution-ctrl consumes). Breaks the
+ * broker-ctrl ↔ investor-bff circular dependency.
  */
-export const FundingSnapshotSchema = z.object({
-  sk: z.string(), // CDC passthrough field — the lifecycle event name (DEPOSIT_SETTLED, etc.)
-  direction: z.enum(['DEPOSIT', 'WITHDRAWAL']),
-  status: z.enum(['requested', 'detected', 'settled', 'failed']),
-  transferId: z.string(),
-  tenantId: z.string(),
-  userId: z.string(),
-  region: z.string(),
-  amountCents: z.number(),
+export const DepositInitiatedSubjectSchema = z.object({
+  depositId: z.string(),
+  amountCents: z.number().int().positive(),
   currency: z.string(),
-  executionMode: z.enum(['simulation', 'live']),
-  initiatedAt: z.string(),
-  detectedAt: z.string().optional(),
-  settledAt: z.string().optional(),
-  failedAt: z.string().optional(),
-  reason: z.string().optional(),
+  userId: z.string().optional(), // present; Cognito-supplied via stash
+  tenantId: z.string(),
+  region: z.string().optional(), // set from ctx.stash.region by the AppSync resolver
+  status: z.string().optional(),
+  initiatedAt: z.string().optional(),
   timestamp: z.string(),
-  __version: z.number().optional(), // CDC-added; absent on the carrier row itself
 });
+export type DepositInitiatedSubject = z.infer<typeof DepositInitiatedSubjectSchema>;
 
-export type FundingSnapshot = z.infer<typeof FundingSnapshotSchema>;
+/**
+ * Subject shape for WITHDRAWAL_INITIATED.
+ * Emitted from the WithdrawalIntent DDB row (request-withdrawal.fn.js resolver in investor-bff).
+ * Produced by the investor domain; forwarded to ExecutionBus by execution-adpt and
+ * consumed by broker-ctrl to route withdrawals to the correct adapter (sim or alpaca).
+ *
+ * Owned here in the PRODUCER's cross-domain adapter (investor-adpt/domain) —
+ * matching the ProposedTrade precedent. Breaks the broker-ctrl ↔ investor-bff
+ * circular dependency.
+ */
+export const WithdrawalInitiatedSubjectSchema = z.object({
+  withdrawalId: z.string(),
+  amountCents: z.number().int().positive(),
+  currency: z.string(),
+  userId: z.string().optional(), // present; Cognito-supplied via stash
+  tenantId: z.string(),
+  region: z.string().optional(), // set from ctx.stash.region by the AppSync resolver
+  status: z.string().optional(),
+  requestedAt: z.string().optional(),
+  timestamp: z.string(),
+});
+export type WithdrawalInitiatedSubject = z.infer<typeof WithdrawalInitiatedSubjectSchema>;

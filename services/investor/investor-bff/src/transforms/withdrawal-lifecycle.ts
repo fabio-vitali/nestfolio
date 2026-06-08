@@ -1,6 +1,6 @@
 import { projectVersioned, parseSubject, type WriteIntent } from '@nestfolio/event-processor';
 import type { UnitOfWork, BusEvent } from '@nestfolio/event-processor';
-import { FundingSnapshotSchema } from '@nestfolio/investor-adpt/domain';
+import { FundingSnapshotSchema } from '@nestfolio/execution-adpt/domain';
 
 /**
  * WITHDRAWAL_REQUESTED / WITHDRAWAL_SETTLED / WITHDRAWAL_FAILED → WithdrawalRequest

@@ -1,4 +1,4 @@
-import { FundingSnapshotSchema } from '@nestfolio/investor-adpt/domain';
+import { FundingSnapshotSchema } from '@nestfolio/execution-adpt/domain';
 
 const depositSettled = {
   sk: 'DEPOSIT_SETTLED',
