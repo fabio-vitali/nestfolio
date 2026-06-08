@@ -18,8 +18,6 @@ describe('portfolioUpdated transform', () => {
     symbol, quantity: 10, averageCostBasis: 150, totalCostBasis: 1500, lastFillPrice: 155,
   });
 
-  const emptySnapshot = { positions: {} as Record<string, typeof pos extends (...args: infer _) => infer R ? R : never>, cashBalanceCents: 0, lastEventSequence: 12 };
-
   it('writes versioned Position projections keyed on snapshot.lastEventSequence', () => {
     const result = portfolioUpdated(makeUow({
       tenantId: 't1',

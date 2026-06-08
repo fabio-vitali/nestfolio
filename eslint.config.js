@@ -27,6 +27,7 @@ module.exports = [
           enforceBuildableLibDependency: false,
           allow: [
             '@nestfolio/.+/events',
+            '@nestfolio/.+/contracts',
             '@nestfolio/.+/agent-budgets',
             '@nestfolio/.+-adpt/domain',
             '@nestfolio/event-processor',
