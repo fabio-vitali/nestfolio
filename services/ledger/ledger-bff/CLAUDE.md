@@ -37,7 +37,7 @@ Stack: services/ledger/ledger-bff/src/service.stack.ts
 - mfe/key
 
 ## Handlers
-- event-listener.ts — materializeToTable pipeline; handles BALANCE_UPDATED, PORTFOLIO_UPDATED, LEDGER_ENTRY_RECORDED via transform functions
+- event-listener.ts — materializeToTable pipeline; handles BALANCE_UPDATED, PORTFOLIO_UPDATED, LEDGER_ENTRY_RECORDED via transform functions (each transform validates the payload at runtime with parseSubject against the producer's zod contract)
 - graphql-resolver.ts — AppSync Lambda resolver; handles getPortfolioAt (time-travel via snapshot replay) and getSimulationComparison (actual vs simulated portfolio diff)
 
 ## Read model
@@ -59,4 +59,4 @@ Stack: services/ledger/ledger-bff/src/service.stack.ts
 
 ## Dependencies
 - libs: cdk-constructs/core, cdk-constructs/extensions, cdk-constructs/utils, event-processor
-- cross-domain: @nestfolio/ledger-ctrl/events
+- cross-domain: @nestfolio/ledger-ctrl/events (event-type constants), @nestfolio/ledger-ctrl/contracts (zod payload schemas: BalanceUpdatedSchema, PortfolioUpdatedSchema, LedgerEntryRecordedSchema — consumed via parseSubject in transforms)

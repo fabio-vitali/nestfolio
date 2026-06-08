@@ -61,6 +61,11 @@ Agent folder: agents/market-intelligence/
   - (DWC mirror of MarketSnapshot is registered Projection<'P1'> in WS-C, not here.)
 - Enforced by `nx run market-intelligence-ctrl:typecheck` (test/types/read-model-ownership.type-test.ts)
 
+## Contracts (domain/contracts.ts)
+- Exported surface: `@nestfolio/market-intelligence-ctrl/contracts` (path alias in tsconfig.base.json). Producer-owned zod payload contracts, imports ONLY zod (+ MarketAnalysisOutputSchema reused from src/agents/schemas.ts).
+  - MarketSnapshotSchema (type MarketSnapshot): subject carried on MARKET_SNAPSHOT_UPDATED — `{ region, agentOutput, __version? }`. The CDC pipeline publishes the full MarketSnapshot DDB row as the subject; shape verified against MarketSnapshotRow (domain/models.ts) + the update() intent (handlers/event-listener.ts).
+- Consumed intra-domain by decision-workflow-ctrl snapshot-projector via `parseSubject(payload, MarketSnapshotSchema)` (home rule: intra-domain → direct `<svc>/contracts`). Payload changes break the consumer build.
+
 ## Event Types (domain/events.ts)
 - MarketIntelligenceEventTypes (outbound): MARKET_SIGNAL_DETECTED, MARKET_INTELLIGENCE_AGENT_INVOCATION_TRACED, MARKET_SNAPSHOT_UPDATED, MARKET_SNAPSHOT_REFRESH_TICK
 - HANDLED_EVENT_TYPES (inbound): YAHOO_FINANCE_UPDATED, MARKETWATCH_UPDATED, SEC_8K_FILED, FRED_INDICATORS_UPDATED, ALPHA_VANTAGE_NEWS_UPDATED, MARKET_SNAPSHOT_REFRESH_TICK
@@ -78,7 +83,8 @@ Agent folder: agents/market-intelligence/
 - test/unit/graph.test.ts
 - test/unit/kb-ingestion-handler.test.ts
 - test/unit/service.stack.test.ts
-- test/unit/agents/* (fallbacks, format-context, golden-fixtures, schemas, validation)
+- test/unit/domain/contracts.test.ts
+- test/unit/agents/* (fallbacks, format-context, golden-fixtures, prompts, schemas, validation)
 - test/unit/tools/* (instrument-universe, market-data)
 - test/integration/market-intelligence-ctrl.integration.test.ts
 - test/integration/market-intelligence-ctrl.resilience.integration.test.ts
@@ -86,6 +92,7 @@ Agent folder: agents/market-intelligence/
 ## Dependencies
 - libs: cdk-constructs (core, extensions, utils), event-processor, agent-orchestrator, event-types, test-support, integration-testing
 - Cross-service event-type imports: yahoo-finance-adpt, marketwatch-adpt, sec-edgar-adpt, fred-adpt, alpha-vantage-adpt (5 feed sources)
+- Produces contracts surface `@nestfolio/market-intelligence-ctrl/contracts` (consumed by decision-workflow-ctrl)
 - SSM: advisory-hub (models/sonnet), decision-workflow-ctrl (memory/id), market-intelligence-ctrl (agent/runtimeUrl)
 - AgentCore Memory API (CreateEvent, RetrieveMemoryRecords, GetMemoryRecord, ListEvents, ListActors, ListSessions)
 - AgentCore Runtime (InvokeAgentRuntime)

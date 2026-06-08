@@ -27,6 +27,11 @@ Stack: services/execution/broker-sim-adpt/src/service.stack.ts
 - BrokerSimEventTypes (inbound): SIM_ORDER_REQUESTED, SIM_DEPOSIT_INITIATED, SIM_WITHDRAWAL_REQUESTED
 - BrokerSimEventTypes (outbound/CDC): SIM_ORDER_FILLED, SIM_ORDER_REJECTED, SIM_DEPOSIT_COMPLETED, SIM_WITHDRAWAL_COMPLETED
 
+## Event Payload Contracts (domain/contracts.ts)
+Producer-owned zod CDC subject contract, exported via `@nestfolio/broker-sim-adpt/contracts` (NOT re-exported through the `/domain` barrel):
+- SimDepositCompletedSchema / SimDepositCompleted — SIM_DEPOSIT_COMPLETED subject (from the `DepositDetected` row written by event-listener.ts on SIM_DEPOSIT_INITIATED). Fields: depositId, amountCents, currency, userId?, tenantId, sourceEventId, timestamp.
+Inbound-event schemas live separately in domain/schemas.ts. No consumer imports the contract yet (SIM_* completions are intra-execution CDC carriers).
+
 ## Tests
 - event-listener.test.ts
 - market-data.service.test.ts
@@ -34,4 +39,5 @@ Stack: services/execution/broker-sim-adpt/src/service.stack.ts
 - virtual-ledger.repository.test.ts
 
 ## Dependencies
-- libs: cdk-constructs/core, cdk-constructs/utils, event-processor
+- libs: cdk-constructs/core, cdk-constructs/utils, event-processor, event-types
+- npm: zod (payload contract schemas in domain/contracts.ts + domain/schemas.ts)

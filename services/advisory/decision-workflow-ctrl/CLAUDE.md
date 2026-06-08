@@ -65,7 +65,7 @@ Stack: services/advisory/decision-workflow-ctrl/src/service.stack.ts
 ## Handlers
 - sfn-callback.ts — CallbackIngress handler. On PORTFOLIO_COMPLETED / NARRATIVE_COMPLETED → SendTaskSuccess; on PORTFOLIO_FAILED / NARRATIVE_FAILED → SendTaskFailure; also writes AgentOutput records on agent completions; updates DecisionPacket status on compliance + user response events.
 - mandate-projector.ts — MandateProjectorIngress handler (materializeToTable). MANDATE_ISSUED + OPERATING_MODE_CHANGED both route to `projectMandateSnapshot` which calls `projectVersioned('MandateSnapshot', fullImage, { version: subject.__version, overrides: { pk, sk } })`. The FIRST write (MANDATE_ISSUED) creates the row → stream INSERT → MANDATE_SNAPSHOT_CREATED (the SF trigger) fires once; later OPERATING_MODE_CHANGED overwrites the row → MODIFY → no re-trigger. Missing `operatingMode` throws NotRetryableError; missing `__version` → `skip()`.
-- snapshot-projector.ts — SnapshotProjectorIngress handler (materializeToTable). INVESTOR_PROFILE_SNAPSHOT_CREATED/_UPDATED → projectVersioned(InvestorProfileSnapshot) keyed on subject.__version; MARKET_SNAPSHOT_UPDATED → projectVersioned(MarketSnapshot) keyed on subject.__version; PORTFOLIO_UPDATED → projectVersioned(LedgerSnapshot) keyed on snapshot.lastEventSequence. Missing subject.agentOutput/snapshot → NotRetryableError; absent version → drop (undefined).
+- snapshot-projector.ts — SnapshotProjectorIngress handler (materializeToTable). Validates each payload at the seam via `parseSubject(payload, <ProducerSchema>)` — InvestorProfileSnapshotSchema / MarketSnapshotSchema / PortfolioUpdatedSchema imported from the producers' `/contracts` (no local types, no `as` casts). INVESTOR_PROFILE_SNAPSHOT_CREATED/_UPDATED → projectVersioned(InvestorProfileSnapshot) keyed on subject.__version; MARKET_SNAPSHOT_UPDATED → projectVersioned(MarketSnapshot) keyed on subject.__version; PORTFOLIO_UPDATED → projectVersioned(LedgerSnapshot) keyed on snapshot.lastEventSequence. Missing subject.agentOutput/snapshot → NotRetryableError; absent version → drop (undefined).
 - assemble-packet.ts — Assembles decision packet (invoked by SF).
 - event-publisher.ts — Egress CDC publisher.
 
@@ -104,7 +104,8 @@ Removed (Task 11): ANALYZE_INVESTOR_PROFILE, ANALYZE_MARKET, INVESTOR_PROFILE_CO
 
 ## Dependencies
 - libs: cdk-constructs (core, utils), event-processor, event-types
-- Cross-service event-type imports: investor-profile-ctrl (INVESTOR_PROFILE_SNAPSHOT_*), market-intelligence-ctrl (MARKET_SNAPSHOT_UPDATED), investor-bff (MANDATE_ISSUED, OPERATING_MODE_CHANGED)
+- Cross-service event-type imports (`/events` name-maps): investor-profile-ctrl (INVESTOR_PROFILE_SNAPSHOT_*), market-intelligence-ctrl (MARKET_SNAPSHOT_UPDATED), ledger-ctrl (PORTFOLIO_UPDATED), investor-bff (MANDATE_ISSUED, OPERATING_MODE_CHANGED)
+- Cross-service payload-contract imports (`/contracts` zod schemas, consumed by snapshot-projector.ts via `parseSubject` — `event-subject-payload-build-tripwire`): investor-profile-ctrl (InvestorProfileSnapshotSchema), market-intelligence-ctrl (MarketSnapshotSchema), ledger-ctrl (PortfolioUpdatedSchema)
 - SSM: advisory-hub (models/haiku)
 - CDK alpha: @aws-cdk/aws-bedrock-agentcore-alpha, @aws-cdk/aws-bedrock-alpha
 

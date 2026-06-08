@@ -20,6 +20,11 @@ Stack: services/investor/investor-bff/src/service.stack.ts
 - InvestorBus → investor-bff-BroadcastIngress (SQS → Lambda, broadcast-listener.ts)
   Subscriptions: BROKER_CIRCUIT_OPEN, BROKER_CIRCUIT_CLOSED, DEPOSIT_DETECTED
 
+## Event contracts (producer surface)
+- `src/domain/contracts.ts` exported as `@nestfolio/investor-bff/contracts` (zod-only, no service deps; event-subject-payload tripwire):
+  - `InvestorProfileUpdatedSchema` / `InvestorProfileUpdated` — subject for INVESTOR_PROFILE_CREATED/UPDATED (tenantId, userId, operatingMode, goal, riskProfile, onboardingCompletedAt, __version); consumed by dashboard-bff's InvestorSnapshot transform via `parseSubject`. Composed from `InvestorProfileGoalSchema` + `InvestorProfileRiskSchema` (also exported).
+- DEPOSIT_INITIATED/WITHDRAWAL_INITIATED subjects are cross-domain (consumed by broker-ctrl); their schemas live in `@nestfolio/investor-adpt/domain`, not here.
+
 ## Egress (CDC, 6 entity types — 3-tier topology on InvestorProfile)
 - DynamoDB Streams → investor-bff-egress (Lambda)
 - Declarative `eventTypes` map:
@@ -44,7 +49,7 @@ Note: legacy per-entity rows (Goal, RiskProfile, OperatingModeRecord, AccountMod
 - updateOperatingMode resolver issues an atomic `TransactWriteItems` writing BOTH the InvestorProfile composite row (bumps its own `__version`, keeps INVESTOR_PROFILE_UPDATED firing for dashboard-bff's InvestorSnapshot) AND the Mandate sibling row (bumps the Mandate `__version`, re-sources OPERATING_MODE_CHANGED from the Mandate row's CDC). TransactWriteItems returns no attributes; a `get-profile.fn.js` readback step (pipeline extraSteps) fetches and returns the InvestorProfile.
 
 ## Handlers
-- event-listener.ts — materializes USER_REGISTERED, NOTIFICATION_CREATED, BALANCE_UPDATED, ONBOARDING_COMPLETED (transactWrite: composite InvestorProfile + Mandate sibling row + conditional Deposit), GO_LIVE_CONFIRMED (sets executionMode='live' on the composite row)
+- event-listener.ts — materializes USER_REGISTERED, NOTIFICATION_CREATED, BALANCE_UPDATED, ONBOARDING_COMPLETED (transactWrite: composite InvestorProfile + Mandate sibling row + conditional Deposit), GO_LIVE_CONFIRMED (`parseSubject(payload, GoLiveConfirmedSchema)` then sets executionMode='live' on the composite row); also routes broker funding lifecycle (DEPOSIT_*/WITHDRAWAL_*) to the deposit-/withdrawal-lifecycle transforms. Each transform validates its inbound subject at runtime via `parseSubject(payload, <producer Schema>)` rather than local types/`as` casts.
 - broadcast-listener.ts — BROKER_CIRCUIT_OPEN disables 3 feature flags (confirmDecision, initiateDeposit, requestWithdrawal) via IAM-signed AppSync mutation; BROKER_CIRCUIT_CLOSED re-enables them; DEPOSIT_DETECTED published to investor-facing notification flow
 - event-publisher.ts — CDC (changeDataCapture) using the declarative eventTypes map
 - deposit-publisher.ts — `DepositBroadcaster` (Broadcaster construct): DDB-stream-driven; fans Deposit/WithdrawalRequest P1 row status transitions out via @aws_subscribe (onDepositUpdate / onWithdrawalUpdate). SECOND stream consumer on the table (Egress CDC is first). DLQ + bisectBatchOnError owned by the construct.
@@ -74,5 +79,6 @@ InvestorBffEventTypes: USER_REGISTERED, USER_AUTHENTICATED, USER_SESSION_EXPIRED
 
 ## Dependencies
 - libs: cdk-constructs/core, event-processor
-- cross-domain imports: investor-ctrl/events, investor-adpt/domain
-- runtime deps: @smithy/signature-v4, @aws-crypto/sha256-js (for IAM-signed AppSync calls)
+- event-name imports: investor-ctrl/events (InvestorCtrlEventTypes), investor-adpt/domain (InvestorIngestEventTypes), ledger-adpt/domain (LedgerCrossDomainEventTypes)
+- zod payload-contract imports (event-subject-payload tripwire — consumers `parseSubject(payload, Schema)`, no local types/`as` casts): ledger-ctrl/contracts (BalanceUpdatedSchema), investor-ctrl/contracts (NotificationCreatedSchema), onboarding-bff/contracts (GoLiveConfirmedSchema, OnboardingCompletedRecordSchema), execution-adpt/domain (FundingSnapshotSchema)
+- runtime deps: @smithy/signature-v4, @aws-crypto/sha256-js (for IAM-signed AppSync calls), zod (payload contracts)

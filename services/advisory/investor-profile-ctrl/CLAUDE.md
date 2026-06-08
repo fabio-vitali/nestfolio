@@ -56,6 +56,11 @@ Agent folder: agents/investor-profile/
 - HANDLED_EVENT_TYPES (inbound triggers): INVESTOR_PROFILE_UPDATED, MANDATE_ISSUED
 - KB_INGESTION_EVENT_TYPES (inbound, KB-only): DECISION_BLOCKED, DECISION_APPROVED
 
+## Event Payload Contracts (domain/contracts.ts)
+Producer-owned zod payload contracts, exported via the dedicated `/contracts` alias (`@nestfolio/investor-profile-ctrl/contracts`):
+- InvestorProfileSnapshotSchema / InvestorProfileSnapshot — subject carried on INVESTOR_PROFILE_SNAPSHOT_CREATED / INVESTOR_PROFILE_SNAPSHOT_UPDATED (the full InvestorProfileSnapshot DDB row: tenantId, userId, agentOutput, sourceEventId?, __version?). Verified against InvestorProfileSnapshotRow in domain/models.ts + the update() intent in handlers/event-listener.ts.
+- Consumed cross-domain by decision-workflow-ctrl (snapshot-projector.ts) via `parseSubject` at the seam; a payload change breaks the consumer build.
+
 ## IAM trace
 - Memory API: CreateEvent, RetrieveMemoryRecords, GetMemoryRecord, ListEvents, ListActors, ListSessions (resources: *)
 - InvokeAgentRuntime on runtime ARN + endpoint sub-resource
@@ -74,7 +79,9 @@ Agent folder: agents/investor-profile/
 
 ## Dependencies
 - libs: cdk-constructs (core, extensions, utils), event-processor, agent-orchestrator, event-types
+- npm: zod (payload contract schema in domain/contracts.ts + agent schemas)
 - Cross-service event-type imports: investor-bff (INVESTOR_PROFILE_UPDATED, MANDATE_ISSUED), compliance-ctrl (DECISION_BLOCKED, DECISION_APPROVED)
+- Cross-service contract consumers: decision-workflow-ctrl imports InvestorProfileSnapshotSchema from `@nestfolio/investor-profile-ctrl/contracts`
 - SSM: advisory-hub (models/opus, models/haiku), decision-workflow-ctrl (memory/id)
 - AgentCore Memory API (CreateEvent, RetrieveMemoryRecords, GetMemoryRecord, ListEvents, ListActors, ListSessions)
 - AgentCore Runtime (InvokeAgentRuntime)

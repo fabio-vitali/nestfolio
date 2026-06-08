@@ -50,7 +50,7 @@ Stack: services/execution/broker-ctrl/src/service.stack.ts
 ## Handlers
 - callback-resolver.ts — resolves SF task token callbacks from adapter results (createIngestionHandler)
 - deposit-withdrawal-normalizer.ts — normalizes deposit/withdrawal results to NormalizedEvent for CDC (materializeToTable)
-- deposit-withdrawal-router.ts — routes deposit/withdrawal to correct adapter (createIngestionHandler)
+- deposit-withdrawal-router.ts — routes deposit/withdrawal to correct adapter; validates inbound subjects via `parseSubject` against producer contracts `DepositInitiatedSchema`/`WithdrawalInitiatedSchema` from `@nestfolio/investor-adpt/domain` (materializeToTable)
 - event-publisher.ts — CDC Egress handler (changeDataCapture)
 - mode-listener.ts — caches execution mode changes to DynamoDB (materializeToTable)
 - route-order.ts — routes order to correct adapter, writes BrokerOrder with taskToken (standalone, SF-invoked)
@@ -77,5 +77,7 @@ Stack: services/execution/broker-ctrl/src/service.stack.ts
 - @nestfolio/cdk-constructs/core, @nestfolio/cdk-constructs/utils
 - @nestfolio/event-processor
 - @nestfolio/event-types
+- @nestfolio/investor-adpt/domain — consumes producer contracts `DepositInitiatedSchema`, `WithdrawalInitiatedSchema` (router `parseSubject` seam)
+- @nestfolio/execution-adpt/domain — consumes producer contract type `FundingSnapshot` (funding carrier shape; `fundingCarrier` writes `satisfies Omit<FundingSnapshot, '__version'>`)
 - @nestfolio/test-support (test only)
 - @nestfolio/integration-testing (test only)

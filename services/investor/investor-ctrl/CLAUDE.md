@@ -30,6 +30,7 @@ Post-resplit (2026-05-08): INVESTOR_PROFILE_UPDATED diff-detect handler removed.
   - Tenant events templated via NOTIFICATION_TEMPLATES (ONBOARDING_COMPLETED, MANDATE_ISSUED, MANDATE_REVOKED, OPERATING_MODE_CHANGED, GOAL_UPDATED, DEPOSIT_INITIATED, DECISION_APPROVED, ORDER_REJECTED, DECISION_BLOCKED, WITHDRAWAL_SETTLED) -> record('Notification')
   - ORDER_FILLED -> [record('Notification'), record('MonthlyReport')]
   - 3 system events (BROKER_CIRCUIT_OPEN, BROKER_CIRCUIT_CLOSED, BROKER_HEAL_ESCALATED) -> record('Notification', tenantId='SYSTEM')
+  - relatedEntityType/relatedEntityId derived from each triggering event's subject via NOTIFICATION_ENTITY_MAP (DECISION→decisionId, ORDER→orderId, DEPOSIT→depositId, WITHDRAWAL→transferId, MANDATE→mandateId, PROFILE→userId; BALANCE/SYSTEM have no id, fall back to ctx.eventId). Powers the investor-mfe deep-link.
   - No INVESTOR_PROFILE_UPDATED diff handler (removed in resplit 2026-05-08)
 - event-publisher.ts (changeDataCapture)
 
@@ -42,6 +43,11 @@ Post-resplit (2026-05-08): INVESTOR_PROFILE_UPDATED diff-detect handler removed.
 
 - Notification: pk=Notification#{tenantId}#{notificationId}, sk=Notification
 - MonthlyReport: pk=MonthlyReport#{tenantId}#{reportId}, sk=MonthlyReport
+
+## Exported surface
+
+- @nestfolio/investor-ctrl/events (src/domain/events.ts) — InvestorCtrlEventTypes
+- @nestfolio/investor-ctrl/contracts (src/domain/contracts.ts) — producer-owned zod payload contracts (imports ONLY zod). NotificationCreatedSchema models the NOTIFICATION_CREATED subject; consumed by investor-bff/transforms/notification-created.ts via parseSubject. Payload changes here break consumer builds (event-subject-payload-build-tripwire).
 
 ## Event Types (domain/events.ts)
 
