@@ -66,14 +66,15 @@ describe('investor-profile-ctrl resilience: idempotency', () => {
       table.registerCleanup();
 
       const eventId = `idemp-profile-${randomUUID()}`;
-      const userId = `integ-user-${randomUUID()}`;
+      // DRY subject: identity (tenantId/userId) lives in event.context, injected
+      // by eb.putEvent from ctx — not in the subject. The row pk's user component
+      // falls back to ctx.tenantId (handler resolves `subject.userId ?? tenantId`).
       const payload = {
-        tenantId: ctx.tenantId,
-        userId,
         operatingMode: 'BALANCED',
         investorProfile: { age: 35 },
         portfolioState: { totalValue: 50000 },
       };
+      const snapshotPk = `InvestorProfileSnapshot#${ctx.tenantId}#${ctx.tenantId}`;
 
       // First publish
       await eb.putEvent({
@@ -88,7 +89,7 @@ describe('investor-profile-ctrl resilience: idempotency', () => {
       try {
         first = await table.waitForItem({
           table: 'investor-profile-ctrl',
-          pk: `InvestorProfileSnapshot#${ctx.tenantId}#${userId}`,
+          pk: snapshotPk,
           sk: 'InvestorProfileSnapshot',
           timeoutMs: 120_000,
         });
@@ -117,7 +118,7 @@ describe('investor-profile-ctrl resilience: idempotency', () => {
 
       const after = await table.waitForItem({
         table: 'investor-profile-ctrl',
-        pk: `InvestorProfileSnapshot#${ctx.tenantId}#${userId}`,
+        pk: snapshotPk,
         sk: 'InvestorProfileSnapshot',
         timeoutMs: 10_000,
       });
@@ -147,15 +148,13 @@ describe('investor-profile-ctrl resilience: order-agnostic pairwise', () => {
         ],
       });
 
-      const userIdA = `pair-A-user-${randomUUID()}`;
-
+      // DRY subject: identity in context (ctxA). The CDC subject's userId is the
+      // context userId (ctxA.userId), so match on that.
       await ebA.putEvent({
         bus: 'advisory',
         targetService: 'investor-profile-ctrl',
         detailType: 'INVESTOR_PROFILE_UPDATED',
         detail: {
-          tenantId: ctxA.tenantId,
-          userId: userIdA,
           operatingMode: 'BALANCED',
           investorProfile: { age: 35 },
         },
@@ -164,7 +163,7 @@ describe('investor-profile-ctrl resilience: order-agnostic pairwise', () => {
 
       try {
         await trapA.waitForEvent({
-          match: (d) => (d as { subject?: { userId?: string } }).subject?.userId === userIdA,
+          match: (d) => (d as { subject?: { userId?: string } }).subject?.userId === ctxA.userId,
           timeoutMs: 120_000,
         });
       } catch {
@@ -178,7 +177,6 @@ describe('investor-profile-ctrl resilience: order-agnostic pairwise', () => {
         targetService: 'investor-profile-ctrl',
         detailType: 'DECISION_APPROVED',
         detail: {
-          tenantId: ctxA.tenantId,
           decisionId: `pair-A-decision-${randomUUID()}`,
           authorityLevel: 'L2',
         },
@@ -204,14 +202,12 @@ describe('investor-profile-ctrl resilience: order-agnostic pairwise', () => {
           ],
         });
 
-        const userIdB = `pair-B-user-${randomUUID()}`;
-
+        // DRY subject: identity in context (ctxB).
         await ebB.putEvent({
           bus: 'advisory',
           targetService: 'investor-profile-ctrl',
           detailType: 'DECISION_APPROVED',
           detail: {
-            tenantId: ctxB.tenantId,
             decisionId: `pair-B-decision-${randomUUID()}`,
             authorityLevel: 'L2',
           },
@@ -225,8 +221,6 @@ describe('investor-profile-ctrl resilience: order-agnostic pairwise', () => {
           targetService: 'investor-profile-ctrl',
           detailType: 'INVESTOR_PROFILE_UPDATED',
           detail: {
-            tenantId: ctxB.tenantId,
-            userId: userIdB,
             operatingMode: 'CONSERVATIVE',
             investorProfile: { age: 35 },
           },
@@ -235,7 +229,7 @@ describe('investor-profile-ctrl resilience: order-agnostic pairwise', () => {
 
         try {
           await trapB.waitForEvent({
-            match: (d) => (d as { subject?: { userId?: string } }).subject?.userId === userIdB,
+            match: (d) => (d as { subject?: { userId?: string } }).subject?.userId === ctxB.userId,
             timeoutMs: 120_000,
           });
         } catch {

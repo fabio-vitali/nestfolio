@@ -517,15 +517,27 @@ describe('LedgerSnapshot projection', () => {
 
   it('materialises a LedgerSnapshot row from PORTFOLIO_UPDATED', async () => {
     // `detail` is the SUBJECT body — eb.putEvent wraps it in {id,type,timestamp,subject:detail,context}.
+    // tenantId is identity → travels in the event context, not the dry subject.
+    // PortfolioUpdatedSchema requires a top-level `positions` record AND a full
+    // LedgerPositionSchema shape (symbol/quantity/averageCostBasis/totalCostBasis/lastFillPrice).
+    const positions = {
+      VTI: {
+        symbol: 'VTI',
+        quantity: 10,
+        averageCostBasis: 190,
+        totalCostBasis: 1_900,
+        lastFillPrice: 200,
+      },
+    };
     await eb.putEvent({
       bus: 'advisory',
       targetService: 'decision-workflow-ctrl',
       detailType: 'PORTFOLIO_UPDATED',
       detail: {
-        tenantId: ctx.tenantId,
         streamType: 'CASH',
+        positions,
         snapshot: {
-          positions: { VTI: { quantity: 10, lastFillPrice: 200 } },
+          positions,
           cashBalanceCents: 500_000,
           lastEventSequence: 1,
         },
@@ -550,16 +562,26 @@ describe('LedgerSnapshot projection', () => {
   }, 120_000);
 
   it('repeated PORTFOLIO_UPDATED for the same tenant upserts (last write wins)', async () => {
-    // Emit seq=5 — first upsert
+    // Emit seq=5 — first upsert. Full LedgerPositionSchema shape + top-level
+    // positions record; tenantId is context-only (dropped from the dry subject).
+    const positions5 = {
+      VTI: {
+        symbol: 'VTI',
+        quantity: 5,
+        averageCostBasis: 195,
+        totalCostBasis: 975,
+        lastFillPrice: 200,
+      },
+    };
     await eb.putEvent({
       bus: 'advisory',
       targetService: 'decision-workflow-ctrl',
       detailType: 'PORTFOLIO_UPDATED',
       detail: {
-        tenantId: ctx.tenantId,
         streamType: 'CASH',
+        positions: positions5,
         snapshot: {
-          positions: { VTI: { quantity: 5, lastFillPrice: 200 } },
+          positions: positions5,
           cashBalanceCents: 300_000,
           lastEventSequence: 5,
         },
@@ -577,15 +599,24 @@ describe('LedgerSnapshot projection', () => {
     });
 
     // Emit seq=7 — second upsert (last write wins)
+    const positions7 = {
+      VTI: {
+        symbol: 'VTI',
+        quantity: 7,
+        averageCostBasis: 198,
+        totalCostBasis: 1_386,
+        lastFillPrice: 210,
+      },
+    };
     await eb.putEvent({
       bus: 'advisory',
       targetService: 'decision-workflow-ctrl',
       detailType: 'PORTFOLIO_UPDATED',
       detail: {
-        tenantId: ctx.tenantId,
         streamType: 'CASH',
+        positions: positions7,
         snapshot: {
-          positions: { VTI: { quantity: 7, lastFillPrice: 210 } },
+          positions: positions7,
           cashBalanceCents: 800_000,
           lastEventSequence: 7,
         },

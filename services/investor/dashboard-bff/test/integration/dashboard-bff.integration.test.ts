@@ -242,13 +242,24 @@ describe('dashboard-bff', () => {
     }, 120_000);
 
     it('should materialize Activity record on BALANCE_UPDATED', async () => {
+      // BALANCE_UPDATED is also routed to portfolioSummary, which now strictly
+      // parses the producer ledger contract (z.object({ snapshot: LedgerSnapshotSchema })).
+      // The domain subject must therefore carry a valid `snapshot` (positions +
+      // cashBalanceCents + lastEventSequence) or the transform poison-pills to the DLQ.
+      // Identity (tenantId/userId/region) travels in event.context, not the subject.
+      // A low lastEventSequence (1) keeps this from overwriting the seq=42/50
+      // version-guarded PortfolioSummary rows other tests assert on.
       await eb.putEvent({
         bus: 'investor',
         targetService: 'dashboard-bff',
         detailType: 'BALANCE_UPDATED',
         detail: {
-          amountCents: 50_000_00,
-          currency: 'USD',
+          cashBalanceCents: 50_000_00,
+          snapshot: {
+            cashBalanceCents: 50_000_00,
+            lastEventSequence: 1,
+            positions: {},
+          },
         },
       });
 

@@ -248,6 +248,7 @@ describe('broker-ctrl', () => {
           depositId,
           amountCents: 75000,
           currency: 'USD',
+          timestamp: new Date().toISOString(),
         },
       });
 
@@ -284,6 +285,7 @@ describe('broker-ctrl', () => {
           withdrawalId,
           amountCents: 30000,
           currency: 'USD',
+          timestamp: new Date().toISOString(),
         },
       });
 

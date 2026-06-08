@@ -57,6 +57,16 @@ describe('investor-bff', () => {
     const payload = JSON.parse(Buffer.from(tokens.idToken.split('.')[1], 'base64url').toString());
     cognitoSub = payload.sub;
 
+    // Dry-subject seam: eb.putEvent stamps identity into event.context from
+    // ctx.{tenantId,userId,region} (NOT from the fixture's detail). The CDC
+    // transforms (onboarding-completed, balance-updated, deposit/withdrawal
+    // lifecycle) now read userId from ctx.userId via parseSubject + ctx, while
+    // every assertion + AppSync resolver in this suite keys on cognitoSub.
+    // Align ctx.userId to cognitoSub so the materialized pk
+    // (InvestorProfile#<tenantId>#<userId>) matches the asserted
+    // InvestorProfile#<tenantId>#<cognitoSub>.
+    ctx.userId = cognitoSub;
+
     // Deploy trap for all CDC event types emitted by investor-bff mutations
     // (post-resplit — composite row → INVESTOR_PROFILE_CREATED/UPDATED +
     //  Mandate row → MANDATE_ISSUED/MANDATE_REVOKED).
@@ -217,8 +227,8 @@ describe('investor-bff', () => {
           accountMode: 'simulation',
           capitalAmount: 100_000,
           currency: 'USD',
-          riskTolerance: 7,
-          riskExperience: 5,
+          riskTolerance: 2,
+          riskExperience: 1,
           operatingMode: 'BALANCED',
           mandateAccepted: true,
         },
@@ -341,6 +351,7 @@ describe('investor-bff', () => {
         detail: {
           tenantId: ctx.tenantId,
           userId,
+          timestamp: new Date().toISOString(),
         },
       });
 
@@ -448,12 +459,16 @@ describe('investor-bff', () => {
         detail: {
           tenantId: ctx.tenantId,
           userId: cognitoSub,
+          sk: 'DEPOSIT_DETECTED',
+          direction: 'DEPOSIT',
           status: 'detected',
           transferId,
           amountCents: 250_000,
           currency: 'USD',
+          executionMode: 'simulation',
           initiatedAt: '2026-01-01T00:00:00.000Z',
           detectedAt: '2026-01-02T00:00:00.000Z',
+          timestamp: '2026-01-02T00:00:00.000Z',
           __version: 2,
         },
       });
@@ -477,13 +492,17 @@ describe('investor-bff', () => {
         detail: {
           tenantId: ctx.tenantId,
           userId: cognitoSub,
+          sk: 'DEPOSIT_SETTLED',
+          direction: 'DEPOSIT',
           status: 'settled',
           transferId,
           amountCents: 250_000,
           currency: 'USD',
+          executionMode: 'simulation',
           initiatedAt: '2026-01-01T00:00:00.000Z',
           detectedAt: '2026-01-02T00:00:00.000Z',
           settledAt: '2026-01-03T00:00:00.000Z',
+          timestamp: '2026-01-03T00:00:00.000Z',
           __version: 3,
         },
       });
@@ -507,12 +526,16 @@ describe('investor-bff', () => {
         detail: {
           tenantId: ctx.tenantId,
           userId: cognitoSub,
+          sk: 'DEPOSIT_DETECTED',
+          direction: 'DEPOSIT',
           status: 'detected',
           transferId,
           amountCents: 250_000,
           currency: 'USD',
+          executionMode: 'simulation',
           initiatedAt: '2026-01-01T00:00:00.000Z',
           detectedAt: '2026-01-02T00:00:00.000Z',
+          timestamp: '2026-01-02T00:00:00.000Z',
           __version: 2,
         },
       });
@@ -1048,12 +1071,16 @@ describe('investor-bff', () => {
         detail: {
           tenantId: ctx.tenantId,
           userId: cognitoSub,
+          sk: 'DEPOSIT_SETTLED',
+          direction: 'DEPOSIT',
           status: 'settled',
           transferId,
           amountCents: 5_000,
           currency: 'USD',
+          executionMode: 'simulation',
           initiatedAt: '2026-01-01T00:00:00.000Z',
           settledAt: '2026-01-03T00:00:00.000Z',
+          timestamp: '2026-01-03T00:00:00.000Z',
           __version: 3,
         },
       });

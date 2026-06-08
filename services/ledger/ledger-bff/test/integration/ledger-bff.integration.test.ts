@@ -113,6 +113,7 @@ describe('ledger-bff', () => {
         detail: {
           streamType: 'actual',
           lastEventSequence,
+          snapshotAt: new Date().toISOString(),
           snapshot: {
             positions: { AAPL: { symbol: 'AAPL', quantity: 5, averageCostBasis: 150.0, totalCostBasis: 750.0, lastFillPrice: 150.0 } },
             cashBalanceCents: 250_000,
@@ -278,6 +279,14 @@ describe('ledger-bff', () => {
             AAPL: { symbol: 'AAPL', quantity: 10, averageCostBasis: 150.0, totalCostBasis: 1500.0, lastFillPrice: 155.0 },
             MSFT: { symbol: 'MSFT', quantity: 5, averageCostBasis: 300.0, totalCostBasis: 1500.0, lastFillPrice: 310.0 },
           },
+          snapshot: {
+            positions: {
+              AAPL: { symbol: 'AAPL', quantity: 10, averageCostBasis: 150.0, totalCostBasis: 1500.0, lastFillPrice: 155.0 },
+              MSFT: { symbol: 'MSFT', quantity: 5, averageCostBasis: 300.0, totalCostBasis: 1500.0, lastFillPrice: 310.0 },
+            },
+            cashBalanceCents: 1_000_000,
+            lastEventSequence: 99,
+          },
         },
       });
 
@@ -291,6 +300,7 @@ describe('ledger-bff', () => {
         detail: {
           streamType: 'actual',
           lastEventSequence: 99001,
+          snapshotAt: new Date().toISOString(),
           snapshot: {
             cashBalanceCents: 800_000,
             positions: { AAPL: { symbol: 'AAPL', quantity: 8, averageCostBasis: 145.0, totalCostBasis: 1160.0, lastFillPrice: 150.0 } },
@@ -306,6 +316,7 @@ describe('ledger-bff', () => {
         detail: {
           streamType: 'actual',
           lastEventSequence: 99002,
+          snapshotAt: new Date().toISOString(),
           snapshot: {
             cashBalanceCents: 1_000_000,
             positions: {},
@@ -323,6 +334,7 @@ describe('ledger-bff', () => {
         detail: {
           streamType: 'simulated',
           lastEventSequence: 1,
+          snapshotAt: new Date().toISOString(),
           snapshot: {
             cashBalanceCents: 950_000,
             lastEventSequence: 1,
