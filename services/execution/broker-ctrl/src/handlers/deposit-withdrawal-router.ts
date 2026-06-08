@@ -3,7 +3,7 @@ import { materializeToTable, requireEnv, logger, getUUID, getTime, pickRequestCo
 import { ExecutionModeRepository } from '../repositories/execution-mode.repository';
 import { BrokerCtrlRoutedEventTypes, BrokerCtrlInboundEventTypes, BrokerCtrlEventTypes } from '../domain/events';
 import { fundingCarrier } from '../domain/funding';
-import { DepositInitiatedSubjectSchema, WithdrawalInitiatedSubjectSchema } from '@nestfolio/investor-bff/contracts';
+import { DepositInitiatedSubjectSchema, WithdrawalInitiatedSubjectSchema } from '@nestfolio/execution-adpt/domain';
 
 const BUS_NAME = requireEnv('BUS_NAME');
 const SERVICE_NAME = 'broker-ctrl';
