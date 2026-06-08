@@ -28,31 +28,31 @@ describe('InvestorProfileSubjectSchema', () => {
   });
 
   it('parses when optional fields are absent', () => {
-    const { onboardingCompletedAt, __version, ...minimal } = validSubject;
+    const { onboardingCompletedAt: _onboardingCompletedAt, __version, ...minimal } = validSubject;
     const result = InvestorProfileSubjectSchema.safeParse(minimal);
     expect(result.success).toBe(true);
   });
 
   it('throws when goal is absent', () => {
-    const { goal, ...withoutGoal } = validSubject;
+    const { goal: _goal, ...withoutGoal } = validSubject;
     const result = InvestorProfileSubjectSchema.safeParse(withoutGoal);
     expect(result.success).toBe(false);
   });
 
   it('throws when riskProfile is absent', () => {
-    const { riskProfile, ...withoutRisk } = validSubject;
+    const { riskProfile: _riskProfile, ...withoutRisk } = validSubject;
     const result = InvestorProfileSubjectSchema.safeParse(withoutRisk);
     expect(result.success).toBe(false);
   });
 
   it('throws when goal.objective is absent', () => {
-    const { objective, ...goalWithoutObjective } = validSubject.goal;
+    const { objective: _objective, ...goalWithoutObjective } = validSubject.goal;
     const result = InvestorProfileSubjectSchema.safeParse({ ...validSubject, goal: goalWithoutObjective });
     expect(result.success).toBe(false);
   });
 
   it('throws when riskProfile.score is absent', () => {
-    const { score, ...riskWithoutScore } = validSubject.riskProfile;
+    const { score: _score, ...riskWithoutScore } = validSubject.riskProfile;
     const result = InvestorProfileSubjectSchema.safeParse({ ...validSubject, riskProfile: riskWithoutScore });
     expect(result.success).toBe(false);
   });

@@ -68,19 +68,19 @@ describe('notificationCreated transform', () => {
   });
 
   it('throws (parseSubject violation) when relatedEntityType is absent', () => {
-    const { relatedEntityType, ...withoutType } = validSubject;
+    const { relatedEntityType: _relatedEntityType, ...withoutType } = validSubject;
     const uow = makeUow(withoutType);
     expect(() => notificationCreated(uow)).toThrow();
   });
 
   it('throws (parseSubject violation) when relatedEntityId is absent', () => {
-    const { relatedEntityId, ...withoutId } = validSubject;
+    const { relatedEntityId: _relatedEntityId, ...withoutId } = validSubject;
     const uow = makeUow(withoutId);
     expect(() => notificationCreated(uow)).toThrow();
   });
 
   it('throws (parseSubject violation) when notificationId is absent', () => {
-    const { notificationId, ...withoutNotifId } = validSubject;
+    const { notificationId: _notificationId, ...withoutNotifId } = validSubject;
     const uow = makeUow(withoutNotifId);
     expect(() => notificationCreated(uow)).toThrow();
   });

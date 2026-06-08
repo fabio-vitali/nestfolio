@@ -28,25 +28,25 @@ describe('NotificationCreatedSubjectSchema', () => {
   });
 
   it('rejects when relatedEntityType is absent', () => {
-    const { relatedEntityType, ...without } = validSubject;
+    const { relatedEntityType: _relatedEntityType, ...without } = validSubject;
     const result = NotificationCreatedSubjectSchema.safeParse(without);
     expect(result.success).toBe(false);
   });
 
   it('rejects when relatedEntityId is absent', () => {
-    const { relatedEntityId, ...without } = validSubject;
+    const { relatedEntityId: _relatedEntityId, ...without } = validSubject;
     const result = NotificationCreatedSubjectSchema.safeParse(without);
     expect(result.success).toBe(false);
   });
 
   it('rejects when notificationId is absent', () => {
-    const { notificationId, ...without } = validSubject;
+    const { notificationId: _notificationId, ...without } = validSubject;
     const result = NotificationCreatedSubjectSchema.safeParse(without);
     expect(result.success).toBe(false);
   });
 
   it('rejects when channel is absent', () => {
-    const { channel, ...without } = validSubject;
+    const { channel: _channel, ...without } = validSubject;
     const result = NotificationCreatedSubjectSchema.safeParse(without);
     expect(result.success).toBe(false);
   });
