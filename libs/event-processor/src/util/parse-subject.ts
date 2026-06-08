@@ -16,7 +16,7 @@ import type { UnitOfWork, BusEvent } from '../platform';
  * reads) and a runtime error (this parse).
  */
 export function parseSubject<S extends ZodTypeAny>(
-  carrier: UnitOfWork<BusEvent<unknown, unknown>> | EventPayload,
+  carrier: UnitOfWork<BusEvent<unknown>> | EventPayload,
   schema: S,
 ): z.infer<S> {
   const subject = 'event' in carrier ? carrier.event.subject : carrier.subject;

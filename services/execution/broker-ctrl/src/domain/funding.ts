@@ -39,15 +39,15 @@ export interface FundingSnapshot {
  * projectVersioned guard keeps requested<detected<settled ordering.
  */
 export function fundingCarrier(s: FundingSnapshot): WriteIntent {
-  // snapshot is the CDC-emitted subject shape — verified against FundingSnapshotSchema
+  // snapshot is the CDC-emitted subject shape — verified against the dry FundingSnapshotSchema.
+  // tenantId/userId/region are NOT carried on the subject; the intent executor stamps them
+  // onto the FundingEvent row from the request context (pickRequestContext), and they ride
+  // the published event's context (RequestContext), not the subject.
   const snapshot = {
     sk: s.eventName,
     direction: s.direction,
     status: s.status,
     transferId: s.transferId,
-    tenantId: s.tenantId,
-    userId: s.userId,
-    region: s.region,
     amountCents: s.amountCents,
     currency: s.currency,
     executionMode: s.executionMode,

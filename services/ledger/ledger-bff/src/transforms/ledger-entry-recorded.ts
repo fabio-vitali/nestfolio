@@ -7,14 +7,10 @@ import { LedgerEntryRecordedSchema } from '@nestfolio/ledger-ctrl/contracts';
 const HISTORY_SEQ_PAD = 8;
 
 export const ledgerEntryRecorded = (
-  uow: UnitOfWork<BusEvent<Record<string, unknown>, Record<string, unknown>>>,
+  uow: UnitOfWork<BusEvent<Record<string, unknown>>>,
 ): WriteIntent | WriteIntent[] => {
   const { event } = uow;
-  const { tenantId, userId, region } = event.context as {
-    tenantId: string;
-    userId?: string;
-    region?: string;
-  };
+  const { tenantId, userId, region } = event.context;
   const payload = parseSubject(uow, LedgerEntryRecordedSchema);
 
   const snapshot = payload.snapshot;

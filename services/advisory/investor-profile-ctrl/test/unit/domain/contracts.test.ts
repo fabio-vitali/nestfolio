@@ -14,7 +14,7 @@ const validAgentOutput = {
 };
 
 describe('investor-profile-ctrl contracts', () => {
-  it('InvestorProfileSnapshotSchema parses a full CDC snapshot subject', () => {
+  it('InvestorProfileSnapshotSchema parses a full CDC snapshot subject (dry — identity stays in context)', () => {
     const subject = {
       tenantId: 'tenant-1',
       userId: 'user-1',
@@ -23,8 +23,9 @@ describe('investor-profile-ctrl contracts', () => {
       __version: 3,
     };
     const parsed = InvestorProfileSnapshotSchema.parse(subject);
-    expect(parsed.tenantId).toBe('tenant-1');
-    expect(parsed.userId).toBe('user-1');
+    // tenantId/userId travel in the event context (RequestContext); zod strips them here.
+    expect('tenantId' in parsed).toBe(false);
+    expect('userId' in parsed).toBe(false);
     expect(parsed.agentOutput.riskCategory).toBe('AGGRESSIVE');
     expect(parsed.agentOutput.riskScore).toBe(75);
     expect(parsed.sourceEventId).toBe('evt-abc');
@@ -33,31 +34,11 @@ describe('investor-profile-ctrl contracts', () => {
 
   it('sourceEventId and __version are optional', () => {
     const subject = {
-      tenantId: 'tenant-1',
-      userId: 'user-1',
       agentOutput: validAgentOutput,
     };
     const parsed = InvestorProfileSnapshotSchema.parse(subject);
     expect(parsed.sourceEventId).toBeUndefined();
     expect(parsed.__version).toBeUndefined();
-  });
-
-  it('requires tenantId', () => {
-    const { tenantId: _omitted, ...without } = {
-      tenantId: 'tenant-1',
-      userId: 'user-1',
-      agentOutput: validAgentOutput,
-    };
-    expect(() => InvestorProfileSnapshotSchema.parse(without)).toThrow();
-  });
-
-  it('requires userId', () => {
-    const { userId: _omitted, ...without } = {
-      tenantId: 'tenant-1',
-      userId: 'user-1',
-      agentOutput: validAgentOutput,
-    };
-    expect(() => InvestorProfileSnapshotSchema.parse(without)).toThrow();
   });
 
   it('riskCategory must be one of CONSERVATIVE | MODERATE | AGGRESSIVE', () => {

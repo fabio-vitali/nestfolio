@@ -10,7 +10,10 @@ import {
 import type { EventContext, EventPayload } from '@nestfolio/event-processor';
 import { LedgerCtrlEventTypes } from '@nestfolio/ledger-ctrl/events';
 
-const ctx = (eventType: string, overrides: Partial<EventContext> = {}): EventContext => ({
+// Identity now travels in the event context (RequestContext), not the dry subject.
+// overrides is loosely typed so fixtures can vary plain-string test identities
+// (tenantId/userId are branded TenantId/UserId on EventContext).
+const ctx = (eventType: string, overrides: Record<string, unknown> = {}): EventContext => ({
   eventId: 'evt-1', eventType, tenantId: 'tenant-1', userId: 'user-1', region: 'us-east-1',
   ...overrides,
 } as EventContext);
@@ -47,9 +50,8 @@ describe('snapshot-projector', () => {
 
   it('INVESTOR_PROFILE_SNAPSHOT_CREATED → projectVersioned keyed on subject.__version', async () => {
     const result = await handlers.INVESTOR_PROFILE_SNAPSHOT_CREATED(
+      // Dry subject — identity (tenant-1/user-1) is supplied by the event context.
       payload({
-        tenantId: 'tenant-1',
-        userId: 'user-1',
         agentOutput: validIpAgentOutput,
         sourceEventId: 'src-e1',
         __version: 1,
@@ -74,9 +76,8 @@ describe('snapshot-projector', () => {
 
   it('INVESTOR_PROFILE_SNAPSHOT_UPDATED → projectVersioned with the incremented version', async () => {
     const result = await handlers.INVESTOR_PROFILE_SNAPSHOT_UPDATED(
+      // Dry subject — identity is supplied by the event context.
       payload({
-        tenantId: 'tenant-1',
-        userId: 'user-1',
         agentOutput: { ...validIpAgentOutput, riskScore: 55, riskCategory: 'MODERATE' },
         sourceEventId: 'src-e2',
         __version: 4,
@@ -94,7 +95,7 @@ describe('snapshot-projector', () => {
 
   it('IP snapshot drops (undefined) when __version is absent', async () => {
     const result = await handlers.INVESTOR_PROFILE_SNAPSHOT_UPDATED(
-      payload({ tenantId: 'tenant-1', userId: 'user-1', agentOutput: validIpAgentOutput }),
+      payload({ agentOutput: validIpAgentOutput }),
       ctx('INVESTOR_PROFILE_SNAPSHOT_UPDATED'),
     );
     expect(result).toBeUndefined();
@@ -103,8 +104,6 @@ describe('snapshot-projector', () => {
   it('INVESTOR_PROFILE_SNAPSHOT_CREATED falls back to ctx.eventId when sourceEventId missing', async () => {
     const result = await handlers.INVESTOR_PROFILE_SNAPSHOT_CREATED(
       payload({
-        tenantId: 'tenant-1',
-        userId: 'user-1',
         agentOutput: validIpAgentOutput,
         __version: 1,
       }),
@@ -119,8 +118,6 @@ describe('snapshot-projector', () => {
     await expect(
       handlers.INVESTOR_PROFILE_SNAPSHOT_CREATED(
         payload({
-          tenantId: 'tenant-1',
-          userId: 'user-1',
           agentOutput: { riskScore: 70 },   // missing riskCategory, goals, etc.
           __version: 1,
         }),
@@ -129,14 +126,21 @@ describe('snapshot-projector', () => {
     ).rejects.toThrow();
   });
 
-  it('IP snapshot handlers throw on missing subject fields (schema enforcement)', async () => {
-    // Subject missing userId should throw ZodError
-    await expect(
-      handlers.INVESTOR_PROFILE_SNAPSHOT_CREATED(
-        payload({ tenantId: 'tenant-1', agentOutput: validIpAgentOutput, __version: 1 }),
-        ctx('INVESTOR_PROFILE_SNAPSHOT_CREATED'),
-      ),
-    ).rejects.toThrow();
+  it('IP snapshot sources tenantId/userId from the event context, not the dry subject', async () => {
+    // The dry InvestorProfileSnapshotSchema no longer carries tenantId/userId —
+    // identity travels in the event context (RequestContext). A subject carrying
+    // no identity still projects, deriving identity from ctx.
+    const result = await handlers.INVESTOR_PROFILE_SNAPSHOT_CREATED(
+      payload({ agentOutput: validIpAgentOutput, __version: 1 }),
+      ctx('INVESTOR_PROFILE_SNAPSHOT_CREATED', { tenantId: 'ctx-tenant', userId: 'ctx-user' }),
+    );
+    const intent = Array.isArray(result) ? result[0] : result;
+    const fields = (intent as { fields: Record<string, unknown> }).fields;
+    expect(fields.tenantId).toBe('ctx-tenant');
+    expect(fields.userId).toBe('ctx-user');
+    expect((intent as { overrides?: { pk?: string } }).overrides?.pk).toBe(
+      projectedIpSnapshotPk('ctx-tenant', 'ctx-user'),
+    );
   });
 
   it('MARKET_SNAPSHOT_UPDATED → projectVersioned keyed on subject.__version', async () => {
@@ -198,8 +202,8 @@ describe('snapshot-projector — LedgerSnapshot', () => {
 
   it('projects PORTFOLIO_UPDATED into a LedgerSnapshot projectVersioned keyed on lastEventSequence', async () => {
     const result = await handlers[LedgerCtrlEventTypes.PORTFOLIO_UPDATED](
+      // Dry PORTFOLIO_UPDATED subject — tenantId is supplied by the event context.
       payload({
-        tenantId: 'tenant-abc',
         positions: { VTI: { symbol: 'VTI', quantity: 10, averageCostBasis: 200, totalCostBasis: 2000, lastFillPrice: 200 } },
         snapshot: {
           positions: { VTI: { symbol: 'VTI', quantity: 10, averageCostBasis: 200, totalCostBasis: 2000, lastFillPrice: 200 } },
@@ -235,7 +239,6 @@ describe('snapshot-projector — LedgerSnapshot', () => {
     await expect(
       handlers[LedgerCtrlEventTypes.PORTFOLIO_UPDATED](
         payload({
-          tenantId: 'tenant-abc',
           positions: {},
           snapshot: { positions: {}, cashBalanceCents: 0 }, // missing lastEventSequence
         }),
@@ -247,7 +250,7 @@ describe('snapshot-projector — LedgerSnapshot', () => {
   it('raises NotRetryableError when subject.snapshot is missing', async () => {
     await expect(
       handlers[LedgerCtrlEventTypes.PORTFOLIO_UPDATED](
-        payload({ tenantId: 'tenant-abc', positions: {} }),
+        payload({ positions: {} }),
         ctx('PORTFOLIO_UPDATED', { tenantId: 'tenant-abc', eventId: 'evt-2' }),
       ),
     ).rejects.toThrow();

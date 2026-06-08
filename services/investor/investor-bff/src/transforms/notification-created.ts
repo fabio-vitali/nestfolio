@@ -3,12 +3,13 @@ import type { UnitOfWork, BusEvent } from '@nestfolio/event-processor';
 import { NotificationCreatedSchema } from '@nestfolio/investor-ctrl/contracts';
 
 export const notificationCreated = (
-  uow: UnitOfWork<BusEvent<Record<string, unknown>, Record<string, unknown>>>,
+  uow: UnitOfWork<BusEvent<Record<string, unknown>>>,
 ): WriteIntent => {
   const s = parseSubject(uow, NotificationCreatedSchema);
+  const { tenantId, userId } = uow.event.context;
   return record('Notification', {
-    tenantId: s.tenantId,
-    userId: s.userId,
+    tenantId,
+    userId,
     notificationId: s.notificationId,
     channel: s.channel,
     title: s.title,
@@ -19,7 +20,7 @@ export const notificationCreated = (
     createdAt: uow.event.timestamp,
     read: false,
   }, {
-    pk: `InvestorProfile#${s.tenantId}#${s.userId}`,
+    pk: `InvestorProfile#${tenantId}#${userId}`,
     sk: `Notification#${s.notificationId}`,
   });
 };

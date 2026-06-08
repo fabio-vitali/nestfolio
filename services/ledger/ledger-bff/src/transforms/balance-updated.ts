@@ -3,14 +3,10 @@ import type { UnitOfWork, BusEvent } from '@nestfolio/event-processor';
 import { BalanceUpdatedSchema } from '@nestfolio/ledger-ctrl/contracts';
 
 export const balanceUpdated = (
-  uow: UnitOfWork<BusEvent<Record<string, unknown>, Record<string, unknown>>>,
+  uow: UnitOfWork<BusEvent<Record<string, unknown>>>,
 ): WriteIntent | WriteIntent[] => {
   const { event } = uow;
-  const { tenantId, userId, region } = event.context as {
-    tenantId: string;
-    userId?: string;
-    region?: string;
-  };
+  const { tenantId, userId, region } = event.context;
   const payload = parseSubject(uow, BalanceUpdatedSchema);
 
   const balanceCents = payload.cashBalanceCents;

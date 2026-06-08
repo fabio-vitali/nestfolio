@@ -15,9 +15,6 @@ export const DepositInitiatedSchema = z.object({
   depositId: z.string(),
   amountCents: z.number().int().positive(),
   currency: z.string(),
-  userId: z.string().optional(), // present; Cognito-supplied via stash
-  tenantId: z.string(),
-  region: z.string().optional(), // set from ctx.stash.region by the AppSync resolver
   status: z.string().optional(),
   initiatedAt: z.string().optional(),
   timestamp: z.string(),
@@ -38,9 +35,6 @@ export const WithdrawalInitiatedSchema = z.object({
   withdrawalId: z.string(),
   amountCents: z.number().int().positive(),
   currency: z.string(),
-  userId: z.string().optional(), // present; Cognito-supplied via stash
-  tenantId: z.string(),
-  region: z.string().optional(), // set from ctx.stash.region by the AppSync resolver
   status: z.string().optional(),
   requestedAt: z.string().optional(),
   timestamp: z.string(),

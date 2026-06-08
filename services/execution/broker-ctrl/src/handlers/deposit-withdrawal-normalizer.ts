@@ -29,7 +29,7 @@ function depositCompletion(deps: Deps) {
     const cf = await carryForward(deps, ctx.tenantId, transferId, BrokerCtrlEventTypes.DEPOSIT_REQUESTED, {
       amountCents: s.amountCents as number,
       currency: (s.currency as string) ?? 'USD',
-      userId: (s.userId as string) ?? ctx.userId,
+      userId: ctx.userId,
       initiatedAt: ctx.timestamp,
     });
     const executionMode = ctx.eventType === BrokerCtrlInboundEventTypes.SIM_DEPOSIT_COMPLETED ? 'simulation' : 'live';
@@ -61,7 +61,7 @@ function withdrawalCompletion(deps: Deps) {
     const cf = await carryForward(deps, ctx.tenantId, transferId, BrokerCtrlEventTypes.WITHDRAWAL_REQUESTED, {
       amountCents: s.amountCents as number,
       currency: (s.currency as string) ?? 'USD',
-      userId: (s.userId as string) ?? ctx.userId,
+      userId: ctx.userId,
       initiatedAt: ctx.timestamp,
     });
     const executionMode = ctx.eventType === BrokerCtrlInboundEventTypes.SIM_WITHDRAWAL_COMPLETED ? 'simulation' : 'live';
@@ -100,7 +100,7 @@ function transferFailed(deps: Deps) {
     const cf = await carryForward(deps, ctx.tenantId, transferId, requestedName, {
       amountCents: s.amountCents as number,
       currency: (s.currency as string) ?? 'USD',
-      userId: (s.userId as string) ?? ctx.userId,
+      userId: ctx.userId,
       initiatedAt: ctx.timestamp,
     });
     return fundingCarrier({

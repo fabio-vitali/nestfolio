@@ -15,12 +15,10 @@ const makeUow = (lastEventSequence: number) => ({
     type: 'BALANCE_UPDATED',
     timestamp: '2026-01-01T00:00:00.000Z',
     subject: {
-      tenantId: 't1',
-      userId: 'u1',
       cashBalanceCents: 500_000,
       snapshot: { positions: {}, cashBalanceCents: 500_000, lastEventSequence },
     },
-    context: { tenantId: 't1' },
+    context: { tenantId: 't1', userId: 'u1', region: 'us-east-1' },
   },
   payload: {},
   record: {},
@@ -38,7 +36,7 @@ const fakeCtx = {
 describe('balanceUpdated transform', () => {
   it('returns a projectVersioned CashBalance intent keyed on snapshot.lastEventSequence', () => {
     expect(
-      balanceUpdated(makeUow(42) as Parameters<typeof balanceUpdated>[0]),
+      balanceUpdated(makeUow(42) as unknown as Parameters<typeof balanceUpdated>[0]),
     ).toEqual(
       projectVersioned('CashBalance', {
         tenantId: 't1',
@@ -55,11 +53,11 @@ describe('balanceUpdated transform', () => {
     expect(() => balanceUpdated({
       event: {
         id: 'e1', type: 'BALANCE_UPDATED', timestamp: '2026-01-01T00:00:00.000Z',
-        subject: { tenantId: 't1', userId: 'u1', cashBalanceCents: 1 },
-        context: { tenantId: 't1' },
+        subject: { cashBalanceCents: 1 },
+        context: { tenantId: 't1', userId: 'u1', region: 'us-east-1' },
       },
       payload: {}, record: {},
-    } as Parameters<typeof balanceUpdated>[0])).toThrow(z.ZodError);
+    } as unknown as Parameters<typeof balanceUpdated>[0])).toThrow(z.ZodError);
   });
 
   describe('version guard (executor)', () => {
@@ -74,7 +72,7 @@ describe('balanceUpdated transform', () => {
     it('applies a fresh versioned write when the condition succeeds', async () => {
       ddbMock.onAnyCommand().resolves({});
       const result = await executor.execute(
-        balanceUpdated(makeUow(10) as Parameters<typeof balanceUpdated>[0]),
+        balanceUpdated(makeUow(10) as unknown as Parameters<typeof balanceUpdated>[0]),
         fakeCtx,
       );
       expectVersionedWrite(result);
@@ -85,7 +83,7 @@ describe('balanceUpdated transform', () => {
       err.name = 'ConditionalCheckFailedException';
       ddbMock.onAnyCommand().rejects(err);
       const result = await executor.execute(
-        balanceUpdated(makeUow(3) as Parameters<typeof balanceUpdated>[0]),
+        balanceUpdated(makeUow(3) as unknown as Parameters<typeof balanceUpdated>[0]),
         fakeCtx,
       );
       expectStaleDrop(result);

@@ -8,7 +8,7 @@ describe('ledgerEntryRecorded transform', () => {
       type: 'LEDGER_ENTRY_RECORDED',
       timestamp: '2026-01-01T00:00:00.000Z',
       subject,
-      context: { tenantId: 't1' },
+      context: { tenantId: 't1', userId: 'u1', region: 'us-east-1' },
     },
     payload: {},
     record: {},
@@ -16,7 +16,6 @@ describe('ledgerEntryRecorded transform', () => {
 
   // The shape the real ledger-ctrl producer emits (LedgerEntryEvent).
   const actualSubject = {
-    tenantId: 't1',
     streamType: 'actual',
     lastEventSequence: 42,
     snapshotAt: '2026-01-01T00:00:00.000Z',
@@ -64,7 +63,6 @@ describe('ledgerEntryRecorded transform', () => {
 
   it('writes versioned Simulation + SimulationPosition and NO history/checkpoint for a simulated entry', () => {
     const result = ledgerEntryRecorded(makeUow({
-      tenantId: 't1',
       streamType: 'simulated',
       lastEventSequence: 9,
       snapshotAt: '2026-01-01T00:00:00.000Z',
@@ -102,7 +100,7 @@ describe('ledgerEntryRecorded transform', () => {
   it('throws ZodError when the subject violates the ledger contract (missing snapshot)', () => {
     expect(() =>
       ledgerEntryRecorded(
-        makeUow({ tenantId: 't1', streamType: 'actual', lastEventSequence: 42 }) as Parameters<typeof ledgerEntryRecorded>[0],
+        makeUow({ streamType: 'actual', lastEventSequence: 42 }) as Parameters<typeof ledgerEntryRecorded>[0],
       ),
     ).toThrow(z.ZodError);
   });

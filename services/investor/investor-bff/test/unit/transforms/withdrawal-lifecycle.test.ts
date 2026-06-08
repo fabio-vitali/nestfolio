@@ -17,7 +17,7 @@ const makeUow = (
     type: 'WITHDRAWAL_SETTLED',
     timestamp: '2026-01-03T00:00:00.000Z',
     subject: { ...subject, __version: version },
-    context: {},
+    context: { tenantId: 't1', userId: 'u1', region: 'us-east-1' },
   },
   payload: {},
   record: {},
@@ -26,9 +26,6 @@ const makeUow = (
 const settledSubject = {
   sk: 'WITHDRAWAL_SETTLED',
   direction: 'WITHDRAWAL',
-  tenantId: 't1',
-  userId: 'u1',
-  region: 'us-east-1',
   status: 'settled',
   transferId: 'wd-1',
   amountCents: 50_000,
@@ -52,7 +49,7 @@ describe('withdrawalLifecycle transform', () => {
   it('returns a projectVersioned WithdrawalRequest intent (settled) keyed on __version', () => {
     expect(
       withdrawalLifecycle(
-        makeUow(settledSubject, 3) as Parameters<typeof withdrawalLifecycle>[0],
+        makeUow(settledSubject, 3) as unknown as Parameters<typeof withdrawalLifecycle>[0],
       ),
     ).toEqual(
       projectVersioned(
@@ -80,7 +77,7 @@ describe('withdrawalLifecycle transform', () => {
 
   it('takes version from __version', () => {
     const intent = withdrawalLifecycle(
-      makeUow(settledSubject, 1) as Parameters<typeof withdrawalLifecycle>[0],
+      makeUow(settledSubject, 1) as unknown as Parameters<typeof withdrawalLifecycle>[0],
     ) as { version: number };
     expect(intent.version).toBe(1);
   });
@@ -96,7 +93,7 @@ describe('withdrawalLifecycle transform', () => {
       ddbMock.onAnyCommand().resolves({});
       const result = await executor.execute(
         withdrawalLifecycle(
-          makeUow(settledSubject, 3) as Parameters<typeof withdrawalLifecycle>[0],
+          makeUow(settledSubject, 3) as unknown as Parameters<typeof withdrawalLifecycle>[0],
         ),
         fakeCtx,
       );
@@ -109,7 +106,7 @@ describe('withdrawalLifecycle transform', () => {
       ddbMock.onAnyCommand().rejects(err);
       const result = await executor.execute(
         withdrawalLifecycle(
-          makeUow(settledSubject, 1) as Parameters<typeof withdrawalLifecycle>[0],
+          makeUow(settledSubject, 1) as unknown as Parameters<typeof withdrawalLifecycle>[0],
         ),
         fakeCtx,
       );

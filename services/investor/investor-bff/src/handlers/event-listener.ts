@@ -42,8 +42,8 @@ export function createHandlers(deps?: { profileRepo?: InvestorProfileRepository 
     [InvestorBffEventTypes.ONBOARDING_COMPLETED]: async (payload: EventPayload, ctx: EventContext) =>
       onboardingCompleted(payload, ctx),
     [InvestorBffEventTypes.GO_LIVE_CONFIRMED]: async (payload: EventPayload, ctx: EventContext) => {
-      const subject = parseSubject(payload, GoLiveConfirmedSchema);
-      const reqCtx = { ...pickRequestContext(ctx), userId: subject.userId as typeof ctx.userId };
+      parseSubject(payload, GoLiveConfirmedSchema);
+      const reqCtx = pickRequestContext(ctx);
       const profileRepo = deps?.profileRepo ?? new InvestorProfileRepository(process.env['TABLE_NAME']!);
       await profileRepo.setExecutionMode(reqCtx, 'simulation', 'live');
       return skip();

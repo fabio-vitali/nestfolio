@@ -7,8 +7,6 @@ const makeUow = (over: Record<string, unknown> = {}, type = 'INVESTOR_PROFILE_UP
     type,
     timestamp: '2026-02-02T00:00:00.000Z',
     subject: {
-      tenantId: 't1',
-      userId: 'u1',
       operatingMode: 'BALANCED',
       goal: { objective: 'RETIREMENT' },
       riskProfile: { score: 7 },

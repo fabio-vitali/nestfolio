@@ -21,8 +21,8 @@ describe('KinesisIngestionAdapter', () => {
 
       expect(records).toHaveLength(1);
       expect(records[0].event.type).toBe('ORDER_FILLED');
-      expect((records[0].event as BusEvent<Record<string, unknown>, Record<string, unknown>>).subject).toEqual({ amount: 100 });
-      expect((records[0].event as BusEvent<Record<string, unknown>, Record<string, unknown>>).context.tenantId).toBe('tenant-1');
+      expect((records[0].event as BusEvent<Record<string, unknown>>).subject).toEqual({ amount: 100 });
+      expect((records[0].event.context as Record<string, unknown>).tenantId).toBe('tenant-1');
     });
 
     it('handles multiple records', () => {

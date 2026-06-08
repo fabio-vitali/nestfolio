@@ -5,7 +5,7 @@ jest.mock('../../../src/repositories/investor-profile.repository');
 
 describe('onboardingCompleted transform', () => {
   const baseSubject = {
-    tenantId: 't1', userId: 'u1', email: 'u1@example.com',
+    email: 'u1@example.com',
     goal: { objective: 'RETIREMENT' }, horizonYears: 20,
     accountMode: 'simulation' as const, capitalAmount: 100000, currency: 'EUR',
     riskTolerance: 3, riskExperience: 2,
@@ -68,7 +68,7 @@ describe('onboardingCompleted transform', () => {
   });
 
   it('e2e- tenant defaults mandate level to ADVISORY', async () => {
-    await onboardingCompleted({ subject: { ...baseSubject, tenantId: 'e2e-foo' } } as any,
+    await onboardingCompleted({ subject: baseSubject } as any,
                               { ...ctx, tenantId: 'e2e-foo' } as any);
     const items = (InvestorProfileRepository as any).prototype.transactWrite.mock.calls[0][0].TransactItems;
     const mandate = items.find((i: any) => i.Put?.Item.sk === 'Mandate').Put.Item;

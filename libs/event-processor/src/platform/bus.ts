@@ -3,13 +3,13 @@ import { type Event } from './core';
 import { type ErrorEvent, NotRetryableError } from './errors';
 import type { RequestContext } from '../domain/schemas';
 
-export type BusEvent<T = object, S = RequestContext> = Event & {
+export type BusEvent<T = object, S extends RequestContext = RequestContext> = Event & {
   subject: T;
   context: S;
 };
 
 export interface Bus {
-  publish(event: BusEvent<unknown, unknown> | ErrorEvent): Promise<void>;
+  publish(event: BusEvent<unknown> | ErrorEvent): Promise<void>;
 }
 
 export class EventBridgeBus implements Bus {
@@ -22,7 +22,7 @@ export class EventBridgeBus implements Bus {
     this.client = new EventBridgeClient({});
   }
 
-  async publish(event: BusEvent<unknown, unknown> | ErrorEvent): Promise<void> {
+  async publish(event: BusEvent<unknown> | ErrorEvent): Promise<void> {
     const detail = JSON.stringify(event);
     const detailSizeBytes = Buffer.byteLength(detail, 'utf-8');
     const MAX_EVENT_SIZE = 256 * 1024;

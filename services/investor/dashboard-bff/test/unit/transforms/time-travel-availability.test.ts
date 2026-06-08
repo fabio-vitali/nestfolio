@@ -20,7 +20,6 @@ describe('timeTravelAvailability transform', () => {
 
   // The shape the real ledger-ctrl producer emits (LedgerEntryEvent).
   const validSubject = {
-    tenantId: 't1',
     streamType: 'actual',
     lastEventSequence: 12,
     snapshotAt: '2026-01-01T12:00:00.000Z',

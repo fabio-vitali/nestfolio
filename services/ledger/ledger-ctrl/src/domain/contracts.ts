@@ -18,13 +18,9 @@ export const LedgerSnapshotSchema = z.object({
 });
 export type LedgerSnapshot = z.infer<typeof LedgerSnapshotSchema>;
 
-/** BALANCE_UPDATED subject (the BalanceEvent record). */
+/** BALANCE_UPDATED subject (the BalanceEvent record). Dry domain subject —
+ * tenantId/userId/region travel in the event context (RequestContext), not here. */
 export const BalanceUpdatedSchema = z.object({
-  tenantId: z.string(),
-  // userId is always stamped on the published subject by pickRequestContext in the
-  // intent executor (changeDataCapture publishes the full DDB record as the subject),
-  // so it is required — consumers use it directly in pk templates.
-  userId: z.string(),
   streamType: z.string().optional(),
   cashBalanceCents: z.number(),
   totalValueCents: z.number().optional(),
@@ -32,12 +28,9 @@ export const BalanceUpdatedSchema = z.object({
 });
 export type BalanceUpdated = z.infer<typeof BalanceUpdatedSchema>;
 
-/** PORTFOLIO_UPDATED subject (the PortfolioEvent record). */
+/** PORTFOLIO_UPDATED subject (the PortfolioEvent record). Dry domain subject —
+ * identity travels in the event context (RequestContext), not here. */
 export const PortfolioUpdatedSchema = z.object({
-  // tenantId is stamped by snapshotToEvents (snapshot-to-events.ts line ~52) and
-  // published as part of the CDC subject — required here so consumers can key the
-  // projected row without falling back to ctx.tenantId.
-  tenantId: z.string(),
   streamType: z.string().optional(),
   positions: z.record(LedgerPositionSchema),
   positionCount: z.number().optional(),
@@ -46,9 +39,8 @@ export const PortfolioUpdatedSchema = z.object({
 });
 export type PortfolioUpdated = z.infer<typeof PortfolioUpdatedSchema>;
 
-/** LEDGER_ENTRY_RECORDED subject. */
+/** LEDGER_ENTRY_RECORDED subject. Dry domain subject — identity travels in the event context. */
 export const LedgerEntryRecordedSchema = z.object({
-  tenantId: z.string(),
   streamType: z.string().optional(),
   lastEventSequence: z.number(),
   // snapshotAt is the AccountSnapshot row's ISO timestamp (ledger.repository

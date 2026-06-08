@@ -80,7 +80,7 @@ describe('portfolioSummary transform', () => {
     const uow = {
       event: {
         id: 'e1', type: 'BALANCE_UPDATED', timestamp: 't',
-        subject: { tenantId: 't', snapshot: { positions: {}, cashBalanceCents: 'NaN', lastEventSequence: 1 } },
+        subject: { snapshot: { positions: {}, cashBalanceCents: 'NaN', lastEventSequence: 1 } },
         context: { tenantId: 't', userId: 'u', region: 'us-east-1' },
       },
       payload: {}, record: {},

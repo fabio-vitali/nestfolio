@@ -27,8 +27,10 @@ function projectIpSnapshot(
   ctx: EventContext,
 ): WriteIntent | undefined {
   const subject = parseSubject(payload, InvestorProfileSnapshotSchema);
-  const tenantId = subject.tenantId;
-  const userId = subject.userId;
+  // Identity is a RequestContext field — it travels in the event context, not the
+  // (now dry) producer subject. EventContext extends RequestContext.
+  const tenantId = ctx.tenantId;
+  const userId = ctx.userId;
   const agentOutput = subject.agentOutput;
   if (!agentOutput) {
     throw new NotRetryableError(
@@ -77,7 +79,9 @@ function projectMarketSnapshot(payload: EventPayload): WriteIntent | undefined {
 
 function projectLedgerSnapshot(payload: EventPayload, ctx: EventContext): WriteIntent | undefined {
   const subject = parseSubject(payload, PortfolioUpdatedSchema);
-  const tenantId = subject.tenantId;
+  // tenantId is a RequestContext field — it travels in the event context, not the
+  // (now dry) PORTFOLIO_UPDATED subject. EventContext extends RequestContext.
+  const tenantId = ctx.tenantId;
   const snapshot = subject.snapshot;
   if (!snapshot) {
     throw new NotRetryableError(

@@ -46,8 +46,6 @@ export type OnboardingSession = z.infer<typeof OnboardingSessionSchema>;
 /** Shape of the CDC record written when investor confirms go-live.
  *  Emitted as GO_LIVE_CONFIRMED via CDC. */
 export const GoLiveConfirmedRecordSchema = z.object({
-  tenantId: z.string().min(1),
-  userId: z.string().min(1),
   timestamp: z.string(),
 });
 export type GoLiveConfirmedRecord = z.infer<typeof GoLiveConfirmedRecordSchema>;
@@ -55,8 +53,6 @@ export type GoLiveConfirmedRecord = z.infer<typeof GoLiveConfirmedRecordSchema>;
 /** Shape of the CDC record written on onboarding completion.
  *  Raw onboarding vocabulary — no investor-domain knowledge. */
 export const OnboardingCompletedRecordSchema = z.object({
-  tenantId: z.string().min(1),
-  userId: z.string().min(1),
   email: z.string().email(),
   goal: z.object({ objective: z.string() }),
   horizonYears: z.number().int().min(1).max(30),

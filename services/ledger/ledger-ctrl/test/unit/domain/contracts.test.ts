@@ -21,25 +21,23 @@ describe('ledger-ctrl contracts', () => {
     const subject = { tenantId: 't', userId: 'u', streamType: 'live', cashBalanceCents: 100_00, totalValueCents: 250_00, snapshot };
     expect(() => BalanceUpdatedSchema.parse(subject)).not.toThrow();
   });
-  it('BalanceUpdatedSchema requires userId (stamped by pickRequestContext)', () => {
-    // userId is always injected onto the DDB record by the intent executor and
-    // published as part of the subject by the changeDataCapture pipeline, so it is
-    // required — consumers use it directly in pk templates.
-    const withUserId = { tenantId: 't', userId: 'u1', cashBalanceCents: 100_00, snapshot };
-    expect(BalanceUpdatedSchema.parse(withUserId).userId).toBe('u1');
-    const { userId: _omitted, ...withoutUserId } = withUserId;
-    expect(() => BalanceUpdatedSchema.parse(withoutUserId)).toThrow();
+  it('BalanceUpdatedSchema is a dry domain subject — context identity is stripped, not required', () => {
+    // tenantId/userId/region travel in the event context (RequestContext), never the
+    // subject. If a producer row still carries them, zod strips them; they are not required.
+    const parsed = BalanceUpdatedSchema.parse({ tenantId: 't', userId: 'u1', cashBalanceCents: 100_00, snapshot });
+    expect('userId' in parsed).toBe(false);
+    expect('tenantId' in parsed).toBe(false);
+    expect(parsed.cashBalanceCents).toBe(100_00);
   });
   it('PortfolioUpdatedSchema parses a real PortfolioEvent subject', () => {
     const subject = { tenantId: 't', streamType: 'live', positions: snapshot.positions, positionCount: 1, totalValueCents: 250_00, snapshot };
     expect(() => PortfolioUpdatedSchema.parse(subject)).not.toThrow();
   });
-  it('LedgerEntryRecordedSchema parses a real LedgerEntryEvent subject and requires tenantId', () => {
-    const subject = { tenantId: 't', streamType: 'live', lastEventSequence: 7, snapshotAt: '2026-01-01T00:00:00.000Z', snapshot };
+  it('LedgerEntryRecordedSchema parses a real LedgerEntryEvent subject and requires snapshotAt', () => {
+    const subject = { streamType: 'live', lastEventSequence: 7, snapshotAt: '2026-01-01T00:00:00.000Z', snapshot };
     expect(() => LedgerEntryRecordedSchema.parse(subject)).not.toThrow();
     expect(LedgerEntryRecordedSchema.parse(subject).snapshotAt).toBe('2026-01-01T00:00:00.000Z');
-    const { tenantId: _omitted, ...withoutTenantId } = subject;
-    expect(() => LedgerEntryRecordedSchema.parse(withoutTenantId)).toThrow();
+    // snapshotAt is a genuine domain field (still required); identity is not on the subject.
     const { snapshotAt: _omittedAt, ...withoutSnapshotAt } = subject;
     expect(() => LedgerEntryRecordedSchema.parse(withoutSnapshotAt)).toThrow();
   });

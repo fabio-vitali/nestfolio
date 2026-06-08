@@ -5,9 +5,6 @@
 import { z } from 'zod';
 
 export const NotificationCreatedSchema = z.object({
-  tenantId: z.string(),
-  // userId is CDC-stamped via pickRequestContext on the Notification row
-  userId: z.string(),
   notificationId: z.string(),
   channel: z.string(),
   title: z.string(),

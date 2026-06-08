@@ -10,17 +10,18 @@ export async function onboardingCompleted(
   ctx: EventContext,
 ): Promise<WriteIntent> {
   const s = parseSubject(payload, OnboardingCompletedRecordSchema);
+  const { tenantId, userId, region } = ctx;
   const tableName = process.env['TABLE_NAME']!;
   const repo = new InvestorProfileRepository(tableName);
   const now = getTime();
-  const pk = `InvestorProfile#${s.tenantId}#${s.userId}`;
+  const pk = `InvestorProfile#${tenantId}#${userId}`;
   const risk = computeRiskProfile(s.riskTolerance, s.riskExperience);
   const mandateId = getUUID();
   const depositId = getUUID();
   // mandateLevel is not carried in the ONBOARDING_COMPLETED subject (onboarding-bff does not emit it);
   // derive it from the tenant prefix at materialization time.
   const mandateLevel: 'ADVISORY' | 'DISCRETIONARY' =
-    s.tenantId.startsWith('e2e-') ? 'ADVISORY' : 'DISCRETIONARY';
+    tenantId.startsWith('e2e-') ? 'ADVISORY' : 'DISCRETIONARY';
 
   await repo.transactWrite({
     TransactItems: [
@@ -31,9 +32,9 @@ export async function onboardingCompleted(
             pk,
             sk: 'InvestorProfile',
             __typename: 'InvestorProfile',
-            tenantId: s.tenantId,
-            userId: s.userId,
-            region: ctx.region,
+            tenantId,
+            userId,
+            region,
             email: s.email,
             operatingMode: s.operatingMode,
             executionMode: 'simulation',
@@ -68,9 +69,9 @@ export async function onboardingCompleted(
             pk,
             sk: 'Mandate',
             __typename: 'Mandate',
-            tenantId: s.tenantId,
-            userId: s.userId,
-            region: ctx.region,
+            tenantId,
+            userId,
+            region,
             mandateId,
             level: mandateLevel,
             status: 'ACTIVE',
@@ -93,9 +94,9 @@ export async function onboardingCompleted(
                   pk,
                   sk: `DepositIntent#${depositId}`,
                   __typename: 'DepositIntent',
-                  tenantId: s.tenantId,
-                  userId: s.userId,
-                  region: ctx.region,
+                  tenantId,
+                  userId,
+                  region,
                   createdAt: now,
                   depositId,
                   amountCents: s.capitalAmount,

@@ -2,7 +2,7 @@ import { record } from '@nestfolio/event-processor';
 import type { UnitOfWork, BusEvent } from '@nestfolio/event-processor';
 import { notificationCreated } from '../../../src/transforms/notification-created';
 
-type TestUow = UnitOfWork<BusEvent<Record<string, unknown>, Record<string, unknown>>>;
+type TestUow = UnitOfWork<BusEvent<Record<string, unknown>>>;
 
 function makeUow(subject: Record<string, unknown>): TestUow {
   return {
@@ -11,16 +11,14 @@ function makeUow(subject: Record<string, unknown>): TestUow {
       type: 'NOTIFICATION_CREATED',
       timestamp: '2026-01-01T00:00:00.000Z',
       subject,
-      context: { tenantId: 't1' },
+      context: { tenantId: 't1', userId: 'u1', region: 'us-east-1' },
     },
     payload: {},
     record: {},
-  };
+  } as unknown as TestUow;
 }
 
 const validSubject = {
-  userId: 'u1',
-  tenantId: 't1',
   notificationId: 'n1',
   channel: 'email',
   title: 'Test',
@@ -61,7 +59,7 @@ describe('notificationCreated transform', () => {
   });
 
   it('round-trips SYSTEM entity type for circuit-breaker notifications', () => {
-    const uow = makeUow({ ...validSubject, tenantId: 'SYSTEM', relatedEntityType: 'SYSTEM', relatedEntityId: 'evt-cb' });
+    const uow = makeUow({ ...validSubject, relatedEntityType: 'SYSTEM', relatedEntityId: 'evt-cb' });
     const result = notificationCreated(uow) as { fields: Record<string, unknown> };
     expect(result.fields['relatedEntityType']).toBe('SYSTEM');
     expect(result.fields['relatedEntityId']).toBe('evt-cb');

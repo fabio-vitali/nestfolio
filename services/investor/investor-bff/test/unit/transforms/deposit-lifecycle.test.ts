@@ -17,7 +17,7 @@ const makeUow = (
     type: 'DEPOSIT_SETTLED',
     timestamp: '2026-01-03T00:00:00.000Z',
     subject: { ...subject, __version: version },
-    context: {},
+    context: { tenantId: 't1', userId: 'u1', region: 'us-east-1' },
   },
   payload: {},
   record: {},
@@ -26,9 +26,6 @@ const makeUow = (
 const settledSubject = {
   sk: 'DEPOSIT_SETTLED',
   direction: 'DEPOSIT',
-  tenantId: 't1',
-  userId: 'u1',
-  region: 'us-east-1',
   status: 'settled',
   transferId: 'dep-1',
   amountCents: 100_000,
@@ -53,7 +50,7 @@ describe('depositLifecycle transform', () => {
   it('returns a projectVersioned Deposit intent (settled) keyed on __version', () => {
     expect(
       depositLifecycle(
-        makeUow(settledSubject, 3) as Parameters<typeof depositLifecycle>[0],
+        makeUow(settledSubject, 3) as unknown as Parameters<typeof depositLifecycle>[0],
       ),
     ).toEqual(
       projectVersioned(
@@ -82,7 +79,7 @@ describe('depositLifecycle transform', () => {
 
   it('takes version from __version', () => {
     const intent = depositLifecycle(
-      makeUow(settledSubject, 2) as Parameters<typeof depositLifecycle>[0],
+      makeUow(settledSubject, 2) as unknown as Parameters<typeof depositLifecycle>[0],
     ) as { version: number };
     expect(intent.version).toBe(2);
   });
@@ -98,7 +95,7 @@ describe('depositLifecycle transform', () => {
       ddbMock.onAnyCommand().resolves({});
       const result = await executor.execute(
         depositLifecycle(
-          makeUow(settledSubject, 3) as Parameters<typeof depositLifecycle>[0],
+          makeUow(settledSubject, 3) as unknown as Parameters<typeof depositLifecycle>[0],
         ),
         fakeCtx,
       );
@@ -111,7 +108,7 @@ describe('depositLifecycle transform', () => {
       ddbMock.onAnyCommand().rejects(err);
       const result = await executor.execute(
         depositLifecycle(
-          makeUow(settledSubject, 1) as Parameters<typeof depositLifecycle>[0],
+          makeUow(settledSubject, 1) as unknown as Parameters<typeof depositLifecycle>[0],
         ),
         fakeCtx,
       );

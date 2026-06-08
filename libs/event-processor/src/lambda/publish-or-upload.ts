@@ -1,6 +1,7 @@
 import { S3Client, PutObjectCommand, GetObjectCommand } from '@aws-sdk/client-s3';
 import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
 import { type Bus, type BusEvent } from '../platform/bus';
+import type { RequestContext } from '../domain/schemas';
 import { getUUID, getTime } from '../platform/core';
 
 const MAX_EVENT_SIZE = 256 * 1024; // 256 KB
@@ -12,12 +13,13 @@ export interface PublishOrUploadParams {
   readonly eventType: string;
   readonly content: Record<string, unknown>;
   readonly serviceName: string;
+  readonly context: RequestContext;
 }
 
 const s3 = new S3Client({});
 
 export async function publishOrUpload(params: PublishOrUploadParams): Promise<void> {
-  const { bus, bucket, eventType, content, serviceName } = params;
+  const { bus, bucket, eventType, content, serviceName, context } = params;
   const serialized = JSON.stringify(content);
   const sizeBytes = Buffer.byteLength(serialized, 'utf-8');
 
@@ -25,12 +27,12 @@ export async function publishOrUpload(params: PublishOrUploadParams): Promise<vo
   const timestamp = getTime();
 
   if (sizeBytes <= MAX_EVENT_SIZE) {
-    const event: BusEvent<Record<string, unknown>, Record<string, unknown>> = {
+    const event: BusEvent<Record<string, unknown>> = {
       id: eventId,
       type: eventType,
       timestamp,
       subject: { delivery: 'inline', content },
-      context: { serviceName },
+      context,
     };
     await bus.publish(event);
   } else {
@@ -50,12 +52,12 @@ export async function publishOrUpload(params: PublishOrUploadParams): Promise<vo
       { expiresIn: PRESIGNED_URL_TTL },
     );
 
-    const event: BusEvent<Record<string, unknown>, Record<string, unknown>> = {
+    const event: BusEvent<Record<string, unknown>> = {
       id: eventId,
       type: eventType,
       timestamp,
       subject: { delivery: 's3-presigned', url, bucket, key },
-      context: { serviceName },
+      context,
     };
     await bus.publish(event);
   }

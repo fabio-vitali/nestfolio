@@ -29,8 +29,6 @@ export type InvestorProfileRisk = z.infer<typeof InvestorProfileRiskSchema>;
 
 /** Subject shape for INVESTOR_PROFILE_CREATED / INVESTOR_PROFILE_UPDATED. */
 export const InvestorProfileUpdatedSchema = z.object({
-  tenantId: z.string(),
-  userId: z.string(),
   operatingMode: z.enum(['CONSERVATIVE', 'BALANCED', 'AGGRESSIVE']),
   goal: InvestorProfileGoalSchema,
   riskProfile: InvestorProfileRiskSchema,

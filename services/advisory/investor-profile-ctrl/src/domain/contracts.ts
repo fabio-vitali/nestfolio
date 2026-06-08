@@ -8,8 +8,6 @@ import { z } from 'zod';
  * update() intent in handlers/event-listener.ts (agentOutput, sourceEventId, tenantId, userId).
  */
 export const InvestorProfileSnapshotSchema = z.object({
-  tenantId: z.string(),
-  userId: z.string(),
   agentOutput: z.object({
     goals: z.array(z.string()),
     timeHorizon: z.string(),

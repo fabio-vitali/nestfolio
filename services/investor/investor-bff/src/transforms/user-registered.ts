@@ -9,5 +9,5 @@ import type { UnitOfWork, BusEvent } from '@nestfolio/event-processor';
  * (MODIFY) instead of INVESTOR_PROFILE_CREATED (INSERT) in CDC.
  */
 export const userRegistered = (
-  _uow: UnitOfWork<BusEvent<Record<string, unknown>, Record<string, unknown>>>,
+  _uow: UnitOfWork<BusEvent<Record<string, unknown>>>,
 ): WriteIntent => skip();

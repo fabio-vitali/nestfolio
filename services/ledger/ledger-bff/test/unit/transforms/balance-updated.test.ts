@@ -12,15 +12,13 @@ describe('balanceUpdated transform', () => {
       type: 'BALANCE_UPDATED',
       timestamp: '2026-01-01T00:00:00.000Z',
       subject,
-      context: { tenantId: 't1' },
+      context: { tenantId: 't1', userId: 'u1', region: 'us-east-1' },
     },
     payload: {},
     record: {},
   });
 
   const validSubject = {
-    tenantId: 't1',
-    userId: 'u1',
     cashBalanceCents: 950_000,
     snapshot: {
       positions: { VTI: pos('VTI') },
@@ -63,9 +61,9 @@ describe('balanceUpdated transform', () => {
     ).toThrow(z.ZodError);
   });
 
-  it('throws ZodError when tenantId is absent', () => {
+  it('throws ZodError when the snapshot is missing lastEventSequence', () => {
     expect(() =>
-      balanceUpdated(makeUow({ cashBalanceCents: 500_000, snapshot: { positions: {}, cashBalanceCents: 500_000, lastEventSequence: 1 } }) as Parameters<typeof balanceUpdated>[0]),
+      balanceUpdated(makeUow({ cashBalanceCents: 500_000, snapshot: { positions: {}, cashBalanceCents: 500_000 } }) as Parameters<typeof balanceUpdated>[0]),
     ).toThrow(z.ZodError);
   });
 });

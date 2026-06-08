@@ -14,8 +14,6 @@ export const SimDepositCompletedSchema = z.object({
   depositId: z.string(),
   amountCents: z.number().int().positive(),
   currency: z.string(),
-  userId: z.string().optional(), // present when the inbound SIM_DEPOSIT_INITIATED carried userId
-  tenantId: z.string(),
   sourceEventId: z.string(),
   timestamp: z.string(),
 });

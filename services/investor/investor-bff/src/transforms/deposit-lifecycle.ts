@@ -14,10 +14,10 @@ import { FundingSnapshotSchema } from '@nestfolio/execution-adpt/domain';
  * Subject validated against broker-ctrl's FundingSnapshotSchema at runtime.
  */
 export const depositLifecycle = (
-  uow: UnitOfWork<BusEvent<Record<string, unknown>, Record<string, unknown>>>,
+  uow: UnitOfWork<BusEvent<Record<string, unknown>>>,
 ): WriteIntent => {
   const s = parseSubject(uow, FundingSnapshotSchema);
-  const { tenantId, userId, region } = s;
+  const { tenantId, userId, region } = uow.event.context;
   return projectVersioned(
     'Deposit',
     {
