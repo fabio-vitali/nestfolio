@@ -28,3 +28,8 @@ Affected cards:
 
 Cheapest fix: re-run `audit-service` for these three (or a targeted touch-up) to align the
 Ingress / Event-Types / Handlers sections with current `events.ts` + `event-listener.ts`.
+
+**Class fix:** the root cause (cards regenerate on-demand with no standing gate, so code
+drifts silently) is folded into `typing-convention-enforcement-skills-docs` as a deterministic
+CLAUDE.md card-drift gate. This entry is the immediate 3-card symptom; it is subsumed by that
+gate when it lands.

@@ -84,9 +84,19 @@ importing each other's `/contracts`), and the original anti-pattern itself (unty
 - **Architecture docs:** document conventions 1–3 in `SYSTEM-ARCHITECTURE.md`,
   `agent-system.md`, `cdk-patterns`, and the `create-service`/`create-event` `SKILL.md`.
   (Source-of-truth detail already in the project memory `project-event-subject-contracts`.)
-- **Optional check-script:** a `tools/` checker (mirroring `check-read-model-drift.mjs`)
+- **Optional check-script(s):** a `tools/` checker (mirroring `check-read-model-drift.mjs`)
   asserting no new untyped subject casts in transforms, no cross-domain service↔service
   contract cycles, and `TableEntry` on row types — wired into pre-commit / CI.
+- **Deterministic CLAUDE.md card-drift gate (folded in 2026-06-08; subsumes
+  `service-card-funding-event-type-drift`).** Root cause of stale cards: `audit-service`
+  regenerates them on-demand via an LLM read→rewrite with NO standing gate, so code
+  silently drifts from the card (e.g. funding event-type renames left broker-ctrl /
+  investor-adpt / investor-bff cards naming dead events). Add a deterministic checker
+  (again mirroring `check-read-model-drift.mjs`) for the MECHANICALLY-derivable card
+  sections — Ingress subscriptions, Egress `eventTypes` map, Handlers, Event Types, DDB
+  entities — parsed from `service.stack.ts` / `events.ts` and diffed against the card;
+  fail CI on mismatch. Prose/intent sections stay LLM-regenerated (not gated). Closes the
+  *class* of bug, so the 3 stale cards get fixed when the gate lands.
 
 ## Current `TableEntry` bypasses to standardise (audit 2026-06-08)
 
