@@ -1,5 +1,16 @@
 import { z } from 'zod';
 
+/**
+ * CDC subject shape emitted by broker-ctrl for every funding lifecycle transition
+ * (DEPOSIT_REQUESTED, DEPOSIT_DETECTED, DEPOSIT_SETTLED, DEPOSIT_FAILED,
+ *  WITHDRAWAL_REQUESTED, WITHDRAWAL_SETTLED, WITHDRAWAL_FAILED).
+ *
+ * Forwarded to InvestorBus by investor-adpt; projected by investor-bff into
+ * Deposit and WithdrawalRequest read-model rows.
+ *
+ * Owned here (cross-domain adapter) to break the broker-ctrl ↔ investor-bff
+ * circular dependency — matching the ProposedTrade precedent in advisory-adpt/domain.
+ */
 export const FundingSnapshotSchema = z.object({
   sk: z.string(), // CDC passthrough field — the lifecycle event name (DEPOSIT_SETTLED, etc.)
   direction: z.enum(['DEPOSIT', 'WITHDRAWAL']),

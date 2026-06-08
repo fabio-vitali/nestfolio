@@ -1,5 +1,5 @@
 import { record, type WriteIntent } from '@nestfolio/event-processor';
-import type { FundingSnapshot as FundingSnapshotContract } from './contracts';
+import type { FundingSnapshot as FundingSnapshotContract } from '@nestfolio/investor-adpt/domain';
 
 export type FundingStatus = 'requested' | 'detected' | 'settled' | 'failed';
 export type FundingDirection = 'DEPOSIT' | 'WITHDRAWAL';

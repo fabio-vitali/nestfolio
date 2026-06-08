@@ -1,6 +1,6 @@
 import { projectVersioned, parseSubject, type WriteIntent } from '@nestfolio/event-processor';
 import type { UnitOfWork, BusEvent } from '@nestfolio/event-processor';
-import { FundingSnapshotSchema } from '@nestfolio/broker-ctrl/contracts';
+import { FundingSnapshotSchema } from '@nestfolio/investor-adpt/domain';
 
 /**
  * DEPOSIT_DETECTED / DEPOSIT_SETTLED / DEPOSIT_FAILED (and the DEPOSIT_REQUESTED
