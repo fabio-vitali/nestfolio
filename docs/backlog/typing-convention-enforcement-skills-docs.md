@@ -1,9 +1,9 @@
 ---
 id: typing-convention-enforcement-skills-docs
 status: queued
-rank: 6
+rank: 3
 type: tooling
-notes: "Prevent regressions of the kind event-subject-payload-build-tripwire fixed by CODIFYING + ENFORCING the typing conventions in the create-*/audit-* skills + architecture docs + (optionally) a check-script. Three conventions to enforce: (1) EVENT SUBJECTS — read-model transforms type the subject via parseSubject + an imported producer-owned zod contract; NEVER `event.subject as <LocalType>`/`as Record<string,unknown>` + a locally re-declared payload type. (2) CONTRACT-HOME / IMPORT RULE — intra-domain: consumer imports the producer's `<svc>/contracts` directly (service→service OK); cross-domain: the contract lives in the PRODUCER's domain adapter `/domain` (the ProposedTrade precedent) and the consumer imports from the adapter — NEVER two services importing each other's `/contracts` directly (that created the broker-ctrl↔investor-bff project cycle this workstream had to fix). (3) DDB ROW TYPES — use `TableEntry<T,S>` (libs/event-processor/src/platform/table.ts); 2026-06-08 audit found 8 row types re-declaring pk/sk/__typename inline instead (TaxLot, SnapshotRecord, SecFiling, decision-workflow InvestorProfileSnapshotProjectionRow + MarketSnapshotProjectionRow, investor-profile-ctrl InvestorProfileSnapshotRow, market-intelligence-ctrl MarketSnapshotRow, portfolio-engine + advisory-narrative AgentCompletionRow/AgentFailureRow). create-* skills should scaffold all three correctly; audit-* skills should FLAG violations; arch docs (SYSTEM-ARCHITECTURE, agent-system, cdk-patterns, create-service/create-event SKILL.md) document the rules; consider a tools/ check-script (like check-read-model-drift.mjs) wired into pre-commit/CI. Filed 2026-06-08 at user request after the typing workstream. May warrant a brief design pass on enforcement mechanism (skill-prose vs lint-rule vs both)."
+notes: "Prevent regressions of the kind event-subject-payload-build-tripwire fixed by CODIFYING + ENFORCING the typing conventions in the create-*/audit-* skills + architecture docs + (optionally) a check-script. Three conventions to enforce: (1) EVENT SUBJECTS — read-model transforms type the subject via parseSubject + an imported producer-owned zod contract; NEVER `event.subject as <LocalType>`/`as Record<string,unknown>` + a locally re-declared payload type. (2) CONTRACT-HOME / IMPORT RULE — intra-domain: consumer imports the producer's `<svc>/contracts` directly (service→service OK); cross-domain: the contract lives in the PRODUCER's domain adapter `/domain` (the ProposedTrade precedent) and the consumer imports from the adapter — NEVER two services importing each other's `/contracts` directly (that created the broker-ctrl↔investor-bff project cycle this workstream had to fix). (3) ROW + EVENT SHARE ONE SUBJECT TYPE — BusEvent<T> (platform/bus.ts) and TableEntry<T> (platform/table.ts) are generic over the SAME T by design; the producer Subject contract types BOTH the event (BusEvent<T>) AND the persisted row (TableEntry<T>) — rows should be TableEntry<Subject>, not a hand-rolled interface; 2026-06-08 audit found 8 row types re-declaring pk/sk/__typename inline instead (TaxLot, SnapshotRecord, SecFiling, decision-workflow InvestorProfileSnapshotProjectionRow + MarketSnapshotProjectionRow, investor-profile-ctrl InvestorProfileSnapshotRow, market-intelligence-ctrl MarketSnapshotRow, portfolio-engine + advisory-narrative AgentCompletionRow/AgentFailureRow). create-* skills should scaffold all three correctly; audit-* skills should FLAG violations; arch docs (SYSTEM-ARCHITECTURE, agent-system, cdk-patterns, create-service/create-event SKILL.md) document the rules; consider a tools/ check-script (like check-read-model-drift.mjs) wired into pre-commit/CI. Filed 2026-06-08 at user request after the typing workstream. May warrant a brief design pass on enforcement mechanism (skill-prose vs lint-rule vs both)."
 references:
   - "docs/superpowers/specs/2026-06-07-event-subject-payload-build-tripwire-design.md"
 out_of_scope: []
@@ -42,9 +42,18 @@ importing each other's `/contracts`), and the original anti-pattern itself (unty
      cross-domain consumer imports from the adapter. NEVER two services importing
      each other's `/contracts` directly — that creates a project cycle.
 
-3. **DDB row types → `TableEntry<T,S>`.** Persisted rows use
-   `TableEntry` (`libs/event-processor/src/platform/table.ts`) rather than
-   re-declaring `pk`/`sk`/`__typename`/`createdAt` inline.
+3. **One Subject type → both `BusEvent<T>` and `TableEntry<T>`.** `BusEvent<T,S>`
+   (`platform/bus.ts`, `subject: T`) and `TableEntry<T,S>` (`platform/table.ts`,
+   `T &` the pk/sk/__typename/createdAt envelope) are generic over the **same** `T`
+   (Subject) + `RequestContext` **by design** — the same domain data lives in the
+   event AND in the row. So the producer-owned Subject contract is the single source
+   of truth for **both**: type the event as `BusEvent<TheSubject>` and the persisted
+   row as `TableEntry<TheSubject>`. DDB row types should be `TableEntry<TheSubject>`,
+   NOT a hand-rolled interface re-declaring `pk`/`sk`/`__typename` inline — reuse the
+   Subject contract (or, where there's no event, a plain `TableEntry<{...fields}>`).
+   The 8 bypasses below should each become `TableEntry<…>`, reusing the relevant
+   Subject contract where one exists (e.g. `InvestorProfileSnapshotRow` →
+   `TableEntry<InvestorProfileSnapshotSubject>`).
 
 ## Work
 
