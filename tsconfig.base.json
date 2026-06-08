@@ -77,8 +77,14 @@
       "@nestfolio/investor-profile-ctrl/events": [
         "services/advisory/investor-profile-ctrl/src/domain/events.ts"
       ],
+      "@nestfolio/investor-profile-ctrl/contracts": [
+        "services/advisory/investor-profile-ctrl/src/domain/contracts.ts"
+      ],
       "@nestfolio/market-intelligence-ctrl/events": [
         "services/advisory/market-intelligence-ctrl/src/domain/events.ts"
+      ],
+      "@nestfolio/market-intelligence-ctrl/contracts": [
+        "services/advisory/market-intelligence-ctrl/src/domain/contracts.ts"
       ],
       "@nestfolio/execution-ctrl/events": [
         "services/execution/execution-ctrl/src/domain/events.ts"
