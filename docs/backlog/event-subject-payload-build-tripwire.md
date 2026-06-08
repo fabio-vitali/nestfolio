@@ -1,6 +1,6 @@
 ---
 id: event-subject-payload-build-tripwire
-status: active
+status: shipped
 rank: 1
 type: refactor
 notes: "Complete the intended typed-Subject design so PAYLOAD changes (not just event-name changes) break consumer builds. Today consumers import producer *EventTypes NAME maps (name changes DO break builds) but type event payloads as the generic BusEvent<Record<string,unknown>> / EventPayload and re-declare payload shapes locally with `as` casts (e.g. dashboard-bff/src/transforms/portfolio-summary.ts `type LedgerSnapshot` + `event.subject as Record<string,unknown>`). The BusEvent<Subject> mechanism already exists; only ProposedTrade (advisory-adpt/domain, 3 sites) is actually cross-coupled. Scope: producers export their canonical event Subject types as contracts; consumers type handlers/transforms against the IMPORTED Subjects, removing local re-declarations + casts (kills the prefer-libraries-over-casts anti-pattern). Needs brainstorming on mechanism + producer/consumer scope. Split 2026-06-07 from the disproven nx-affected-overbroad-cyclic-service-graph item."
@@ -11,8 +11,24 @@ out_of_scope:
   - "Renaming/reshaping event names — the name tripwire already works; this workstream adds the PAYLOAD tripwire only."
 spec: docs/superpowers/specs/2026-06-07-event-subject-payload-build-tripwire-design.md
 plan: docs/superpowers/plans/2026-06-07-event-subject-payload-build-tripwire.md
-topic_memory: []
-validation_gate: null
+topic_memory: [project_event_subject_contracts.md]
+validation_gate: |
+  As-built mechanism (evolved from "expose Subject types" → dry subjects + type-level context guard):
+  producer-owned zod contracts are DRY domain aggregates (no tenantId/userId/region — except
+  MarketSnapshot.region, a market-domain field); BusEvent<T, S extends RequestContext> + TableEntry
+  constrain the context type so a missing context field fails the build (events, rows, fixtures);
+  consumers read identity from event.context (no casts); parseSubject validates the subject at the seam;
+  the intent executor stamps row identity via pickRequestContext(ctx).
+  Commits (branch worktree-event-subject-payload-build-tripwire): 88971022 (allow-list /contracts gate fix),
+  a9fdafb2 (service cards), 56257457 (dry subjects + BusEvent/TableEntry guard, 42 files),
+  dd2e62aa (integration fixtures faithful), a71e3755 (ledger time-travel seed), 23c30840 (onboarding
+  contract corrected to real producer), 437753c0 (cards + spec as-built amendment).
+  Deploy: deploy.sh sandbox --prefix=dev for all 13 affected services (×2) + investor-bff redeploy — all ✅.
+  Gates: `nx affected -t typecheck,lint --base=origin/main` GREEN (49 projects); `nx affected -t test` GREEN
+  (agent-orchestrator is a worktree-only @smithy false-fail, passes on main); `nx affected -t test-integration`
+  GREEN (23 projects, after fixtures made faithful); scoped e2e 4/4 GREEN against deployed dev —
+  funding/fund-account (cross-domain context propagation), notifications/mark-notification-read,
+  advisory/first-decision (snapshot-projector), profile/update-goal.
 ---
 
 # Event Subject payload build-tripwire — complete the intended typed-Subject design
