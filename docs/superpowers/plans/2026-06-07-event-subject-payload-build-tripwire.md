@@ -734,7 +734,15 @@ git log --oneline -1
 grep -rn "subject as Record<string, unknown>" services/*/src \
   --include='*.ts' | grep -v '/test/'
 ```
-Expected: **no output** (recent-activity now uses `RecentActivitySubjectSchema`). If any line remains, it was missed — retype it per the recipe.
+Expected: **only the 4 documented exception casts** in
+`services/execution/broker-ctrl/src/handlers/deposit-withdrawal-normalizer.ts`
+(lines ~26/58/88/96). These are blocked on the `broker-funding-completed-normalization-drift`
+backlog item (a live-money-path normalization bug surfaced in Task 5b: the alpaca/sim
+funding-completed producers emit `nestfolioTransferId`/`amount`/no-`currency` while the
+normalizer reads `transferId`/`amountCents`/`currency` — it cannot be cleanly typed until
+the adapters emit a canonical funding-completed shape). Any OTHER remaining line was missed —
+retype it per the recipe. The router half of broker-ctrl (deposit-withdrawal-router) WAS
+retyped clean in Task 5b.
 
 - [ ] **Step 2: Assert no remaining locally re-declared payload types**
 

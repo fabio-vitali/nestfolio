@@ -1,7 +1,7 @@
 ---
 id: nx-affected-true-affected-resolver
 status: queued
-rank: 2
+rank: 3
 type: tooling
 notes: "Replace `nx affected` (which over-approximates) with a custom tools/affected-projects.mjs that computes the TRUE affected set via reverse-reachability over the `nx graph --file` JSON — which IS correct. Root cause (investigation 2026-06-07): nx 22.5.4 `affected` returns event-processor's entire dependent closure (28) for ANY backend service change, regardless of that service's real dependents. Proven NOT the cross-service contract design, NOT cycles, NOT deep-subpath imports. Latest nx 22.7.5 does not fix it (known limitation, discussion #5580 / issue #1169); the projectsAffectedByDependencyUpdates config has no effect. The custom resolver gives correct bounded results (dashboard-bff→1, yahoo→10, ui→6, event-processor→28). Wire into /backlog-next 6.2/6.4 + the 5 CI workflows. Split 2026-06-07 from (and supersedes) the disproven nx-affected-overbroad-cyclic-service-graph item."
 references: []

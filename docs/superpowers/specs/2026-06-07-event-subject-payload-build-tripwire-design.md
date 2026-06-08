@@ -218,6 +218,20 @@ throws on malformed payloads), so:
   considered and rejected in favour of producer-owned `contracts.ts`.)
 - **Event *name* reshaping** — the name tripwire already works; this adds the
   payload tripwire only.
+- **broker-ctrl `deposit-withdrawal-normalizer` (4 casts) — documented exception.**
+  Surfaced in execution (Task 5b): the inbound funding-completed producers
+  (broker-alpaca-adpt `AlpacaTransferResult` emits `nestfolioTransferId`/`amount`/
+  no-`currency`/no-`userId`; broker-sim-adpt `WithdrawalCompleted` emits `amount`/
+  no-`currency`) genuinely do **not** match the fields the normalizer reads
+  (`transferId`/`amountCents`/`currency`/`userId`) — a real live-money-path
+  normalization bug, plus the handlers are shared across the sim+alpaca paths.
+  The normalizer cannot be cleanly typed until the adapters emit a canonical
+  funding-completed shape. Filed as queued backlog item
+  `broker-funding-completed-normalization-drift` (rank 2, to fix immediately after
+  this workstream). The 4 `as Record<string,unknown>` casts in
+  `deposit-withdrawal-normalizer.ts` therefore remain; the router half of
+  broker-ctrl **was** retyped clean. "Zero remaining casts" holds everywhere except
+  these 4 documented, bug-blocked sites.
 
 ## Open items for the plan
 
