@@ -279,12 +279,16 @@ describe('ledger-bff', () => {
             AAPL: { symbol: 'AAPL', quantity: 10, averageCostBasis: 150.0, totalCostBasis: 1500.0, lastFillPrice: 155.0 },
             MSFT: { symbol: 'MSFT', quantity: 5, averageCostBasis: 300.0, totalCostBasis: 1500.0, lastFillPrice: 310.0 },
           },
+          // snapshot is the point-in-time view materialized into SnapshotAt#actual and
+          // read back by getPortfolioAt (latest SnapshotAt). Keep it aligned with the
+          // BALANCE_UPDATED snapshot above (800k / AAPL qty 8) so the time-travel
+          // assertion stays stable; the top-level `positions` (qty 10/5) drive the
+          // versioned Position rows that getPositions reads.
           snapshot: {
             positions: {
-              AAPL: { symbol: 'AAPL', quantity: 10, averageCostBasis: 150.0, totalCostBasis: 1500.0, lastFillPrice: 155.0 },
-              MSFT: { symbol: 'MSFT', quantity: 5, averageCostBasis: 300.0, totalCostBasis: 1500.0, lastFillPrice: 310.0 },
+              AAPL: { symbol: 'AAPL', quantity: 8, averageCostBasis: 145.0, totalCostBasis: 1160.0, lastFillPrice: 150.0 },
             },
-            cashBalanceCents: 1_000_000,
+            cashBalanceCents: 800_000,
             lastEventSequence: 99,
           },
         },
