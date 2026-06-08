@@ -175,9 +175,20 @@ delivers). The change is purely additive.
 | market-intelligence-ctrl | MarketSnapshot | decision-workflow-ctrl (snapshot-projector) |
 
 The exact producer set + per-site file:line list is finalised in the plan from the
-2026-06-07 cast-site census (recorded in the backlog dossier). **Acceptance: zero
-remaining `as Record<string, unknown>` / local re-declared payload casts across the
-9 consumer services.**
+2026-06-07 cast-site census (recorded in the backlog dossier).
+
+**Acceptance (as achieved):** zero remaining **re-declared-payload-type** casts
+(`event.subject as <LocalPayloadType>`) and zero locally re-declared payload types —
+the targeted anti-pattern is fully eliminated, and every census read-model transform
+is typed against a producer-owned contract via `parseSubject` (the payload tripwire is
+proven). Two categories of generic `as Record<string,unknown>` reads remain and are
+NOT this anti-pattern: (1) the 4 broker-ctrl normalizer casts, blocked on the
+`broker-funding-completed-normalization-drift` bug (filed, queued rank 2); and (2) ~27
+pre-existing polymorphic/opaque/dynamic reads outside the census — the advisory agent
+pipeline's composite handoff state, KB text builders, dynamic-key derivation — filed
+as `residual-generic-subject-casts-cleanup` (parked; mostly appropriately `Record`).
+The literal "zero `as Record` anywhere" was an overstatement of the original scope,
+which targeted the re-declared-payload-type transforms.
 
 ## Testing
 
