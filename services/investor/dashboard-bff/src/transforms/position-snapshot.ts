@@ -3,7 +3,7 @@ import type { UnitOfWork, BusEvent } from '@nestfolio/event-processor';
 import { z } from 'zod';
 import { LedgerSnapshotSchema } from '@nestfolio/ledger-ctrl/contracts';
 
-const PositionSnapshotSubjectSchema = z.object({ snapshot: LedgerSnapshotSchema });
+const PositionSnapshotSchema = z.object({ snapshot: LedgerSnapshotSchema });
 
 /**
  * Projects one PositionSnapshot row per holding from the authoritative ledger
@@ -18,7 +18,7 @@ export const positionSnapshot = (
 ): WriteIntent[] => {
   const { event } = uow;
   const { tenantId, userId, region } = event.context;
-  const { snapshot } = parseSubject(uow, PositionSnapshotSubjectSchema);
+  const { snapshot } = parseSubject(uow, PositionSnapshotSchema);
 
   const version = snapshot.lastEventSequence;
 

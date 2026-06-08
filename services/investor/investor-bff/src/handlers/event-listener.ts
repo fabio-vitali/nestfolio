@@ -14,7 +14,7 @@ import { onboardingCompleted } from '../transforms/onboarding-completed';
 import { depositLifecycle } from '../transforms/deposit-lifecycle';
 import { withdrawalLifecycle } from '../transforms/withdrawal-lifecycle';
 import { InvestorProfileRepository } from '../repositories/investor-profile.repository';
-import { GoLiveConfirmedSubjectSchema } from '@nestfolio/onboarding-bff/contracts';
+import { GoLiveConfirmedSchema } from '@nestfolio/onboarding-bff/contracts';
 
 export function createHandlers(deps?: { profileRepo?: InvestorProfileRepository }) {
   return {
@@ -42,7 +42,7 @@ export function createHandlers(deps?: { profileRepo?: InvestorProfileRepository 
     [InvestorBffEventTypes.ONBOARDING_COMPLETED]: async (payload: EventPayload, ctx: EventContext) =>
       onboardingCompleted(payload, ctx),
     [InvestorBffEventTypes.GO_LIVE_CONFIRMED]: async (payload: EventPayload, ctx: EventContext) => {
-      const subject = parseSubject(payload, GoLiveConfirmedSubjectSchema);
+      const subject = parseSubject(payload, GoLiveConfirmedSchema);
       const reqCtx = { ...pickRequestContext(ctx), userId: subject.userId as typeof ctx.userId };
       const profileRepo = deps?.profileRepo ?? new InvestorProfileRepository(process.env['TABLE_NAME']!);
       await profileRepo.setExecutionMode(reqCtx, 'simulation', 'live');

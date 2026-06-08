@@ -16,6 +16,6 @@ export {
  * Re-exported from schemas.ts under the consumer-facing name.
  */
 export {
-  GoLiveConfirmedRecordSchema as GoLiveConfirmedSubjectSchema,
-  type GoLiveConfirmedRecord as GoLiveConfirmedSubject,
+  GoLiveConfirmedRecordSchema as GoLiveConfirmedSchema,
+  type GoLiveConfirmedRecord as GoLiveConfirmed,
 } from './schemas';

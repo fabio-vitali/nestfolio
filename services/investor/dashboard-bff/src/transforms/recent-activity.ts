@@ -11,7 +11,7 @@ import type { UnitOfWork, BusEvent } from '@nestfolio/event-processor';
  * display fields that the ACTIVITY_DESCRIPTIONS map actually reads. All fields are
  * optional so the parse never throws on an event type that carries none of them.
  */
-const RecentActivitySubjectSchema = z.object({
+const RecentActivitySchema = z.object({
   symbol: z.string().optional(),
   orderId: z.string().optional(),
   decisionId: z.string().optional(),
@@ -20,7 +20,7 @@ const RecentActivitySubjectSchema = z.object({
   currency: z.string().optional(),
 });
 
-const ACTIVITY_DESCRIPTIONS: Record<string, (payload: z.infer<typeof RecentActivitySubjectSchema>) => string> = {
+const ACTIVITY_DESCRIPTIONS: Record<string, (payload: z.infer<typeof RecentActivitySchema>) => string> = {
   ORDER_FILLED: (p) => `Order filled: ${p.symbol ?? p.orderId ?? 'unknown'}`,
   ORDER_PARTIALLY_FILLED: (p) => `Order partially filled: ${p.symbol ?? p.orderId ?? 'unknown'}`,
   DECISION_APPROVED: (p) => `Decision approved: ${p.decisionId ?? 'unknown'}`,
@@ -34,7 +34,7 @@ export const recentActivity = (
 ): WriteIntent => {
   const { event } = uow;
   const { tenantId, userId, region } = event.context;
-  const payload = parseSubject(uow, RecentActivitySubjectSchema);
+  const payload = parseSubject(uow, RecentActivitySchema);
 
   const descriptionFn = ACTIVITY_DESCRIPTIONS[event.type];
   const description = descriptionFn
