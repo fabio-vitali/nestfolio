@@ -1,30 +1,15 @@
-import { skip, type WriteIntent, type EventPayload, type EventContext } from '@nestfolio/event-processor';
+import { skip, parseSubject, type WriteIntent, type EventPayload, type EventContext } from '@nestfolio/event-processor';
 import { getUUID, getTime, type TableEntry } from '@nestfolio/event-processor';
 import { InvestorProfileRepository } from '../repositories/investor-profile.repository';
 import { computeRiskProfile } from '../domain/risk-profile.service';
 import type { InvestorProfileSubject } from '../domain/contracts';
-
-interface OnboardingCompletedSubject {
-  tenantId: string;
-  userId: string;
-  email: string;
-  goal: { objective: string };
-  horizonYears: number;
-  accountMode: 'simulation' | 'live';
-  capitalAmount: number;
-  currency: string;
-  riskTolerance: number;
-  riskExperience: number;
-  operatingMode: 'CONSERVATIVE' | 'BALANCED' | 'AGGRESSIVE';
-  mandateLevel?: 'ADVISORY' | 'DISCRETIONARY';
-  mandateAccepted: true;
-}
+import { OnboardingCompletedRecordSchema } from '@nestfolio/onboarding-bff/contracts';
 
 export async function onboardingCompleted(
   payload: EventPayload,
   ctx: EventContext,
 ): Promise<WriteIntent> {
-  const s = payload.subject as unknown as OnboardingCompletedSubject;
+  const s = parseSubject(payload, OnboardingCompletedRecordSchema);
   const tableName = process.env['TABLE_NAME']!;
   const repo = new InvestorProfileRepository(tableName);
   const now = getTime();
@@ -32,8 +17,10 @@ export async function onboardingCompleted(
   const risk = computeRiskProfile(s.riskTolerance, s.riskExperience);
   const mandateId = getUUID();
   const depositId = getUUID();
-  const mandateLevel =
-    s.mandateLevel ?? (s.tenantId.startsWith('e2e-') ? 'ADVISORY' : 'DISCRETIONARY');
+  // mandateLevel is not carried in the ONBOARDING_COMPLETED subject (onboarding-bff does not emit it);
+  // derive it from the tenant prefix at materialization time.
+  const mandateLevel: 'ADVISORY' | 'DISCRETIONARY' =
+    s.tenantId.startsWith('e2e-') ? 'ADVISORY' : 'DISCRETIONARY';
 
   await repo.transactWrite({
     TransactItems: [

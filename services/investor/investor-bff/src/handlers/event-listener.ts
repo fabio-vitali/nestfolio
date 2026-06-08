@@ -3,7 +3,7 @@
 // merge is global across the compilation; this import is not what "activates"
 // it — do not infer that other handlers need it.
 import '../read-model-ownership';
-import { materializeToTable, toUow, skip, pickRequestContext, type EventPayload, type EventContext } from '@nestfolio/event-processor';
+import { materializeToTable, toUow, skip, pickRequestContext, parseSubject, type EventPayload, type EventContext } from '@nestfolio/event-processor';
 import { InvestorBffEventTypes } from '../domain/events';
 import { InvestorCtrlEventTypes } from '@nestfolio/investor-ctrl/events';
 import { LedgerCrossDomainEventTypes } from '@nestfolio/ledger-adpt/domain';
@@ -14,6 +14,7 @@ import { onboardingCompleted } from '../transforms/onboarding-completed';
 import { depositLifecycle } from '../transforms/deposit-lifecycle';
 import { withdrawalLifecycle } from '../transforms/withdrawal-lifecycle';
 import { InvestorProfileRepository } from '../repositories/investor-profile.repository';
+import { GoLiveConfirmedSubjectSchema } from '@nestfolio/onboarding-bff/contracts';
 
 export function createHandlers(deps?: { profileRepo?: InvestorProfileRepository }) {
   return {
@@ -41,8 +42,8 @@ export function createHandlers(deps?: { profileRepo?: InvestorProfileRepository 
     [InvestorBffEventTypes.ONBOARDING_COMPLETED]: async (payload: EventPayload, ctx: EventContext) =>
       onboardingCompleted(payload, ctx),
     [InvestorBffEventTypes.GO_LIVE_CONFIRMED]: async (payload: EventPayload, ctx: EventContext) => {
-      const subject = payload.subject as Record<string, unknown>;
-      const reqCtx = { ...pickRequestContext(ctx), userId: (subject.userId as string) as typeof ctx.userId };
+      const subject = parseSubject(payload, GoLiveConfirmedSubjectSchema);
+      const reqCtx = { ...pickRequestContext(ctx), userId: subject.userId as typeof ctx.userId };
       const profileRepo = deps?.profileRepo ?? new InvestorProfileRepository(process.env['TABLE_NAME']!);
       await profileRepo.setExecutionMode(reqCtx, 'simulation', 'live');
       return skip();
