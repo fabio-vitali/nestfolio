@@ -34,9 +34,12 @@ describe('ledger-ctrl contracts', () => {
     expect(() => PortfolioUpdatedSubjectSchema.parse(subject)).not.toThrow();
   });
   it('LedgerEntrySubjectSchema parses a real LedgerEntryEvent subject and requires tenantId', () => {
-    const subject = { tenantId: 't', streamType: 'live', lastEventSequence: 7, snapshot };
+    const subject = { tenantId: 't', streamType: 'live', lastEventSequence: 7, snapshotAt: '2026-01-01T00:00:00.000Z', snapshot };
     expect(() => LedgerEntrySubjectSchema.parse(subject)).not.toThrow();
+    expect(LedgerEntrySubjectSchema.parse(subject).snapshotAt).toBe('2026-01-01T00:00:00.000Z');
     const { tenantId: _omitted, ...withoutTenantId } = subject;
     expect(() => LedgerEntrySubjectSchema.parse(withoutTenantId)).toThrow();
+    const { snapshotAt: _omittedAt, ...withoutSnapshotAt } = subject;
+    expect(() => LedgerEntrySubjectSchema.parse(withoutSnapshotAt)).toThrow();
   });
 });

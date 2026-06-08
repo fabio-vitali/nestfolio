@@ -47,6 +47,9 @@ export const LedgerEntrySubjectSchema = z.object({
   tenantId: z.string(),
   streamType: z.string().optional(),
   lastEventSequence: z.number(),
+  // snapshotAt is the AccountSnapshot row's ISO timestamp (ledger.repository
+  // sets it unconditionally on every snapshot write), emitted by snapshotToEvents.
+  snapshotAt: z.string(),
   snapshot: LedgerSnapshotSchema,
 });
 export type LedgerEntrySubject = z.infer<typeof LedgerEntrySubjectSchema>;

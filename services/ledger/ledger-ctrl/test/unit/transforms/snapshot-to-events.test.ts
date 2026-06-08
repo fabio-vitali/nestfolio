@@ -41,6 +41,12 @@ describe('snapshotToEvents transform', () => {
     expect(intents.length).toBe(2);
   });
 
+  it('should carry snapshotAt from the source row onto LedgerEntryEvent', () => {
+    const intents = snapshotToEvents(baseSnapshot, baseSnapshot);
+    const ledgerEntry = intents.find((i) => i.typename === 'LedgerEntryEvent');
+    expect((ledgerEntry!.fields as Record<string, unknown>).snapshotAt).toBe('2025-01-01T00:00:00.000Z');
+  });
+
   it('should emit BalanceEvent when only cash changed', () => {
     const prev = { ...baseSnapshot, cashBalanceCents: 10_000_000 };
     const intents = snapshotToEvents(baseSnapshot, prev);

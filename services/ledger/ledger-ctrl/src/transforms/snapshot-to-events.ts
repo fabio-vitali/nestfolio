@@ -63,6 +63,7 @@ export function snapshotToEvents(
     tenantId: current.tenantId,
     streamType,
     lastEventSequence,
+    snapshotAt: current.snapshotAt,
     snapshot,
   }, overrides('LedgerEntryEvent')));
 
