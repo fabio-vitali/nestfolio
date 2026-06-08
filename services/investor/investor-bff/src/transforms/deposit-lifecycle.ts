@@ -1,5 +1,6 @@
-import { projectVersioned, type WriteIntent } from '@nestfolio/event-processor';
+import { projectVersioned, parseSubject, type WriteIntent } from '@nestfolio/event-processor';
 import type { UnitOfWork, BusEvent } from '@nestfolio/event-processor';
+import { FundingSnapshotSchema } from '@nestfolio/broker-ctrl/contracts';
 
 /**
  * DEPOSIT_DETECTED / DEPOSIT_SETTLED / DEPOSIT_FAILED (and the DEPOSIT_REQUESTED
@@ -10,29 +11,12 @@ import type { UnitOfWork, BusEvent } from '@nestfolio/event-processor';
  * read-model row. `projectVersioned`'s guard drops a stale/replayed lower
  * version so a settled (v3) snapshot wins over a late detected (v2).
  *
- * Subject shape is broker-ctrl's funding snapshot — declared locally because the
- * source type lives in broker-ctrl, not investor-bff.
+ * Subject validated against broker-ctrl's FundingSnapshotSchema at runtime.
  */
-interface FundingSnapshot {
-  tenantId: string;
-  userId: string;
-  region: string;
-  status: string;
-  transferId: string;
-  amountCents: number;
-  currency: string;
-  initiatedAt: string;
-  detectedAt?: string;
-  settledAt?: string;
-  failedAt?: string;
-  reason?: string;
-  __version: number;
-}
-
 export const depositLifecycle = (
   uow: UnitOfWork<BusEvent<Record<string, unknown>, Record<string, unknown>>>,
 ): WriteIntent => {
-  const s = uow.event.subject as FundingSnapshot;
+  const s = parseSubject(uow, FundingSnapshotSchema);
   const { tenantId, userId, region } = s;
   return projectVersioned(
     'Deposit',

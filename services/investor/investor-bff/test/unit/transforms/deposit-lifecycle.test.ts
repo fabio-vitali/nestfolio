@@ -24,6 +24,8 @@ const makeUow = (
 });
 
 const settledSubject = {
+  sk: 'DEPOSIT_SETTLED',
+  direction: 'DEPOSIT',
   tenantId: 't1',
   userId: 'u1',
   region: 'us-east-1',
@@ -31,9 +33,11 @@ const settledSubject = {
   transferId: 'dep-1',
   amountCents: 100_000,
   currency: 'USD',
+  executionMode: 'simulation',
   initiatedAt: '2026-01-01T00:00:00.000Z',
   detectedAt: '2026-01-02T00:00:00.000Z',
   settledAt: '2026-01-03T00:00:00.000Z',
+  timestamp: '2026-01-03T00:00:00.000Z',
 };
 
 const fakeCtx = {

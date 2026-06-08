@@ -24,6 +24,8 @@ const makeUow = (
 });
 
 const settledSubject = {
+  sk: 'WITHDRAWAL_SETTLED',
+  direction: 'WITHDRAWAL',
   tenantId: 't1',
   userId: 'u1',
   region: 'us-east-1',
@@ -31,8 +33,10 @@ const settledSubject = {
   transferId: 'wd-1',
   amountCents: 50_000,
   currency: 'USD',
+  executionMode: 'simulation',
   initiatedAt: '2026-01-01T00:00:00.000Z',
   settledAt: '2026-01-03T00:00:00.000Z',
+  timestamp: '2026-01-03T00:00:00.000Z',
 };
 
 const fakeCtx = {

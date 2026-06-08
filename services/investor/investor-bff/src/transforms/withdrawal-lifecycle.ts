@@ -1,5 +1,6 @@
-import { projectVersioned, type WriteIntent } from '@nestfolio/event-processor';
+import { projectVersioned, parseSubject, type WriteIntent } from '@nestfolio/event-processor';
 import type { UnitOfWork, BusEvent } from '@nestfolio/event-processor';
+import { FundingSnapshotSchema } from '@nestfolio/broker-ctrl/contracts';
 
 /**
  * WITHDRAWAL_REQUESTED / WITHDRAWAL_SETTLED / WITHDRAWAL_FAILED → WithdrawalRequest
@@ -11,28 +12,12 @@ import type { UnitOfWork, BusEvent } from '@nestfolio/event-processor';
  * version so a settled snapshot wins over a late requested one. Withdrawals have
  * no DETECTED step (no external arrival), so there is no `detectedAt`.
  *
- * Subject shape is broker-ctrl's funding snapshot — declared locally because the
- * source type lives in broker-ctrl, not investor-bff.
+ * Subject validated against broker-ctrl's FundingSnapshotSchema at runtime.
  */
-interface FundingSnapshot {
-  tenantId: string;
-  userId: string;
-  region: string;
-  status: string;
-  transferId: string;
-  amountCents: number;
-  currency: string;
-  initiatedAt: string;
-  settledAt?: string;
-  failedAt?: string;
-  reason?: string;
-  __version: number;
-}
-
 export const withdrawalLifecycle = (
   uow: UnitOfWork<BusEvent<Record<string, unknown>, Record<string, unknown>>>,
 ): WriteIntent => {
-  const s = uow.event.subject as FundingSnapshot;
+  const s = parseSubject(uow, FundingSnapshotSchema);
   const { tenantId, userId, region } = s;
   return projectVersioned(
     'WithdrawalRequest',

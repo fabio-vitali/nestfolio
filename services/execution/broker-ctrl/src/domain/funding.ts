@@ -1,4 +1,5 @@
 import { record, type WriteIntent } from '@nestfolio/event-processor';
+import type { FundingSnapshot as FundingSnapshotContract } from './contracts';
 
 export type FundingStatus = 'requested' | 'detected' | 'settled' | 'failed';
 export type FundingDirection = 'DEPOSIT' | 'WITHDRAWAL';
@@ -38,27 +39,31 @@ export interface FundingSnapshot {
  * projectVersioned guard keeps requested<detected<settled ordering.
  */
 export function fundingCarrier(s: FundingSnapshot): WriteIntent {
+  // snapshot is the CDC-emitted subject shape — verified against FundingSnapshotSchema
+  const snapshot = {
+    sk: s.eventName,
+    direction: s.direction,
+    status: s.status,
+    transferId: s.transferId,
+    tenantId: s.tenantId,
+    userId: s.userId,
+    region: s.region,
+    amountCents: s.amountCents,
+    currency: s.currency,
+    executionMode: s.executionMode,
+    initiatedAt: s.initiatedAt,
+    ...(s.detectedAt ? { detectedAt: s.detectedAt } : {}),
+    ...(s.settledAt ? { settledAt: s.settledAt } : {}),
+    ...(s.failedAt ? { failedAt: s.failedAt } : {}),
+    ...(s.reason ? { reason: s.reason } : {}),
+    timestamp: s.timestamp,
+  } satisfies Omit<FundingSnapshotContract, '__version'>;
   return record(
     'FundingEvent',
     {
       __typename: 'FundingEvent',
-      sk: s.eventName,
-      direction: s.direction,
-      status: s.status,
-      transferId: s.transferId,
-      tenantId: s.tenantId,
-      userId: s.userId,
-      region: s.region,
-      amountCents: s.amountCents,
-      currency: s.currency,
-      executionMode: s.executionMode,
-      initiatedAt: s.initiatedAt,
-      ...(s.detectedAt ? { detectedAt: s.detectedAt } : {}),
-      ...(s.settledAt ? { settledAt: s.settledAt } : {}),
-      ...(s.failedAt ? { failedAt: s.failedAt } : {}),
-      ...(s.reason ? { reason: s.reason } : {}),
+      ...snapshot,
       __version: STATUS_ORDINAL[s.status],
-      timestamp: s.timestamp,
     },
     {
       pk: `Funding#${s.tenantId}#${s.transferId}`,
