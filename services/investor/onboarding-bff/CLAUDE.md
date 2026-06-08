@@ -72,7 +72,7 @@ Tooling support code remains under src/agent/ (tools, prompts, state, router, se
 - test/integration/onboarding-bff.integration.test.ts
 
 ## Exports (package subpaths)
-- `./contracts` — producer-owned zod payload contracts (`event-subject-payload-build-tripwire`), consumed via `parseSubject` for CDC subject type-checking: `OnboardingCompletedRecordSchema`/`OnboardingCompletedRecord` (ONBOARDING_COMPLETED) and `GoLiveConfirmedSchema`/`GoLiveConfirmed` (GO_LIVE_CONFIRMED, aliased from `GoLiveConfirmedRecord{,Schema}`). Re-exported from `src/domain/schemas.ts` (zod-only, no heavy deps). Consumed by investor-bff (onboarding-completed transform + event-listener).
+- `./contracts` — producer-owned zod payload contracts (`event-subject-payload-build-tripwire`), consumed via `parseSubject` for CDC subject type-checking: `OnboardingCompletedRecordSchema`/`OnboardingCompletedRecord` (ONBOARDING_COMPLETED) and `GoLiveConfirmedSchema`/`GoLiveConfirmed` (GO_LIVE_CONFIRMED, aliased from `GoLiveConfirmedRecord{,Schema}`). DRY domain subjects — identity travels in the event context (RequestContext), not on the subject. Re-exported from `src/domain/schemas.ts` (zod-only, no heavy deps). Consumed by investor-bff (onboarding-completed transform + event-listener).
 - `./events` — domain event types (`OnboardingBffEventTypes`). Consumed by e2e-feature-tests.
 
 ## Dependencies

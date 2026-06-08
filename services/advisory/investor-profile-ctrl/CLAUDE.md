@@ -57,8 +57,8 @@ Agent folder: agents/investor-profile/
 - KB_INGESTION_EVENT_TYPES (inbound, KB-only): DECISION_BLOCKED, DECISION_APPROVED
 
 ## Event Payload Contracts (domain/contracts.ts)
-Producer-owned zod payload contracts, exported via the dedicated `/contracts` alias (`@nestfolio/investor-profile-ctrl/contracts`):
-- InvestorProfileSnapshotSchema / InvestorProfileSnapshot — subject carried on INVESTOR_PROFILE_SNAPSHOT_CREATED / INVESTOR_PROFILE_SNAPSHOT_UPDATED (the full InvestorProfileSnapshot DDB row: tenantId, userId, agentOutput, sourceEventId?, __version?). Verified against InvestorProfileSnapshotRow in domain/models.ts + the update() intent in handlers/event-listener.ts.
+Producer-owned zod payload contracts, exported via the dedicated `/contracts` alias (`@nestfolio/investor-profile-ctrl/contracts`). DRY domain subjects — identity travels in the event context (RequestContext), not on the subject.
+- InvestorProfileSnapshotSchema / InvestorProfileSnapshot — subject carried on INVESTOR_PROFILE_SNAPSHOT_CREATED / INVESTOR_PROFILE_SNAPSHOT_UPDATED (the domain InvestorProfileSnapshot fields: agentOutput, sourceEventId?, __version?). Verified against InvestorProfileSnapshotRow in domain/models.ts + the update() intent in handlers/event-listener.ts.
 - Consumed cross-domain by decision-workflow-ctrl (snapshot-projector.ts) via `parseSubject` at the seam; a payload change breaks the consumer build.
 
 ## IAM trace

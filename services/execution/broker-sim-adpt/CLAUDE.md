@@ -28,8 +28,8 @@ Stack: services/execution/broker-sim-adpt/src/service.stack.ts
 - BrokerSimEventTypes (outbound/CDC): SIM_ORDER_FILLED, SIM_ORDER_REJECTED, SIM_DEPOSIT_COMPLETED, SIM_WITHDRAWAL_COMPLETED
 
 ## Event Payload Contracts (domain/contracts.ts)
-Producer-owned zod CDC subject contract, exported via `@nestfolio/broker-sim-adpt/contracts` (NOT re-exported through the `/domain` barrel):
-- SimDepositCompletedSchema / SimDepositCompleted — SIM_DEPOSIT_COMPLETED subject (from the `DepositDetected` row written by event-listener.ts on SIM_DEPOSIT_INITIATED). Fields: depositId, amountCents, currency, userId?, tenantId, sourceEventId, timestamp.
+Producer-owned zod CDC subject contract, exported via `@nestfolio/broker-sim-adpt/contracts` (NOT re-exported through the `/domain` barrel). DRY domain subject — identity travels in the event context (RequestContext), not on the subject.
+- SimDepositCompletedSchema / SimDepositCompleted — SIM_DEPOSIT_COMPLETED subject (from the `DepositDetected` row written by event-listener.ts on SIM_DEPOSIT_INITIATED). Fields: depositId, amountCents, currency, sourceEventId, timestamp.
 Inbound-event schemas live separately in domain/schemas.ts. No consumer imports the contract yet (SIM_* completions are intra-execution CDC carriers).
 
 ## Tests

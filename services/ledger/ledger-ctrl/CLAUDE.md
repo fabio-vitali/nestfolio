@@ -32,7 +32,7 @@ Stack: services/ledger/ledger-ctrl/src/service.stack.ts
 - LedgerCtrlEventTypes: BALANCE_UPDATED, BALANCE_EVENT_UPDATED, PORTFOLIO_UPDATED, PORTFOLIO_EVENT_UPDATED, LEDGER_ENTRY_RECORDED, LEDGER_ENTRY_EVENT_UPDATED, LEDGER_PROCESSING_FAILED, LEDGER_SIMULATION_FAILED
 
 ## Contracts (domain/contracts.ts → @nestfolio/ledger-ctrl/contracts)
-Producer-owned zod payload contracts for the CDC-published subjects (imports ONLY zod). Consumers parse via these schemas — payload changes break consumer builds.
+Producer-owned zod payload contracts for the CDC-published subjects (imports ONLY zod). Consumers parse via these schemas — payload changes break consumer builds. DRY domain subjects — identity travels in the event context (RequestContext), not on the subject.
 - LedgerPositionSchema / LedgerSnapshotSchema — shared snapshot shape wrapped on every ledger event
 - BalanceUpdatedSchema — BALANCE_UPDATED subject (BalanceEvent record)
 - PortfolioUpdatedSchema — PORTFOLIO_UPDATED subject (PortfolioEvent record)

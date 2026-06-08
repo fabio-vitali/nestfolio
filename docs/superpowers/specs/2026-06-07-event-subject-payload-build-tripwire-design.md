@@ -254,3 +254,31 @@ throws on malformed payloads), so:
   reducer/handler).
 - Decide ordering: land `parseSubject` + one producer/consumer pair first as the
   reference implementation, then fan the remaining producers out (TDD per pair).
+
+## As-built design (amendment, 2026-06-08)
+
+The shipped mechanism has three load-bearing pieces:
+
+1. **DRY domain subjects.** Producer event-payload contracts (`src/domain/contracts.ts`,
+   the zod schemas consumed via `parseSubject`) model ONLY the domain object/aggregate.
+   Context-identity fields `tenantId`/`userId`/`region` were REMOVED from every subject
+   contract — they are NOT on the subject. (Exception: `MarketSnapshotSchema.region`
+   stays — it is the *market* region, a domain field, not the RequestContext region.)
+
+2. **Type-level context guard, not identity-on-subject.** `BusEvent<T, S extends
+   RequestContext = RequestContext>` (`libs/event-processor/src/platform/bus.ts`) now
+   constrains the context type to `RequestContext` (`{tenantId, userId, region}`).
+   Consumers read `event.context.tenantId/userId/region` fully typed — no `as` casts and
+   no second `Record<string,unknown>` type param. A missing context field fails the build
+   (events and fixtures). Rows get identity from the intent executor's
+   `pickRequestContext(ctx)` stamp; `TableEntry<T, S extends RequestContext = RequestContext>`
+   carries it, and `funding.ts`'s carrier no longer puts identity in the subject.
+
+3. **Runtime validation at the consumer seam.** `parseSubject` validates the inbound
+   subject against the producer-owned zod contract at the transform's first line.
+
+Net: a PAYLOAD (domain field) change at a producer breaks consumers that read it (payload
+tripwire); a missing CONTEXT field breaks the build (context tripwire); subjects stay pure
+domain aggregates. This **supersedes** any earlier wording above implying identity fields
+belong on the subject — identity lives in the event context (RequestContext), never on the
+subject schema.

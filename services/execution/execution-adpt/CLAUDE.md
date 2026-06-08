@@ -35,6 +35,7 @@ None (no Lambda handlers — pure EB Rule forwarding)
 - ExecutionIngestEventTypes: DECISION_APPROVED, USER_CONFIRMED, DEPOSIT_INITIATED, WITHDRAWAL_REQUESTED, ACCOUNT_CLOSURE_REQUESTED, EXECUTION_MODE_CHANGED
 
 ## Payload Contracts (`src/domain/contracts.ts`, re-exported via `src/domain/index.ts`)
+DRY domain subjects — identity travels in the event context (RequestContext), not on the subject.
 - FundingSnapshotSchema / FundingSnapshot (zod): producer-owned CDC subject shape for every broker-ctrl funding lifecycle transition (DEPOSIT_REQUESTED/DETECTED/SETTLED/FAILED, WITHDRAWAL_REQUESTED/SETTLED/FAILED). Owned here in the producer's cross-domain adapter (`@nestfolio/execution-adpt/domain`); forwarded to InvestorBus by investor-adpt and projected by investor-bff. Breaks the broker-ctrl ↔ investor-bff circular dependency.
 
 ## Tests

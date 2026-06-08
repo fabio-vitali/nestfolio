@@ -21,8 +21,8 @@ Stack: services/investor/investor-bff/src/service.stack.ts
   Subscriptions: BROKER_CIRCUIT_OPEN, BROKER_CIRCUIT_CLOSED, DEPOSIT_DETECTED
 
 ## Event contracts (producer surface)
-- `src/domain/contracts.ts` exported as `@nestfolio/investor-bff/contracts` (zod-only, no service deps; event-subject-payload tripwire):
-  - `InvestorProfileUpdatedSchema` / `InvestorProfileUpdated` — subject for INVESTOR_PROFILE_CREATED/UPDATED (tenantId, userId, operatingMode, goal, riskProfile, onboardingCompletedAt, __version); consumed by dashboard-bff's InvestorSnapshot transform via `parseSubject`. Composed from `InvestorProfileGoalSchema` + `InvestorProfileRiskSchema` (also exported).
+- `src/domain/contracts.ts` exported as `@nestfolio/investor-bff/contracts` (zod-only, no service deps; event-subject-payload tripwire). DRY domain subjects — identity travels in the event context (RequestContext), not on the subject.
+  - `InvestorProfileUpdatedSchema` / `InvestorProfileUpdated` — subject for INVESTOR_PROFILE_CREATED/UPDATED (the domain fields: operatingMode, goal, riskProfile, onboardingCompletedAt, __version); consumed by dashboard-bff's InvestorSnapshot transform via `parseSubject`. Composed from `InvestorProfileGoalSchema` + `InvestorProfileRiskSchema` (also exported).
 - DEPOSIT_INITIATED/WITHDRAWAL_INITIATED subjects are cross-domain (consumed by broker-ctrl); their schemas live in `@nestfolio/investor-adpt/domain`, not here.
 
 ## Egress (CDC, 6 entity types — 3-tier topology on InvestorProfile)
