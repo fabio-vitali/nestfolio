@@ -588,7 +588,7 @@ describe('Deposit/Withdrawal Router Integration', () => {
 
       const event: SQSEvent = {
         Records: [
-          fakeSqsRecord('DEPOSIT_INITIATED', { amount: 1000, currency: 'USD' }, { tenantId: 't-1' }),
+          fakeSqsRecord('DEPOSIT_INITIATED', { depositId: 'dep-1', amountCents: 1000, currency: 'USD', tenantId: 't-1', timestamp: '2026-01-01T00:00:00.000Z' }, { tenantId: 't-1' }),
         ],
       };
 
@@ -605,7 +605,7 @@ describe('Deposit/Withdrawal Router Integration', () => {
       const detail = JSON.parse(ebCall.input.Entries[0].Detail);
       expect(detail.context.tenantId).toBe('t-1');
       expect(detail.subject.direction).toBe('INCOMING');
-      expect(detail.subject.amount).toBe(1000);
+      expect(detail.subject.amountCents).toBe(1000);
     });
 
     it('should route deposit to ALPACA_TRANSFER_REQUESTED when mode=live', async () => {
@@ -613,7 +613,7 @@ describe('Deposit/Withdrawal Router Integration', () => {
 
       const event: SQSEvent = {
         Records: [
-          fakeSqsRecord('DEPOSIT_INITIATED', { amount: 5000, currency: 'USD' }, { tenantId: 't-2' }),
+          fakeSqsRecord('DEPOSIT_INITIATED', { depositId: 'dep-2', amountCents: 5000, currency: 'USD', tenantId: 't-2', timestamp: '2026-01-01T00:00:00.000Z' }, { tenantId: 't-2' }),
         ],
       };
 
@@ -639,7 +639,7 @@ describe('Deposit/Withdrawal Router Integration', () => {
 
       const event: SQSEvent = {
         Records: [
-          fakeSqsRecord('WITHDRAWAL_INITIATED', { amount: 500, currency: 'USD' }, { tenantId: 't-3' }),
+          fakeSqsRecord('WITHDRAWAL_INITIATED', { withdrawalId: 'wd-1', amountCents: 500, currency: 'USD', tenantId: 't-3', timestamp: '2026-01-01T00:00:00.000Z' }, { tenantId: 't-3' }),
         ],
       };
 
@@ -663,7 +663,7 @@ describe('Deposit/Withdrawal Router Integration', () => {
 
       const event: SQSEvent = {
         Records: [
-          fakeSqsRecord('WITHDRAWAL_INITIATED', { amount: 2000, currency: 'USD' }, { tenantId: 't-4' }),
+          fakeSqsRecord('WITHDRAWAL_INITIATED', { withdrawalId: 'wd-2', amountCents: 2000, currency: 'USD', tenantId: 't-4', timestamp: '2026-01-01T00:00:00.000Z' }, { tenantId: 't-4' }),
         ],
       };
 
@@ -690,7 +690,7 @@ describe('Deposit/Withdrawal Router Integration', () => {
 
       const event: SQSEvent = {
         Records: [
-          fakeSqsRecord('DEPOSIT_INITIATED', { amount: 100, currency: 'USD' }, { tenantId: 't-new' }),
+          fakeSqsRecord('DEPOSIT_INITIATED', { depositId: 'dep-new', amountCents: 100, currency: 'USD', tenantId: 't-new', timestamp: '2026-01-01T00:00:00.000Z' }, { tenantId: 't-new' }),
         ],
       };
 
