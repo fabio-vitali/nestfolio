@@ -1,12 +1,14 @@
 import {
   type EventContext,
   type EventPayload,
+  type TableEntry,
   getTime,
   materializeToTable,
   record,
   requireEnv,
   type WriteIntent,
 } from '@nestfolio/event-processor';
+import type { NotificationCreatedSubject } from '../domain/contracts';
 import '../read-model-ownership';
 import { InvestorBffEventTypes } from '@nestfolio/investor-bff/events';
 import { AdvisoryCrossDomainEventTypes } from '@nestfolio/advisory-adpt/domain';
@@ -135,10 +137,51 @@ const SYSTEM_EVENT_TYPES = [
   InvestorIngestEventTypes.BROKER_HEAL_ESCALATED,
 ] as const;
 
-function buildNotificationRecord(tenantId: string, ctx: EventContext): WriteIntent {
+/**
+ * Maps each triggering event type to the related entity type and the subject
+ * field that carries its id. Where a subject lacks a natural entity id,
+ * `idField` is omitted and the `ctx.eventId` fallback applies.
+ */
+const NOTIFICATION_ENTITY_MAP: Record<string, { type: string; idField?: string }> = {
+  // Advisory decisions — subject.decisionId (compliance-ctrl/schemas.ts)
+  DECISION_APPROVED: { type: 'DECISION', idField: 'decisionId' },
+  DECISION_BLOCKED: { type: 'DECISION', idField: 'decisionId' },
+  // Execution orders — subject.orderId (NormalizedEventSchema)
+  ORDER_FILLED: { type: 'ORDER', idField: 'orderId' },
+  ORDER_REJECTED: { type: 'ORDER', idField: 'orderId' },
+  // Deposits — subject.depositId (DepositInitiatedSchema / DepositIntent CDC)
+  DEPOSIT_INITIATED: { type: 'DEPOSIT', idField: 'depositId' },
+  // Withdrawals — subject.transferId (FundingSnapshotSchema; investor-bff maps this to withdrawalId)
+  WITHDRAWAL_SETTLED: { type: 'WITHDRAWAL', idField: 'transferId' },
+  // Mandates — subject.mandateId (Mandate CDC row)
+  MANDATE_ISSUED: { type: 'MANDATE', idField: 'mandateId' },
+  MANDATE_REVOKED: { type: 'MANDATE', idField: 'mandateId' },
+  // Profile-level events — subject.userId (request-context stamped)
+  OPERATING_MODE_CHANGED: { type: 'PROFILE', idField: 'userId' },
+  GOAL_UPDATED: { type: 'PROFILE', idField: 'userId' },
+  ONBOARDING_COMPLETED: { type: 'PROFILE', idField: 'userId' },
+  // Balance — no natural entity id
+  BALANCE_UPDATED: { type: 'BALANCE' },
+  // System / circuit-breaker events — no natural entity id
+  BROKER_CIRCUIT_OPEN: { type: 'SYSTEM' },
+  BROKER_CIRCUIT_CLOSED: { type: 'SYSTEM' },
+  BROKER_HEAL_ESCALATED: { type: 'SYSTEM' },
+};
+
+function buildNotificationRecord(
+  tenantId: string,
+  ctx: EventContext,
+  subject: Record<string, unknown>,
+): WriteIntent {
   const notificationId = ctx.eventId;
   const now = getTime();
   const template = getNotificationTemplate(ctx.eventType);
+  const entityEntry = NOTIFICATION_ENTITY_MAP[ctx.eventType] ?? { type: 'UNKNOWN' };
+  const relatedEntityType = entityEntry.type;
+  const relatedEntityId = entityEntry.idField
+    ? (subject[entityEntry.idField] as string | undefined) ?? ctx.eventId
+    : ctx.eventId;
+
   return record(
     'Notification',
     {
@@ -151,10 +194,12 @@ function buildNotificationRecord(tenantId: string, ctx: EventContext): WriteInte
       channel: template.channel,
       status: 'DELIVERED',
       sourceEventId: ctx.eventId,
+      relatedEntityType,
+      relatedEntityId,
       timestamp: now,
       createdAt: now,
       updatedAt: now,
-    },
+    } satisfies TableEntry & Pick<NotificationCreatedSubject, 'relatedEntityType' | 'relatedEntityId'>,
     { pk: `Notification#${tenantId}#${notificationId}`, sk: 'Notification' },
   );
 }
@@ -166,12 +211,12 @@ export const createHandlers = (_deps: EventListenerDeps) => ({
       type,
       async (payload: EventPayload, ctx: EventContext): Promise<WriteIntent | WriteIntent[]> => {
         const tenantId = ctx.tenantId;
-        const notification = buildNotificationRecord(tenantId, ctx);
+        const subject = (payload.subject ?? {}) as Record<string, unknown>;
+        const notification = buildNotificationRecord(tenantId, ctx, subject);
 
         if (ctx.eventType === ExecutionCrossDomainEventTypes.ORDER_FILLED) {
           const now = getTime();
           const reportId = `${ctx.eventId}-report`;
-          const subject = (payload.subject ?? {}) as Record<string, unknown>;
 
           const monthlyReport = record(
             'MonthlyReport',
@@ -200,9 +245,9 @@ export const createHandlers = (_deps: EventListenerDeps) => ({
   ...Object.fromEntries(
     SYSTEM_EVENT_TYPES.map((type) => [
       type,
-      // eslint-disable-next-line @typescript-eslint/no-unused-vars
-      async (_payload: EventPayload, ctx: EventContext): Promise<WriteIntent> => {
-        return buildNotificationRecord('SYSTEM', ctx);
+      async (payload: EventPayload, ctx: EventContext): Promise<WriteIntent> => {
+        const subject = (payload.subject ?? {}) as Record<string, unknown>;
+        return buildNotificationRecord('SYSTEM', ctx, subject);
       },
     ]),
   ),

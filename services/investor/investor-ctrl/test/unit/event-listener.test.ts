@@ -140,6 +140,134 @@ describe('investor-ctrl event-listener', () => {
     }
   });
 
+  describe('WriteIntents — relatedEntity derivation', () => {
+    it('DECISION_APPROVED carries relatedEntityType=DECISION and decisionId from subject', async () => {
+      const result = await harness.process([
+        fakeSqsRecord('DECISION_APPROVED', { decisionId: 'dec-abc' }, { tenantId: 't1', eventId: 'evt-1' }),
+      ]);
+      expect(result.errors).toHaveLength(0);
+      expect(result.intents[0]).toMatchObject({
+        _tag: 'record',
+        typename: 'Notification',
+        fields: expect.objectContaining({
+          relatedEntityType: 'DECISION',
+          relatedEntityId: 'dec-abc',
+        }),
+      });
+    });
+
+    it('DECISION_APPROVED falls back to eventId when decisionId absent', async () => {
+      const result = await harness.process([
+        fakeSqsRecord('DECISION_APPROVED', {}, { tenantId: 't1', eventId: 'fallback-evt' }),
+      ]);
+      expect(result.errors).toHaveLength(0);
+      expect(result.intents[0]).toMatchObject({
+        fields: expect.objectContaining({
+          relatedEntityType: 'DECISION',
+          relatedEntityId: 'fallback-evt',
+        }),
+      });
+    });
+
+    it('DECISION_BLOCKED carries relatedEntityType=DECISION', async () => {
+      const result = await harness.process([
+        fakeSqsRecord('DECISION_BLOCKED', { decisionId: 'dec-xyz' }, { tenantId: 't1', eventId: 'evt-2' }),
+      ]);
+      expect(result.intents[0]).toMatchObject({
+        fields: expect.objectContaining({
+          relatedEntityType: 'DECISION',
+          relatedEntityId: 'dec-xyz',
+        }),
+      });
+    });
+
+    it('ORDER_FILLED carries relatedEntityType=ORDER and orderId from subject', async () => {
+      const result = await harness.process([
+        fakeSqsRecord('ORDER_FILLED', { orderId: 'ord-001' }, { tenantId: 't1', eventId: 'evt-3' }),
+      ]);
+      // ORDER_FILLED returns [Notification, MonthlyReport]; index 0 is Notification
+      expect(result.intents[0]).toMatchObject({
+        typename: 'Notification',
+        fields: expect.objectContaining({
+          relatedEntityType: 'ORDER',
+          relatedEntityId: 'ord-001',
+        }),
+      });
+    });
+
+    it('DEPOSIT_INITIATED carries relatedEntityType=DEPOSIT and depositId from subject', async () => {
+      const result = await harness.process([
+        fakeSqsRecord('DEPOSIT_INITIATED', { depositId: 'dep-001' }, { tenantId: 't1', eventId: 'evt-4' }),
+      ]);
+      expect(result.intents[0]).toMatchObject({
+        fields: expect.objectContaining({
+          relatedEntityType: 'DEPOSIT',
+          relatedEntityId: 'dep-001',
+        }),
+      });
+    });
+
+    it('WITHDRAWAL_SETTLED carries relatedEntityType=WITHDRAWAL and transferId from subject', async () => {
+      const result = await harness.process([
+        fakeSqsRecord('WITHDRAWAL_SETTLED', { transferId: 'xfr-001' }, { tenantId: 't1', eventId: 'evt-5' }),
+      ]);
+      expect(result.intents[0]).toMatchObject({
+        fields: expect.objectContaining({
+          relatedEntityType: 'WITHDRAWAL',
+          relatedEntityId: 'xfr-001',
+        }),
+      });
+    });
+
+    it('MANDATE_ISSUED carries relatedEntityType=MANDATE and mandateId from subject', async () => {
+      const result = await harness.process([
+        fakeSqsRecord('MANDATE_ISSUED', { mandateId: 'mnd-001' }, { tenantId: 't1', eventId: 'evt-6' }),
+      ]);
+      expect(result.intents[0]).toMatchObject({
+        fields: expect.objectContaining({
+          relatedEntityType: 'MANDATE',
+          relatedEntityId: 'mnd-001',
+        }),
+      });
+    });
+
+    it('BALANCE_UPDATED carries relatedEntityType=BALANCE and falls back to eventId', async () => {
+      const result = await harness.process([
+        fakeSqsRecord('BALANCE_UPDATED', {}, { tenantId: 't1', eventId: 'evt-bal' }),
+      ]);
+      expect(result.intents[0]).toMatchObject({
+        fields: expect.objectContaining({
+          relatedEntityType: 'BALANCE',
+          relatedEntityId: 'evt-bal',
+        }),
+      });
+    });
+
+    it('BROKER_CIRCUIT_OPEN carries relatedEntityType=SYSTEM and falls back to eventId', async () => {
+      const result = await harness.process([
+        fakeSqsRecord('BROKER_CIRCUIT_OPEN', {}, { tenantId: 'SYSTEM', eventId: 'evt-sys' }),
+      ]);
+      expect(result.intents[0]).toMatchObject({
+        fields: expect.objectContaining({
+          relatedEntityType: 'SYSTEM',
+          relatedEntityId: 'evt-sys',
+        }),
+      });
+    });
+
+    it('ONBOARDING_COMPLETED carries relatedEntityType=PROFILE and userId from subject', async () => {
+      const result = await harness.process([
+        fakeSqsRecord('ONBOARDING_COMPLETED', { userId: 'user-abc' }, { tenantId: 't1', eventId: 'evt-7' }),
+      ]);
+      expect(result.intents[0]).toMatchObject({
+        fields: expect.objectContaining({
+          relatedEntityType: 'PROFILE',
+          relatedEntityId: 'user-abc',
+        }),
+      });
+    });
+  });
+
   describe('WriteIntents — ORDER_FILLED', () => {
     it('returns [record(Notification), record(MonthlyReport)] for ORDER_FILLED', async () => {
       const result = await harness.process([

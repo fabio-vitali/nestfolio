@@ -1,21 +1,11 @@
-import { record, type WriteIntent } from '@nestfolio/event-processor';
+import { record, parseSubject, type WriteIntent } from '@nestfolio/event-processor';
 import type { UnitOfWork, BusEvent } from '@nestfolio/event-processor';
-
-interface NotificationCreatedPayload {
-  userId: string;
-  tenantId: string;
-  notificationId: string;
-  channel: string;
-  title: string;
-  body: string;
-  relatedEntityType: string;
-  relatedEntityId: string;
-}
+import { NotificationCreatedSubjectSchema } from '@nestfolio/investor-ctrl/contracts';
 
 export const notificationCreated = (
   uow: UnitOfWork<BusEvent<Record<string, unknown>, Record<string, unknown>>>,
 ): WriteIntent => {
-  const s = uow.event.subject as NotificationCreatedPayload;
+  const s = parseSubject(uow, NotificationCreatedSubjectSchema);
   return record('Notification', {
     tenantId: s.tenantId,
     userId: s.userId,
