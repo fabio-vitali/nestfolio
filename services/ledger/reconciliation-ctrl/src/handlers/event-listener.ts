@@ -7,6 +7,7 @@ import { LedgerCtrlEventTypes } from '@nestfolio/ledger-ctrl/events';
 import { ExecutionCrossDomainEventTypes } from '@nestfolio/execution-adpt/domain';
 import { ReconciliationRepository, type CachedPositionSnapshot } from '../repositories/reconciliation.repository';
 import { ReconciliationService } from '../services/reconciliation.service';
+import type { ReconciliationResult, DriftRecord } from '../domain/contracts';
 
 const DEFAULT_STALENESS_MS = 24 * 60 * 60 * 1000; // 24 hours
 
@@ -138,23 +139,23 @@ async function cacheAndReconcile(
 
   const pk = `Reconciliation#${tenantId}#${reconciliationId}`;
 
+  const resultSubject: ReconciliationResult = {
+    reconciliationId,
+    status: result.status,
+    driftCount: result.drifts.length,
+  };
   return [
-    record('ReconciliationResult', {
-      tenantId,
-      reconciliationId,
-      status: result.status,
-      driftCount: result.drifts.length,
-    }, { pk, sk: 'Reconciliation' }),
-    ...result.drifts.map((d) =>
-      record('DriftRecord', {
-        tenantId,
+    record('ReconciliationResult', { tenantId, ...resultSubject }, { pk, sk: 'Reconciliation' }),
+    ...result.drifts.map((d) => {
+      const driftSubject: DriftRecord = {
         reconciliationId,
         instrument: d.instrument,
         intentQty: d.intentQty,
         settlementQty: d.settlementQty,
         drift: d.drift,
-      }, { pk, sk: `DriftRecord#${d.instrument}` }),
-    ),
+      };
+      return record('DriftRecord', { tenantId, ...driftSubject }, { pk, sk: `DriftRecord#${d.instrument}` });
+    }),
   ];
 }
 
