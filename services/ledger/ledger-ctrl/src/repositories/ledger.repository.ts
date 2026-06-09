@@ -135,6 +135,7 @@ export class LedgerRepository extends TableRepository {
               sk: 'Snapshot#latest',
               __typename: 'AccountSnapshot',
               ...ctx,
+              createdAt: now,
               timestamp: now,
               streamType,
               positions: state.positions,

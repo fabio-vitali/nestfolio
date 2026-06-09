@@ -1,22 +1,11 @@
 import { record, type RecordIntent } from '@nestfolio/event-processor';
-import type { LedgerSnapshot } from '../domain/contracts';
+import type { RequestContext, TableEntry } from '@nestfolio/event-processor';
+import type {
+  AccountSnapshot, BalanceUpdated, PortfolioUpdated, LedgerEntryRecorded, SnapshotHistory, LedgerSnapshot,
+} from '../domain/contracts';
 
-export interface SnapshotRecord {
-  pk: string;
-  sk: string;
-  __typename: string;
-  tenantId: string;
-  streamType: string;
-  timestamp: string;
-  positions: Record<string, unknown>;
-  cashBalanceCents: number;
-  totalValueCents: number;
-  positionCount?: number;
-  lastEventSequence: number;
-  version: number;
-  snapshotAt: string;
-  [key: string]: unknown;
-}
+/** The persisted AccountSnapshot row (DDB-stream image). */
+export type SnapshotRecord = TableEntry<AccountSnapshot, RequestContext>;
 
 export function snapshotToEvents(
   current: SnapshotRecord,
@@ -26,11 +15,11 @@ export function snapshotToEvents(
   const sk = (typename: string) => `${typename}#${timestamp}#${lastEventSequence}`;
   const overrides = (typename: string) => ({ pk, sk: sk(typename) });
 
-  const snapshot = {
+  const snapshot: LedgerSnapshot = {
     positions: current.positions,
     cashBalanceCents: current.cashBalanceCents,
     lastEventSequence,
-  } satisfies Pick<LedgerSnapshot, 'cashBalanceCents' | 'lastEventSequence'> & { positions: typeof current.positions };
+  };
 
   const balanceChanged = !previous || current.cashBalanceCents !== previous.cashBalanceCents;
   const positionsChanged = !previous || JSON.stringify(current.positions) !== JSON.stringify(previous.positions);
@@ -38,44 +27,45 @@ export function snapshotToEvents(
   const intents: RecordIntent[] = [];
 
   if (balanceChanged) {
-    intents.push(record('BalanceEvent', {
-      tenantId: current.tenantId,
+    const subject: BalanceUpdated = {
       streamType,
       cashBalanceCents: current.cashBalanceCents,
       totalValueCents: current.totalValueCents,
       snapshot,
-    }, overrides('BalanceEvent')));
+    };
+    intents.push(record('BalanceEvent', { tenantId: current.tenantId, ...subject }, overrides('BalanceEvent')));
   }
 
   if (positionsChanged) {
-    intents.push(record('PortfolioEvent', {
-      tenantId: current.tenantId,
+    const subject: PortfolioUpdated = {
       streamType,
       positions: current.positions,
       positionCount: Object.keys(current.positions).length,
       totalValueCents: current.totalValueCents,
       snapshot,
-    }, overrides('PortfolioEvent')));
+    };
+    intents.push(record('PortfolioEvent', { tenantId: current.tenantId, ...subject }, overrides('PortfolioEvent')));
   }
 
-  // LedgerEntryEvent — always emitted
-  intents.push(record('LedgerEntryEvent', {
-    tenantId: current.tenantId,
+  const ledgerEntry: LedgerEntryRecorded = {
     streamType,
     lastEventSequence,
     snapshotAt: current.snapshotAt,
     snapshot,
-  }, overrides('LedgerEntryEvent')));
+  };
+  intents.push(record('LedgerEntryEvent', { tenantId: current.tenantId, ...ledgerEntry }, overrides('LedgerEntryEvent')));
 
-  // SnapshotHistory — append-only with TTL
-  intents.push(record('SnapshotHistory', {
-    tenantId: current.tenantId,
+  const history: SnapshotHistory = {
     streamType,
     positions: current.positions,
     cashBalanceCents: current.cashBalanceCents,
     lastEventSequence,
-    ttl: Math.floor(Date.now() / 1000) + (365 * 86400),
-  }, { pk, sk: `SnapshotAt#${timestamp}` }));
+  };
+  intents.push(record(
+    'SnapshotHistory',
+    { tenantId: current.tenantId, ...history, ttl: Math.floor(Date.now() / 1000) + (365 * 86400) },
+    { pk, sk: `SnapshotAt#${timestamp}` },
+  ));
 
   return intents;
 }

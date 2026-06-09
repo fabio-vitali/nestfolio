@@ -8,6 +8,7 @@ describe('snapshotToEvents transform', () => {
     tenantId: 't1',
     userId: 'u1',
     region: 'us-east-1',
+    createdAt: '2025-01-01T00:00:00.000Z',
     streamType: 'actual',
     timestamp: '2025-01-01T00:00:00.000Z',
     positions: { AAPL: { symbol: 'AAPL', quantity: 10, averageCostBasis: 150, totalCostBasis: 1500, lastFillPrice: 155 } },
