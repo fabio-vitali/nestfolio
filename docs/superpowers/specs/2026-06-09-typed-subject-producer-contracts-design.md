@@ -210,9 +210,11 @@ defer the richest domain until the pattern is proven:
    `TableEntry<Subject>` + the validate-against-real-emission e2e gate end-to-end.
 2. **`typed-subject-contracts-investor`**.
 3. **`typed-subject-contracts-execution`** — live-money path; validate against the **real** broker
-   emissions, not fixtures ([[event-subject-contracts]]). Converts `ProposedTrade` → zod.
+   emissions, not fixtures ([[event-subject-contracts]]). Imports `ProposedTrade` cross-domain from
+   `advisory-adpt/domain` unchanged (the zod conversion lands in slice 4 — see the inventory above).
 4. **`typed-subject-contracts-advisory`** — richest; exercises `RegionContext` (MarketSnapshot), the
-   bare-base global (`SecFiling`), the stale-compliance fix, and the Tier-3 agent-handoff cluster.
+   bare-base global (`SecFiling`), the stale-compliance fix, the Tier-3 agent-handoff cluster, and
+   the `ProposedTrade` → zod conversion (advisory-produced).
 
 Phase 0 must ship before any domain slice. Domain slices 1–4 are independent of each other and could
 be reordered, but this order surfaces the hard cases last by design.
