@@ -17,3 +17,16 @@ export const NotificationCreatedSchema = z.object({
 });
 
 export type NotificationCreated = z.infer<typeof NotificationCreatedSchema>;
+
+/** MONTHLY_REPORT_CREATED / MONTHLY_REPORT_UPDATED subject (the MonthlyReport row,
+ * written by event-listener on ORDER_FILLED). Dry domain subject — tenant identity
+ * travels in the event context (RequestContext), not here. */
+export const MonthlyReportSchema = z.object({
+  reportId: z.string(),
+  period: z.string(),
+  status: z.string(),
+  sourceEventId: z.string().optional(),
+  // orderDetails is the raw triggering ORDER_FILLED subject, persisted verbatim.
+  orderDetails: z.record(z.unknown()).optional(),
+});
+export type MonthlyReport = z.infer<typeof MonthlyReportSchema>;
