@@ -121,3 +121,20 @@ describe('OnboardingCompletedRecordSchema', () => {
     expect(() => OnboardingCompletedRecordSchema.parse(record)).toThrow();
   });
 });
+
+describe('onboarding-bff CDC contracts cover the two emitted events (dry)', () => {
+  it('OnboardingCompletedRecordSchema parses a real OnboardingCompleted row and strips identity', () => {
+    const parsed = OnboardingCompletedRecordSchema.parse({
+      tenantId: 't', userId: 'u', region: 'us-east-1',
+      goal: { objective: 'RETIREMENT' }, horizonYears: 10, accountMode: 'simulation',
+      capitalAmount: 100000, currency: 'USD', riskTolerance: 2, riskExperience: 1,
+      operatingMode: 'BALANCED', mandateAccepted: true,
+    });
+    expect('tenantId' in parsed).toBe(false);
+    expect(parsed.operatingMode).toBe('BALANCED');
+  });
+  it('GoLiveConfirmedRecordSchema parses a real GoLiveConfirmed row', () => {
+    expect(GoLiveConfirmedRecordSchema.parse({ timestamp: '2026-06-09T00:00:00.000Z' }).timestamp)
+      .toBe('2026-06-09T00:00:00.000Z');
+  });
+});
