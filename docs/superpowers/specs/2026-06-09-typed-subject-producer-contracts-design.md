@@ -146,9 +146,9 @@ Producers that **need** new/extended contracts, by domain:
 - **broker-ctrl** — order-lifecycle contracts (funding already covered via `execution-adpt/domain`).
 - **broker-sim-adpt** — complete (only `SimDepositCompleted` today).
 - **broker-alpaca-adpt** — Alpaca order/transfer contracts.
-- **execution-ctrl** — `ORDER_CREATED` / `STAGED_ORDER_CREATED`.
-- **`ProposedTrade`** (`advisory-adpt/domain`) → convert the plain `interface` to a zod schema (it is
-  consumed here; nests inside the DecisionApproved subject — see Advisory).
+- **execution-ctrl** — `ORDER_CREATED` / `STAGED_ORDER_CREATED`. Continues to import `ProposedTrade`
+  cross-domain from `advisory-adpt/domain` (authored/converted in the Advisory slice — see below);
+  no change needed here beyond execution's own producer contracts.
 
 ### Advisory (slice 4 — richest; exercises RegionContext, the bare base, the stale fix, Tier-3)
 - **compliance-ctrl** — the stale-schema fix. `DecisionApprovedSchema` (`domain/schemas.ts`) is
@@ -156,7 +156,10 @@ Producers that **need** new/extended contracts, by domain:
   `{decisionId, complianceLevel, approvedAt}` but the real CDC row (the `ComplianceCheck` written in
   `handlers/event-listener.ts`) carries `{decisionId, decisionPacketId, authorityLevel, taskToken,
   mandateSnapshot, result, violations, …}`. Author a **producer** contract for the real
-  `DECISION_APPROVED` subject and reconcile/replace the stale schema.
+  `DECISION_APPROVED` subject and reconcile/replace the stale schema. The **`ProposedTrade`** plain
+  `interface` (`advisory-adpt/domain`) is converted to zod here — it is advisory-produced and nests
+  inside the DecisionApproved subject (`proposedTrades: ProposedTrade[]`); `execution-ctrl` imports it
+  cross-domain unchanged.
 - **decision-workflow-ctrl** — `DECISION_PACKET_CREATED/UPDATED`, `RECOMMENDATION_PROPOSED`,
   `MANDATE_SNAPSHOT_CREATED`, `DECISION_CYCLE_STARTED/FAILED`; convert the DWC projection rows
   **`InvestorProfileSnapshotProjectionRow`** + **`MarketSnapshotProjectionRow`** (`domain/models.ts`)
