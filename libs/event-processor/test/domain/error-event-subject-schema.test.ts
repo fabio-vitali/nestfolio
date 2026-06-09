@@ -1,4 +1,4 @@
-import { ErrorEventSubjectSchema } from '../src';
+import { ErrorEventSubjectSchema } from '../../src';
 
 describe('ErrorEventSubjectSchema', () => {
   it('parses the shape ErrorEventPublisher emits (with groupKey)', () => {
@@ -15,6 +15,7 @@ describe('ErrorEventSubjectSchema', () => {
     const subject = { error: 'boom', causedBy: undefined };
     const parsed = ErrorEventSubjectSchema.parse(subject);
     expect(parsed.error).toBe('boom');
+    expect(parsed.causedBy).toBeUndefined();
     expect(parsed.groupKey).toBeUndefined();
   });
 

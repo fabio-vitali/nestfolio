@@ -68,7 +68,7 @@ export type BusEventPayload = z.infer<typeof BusEventSchema>;
 export const ErrorEventSubjectSchema = z.object({
   error: z.string(),
   stack: z.string().optional(),
-  causedBy: z.unknown(),
+  causedBy: z.unknown(), // accepts undefined; do NOT add .optional() (would widen the type)
   groupKey: z.string().optional(),
 });
 
