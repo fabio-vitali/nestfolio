@@ -1,6 +1,20 @@
 import { z } from 'zod';
 import { type TenantId, type UserId, asTenantId, asUserId } from '../platform/types/branded';
 
+/**
+ * Base for all event/row context types — the constraint base for `BusEvent<T, S>`
+ * and `TableEntry<T, S>`. Global aggregates (no identity scope) use it directly,
+ * or equivalently `Record<string, never>`. Named `SubjectContext` (not `EventContext`,
+ * which is the per-invocation handler context). See the typed-subject-producer-contracts
+ * design spec § "The one shared-library change".
+ */
+export type SubjectContext = object;
+
+/** Region-scoped aggregates (e.g. market data keyed on region; no tenant identity). */
+export interface RegionContext extends SubjectContext {
+  region: string;
+}
+
 export const RequestContextSchema = z.object({
   tenantId: z.string().uuid(),
   userId: z.string().uuid(),

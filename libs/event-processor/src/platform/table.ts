@@ -1,6 +1,6 @@
-import type { RequestContext } from '../domain/schemas';
+import type { RequestContext, SubjectContext } from '../domain/schemas';
 
-export type TableEntry<T extends object = object, S = RequestContext> = T & {
+export type TableEntry<T extends object = object, S extends SubjectContext = RequestContext> = T & {
   pk: string;
   sk: string;
   __typename: string;

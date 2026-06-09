@@ -1,9 +1,9 @@
 import { EventBridgeClient, PutEventsCommand } from '@aws-sdk/client-eventbridge';
 import { type Event } from './core';
 import { type ErrorEvent, NotRetryableError } from './errors';
-import type { RequestContext } from '../domain/schemas';
+import type { RequestContext, SubjectContext } from '../domain/schemas';
 
-export type BusEvent<T = object, S extends RequestContext = RequestContext> = Event & {
+export type BusEvent<T = object, S extends SubjectContext = RequestContext> = Event & {
   subject: T;
   context: S;
 };

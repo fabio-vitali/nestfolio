@@ -121,7 +121,11 @@ export type TableEntry<T extends object = object, S extends SubjectContext = Req
 
 - Tenant-scoped aggregate → `BusEvent<Subject>` / `TableEntry<Subject>` (default `S = RequestContext`).
 - Region-scoped aggregate → `…<Subject, RegionContext>`.
-- Global aggregate → `…<Subject, Record<string, never>>` (the bare base).
+- Global aggregate → `…<Subject, SubjectContext>` (the bare base). Use `SubjectContext`, **not**
+  `Record<string, never>`: the latter carries an index signature `[k: string]: never`, so any
+  undeclared key (e.g. `.tenantId`) resolves to `never` and is silently *accessible* rather than a
+  compile error — defeating "no identity". `SubjectContext` (`= object`) adds no fields and keeps the
+  row closed, so a stray identity access is caught. (Verified by the phase-0 type-level test.)
 
 This resolves the asymmetry (both constrained to `SubjectContext`), types region/global aggregates
 accurately, and makes conventions 5–6 lint-enforceable. Blast radius is small (`RequestContext`

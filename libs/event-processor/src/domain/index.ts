@@ -16,4 +16,6 @@ export {
 export type {
   BusEventPayload,
   RequestContext,
+  RegionContext,
+  SubjectContext,
 } from './schemas';

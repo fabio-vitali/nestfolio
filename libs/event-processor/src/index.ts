@@ -141,6 +141,8 @@ export {
 export type {
   BusEventPayload,
   RequestContext,
+  RegionContext,
+  SubjectContext,
 } from './domain';
 
 // Sourcing (command + event replay)

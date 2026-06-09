@@ -68,5 +68,5 @@ default; lib `tsc` + unit tests green. No deploy (lib-only).
 ## Deps
 
 None (foundational). Blocks all 4 domain slices — they type rows as `TableEntry<Subject>` /
-`TableEntry<Subject, RegionContext>` / `TableEntry<Subject, Record<string, never>>` against this
-taxonomy.
+`TableEntry<Subject, RegionContext>` / `TableEntry<Subject, SubjectContext>` (global, bare base)
+against this taxonomy.
