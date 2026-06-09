@@ -18,6 +18,6 @@ export const DriftRecordSchema = z.object({
   instrument: z.string(),
   intentQty: z.number(),
   settlementQty: z.number(),
-  drift: z.number(),
+  drift: z.number(), // intentQty - settlementQty; may be negative (over-settled)
 });
 export type DriftRecord = z.infer<typeof DriftRecordSchema>;

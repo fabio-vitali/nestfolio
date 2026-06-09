@@ -19,4 +19,10 @@ describe('reconciliation-ctrl contracts', () => {
     };
     expect(DriftRecordSchema.parse(subject)).toEqual(subject);
   });
+
+  it('DriftRecordSchema rejects a non-numeric drift', () => {
+    expect(() => DriftRecordSchema.parse({
+      reconciliationId: 'r1', instrument: 'VTI', intentQty: 50, settlementQty: 45, drift: 'five',
+    })).toThrow();
+  });
 });
