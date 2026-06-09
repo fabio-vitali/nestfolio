@@ -35,6 +35,7 @@ Producer-owned zod payload contracts for the 2 CDC-emitted rows (imports ONLY zo
 - ReconciliationEventTypes: PORTFOLIO_DRIFT_DETECTED, RECONCILIATION_REQUIRED, RECONCILIATION_STARTED, RECONCILIATION_COMPLETED, RECONCILIATION_RESULT_UPDATED, RECONCILIATION_FAILED, DRIFT_RECORD_UPDATED, RECONCILIATION_LOCK_ACQUIRED, RECONCILIATION_LOCK_RELEASED, PROJECTION_REBUILT, CORPORATE_ACTION_APPLIED
 
 ## Tests
+- domain/contracts.test.ts
 - event-listener.test.ts
 - reconciliation.repository.test.ts
 - reconciliation.service.test.ts

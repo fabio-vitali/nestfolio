@@ -49,6 +49,7 @@ Producer-owned zod payload contracts for the CDC-published subjects (imports ONL
 - domain/account-state.test.ts
 - domain/account.reducer.test.ts
 - domain/cancel-order.test.ts
+- domain/contracts.test.ts
 - domain/record-corporate-action.test.ts
 - domain/record-deposit.test.ts
 - domain/record-fill.test.ts
