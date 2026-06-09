@@ -1,7 +1,6 @@
 ---
 id: typed-subject-platform-context-taxonomy
-status: active
-rank: 1
+status: shipped
 type: refactor
 notes: "Phase-0 slice of the typed-subject-producer-contracts umbrella (design: docs/superpowers/specs/2026-06-09-typed-subject-producer-contracts-design.md § 'The one shared-library change'). The ONE shared-library change that unblocks all 4 domain slices. Today the two platform generics are asymmetric: BusEvent<T, S extends RequestContext> constrains S, but TableEntry<T, S> intersects S unconditionally — and real aggregates split three ways (tenant-scoped, region-scoped MarketSnapshot#<region>, global SecFiling). Introduce a small context taxonomy in libs/event-processor/platform/: a constrained base `SubjectContext = object`, re-base RequestContext onto it, add RegionContext, and constrain BOTH BusEvent<T, S extends SubjectContext = RequestContext> AND TableEntry<T extends object, S extends SubjectContext = RequestContext> to the same base (RequestContext stays the ergonomic default). Fix whatever churn the new TableEntry constraint surfaces across the lib's usage sites. libs/event-processor ONLY; unit-tested; NO deploy. Back-compat is not a constraint ([[no-deprecation]]) — clean up usage sites directly. Depends on nothing; blocks all 4 domain slices. Complex lane (touches a shared-lib export → worktree + PR)."
 references:
@@ -16,7 +15,7 @@ out_of_scope:
 spec: docs/superpowers/specs/2026-06-09-typed-subject-producer-contracts-design.md
 plan: docs/superpowers/plans/2026-06-09-typed-subject-platform-context-taxonomy.md
 topic_memory: []
-validation_gate: null
+validation_gate: "Lib-only type change, NO deploy (commit 5cbc90af on worktree branch). SubjectContext (= object) + RegionContext added to domain/schemas.ts; BusEvent's S constraint widened RequestContext→SubjectContext; TableEntry's S constrained (was unconstrained); RequestContext untouched as default. `pnpm nx run event-processor:typecheck` green (type-level test test/types/context-taxonomy.type-test.ts proves tenant/region/global scoping + non-object S rejected). `event-processor:lint` green (1 pre-existing unrelated ownership.ts warning). `event-processor:test` green: 45 suites / 305 tests. Consumer-compilation gate: `pnpm nx affected -t test,lint --base=origin/main` → 28 projects green (no consumer broken by the new constraint; measured churn was ~0 as predicted). detect-deploy-needed false-positived deploy=true on the deployed-library heuristic; overridden — type-only change has zero runtime-JS delta (types erased, .type-test.ts not bundled). Surfaced + fixed 2 design defects (propagated to the umbrella spec): (1) base name EventContext collided with the existing handler-context export → renamed SubjectContext (user decision); (2) global-aggregate Record<string,never> recommendation was wrong (index signature defeats no-identity enforcement) → corrected to SubjectContext bare base."
 ---
 
 # Typed-subject platform context taxonomy (phase-0)
