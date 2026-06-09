@@ -13,8 +13,8 @@ out_of_scope:
   - "The enforcement capstone (typing-convention-enforcement-skills-docs) — skills/docs/lint rules."
   - "Runtime/behavioral changes to emitted event or context payloads beyond what typing requires (typing-only refactor; no field renames on the wire)."
   - "Standing up a Ledger-domain adapter /domain cross-domain re-export unless a real cross-domain importer of a Ledger contract is found during planning (home rule covers intra-domain via <svc>/contracts)."
-spec: null
-plan: null
+spec: docs/superpowers/specs/2026-06-09-typed-subject-producer-contracts-design.md
+plan: docs/superpowers/plans/2026-06-09-typed-subject-contracts-ledger.md
 topic_memory: []
 validation_gate: null
 ---
