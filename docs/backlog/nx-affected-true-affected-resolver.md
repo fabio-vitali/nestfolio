@@ -90,8 +90,25 @@ nx run-many -t test-integration -p $(node tools/affected-projects.mjs --base=ori
   from `nx affected` to the resolver. *(Editing `.claude/skills/**` is auto-mode
   self-mod-guarded → do in an interactive session.)*
 - The 5 CI workflows likewise.
+- **`detect-deploy-needed.mjs` service resolution.** Its shared-lib Tier-1 rules
+  (`libs/event-processor`, `cdk-constructs`, `agent-orchestrator`, `event-types`)
+  are `service:false`, so a lib change emits `deploy=true` with an **empty
+  `services=`** — because "which services bundle this lib" is a reverse-reachability
+  query, not a path match (the exact gap this resolver fills). Wire detect-deploy to
+  call the resolver for those rules so 6.4's `deploy.sh --services=` is bounded to the
+  lib's true dependent closure instead of unscoped. (Surfaced 2026-06-09 during
+  `typed-subject-platform-context-taxonomy`.)
 - Keep the operational mitigation (scope to changed service) as the interim until
   this ships.
+
+> **NOT in scope here — a different axis.** This resolver answers *which projects are
+> affected* (graph membership). It does **not** address detect-deploy's *type-only →
+> false `deploy=true`* problem (a type-only diff has zero runtime-artifact delta but
+> still "touches" the file, so it is affected under any resolver). That is a
+> build-output question — a bundle/`.js`-hash comparison, tracked under
+> `cdk-bundle-staleness-deploy-integrity` — or simply left as the safe conservative
+> default with a human override (the failure mode of misclassifying a runtime change
+> as type-only is the dangerous direction: a stale Lambda). Do not conflate the two.
 
 ## Relation to other work
 
