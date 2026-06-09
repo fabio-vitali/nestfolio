@@ -26,6 +26,8 @@ module.exports = {
     '^@nestfolio/onboarding-bff/events$': '<rootDir>/../../services/investor/onboarding-bff/src/domain/events.ts',
     '^@nestfolio/investor-ctrl/events$': '<rootDir>/../../services/investor/investor-ctrl/src/domain/events.ts',
     '^@nestfolio/ledger-ctrl/events$': '<rootDir>/../../services/ledger/ledger-ctrl/src/domain/events.ts',
+    '^@nestfolio/ledger-ctrl/contracts$': '<rootDir>/../../services/ledger/ledger-ctrl/src/domain/contracts.ts',
+    '^@nestfolio/reconciliation-ctrl/contracts$': '<rootDir>/../../services/ledger/reconciliation-ctrl/src/domain/contracts.ts',
     '^@nestfolio/broker-ctrl/events$': '<rootDir>/../../services/execution/broker-ctrl/src/domain/events.ts',
     '^@nestfolio/broker-alpaca-adpt/events$': '<rootDir>/../../services/execution/broker-alpaca-adpt/src/domain/events.ts',
   },
