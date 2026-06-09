@@ -137,12 +137,14 @@ export {
   RequestContextSchema,
   parseRequestContext,
   pickRequestContext,
+  ErrorEventSubjectSchema,
 } from './domain';
 export type {
   BusEventPayload,
   RequestContext,
   RegionContext,
   SubjectContext,
+  ErrorEventSubject,
 } from './domain';
 
 // Sourcing (command + event replay)

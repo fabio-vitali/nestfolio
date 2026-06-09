@@ -1,6 +1,6 @@
 import { EventBridgeClient, PutEventsCommand } from '@aws-sdk/client-eventbridge';
 import { logger, getUUID, getTime } from '../internal';
-import type { RequestContext } from '../domain/schemas';
+import type { RequestContext, ErrorEventSubject } from '../domain/schemas';
 
 export class ErrorEventPublisher {
   private readonly client: EventBridgeClient;
@@ -19,16 +19,17 @@ export class ErrorEventPublisher {
   ): Promise<void> {
     for (const { error, causedBy, groupKey, context } of errors) {
       try {
+        const subject: ErrorEventSubject = {
+          error: error.message,
+          stack: error.stack,
+          causedBy,
+          ...(groupKey && { groupKey }),
+        };
         const detail = {
           id: getUUID(),
           type: errorEventType,
           timestamp: getTime(),
-          subject: {
-            error: error.message,
-            stack: error.stack,
-            causedBy,
-            ...(groupKey && { groupKey }),
-          },
+          subject,
           ...(context && { context }),
         };
 

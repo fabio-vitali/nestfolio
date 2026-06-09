@@ -11,6 +11,7 @@ export {
   RequestContextSchema,
   parseRequestContext,
   pickRequestContext,
+  ErrorEventSubjectSchema,
 } from './schemas';
 
 export type {
@@ -18,4 +19,5 @@ export type {
   RequestContext,
   RegionContext,
   SubjectContext,
+  ErrorEventSubject,
 } from './schemas';

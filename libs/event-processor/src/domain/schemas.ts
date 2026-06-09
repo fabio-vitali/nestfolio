@@ -58,3 +58,18 @@ export const BusEventSchema = z.object({
 });
 
 export type BusEventPayload = z.infer<typeof BusEventSchema>;
+
+/**
+ * Shared platform contract for the subject of every `errorEventType` emission
+ * (built by ErrorEventPublisher). NOT a producer aggregate — the shape is
+ * identical across all services, so one schema is the contract program-wide.
+ * Consumers of any *_FAILED event parse via this.
+ */
+export const ErrorEventSubjectSchema = z.object({
+  error: z.string(),
+  stack: z.string().optional(),
+  causedBy: z.unknown(),
+  groupKey: z.string().optional(),
+});
+
+export type ErrorEventSubject = z.infer<typeof ErrorEventSubjectSchema>;
