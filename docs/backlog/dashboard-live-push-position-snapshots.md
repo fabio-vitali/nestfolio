@@ -1,7 +1,7 @@
 ---
 id: dashboard-live-push-position-snapshots
 status: queued
-rank: 6
+rank: 10
 type: bug
 notes: "TRANSPORT-ONLY, now unblocked (2026-06-05): live-push broadcast for the holdings list. Position-row materialization is DONE — bff-read-model-materialization-redesign shipped, so position-snapshot.ts materializes each holding via projectVersioned. Only transport remains; fully greenfield (no publishPositionUpdate/onPositionUpdate/PositionBroadcast/client-merge yet). Paired with dashboard-live-push-portfolio-summary (rank 1)."
 references: []

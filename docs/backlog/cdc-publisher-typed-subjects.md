@@ -1,7 +1,7 @@
 ---
 id: cdc-publisher-typed-subjects
 status: queued
-rank: 2
+rank: 6
 type: refactor
 notes: "WS-2 of the typed-subject program (strategy: docs/superpowers/specs/2026-06-09-typed-subject-program-strategy.md). Every CDC event-publisher Lambda (changeDataCapture pipeline / event-publisher.ts on each *-egress) types its DynamoDB stream rows as TableEntry<Subject> (multiple row types under the single-table pattern → discriminate on __typename/sk), parses/validates each row, and emits strictly-typed subjects — no `as Record` on rows or emitted subjects. Verifies the producer actually emits what the WS-1 contract says (row → subject), so WS-3 consumers can trust the contract. Depends on WS-1 (needs the contracts + TableEntry<Subject> row types). Validation: publisher unit tests + e2e CDC emission (real row → real emitted event) green."
 references:
