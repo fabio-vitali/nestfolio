@@ -1,14 +1,18 @@
 ---
 id: typed-subject-producer-contracts
-status: queued
-rank: 1
+status: active
+rank: null
 type: design
 notes: "WS-1 of the typed-subject program (strategy: docs/superpowers/specs/2026-06-09-typed-subject-program-strategy.md). Every producer aggregate exports a zod subject contract (<Name>Schema + type, NO Subject suffix) that types BOTH the persisted row (TableEntry<Subject>) AND the emitted event (BusEvent<Subject>) — convention (3). Convert inline-declared row types (TaxLot, SnapshotRecord, SecFiling, DWC projection rows, IP/MI snapshot rows, PE/AN AgentCompletion/AgentFailureRow) to TableEntry<Subject>. Establish cross-domain re-export via the consuming-direction adapter's /domain (the ProposedTrade precedent) to avoid service↔service project cycles. Fix the stale compliance-ctrl DecisionApprovedSchema. Includes the advisory inter-agent handoff contracts. THE #1 RISK: validate each contract against the REAL emitted shape (actual DDB row / captured CDC subject), e2e-gated, NOT fixtures (event-subject-contracts lesson; the stale compliance schema proves it). Foundational — both WS-2 (publishers) and WS-3 (consumers) import these. Large: warrants its own brainstorm→spec, phased by domain. Folds (worktree-only items that never reached main): advisory-inter-agent-handoff-typed-contract, compliance-ctrl-stale-decision-approved-schema."
 references:
   - docs/superpowers/specs/2026-06-09-typed-subject-program-strategy.md
   - services/investor/investor-ctrl/src/domain/contracts.ts
   - libs/event-processor/src/util/parse-subject.ts
-out_of_scope: []
+out_of_scope:
+  - "WS-2 (cdc-publisher-typed-subjects), WS-3 (consumer-parse-subject), and the enforcement capstone — separate ranked workstreams."
+  - "The opaqueSubject helper deletion (WS-3 terminal step)."
+  - "Runtime changes to emitted event context payloads beyond what typing requires (no behavioral change to context emission)."
+  - "The per-domain contract IMPLEMENTATION itself — carried by the new phase-0 + 4 per-domain slice workstreams this umbrella files. This workstream produces ONLY the umbrella design spec + the decomposition (slice backlog items) + the strategy-doc home-rule correction."
 spec: null
 plan: null
 topic_memory: []
