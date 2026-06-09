@@ -6,6 +6,11 @@ interface AssemblePacketDeps {
   decisionPacketRepository: DecisionPacketRepository;
 }
 
+interface LedgerSnapshotState {
+  positions?: Record<string, { quantity?: number; lastFillPrice?: number }>;
+  cashBalanceCents?: number;
+}
+
 interface AssemblePacketEvent {
   decisionId: string;
   tenantId: string;
@@ -24,8 +29,10 @@ interface AssemblePacketEvent {
   // below keep the decision packet creatable in degraded states.
   investorProfile?: Record<string, unknown> | null;
   marketAnalysis?: Record<string, unknown> | null;
-  portfolio?: Record<string, unknown> | null;
+  portfolio?: { allocations?: { allocations?: Array<Record<string, unknown>> } } | null;
   narrative?: Record<string, unknown> | null;
+  // Plumbed by the SF (Branch C of ParallelProjections); SF substitutes a default on absent-row.
+  ledgerSnapshot?: LedgerSnapshotState;
 }
 
 interface Allocation {
@@ -95,15 +102,13 @@ export function createAssemblePacketHandler(deps: AssemblePacketDeps) {
     // totalExposure (≈1.0) is the agent's normalization indicator and is NOT a
     // portfolio value; we derive portfolioValueCents from triggerAmountCents
     // + currentPositionsValueCents instead.
-    const allocationEnvelope = (portfolio?.allocations as Record<string, unknown> | undefined) ?? {};
-    const allocationsArray = (allocationEnvelope.allocations as Array<Record<string, unknown>> | undefined) ?? [];
+    const allocationEnvelope = portfolio?.allocations ?? {};
+    const allocationsArray = allocationEnvelope.allocations ?? [];
 
     // LedgerSnapshot is plumbed in by the SF (Branch C of ParallelProjections).
     // On absent-row, the SF substitutes { positions: {}, cashBalanceCents: 0 } —
     // so we never have to handle `undefined` here.
-    const ledgerSnapshot = ((event as Record<string, unknown>).ledgerSnapshot as
-      | { positions?: Record<string, { quantity?: number; lastFillPrice?: number }>; cashBalanceCents?: number }
-      | undefined) ?? { positions: {}, cashBalanceCents: 0 };
+    const ledgerSnapshot = event.ledgerSnapshot ?? { positions: {}, cashBalanceCents: 0 };
 
     const positionsBySymbol = ledgerSnapshot.positions ?? {};
     const cashBalanceCents = ledgerSnapshot.cashBalanceCents ?? 0;
