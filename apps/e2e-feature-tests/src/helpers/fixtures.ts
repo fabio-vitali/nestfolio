@@ -14,6 +14,7 @@ import { InvestorBffEventTypes } from '@nestfolio/investor-bff/events';
 import { DecisionWorkflowEventTypes } from '@nestfolio/decision-workflow-ctrl/events';
 import { InvestorCtrlEventTypes } from '@nestfolio/investor-ctrl/events';
 import { LedgerCtrlEventTypes } from '@nestfolio/ledger-ctrl/events';
+import { BalanceUpdatedSchema } from '@nestfolio/ledger-ctrl/contracts';
 import { BrokerCtrlEventTypes } from '@nestfolio/broker-ctrl/events';
 import type { FreshTenant } from './fresh-tenant';
 import { bffClient, type BffClients } from './bff-client';
@@ -161,15 +162,31 @@ export function withProfileSnapshot(): Fixture {
  */
 export function funded(opts: { cashBalanceCents: number }): Fixture {
   return async (ctx, tenant, eb, _bff) => {
+    // The deployed investor-bff parses BALANCE_UPDATED via the producer's
+    // BalanceUpdatedSchema, which REQUIRES `snapshot` — the real ledger-ctrl
+    // producer always wraps it (snapshot-to-events.ts). A synthetic event
+    // missing `snapshot` is rejected with a ZodError, so CashBalance never
+    // materializes and this fixture times out 60s later. Validate the emitted
+    // detail against the producer contract here so a co-wrong fixture fails
+    // loudly at emit time, not via a downstream poll timeout (the
+    // event-subject-contracts lesson: fixtures must emit the shape the real
+    // producer emits).
+    const detail = {
+      tenantId: tenant.tenantId,
+      userId: tenant.userId,
+      cashBalanceCents: opts.cashBalanceCents,
+      snapshot: {
+        positions: {},
+        cashBalanceCents: opts.cashBalanceCents,
+        lastEventSequence: 0,
+      },
+    };
+    BalanceUpdatedSchema.parse(detail);
     await eb.putEvent({
       bus: 'investor',
       targetService: 'investor-bff',
       detailType: LedgerCtrlEventTypes.BALANCE_UPDATED,
-      detail: {
-        tenantId: tenant.tenantId,
-        userId: tenant.userId,
-        cashBalanceCents: opts.cashBalanceCents,
-      },
+      detail,
     });
 
     // Poll for CashBalance materialization. The investor-bff event-listener

@@ -1,7 +1,6 @@
 ---
 id: funded-fixture-balance-updated-missing-snapshot
-status: queued
-rank: 2
+status: shipped
 type: bug
 notes: "E2E-SUITE BLOCKER surfaced 2026-06-09 by the typed-subject-contracts-ledger validation gate. apps/e2e-feature-tests funded() (src/helpers/fixtures.ts) emits a SYNTHETIC BALANCE_UPDATED with only {tenantId, userId, cashBalanceCents} — missing the contract-required `snapshot` field. The DEPLOYED investor-bff parses BALANCE_UPDATED against a schema requiring `snapshot` (the real ledger-ctrl producer always emits it via snapshot-to-events.ts), so the CashBalance projection throws ZodError (path:[snapshot], received undefined) → CashBalance never materializes → funded() times out after 60s. Pre-existing: investor-bff was NOT changed by the ledger slice; the mismatch dates to the ~2026-06-08 consumer-contract work (event-subject-payload-build-tripwire / event-subject-contracts) that made investor-bff strict-parse BALANCE_UPDATED, without updating funded(). Blocks EVERY e2e scenario that uses funded() (e.g. the withdrawal flows that depend on the investor-bff CashBalance row). The textbook [[event-subject-contracts]] anti-pattern: a fixture emits a shape the real producer never emits. Fix: make funded() emit a contract-valid BALANCE_UPDATED — add snapshot:{positions:{}, cashBalanceCents, lastEventSequence} (matching ledger-ctrl/contracts BalanceUpdatedSchema), value-consistent with cashBalanceCents. Consider asserting the fixture's emitted detail against the producer contract so co-wrong fixtures fail loudly. Ranked 2 (top of QUEUED, promoted 2026-06-09): a small Simple-lane fix that unblocks the WHOLE e2e suite (the validation mechanism every remaining typed-subject slice depends on) — do BEFORE slice 2 (typed-subject-contracts-investor)."
 references: []
@@ -9,7 +8,17 @@ out_of_scope: []
 spec: null
 plan: null
 topic_memory: []
-validation_gate: null
+validation_gate: |
+  Fix (Simple lane, main): apps/e2e-feature-tests/src/helpers/fixtures.ts funded() now
+  emits a contract-valid BALANCE_UPDATED carrying snapshot:{positions:{}, cashBalanceCents,
+  lastEventSequence:0} (matching ledger-ctrl BalanceUpdatedSchema / LedgerSnapshotSchema),
+  and validates the emitted detail against BalanceUpdatedSchema at emit time so a future
+  co-wrong fixture fails loudly (the event-subject-contracts guard).
+  Verified: `pnpm nx affected -t test,lint --base=origin/main` green (3 projects); scoped
+  e2e `JEST_PATH=funding/withdraw-cash NESTFOLIO_INTEG_PREFIX=dev pnpm nx run
+  e2e-feature-tests:test-e2e-features` PASS 1/1 in 43s against deployed dev — the funded()
+  beforeEach no longer times out (CashBalance materializes) and requestWithdrawal succeeds.
+  No service deploy (test-fixture only; investor-bff/ledger-ctrl unchanged).
 ---
 
 # funded() fixture emits BALANCE_UPDATED missing the contract-required `snapshot`
