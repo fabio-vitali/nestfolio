@@ -13,8 +13,8 @@ out_of_scope:
   - "WS-2 (cdc-publisher-typed-subjects), WS-3 (consumer-parse-subject), and the enforcement capstone."
   - "Renaming the existing handler-context EventContext (types/event-context.ts) — explicitly rejected; the new base is named SubjectContext precisely to avoid disturbing that pervasive public symbol. Lib-only, NO workspace-wide rename, NO deploy."
   - "Any runtime/behavioural change to emitted context or row payloads — this is a compile-time type change only."
-spec: null
-plan: null
+spec: docs/superpowers/specs/2026-06-09-typed-subject-producer-contracts-design.md
+plan: docs/superpowers/plans/2026-06-09-typed-subject-platform-context-taxonomy.md
 topic_memory: []
 validation_gate: null
 ---
