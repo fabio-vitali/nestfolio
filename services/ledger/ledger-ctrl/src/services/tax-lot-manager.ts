@@ -1,7 +1,7 @@
-import { withMethodLogging, logger } from '@nestfolio/event-processor';
-import { LedgerRepository, type TaxLot, type DispositionRecord } from '../repositories/ledger.repository';
+import { withMethodLogging, logger, getTime } from '@nestfolio/event-processor';
+import { LedgerRepository, type TaxLotEntry, type DispositionRecord } from '../repositories/ledger.repository';
 
-export type { TaxLot, DispositionRecord };
+export type { TaxLotEntry, DispositionRecord };
 
 export interface OpenLotParams {
   tenantId: string;
@@ -29,11 +29,12 @@ export class TaxLotManager {
   readonly openLot = this.log('openLot',
     async (params: OpenLotParams): Promise<void> => {
       const lotId = `${params.orderId}-${params.symbol}`;
-      const lot: TaxLot = {
+      const lot: TaxLotEntry = {
         pk: `TaxLot#${params.tenantId}#${params.symbol}`,
         sk: `Lot#${params.acquiredAt}#${lotId}`,
         __typename: 'TaxLot',
         tenantId: params.tenantId,
+        createdAt: getTime(),
         lotId,
         symbol: params.symbol,
         quantity: params.quantity,

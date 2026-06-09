@@ -7,11 +7,11 @@ jest.mock('@nestfolio/event-processor', () => ({
   ),
 }));
 
-import { TaxLotManager, type OpenLotParams, type CloseLotParams, type TaxLot } from '../../src/services/tax-lot-manager';
+import { TaxLotManager, type OpenLotParams, type CloseLotParams, type TaxLotEntry } from '../../src/services/tax-lot-manager';
 import { LedgerRepository } from '../../src/repositories/ledger.repository';
 
-function makeLot(overrides: Partial<TaxLot> & Pick<TaxLot, 'pk' | 'sk' | 'lotId' | 'symbol' | 'quantity' | 'costBasisPerShare' | 'acquiredAt'>): TaxLot {
-  return { __typename: 'TaxLot', tenantId: 't1', status: 'open', ...overrides };
+function makeLot(overrides: Partial<TaxLotEntry> & Pick<TaxLotEntry, 'pk' | 'sk' | 'lotId' | 'symbol' | 'quantity' | 'costBasisPerShare' | 'acquiredAt'>): TaxLotEntry {
+  return { __typename: 'TaxLot', tenantId: 't1', status: 'open', createdAt: '2026-01-15T00:00:00.000Z', ...overrides };
 }
 
 describe('TaxLotManager', () => {
@@ -48,6 +48,7 @@ describe('TaxLotManager', () => {
       sk: 'Lot#2025-06-01T10:00:00.000Z#ord-1-VTI',
       __typename: 'TaxLot',
       tenantId: 't1',
+      createdAt: '2026-01-15T00:00:00.000Z',
       lotId: 'ord-1-VTI',
       symbol: 'VTI',
       quantity: 50,

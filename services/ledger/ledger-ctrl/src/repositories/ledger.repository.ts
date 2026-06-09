@@ -1,9 +1,10 @@
 import { DynamoDBClient } from '@aws-sdk/client-dynamodb';
 import { UpdateCommand, PutCommand, QueryCommand } from '@aws-sdk/lib-dynamodb';
 import {
-  TableRepository, getTime, type RequestContext,
+  TableRepository, getTime, type RequestContext, type TableEntry,
 } from '@nestfolio/event-processor';
 import { withMethodLogging } from '@nestfolio/event-processor';
+import type { TaxLot } from '../domain/contracts';
 
 // ---------------------------------------------------------------------------
 // DDB item & domain types (no RequestContext fields — context is a separate param)
@@ -33,18 +34,8 @@ export type SnapshotState = {
   readonly lastEventSequence: number;
 };
 
-export type TaxLot = {
-  pk: string;
-  sk: string;
-  __typename: 'TaxLot';
-  tenantId: string;
-  lotId: string;
-  symbol: string;
-  quantity: number;
-  costBasisPerShare: number;
-  acquiredAt: string;
-  status: 'open' | 'closed';
-};
+/** Persisted tax-lot row. Tenant-scoped only (no user/region). */
+export type TaxLotEntry = TableEntry<TaxLot, { tenantId: string }> & { __typename: 'TaxLot' };
 
 export type DispositionRecord = {
   lotId: string;
@@ -227,14 +218,14 @@ export class LedgerRepository extends TableRepository {
   );
 
   readonly putTaxLot = this.log('putTaxLot',
-    async (lot: TaxLot): Promise<void> => {
+    async (lot: TaxLotEntry): Promise<void> => {
       await this.put(lot);
     },
   );
 
   readonly getOpenLotsBySymbol = this.log('getOpenLotsBySymbol',
-    async (tenantId: string, symbol: string): Promise<TaxLot[]> => {
-      return this.queryAll<TaxLot>({
+    async (tenantId: string, symbol: string): Promise<TaxLotEntry[]> => {
+      return this.queryAll<TaxLotEntry>({
         TableName: this.tableName,
         KeyConditionExpression: 'pk = :pk AND begins_with(sk, :skPrefix)',
         FilterExpression: '#status = :open',
