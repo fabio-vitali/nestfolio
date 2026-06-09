@@ -37,6 +37,11 @@ Producer-owned zod payload contracts for the CDC-published subjects (imports ONL
 - BalanceUpdatedSchema — BALANCE_UPDATED subject (BalanceEvent record)
 - PortfolioUpdatedSchema — PORTFOLIO_UPDATED subject (PortfolioEvent record)
 - LedgerEntryRecordedSchema — LEDGER_ENTRY_RECORDED subject (carries snapshotAt)
+- AccountSnapshotSchema — the persisted `Snapshot#latest` row aggregate that the reducer materializes; the source `SnapshotRecord` the CDC transform reads. Not directly CDC-emitted; its fields flow out via the three event schemas above.
+- TaxLotSchema — tax-lot aggregate (FIFO cost-basis tracking). The persisted row is typed as `TaxLotEntry = TableEntry<TaxLot, { tenantId: string }> & { __typename: 'TaxLot' }` (defined in `ledger.repository.ts`).
+- SnapshotHistorySchema — internal append-only snapshot-history aggregate (TTL'd). Not CDC-emitted; never reaches the egress pipeline.
+- Failure events (LEDGER_PROCESSING_FAILED, LEDGER_SNAPSHOT_PUBLISHER_FAILED) use the shared @nestfolio/event-processor `ErrorEventSubjectSchema` (platform contract, not a producer aggregate).
+- Persisted rows are typed via `TableEntry<Subject>`: `TaxLotEntry = TableEntry<TaxLot, { tenantId: string }>` (repository) and `SnapshotRecord = TableEntry<AccountSnapshot, RequestContext>` (transforms/snapshot-to-events.ts) — no hand-rolled pk/sk/__typename interfaces.
 - Cross-domain consumers: ledger-bff, investor-bff, dashboard-bff, decision-workflow-ctrl
 - Also exported: @nestfolio/ledger-ctrl/events (LedgerCtrlEventTypes)
 

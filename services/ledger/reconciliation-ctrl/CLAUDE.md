@@ -21,6 +21,12 @@ Stack: services/ledger/reconciliation-ctrl/src/service.stack.ts
     - ReconciliationResult: insert → RECONCILIATION_COMPLETED, modify → RECONCILIATION_RESULT_UPDATED
     - DriftRecord: insert → PORTFOLIO_DRIFT_DETECTED, modify → DRIFT_RECORD_UPDATED
 
+## Contracts (domain/contracts.ts → @nestfolio/reconciliation-ctrl/contracts)
+Producer-owned zod payload contracts for the 2 CDC-emitted rows (imports ONLY zod). Dry subjects — identity travels in the event context (RequestContext), not on the subject.
+- ReconciliationResultSchema — RECONCILIATION_COMPLETED / RECONCILIATION_RESULT_UPDATED subject
+- DriftRecordSchema — PORTFOLIO_DRIFT_DETECTED / DRIFT_RECORD_UPDATED subject
+- The other declared event names are consumed-only (CORPORATE_ACTION_APPLIED) or declared-but-unused — no contracts (not emitted).
+
 ## Handlers
 - event-listener.ts — materializeToTable pipeline; reconcileHandler processes PORTFOLIO_UPDATED, PORTFOLIO_SNAPSHOT_IMPORTED, CORPORATE_ACTION_APPLIED; alpacaSnapshotHandler processes ALPACA_ACCOUNT_SNAPSHOT; writes ReconciliationResult + DriftRecord items
 - event-publisher.ts — CDC changeDataCapture() pipeline
