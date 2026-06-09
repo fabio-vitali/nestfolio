@@ -38,6 +38,7 @@ import {
   onboarded,
   funded,
   withHoldings,
+  poll,
   type FreshTenant,
 } from '..';
 import { DynamoDBClient } from '@aws-sdk/client-dynamodb';
@@ -56,23 +57,6 @@ import {
 import { expectContractMatch } from '../helpers/contract-assert';
 
 // ---------------------------------------------------------------------------
-// Poll helper — generic, reusable in this file
-// ---------------------------------------------------------------------------
-
-const poll = async <T>(
-  fn: () => Promise<T | undefined>,
-  deadlineMs: number,
-): Promise<T> => {
-  const end = Date.now() + deadlineMs;
-  while (Date.now() < end) {
-    const v = await fn();
-    if (v !== undefined) return v;
-    await new Promise((r) => setTimeout(r, 3_000));
-  }
-  throw new Error('poll timed out');
-};
-
-// ---------------------------------------------------------------------------
 // Suite
 // ---------------------------------------------------------------------------
 
@@ -80,7 +64,7 @@ describe('ledger-domain producer contracts match REAL deployed emission', () => 
   let ctx: TestContext;
   let tenant: FreshTenant;
   let ddbClient: DynamoDBClient;
-  let ddb: DynamoDBDocumentClient;
+  let ddbDoc: DynamoDBDocumentClient;
 
   beforeEach(async () => {
     ctx = await createTestContext();
@@ -94,7 +78,7 @@ describe('ledger-domain producer contracts match REAL deployed emission', () => 
       ]),
     ]);
     ddbClient = new DynamoDBClient({ region: ctx.region });
-    ddb = DynamoDBDocumentClient.from(ddbClient);
+    ddbDoc = DynamoDBDocumentClient.from(ddbClient);
   }, 600_000);
 
   afterEach(async () => {
@@ -120,7 +104,7 @@ describe('ledger-domain producer contracts match REAL deployed emission', () => 
       //    are stripped). Schema requires: streamType, positions, cashBalanceCents, totalValueCents,
       //    lastEventSequence, version, snapshotAt, timestamp.
       const snapshot = await poll(async () => {
-        const r = await ddb.send(
+        const r = await ddbDoc.send(
           new GetCommand({ TableName: table, Key: { pk, sk: 'Snapshot#latest' } }),
         );
         return r.Item as Record<string, unknown> | undefined;
@@ -129,7 +113,7 @@ describe('ledger-domain producer contracts match REAL deployed emission', () => 
 
       // Helper to query rows by sk prefix under the account pk.
       const rowsFor = async (skPrefix: string): Promise<Record<string, unknown>[]> => {
-        const r = await ddb.send(
+        const r = await ddbDoc.send(
           new QueryCommand({
             TableName: table,
             KeyConditionExpression: 'pk = :pk AND begins_with(sk, :sk)',
@@ -140,11 +124,15 @@ describe('ledger-domain producer contracts match REAL deployed emission', () => 
       };
 
       // 2. BalanceEvent — snapshotToEvents emits when cashBalanceCents changes.
+      //    Balance-affecting events come from BOTH the deposit (funded fixture →
+      //    cash credit) and the fills (withHoldings fixture → cash debit per buy),
+      //    so multiple BalanceEvent rows accumulate across the snapshot sequence.
       //    sk format: BalanceEvent#${timestamp}#${lastEventSequence}
       const balances = await poll(async () => {
         const items = await rowsFor('BalanceEvent#');
         return items.length ? items : undefined;
       }, 120_000);
+      expect(balances.length).toBeGreaterThan(0);
       balances.forEach((row, i) =>
         expectContractMatch(BalanceUpdatedSchema, row, `BalanceUpdated[${i}]`),
       );
@@ -187,7 +175,7 @@ describe('ledger-domain producer contracts match REAL deployed emission', () => 
       // Wait for Intent cache — seeded when PORTFOLIO_UPDATED reaches reconciliation-ctrl
       // (the withHoldings fixture drives PORTFOLIO_UPDATED → reconciliation-ctrl Ingress).
       await poll(async () => {
-        const r = await ddb.send(
+        const r = await ddbDoc.send(
           new GetCommand({
             TableName: table,
             Key: { pk: `PositionCache#${tenant.tenantId}`, sk: 'Intent' },
@@ -216,7 +204,7 @@ describe('ledger-domain producer contracts match REAL deployed emission', () => 
       // GSI query helper — tenantId-index: PK=tenantId, SK=__typename, projection=ALL.
       // Returns full rows including all non-key attributes (no BatchGet needed).
       const byTypename = async (typename: string): Promise<Record<string, unknown>[]> => {
-        const r = await ddb.send(
+        const r = await ddbDoc.send(
           new QueryCommand({
             TableName: table,
             IndexName: 'tenantId-index',
@@ -234,6 +222,7 @@ describe('ledger-domain producer contracts match REAL deployed emission', () => 
         const items = await byTypename('ReconciliationResult');
         return items.length ? items : undefined;
       }, 180_000);
+      expect(results.length).toBeGreaterThan(0);
       results.forEach((row, i) =>
         expectContractMatch(ReconciliationResultSchema, row, `ReconciliationResult[${i}]`),
       );
@@ -244,6 +233,9 @@ describe('ledger-domain producer contracts match REAL deployed emission', () => 
         const items = await byTypename('DriftRecord');
         return items.length ? items : undefined;
       }, 60_000);
+      // Both positions intentionally drift (VTI 45≠50, BND 25≠20), so this also
+      // asserts the fixture exercised both legs of the comparison.
+      expect(drifts.length).toBeGreaterThanOrEqual(2);
       drifts.forEach((row, i) =>
         expectContractMatch(DriftRecordSchema, row, `DriftRecord[${i}]`),
       );
