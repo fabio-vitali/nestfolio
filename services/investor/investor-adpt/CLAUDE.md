@@ -30,7 +30,9 @@ All 3 rules use $or pattern: non-integration-test source OR integration-test:inv
 Producer-owned zod payload contracts, re-exported via the `/domain` barrel (consumers import from `@nestfolio/investor-adpt/domain`). DRY domain subjects — identity travels in the event context (RequestContext), not on the subject.
 - DepositInitiatedSchema / DepositInitiated — DEPOSIT_INITIATED subject (from investor-bff DepositIntent row); consumed by broker-ctrl to route deposits
 - WithdrawalInitiatedSchema / WithdrawalInitiated — WITHDRAWAL_INITIATED subject (from investor-bff WithdrawalIntent row); consumed by broker-ctrl to route withdrawals
-Owned in the producer's cross-domain adapter (ProposedTrade precedent); breaks the broker-ctrl ↔ investor-bff circular dependency.
+- MandateSchema / Mandate — MANDATE_ISSUED / MANDATE_REVOKED / OPERATING_MODE_CHANGED subject (the Mandate sibling row, sk='Mandate', from investor-bff); consumed cross-domain by compliance-ctrl (advisory). OPERATING_MODE_CHANGED is re-sourced from it.
+- ExecutionModeChangedSchema / ExecutionModeChanged — EXECUTION_MODE_CHANGED / EXECUTION_MODE_CHANGE_UPDATED subject (the ExecutionModeChange audit row from investor-bff); consumed cross-domain by broker-ctrl (execution).
+Owned in the producer's cross-domain adapter (ProposedTrade/DepositInitiated precedent); breaks circular dependencies between investor-bff and cross-domain consumers.
 
 ## Tests
 - Unit: test/unit/service.stack.test.ts

@@ -47,7 +47,7 @@ Post-resplit (2026-05-08): INVESTOR_PROFILE_UPDATED diff-detect handler removed.
 ## Exported surface
 
 - @nestfolio/investor-ctrl/events (src/domain/events.ts) — InvestorCtrlEventTypes
-- @nestfolio/investor-ctrl/contracts (src/domain/contracts.ts) — producer-owned zod payload contracts (imports ONLY zod). DRY domain subjects — identity travels in the event context (RequestContext), not on the subject. NotificationCreatedSchema models the NOTIFICATION_CREATED subject; consumed by investor-bff/transforms/notification-created.ts via parseSubject. Payload changes here break consumer builds (event-subject-payload-build-tripwire).
+- @nestfolio/investor-ctrl/contracts (src/domain/contracts.ts) — producer-owned zod payload contracts (imports ONLY zod). DRY domain subjects — identity travels in the event context (RequestContext), not on the subject. NotificationCreatedSchema models the NOTIFICATION_CREATED subject; consumed by investor-bff/transforms/notification-created.ts via parseSubject. MonthlyReportSchema models the MONTHLY_REPORT_CREATED/UPDATED subject (the MonthlyReport row written by event-listener on ORDER_FILLED). Payload changes here break consumer builds (event-subject-payload-build-tripwire).
 
 ## Event Types (domain/events.ts)
 
