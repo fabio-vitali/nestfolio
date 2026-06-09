@@ -36,7 +36,6 @@ import {
   freshTenant,
   applyFixtures,
   onboarded,
-  funded,
   withHoldings,
   poll,
   type FreshTenant,
@@ -69,9 +68,14 @@ describe('ledger-domain producer contracts match REAL deployed emission', () => 
   beforeEach(async () => {
     ctx = await createTestContext();
     tenant = await freshTenant(ctx);
+    // NOTE: funded() is intentionally omitted. It only seeds the investor-bff
+    // CashBalance read model (which this gate never asserts on) and is currently
+    // broken (emits a BALANCE_UPDATED without the contract-required `snapshot`,
+    // rejected by investor-bff — see backlog funded-fixture-balance-updated-missing-snapshot).
+    // Our ledger-ctrl + reconciliation-ctrl rows come from withHoldings()'s real
+    // ORDER_FILLED → ledger-ctrl CDC, so funded() is not needed here.
     await applyFixtures(ctx, tenant, [
       onboarded(),
-      funded({ cashBalanceCents: 2_000_000 }),
       withHoldings([
         { symbol: 'VTI', quantity: 50, fillPrice: 200 },
         { symbol: 'BND', quantity: 20, fillPrice: 80 },
