@@ -66,8 +66,8 @@ export const AccountSnapshotSchema = z.object({
 });
 export type AccountSnapshot = z.infer<typeof AccountSnapshotSchema>;
 
-/** A single tax lot (FIFO cost-basis tracking). Internal aggregate — tenant-scoped
- * only (no user/region); identity travels in the context. */
+/** A single tax lot (FIFO cost-basis tracking). Dry subject — pk/sk/__typename/tenantId
+ * are key/envelope fields (TableEntry), not payload; tenant identity travels in the context. */
 export const TaxLotSchema = z.object({
   lotId: z.string(),
   symbol: z.string(),

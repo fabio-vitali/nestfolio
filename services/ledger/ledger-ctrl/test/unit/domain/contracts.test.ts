@@ -65,7 +65,7 @@ describe('ledger-ctrl AccountSnapshotSchema', () => {
       snapshotAt: '2026-06-09T00:00:00.000Z',
       timestamp: '2026-06-09T00:00:00.000Z',
     };
-    expect(AccountSnapshotSchema.parse(subject)).toMatchObject({ lastEventSequence: 7 });
+    expect(AccountSnapshotSchema.parse(subject)).toEqual(subject);
   });
 });
 
@@ -93,7 +93,7 @@ describe('ledger-ctrl SnapshotHistorySchema', () => {
       cashBalanceCents: 500000,
       lastEventSequence: 7,
     };
-    expect(SnapshotHistorySchema.parse(subject)).toMatchObject({ lastEventSequence: 7 });
+    expect(SnapshotHistorySchema.parse(subject)).toEqual(subject);
   });
 });
 
