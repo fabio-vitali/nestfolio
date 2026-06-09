@@ -15,7 +15,7 @@ out_of_scope:
   - "onboarding-bff internal OnboardingSession session-state row — not a CDC-emitted aggregate; onboarding-bff is confirm-coverage only (its two existing contracts)."
   - "Runtime changes to emitted context payloads beyond what typing requires."
 spec: docs/superpowers/specs/2026-06-09-typed-subject-producer-contracts-design.md
-plan: null
+plan: docs/superpowers/plans/2026-06-09-typed-subject-contracts-investor.md
 topic_memory: []
 validation_gate: null
 ---
