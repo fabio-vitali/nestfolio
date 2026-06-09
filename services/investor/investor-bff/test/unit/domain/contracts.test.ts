@@ -72,9 +72,9 @@ describe('investor-bff NotificationReadSchema', () => {
     expect('tenantId' in parsed).toBe(false);
     expect(parsed.notificationId).toBe('n1');
   });
-  it('parses the CREATED state (readAt absent)', () => {
-    const { readAt: _r, read: _read, ...created } = notificationRow;
-    expect(NotificationReadSchema.parse({ ...created, status: 'CREATED' }).status).toBe('CREATED');
+  it('parses the CREATED state (readAt absent, read=false)', () => {
+    const { readAt: _r, ...created } = notificationRow;
+    expect(NotificationReadSchema.parse({ ...created, status: 'CREATED', read: false }).status).toBe('CREATED');
   });
   it('throws when notificationId is absent', () => {
     const { notificationId: _n, ...without } = notificationRow;
@@ -94,7 +94,7 @@ describe('investor-bff Mandate row parses the investor-adpt Mandate contract', (
   });
 });
 
-describe('investor-bff ExecutionModeChange row parses the investor-adpt contract', () => {
+describe('investor-bff ExecutionModeChange row parses the investor-adpt ExecutionModeChanged contract', () => {
   it('a real ExecutionModeChange audit-row shape validates', () => {
     const row = {
       tenantId: 't', userId: 'u', region: 'us-east-1',
