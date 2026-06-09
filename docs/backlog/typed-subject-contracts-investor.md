@@ -1,6 +1,6 @@
 ---
 id: typed-subject-contracts-investor
-status: active
+status: shipped
 type: refactor
 notes: "Investor domain slice (slice 2) of the typed-subject-producer-contracts umbrella (design: docs/superpowers/specs/2026-06-09-typed-subject-producer-contracts-design.md § 'Investor (slice 2)'). All tenant-scoped. investor-ctrl: extend beyond NotificationCreated to the rest (notification + monthly-report lifecycle). investor-bff: extend beyond InvestorProfileUpdated to the remaining lifecycle CDC events. onboarding-bff: confirm coverage (already has two contracts). Home rule: intra-domain consumers import producer <svc>/contracts; cross-domain consumers of investor events import via the producer-domain adapter investor-adpt/domain. Depends on phase-0 (typed-subject-platform-context-taxonomy). Validation: producer unit tests + tsc green + scoped e2e asserting the producer emits exactly what each contract declares (real DDB row / captured CDC subject, NOT fixtures — [[event-subject-contracts]]). Complex lane (worktree + deploy + e2e)."
 references:
@@ -16,8 +16,39 @@ out_of_scope:
   - "Runtime changes to emitted context payloads beyond what typing requires."
 spec: docs/superpowers/specs/2026-06-09-typed-subject-producer-contracts-design.md
 plan: docs/superpowers/plans/2026-06-09-typed-subject-contracts-investor.md
-topic_memory: []
-validation_gate: null
+topic_memory: [project_event_subject_contracts.md]
+validation_gate: |
+  SHIPPED 2026-06-10 (worktree branch worktree-typed-subject-contracts-investor).
+
+  (1) Producer contracts added (all DRY — identity in context):
+      - investor-ctrl: MonthlyReportSchema/MonthlyReport (NotificationCreated already existed) — 37270d3c
+      - investor-adpt/domain (cross-domain home, ProposedTrade/DepositInitiated precedent):
+        MandateSchema/Mandate (MANDATE_ISSUED/REVOKED + OPERATING_MODE_CHANGED → compliance-ctrl),
+        ExecutionModeChangedSchema/ExecutionModeChanged (EXECUTION_MODE_CHANGED → broker-ctrl) — cc79b466
+      - investor-bff: NotificationReadSchema/NotificationRead (NOTIFICATION_READ; InvestorProfileUpdated
+        already existed) — afab3b05 + dc9a89f9 (CREATED-state test fidelity fix)
+      - onboarding-bff: confirm-coverage only (existing OnboardingCompleted + GoLiveConfirmed) — 3eec588c
+
+  (2) Unit + lint + tsc green: nx affected -t test,lint vs origin/main = "Successfully ran for 30 projects".
+      Per-service contract unit tests: investor-ctrl 61, investor-adpt 13, investor-bff 93, onboarding-bff 10.
+      Zero runtime change (type-only zod schemas + tests + docs — holistic review confirmed no
+      handler/transform/resolver/stack edits), so NO deploy needed; the gate ran against current dev.
+
+  (3) THE #1-RISK GATE: apps/e2e-feature-tests/src/investor/investor-contract-emission.e2e.test.ts
+      2/2 PASS against deployed dev (60s) — parsed REAL persisted DDB rows against the producer
+      contracts (NOT fixtures): investor-bff InvestorProfile + Mandate + Notification read-model
+      (NotificationRead); investor-ctrl Notification (NotificationCreated) + MonthlyReport. All 5
+      contracts validated live. Gate file — 145119fe; harness fixes: jest moduleNameMapper for the
+      investor /contracts + /domain subpaths (bf41af80), single shared beforeAll tenant (0cef190f),
+      explicit ORDER_FILLED injection to investor-ctrl for MonthlyReport since withHoldings() only
+      drives the ledger bus (2803e6be). Service cards regenerated — 8440dc72.
+
+      Coverage boundary (documented, not silently dropped): ExecutionModeChanged is unit-test-only
+      (no e2e fixture triggers a live execution-mode switch); its schema was authored against the
+      real setExecutionMode write literal.
+
+  (4) Side-findings filed (parking, d51129ed): investor-mandate-type-layer-cleanup,
+      e2e-contract-emission-bytypename-helper-extract.
 ---
 
 # Typed-subject contracts — Investor (slice 2)
