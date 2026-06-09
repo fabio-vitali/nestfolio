@@ -49,3 +49,44 @@ export const LedgerEntryRecordedSchema = z.object({
   snapshot: LedgerSnapshotSchema,
 });
 export type LedgerEntryRecorded = z.infer<typeof LedgerEntryRecordedSchema>;
+
+/** The persisted AccountSnapshot row aggregate (the `Snapshot#latest` item the
+ * reducer materializes; the source SnapshotRecord the CDC transform reads). Dry
+ * subject — identity (tenant/user/region) travels in the RequestContext. */
+export const AccountSnapshotSchema = z.object({
+  streamType: z.string(),
+  positions: z.record(LedgerPositionSchema),
+  cashBalanceCents: z.number(),
+  totalValueCents: z.number(),
+  positionCount: z.number().optional(),
+  lastEventSequence: z.number(),
+  version: z.number(),
+  snapshotAt: z.string(),
+  timestamp: z.string(),
+});
+export type AccountSnapshot = z.infer<typeof AccountSnapshotSchema>;
+
+/** A single tax lot (FIFO cost-basis tracking). Internal aggregate — tenant-scoped
+ * only (no user/region); identity travels in the context. */
+export const TaxLotSchema = z.object({
+  lotId: z.string(),
+  symbol: z.string(),
+  quantity: z.number(),
+  costBasisPerShare: z.number(),
+  acquiredAt: z.string(),
+  status: z.enum(['open', 'closed']),
+});
+export type TaxLot = z.infer<typeof TaxLotSchema>;
+
+/** Append-only snapshot-history aggregate (TTL'd). Internal — not CDC-emitted. */
+export const SnapshotHistorySchema = z.object({
+  streamType: z.string(),
+  positions: z.record(LedgerPositionSchema),
+  cashBalanceCents: z.number(),
+  lastEventSequence: z.number(),
+});
+export type SnapshotHistory = z.infer<typeof SnapshotHistorySchema>;
+
+/** Failure events (LEDGER_PROCESSING_FAILED, LEDGER_SNAPSHOT_PUBLISHER_FAILED) use
+ * the SHARED platform contract — import { ErrorEventSubjectSchema } from
+ * '@nestfolio/event-processor'. They are not producer aggregates. */

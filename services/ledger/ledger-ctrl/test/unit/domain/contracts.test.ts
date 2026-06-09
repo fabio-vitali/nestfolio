@@ -3,6 +3,10 @@ import {
   BalanceUpdatedSchema,
   PortfolioUpdatedSchema,
   LedgerEntryRecordedSchema,
+  AccountSnapshotSchema,
+  TaxLotSchema,
+  SnapshotHistorySchema,
+  LedgerPositionSchema,
 } from '../../../src/domain/contracts';
 
 const snapshot = {
@@ -41,4 +45,58 @@ describe('ledger-ctrl contracts', () => {
     const { snapshotAt: _omittedAt, ...withoutSnapshotAt } = subject;
     expect(() => LedgerEntryRecordedSchema.parse(withoutSnapshotAt)).toThrow();
   });
+});
+
+const position = {
+  symbol: 'VTI', quantity: 50, averageCostBasis: 200,
+  totalCostBasis: 10000, lastFillPrice: 210,
+};
+
+describe('ledger-ctrl AccountSnapshotSchema', () => {
+  it('parses a persisted-snapshot aggregate (no identity/keys)', () => {
+    const subject = {
+      streamType: 'actual',
+      positions: { VTI: position },
+      cashBalanceCents: 500000,
+      totalValueCents: 1550000,
+      positionCount: 1,
+      lastEventSequence: 7,
+      version: 7,
+      snapshotAt: '2026-06-09T00:00:00.000Z',
+      timestamp: '2026-06-09T00:00:00.000Z',
+    };
+    expect(AccountSnapshotSchema.parse(subject)).toMatchObject({ lastEventSequence: 7 });
+  });
+});
+
+describe('ledger-ctrl TaxLotSchema', () => {
+  it('parses a tax-lot aggregate (no pk/sk/__typename/tenantId)', () => {
+    const subject = {
+      lotId: 'order1-VTI', symbol: 'VTI', quantity: 10,
+      costBasisPerShare: 200, acquiredAt: '2026-06-09T00:00:00.000Z', status: 'open',
+    };
+    expect(TaxLotSchema.parse(subject)).toEqual(subject);
+  });
+  it('rejects an invalid status', () => {
+    expect(() => TaxLotSchema.parse({
+      lotId: 'x', symbol: 'VTI', quantity: 1, costBasisPerShare: 1,
+      acquiredAt: '2026-06-09T00:00:00.000Z', status: 'frozen',
+    })).toThrow();
+  });
+});
+
+describe('ledger-ctrl SnapshotHistorySchema', () => {
+  it('parses the append-only snapshot-history aggregate', () => {
+    const subject = {
+      streamType: 'actual',
+      positions: { VTI: position },
+      cashBalanceCents: 500000,
+      lastEventSequence: 7,
+    };
+    expect(SnapshotHistorySchema.parse(subject)).toMatchObject({ lastEventSequence: 7 });
+  });
+});
+
+it('LedgerPositionSchema is reused for snapshot positions', () => {
+  expect(LedgerPositionSchema.parse(position)).toEqual(position);
 });
