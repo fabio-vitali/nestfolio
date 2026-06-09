@@ -4,10 +4,14 @@
  * The CDC publisher emits the whole DDB row as the event subject. A row that parses
  * against its contract proves the emitted subject satisfies the contract.
  *
- * Coverage (naturally produced by onboarded() + withHoldings()):
+ * Coverage:
  *   investor-bff:  InvestorProfile (sk='InvestorProfile'), Mandate (sk='Mandate'),
  *                  Notification read-model (sk='Notification#…' → NotificationRead)
- *   investor-ctrl: Notification (__typename='Notification'), MonthlyReport (__typename='MonthlyReport')
+ *                  — all from onboarded() (ONBOARDING_COMPLETED).
+ *   investor-ctrl: Notification (__typename='Notification') from onboarded()'s lifecycle
+ *                  events; MonthlyReport (__typename='MonthlyReport') from an explicit
+ *                  ORDER_FILLED injected to investor-ctrl (see beforeAll) — withHoldings()
+ *                  only drives the ledger bus, not the execution→investor fan-out.
  *
  * NOT covered here (documented boundary): ExecutionModeChanged — no e2e fixture triggers
  * a live execution-mode switch; covered by the investor-bff producer unit test against the
@@ -36,10 +40,11 @@
  * and drives the real onboarding agent. Execution is gated by the workstream's closing task.
  */
 
-import { createTestContext, type TestContext } from '@nestfolio/test-support';
+import { createTestContext, EventBridgeClient, type TestContext } from '@nestfolio/test-support';
 import { freshTenant, applyFixtures, onboarded, withHoldings, poll, type FreshTenant } from '..';
 import { DynamoDBClient } from '@aws-sdk/client-dynamodb';
 import { DynamoDBDocumentClient, GetCommand, QueryCommand } from '@aws-sdk/lib-dynamodb';
+import { BrokerCtrlEventTypes } from '@nestfolio/broker-ctrl/events';
 import { InvestorProfileUpdatedSchema, NotificationReadSchema } from '@nestfolio/investor-bff/contracts';
 import { MandateSchema } from '@nestfolio/investor-adpt/domain';
 import { NotificationCreatedSchema, MonthlyReportSchema } from '@nestfolio/investor-ctrl/contracts';
@@ -62,6 +67,29 @@ describe('investor-domain producer contracts match REAL deployed emission', () =
       onboarded(),
       withHoldings([{ symbol: 'VTI', quantity: 50, fillPrice: 200 }]),
     ]);
+
+    // withHoldings() publishes ORDER_FILLED to the LEDGER bus only (ledger-ctrl path).
+    // investor-ctrl's MonthlyReport is written by its ORDER_FILLED handler, which receives
+    // the event on the INVESTOR bus (via investor-adpt forwarding in prod). Inject one
+    // directly to investor-ctrl so the gate exercises the real MonthlyReport emission —
+    // mirroring the ledger reconciliation gate's explicit ALPACA_ACCOUNT_SNAPSHOT injection.
+    const eb = new EventBridgeClient(ctx);
+    await eb.putEvent({
+      bus: 'investor',
+      targetService: 'investor-ctrl',
+      detailType: BrokerCtrlEventTypes.ORDER_FILLED,
+      detail: {
+        tenantId: tenant.tenantId,
+        userId: tenant.userId,
+        orderId: `e2e-mr-${tenant.tenantId}`,
+        symbol: 'VTI',
+        quantity: 50,
+        fillPrice: 200,
+        filledAt: new Date().toISOString(),
+        side: 'BUY',
+      },
+    });
+
     ddbClient = new DynamoDBClient({ region: ctx.region });
     ddbDoc = DynamoDBDocumentClient.from(ddbClient);
   }, 600_000);
@@ -132,7 +160,8 @@ describe('investor-domain producer contracts match REAL deployed emission', () =
       expect(notifs.length).toBeGreaterThan(0);
       notifs.forEach((row, i) => expectContractMatch(NotificationCreatedSchema, row, `NotificationCreated[${i}]`));
 
-      // MonthlyReport is written by the ORDER_FILLED branch (withHoldings fixture).
+      // MonthlyReport is written by investor-ctrl's ORDER_FILLED branch, driven by the
+      // ORDER_FILLED injected to investor-ctrl in beforeAll.
       const reports = await poll(async () => {
         const items = await byTypename('MonthlyReport');
         return items.length ? items : undefined;
