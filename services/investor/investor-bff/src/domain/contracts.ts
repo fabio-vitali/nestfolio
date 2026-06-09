@@ -36,3 +36,22 @@ export const InvestorProfileUpdatedSchema = z.object({
   __version: z.number().optional(),
 });
 export type InvestorProfileUpdated = z.infer<typeof InvestorProfileUpdatedSchema>;
+
+/** Subject shape for NOTIFICATION_READ — the investor-bff Notification read-model row
+ * (sk='Notification#…'), projected from investor-ctrl's NOTIFICATION_CREATED
+ * (transforms/notification-created.ts) and transitioned to READ by the
+ * markNotificationRead resolver. Unconsumed cross-domain, so its home is here.
+ * Dry subject — tenant/user identity travels in the event context, not here. */
+export const NotificationReadSchema = z.object({
+  notificationId: z.string(),
+  channel: z.string(),
+  title: z.string(),
+  body: z.string(),
+  relatedEntityType: z.string(),
+  relatedEntityId: z.string(),
+  status: z.string(),
+  read: z.boolean().optional(),
+  readAt: z.string().nullable().optional(),
+  createdAt: z.string().optional(),
+});
+export type NotificationRead = z.infer<typeof NotificationReadSchema>;
