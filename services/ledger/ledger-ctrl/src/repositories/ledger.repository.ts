@@ -1,9 +1,8 @@
 import { DynamoDBClient } from '@aws-sdk/client-dynamodb';
 import { UpdateCommand, PutCommand, QueryCommand } from '@aws-sdk/lib-dynamodb';
 import {
-  TableRepository, getTime, type RequestContext, type TableEntry,
+  TableRepository, getTime, withMethodLogging, type RequestContext, type TableEntry,
 } from '@nestfolio/event-processor';
-import { withMethodLogging } from '@nestfolio/event-processor';
 import type { TaxLot } from '../domain/contracts';
 
 // ---------------------------------------------------------------------------
