@@ -48,5 +48,5 @@ unit tests + `tsc` green.
 
 ## Deps
 
-Phase-0 (`typed-subject-platform-context-taxonomy`) — needs the `EventContext`/`RequestContext`
+Phase-0 (`typed-subject-platform-context-taxonomy`) — needs the `SubjectContext`/`RequestContext`
 taxonomy + the constrained `TableEntry<Subject>`.

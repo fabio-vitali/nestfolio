@@ -86,27 +86,36 @@ tenant-scoped (most), region-scoped (`MarketSnapshot#${region}` — no `tenantId
 (`platform/`). Back-compat is **not** a constraint ([[no-deprecation]]), so usage sites are cleaned
 up directly rather than relying on the default.
 
+> **Naming correction (phase-0 implementation).** The base is named **`SubjectContext`**, *not*
+> `EventContext`. `EventContext` is **already** a public export of `@nestfolio/event-processor`
+> (`types/event-context.ts`) with the opposite meaning — the per-invocation **handler context**
+> (`RequestContext` + `{eventId, eventType, timestamp, serviceName, record}`), used in handler
+> signatures across the workspace. Reusing that name would either collide or force a workspace-wide
+> rename of a pervasive symbol (out of scope for the lib-only phase-0). `SubjectContext` also pairs
+> cleanly with the program's core noun: `BusEvent<Subject, SubjectContext>` /
+> `TableEntry<Subject, SubjectContext>`. (Decision: user, 2026-06-09.)
+
 ```ts
 /** Base for all event/row context types. Global aggregates use this directly (no identity). */
-export type EventContext = object;
+export type SubjectContext = object;
 
-/** Tenant-scoped aggregates. (Existing type, re-based onto EventContext.) */
-export interface RequestContext extends EventContext {
+/** Tenant-scoped aggregates. (Existing type, re-based onto SubjectContext.) */
+export interface RequestContext extends SubjectContext {
   tenantId: TenantId;
   userId: UserId;
   region: string;
 }
 
 /** Region-scoped aggregates (market data keyed on region). */
-export interface RegionContext extends EventContext {
+export interface RegionContext extends SubjectContext {
   region: string;
 }
 
 // Both generics constrained to the same base; RequestContext is the ergonomic default.
-export type BusEvent<T = object, S extends EventContext = RequestContext> =
+export type BusEvent<T = object, S extends SubjectContext = RequestContext> =
   Event & { subject: T; context: S };
 
-export type TableEntry<T extends object = object, S extends EventContext = RequestContext> =
+export type TableEntry<T extends object = object, S extends SubjectContext = RequestContext> =
   T & { pk: string; sk: string; __typename: string; createdAt: string; updatedAt?: string; ttl?: number } & S;
 ```
 
@@ -114,7 +123,7 @@ export type TableEntry<T extends object = object, S extends EventContext = Reque
 - Region-scoped aggregate → `…<Subject, RegionContext>`.
 - Global aggregate → `…<Subject, Record<string, never>>` (the bare base).
 
-This resolves the asymmetry (both constrained to `EventContext`), types region/global aggregates
+This resolves the asymmetry (both constrained to `SubjectContext`), types region/global aggregates
 accurately, and makes conventions 5–6 lint-enforceable. Blast radius is small (`RequestContext`
 remains the default); the phase-0 slice fixes whatever churn the constraint surfaces.
 
