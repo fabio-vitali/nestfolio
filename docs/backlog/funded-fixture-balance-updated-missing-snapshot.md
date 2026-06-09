@@ -1,9 +1,9 @@
 ---
 id: funded-fixture-balance-updated-missing-snapshot
 status: queued
-rank: 12
+rank: 2
 type: bug
-notes: "E2E-SUITE BLOCKER surfaced 2026-06-09 by the typed-subject-contracts-ledger validation gate. apps/e2e-feature-tests funded() (src/helpers/fixtures.ts) emits a SYNTHETIC BALANCE_UPDATED with only {tenantId, userId, cashBalanceCents} — missing the contract-required `snapshot` field. The DEPLOYED investor-bff parses BALANCE_UPDATED against a schema requiring `snapshot` (the real ledger-ctrl producer always emits it via snapshot-to-events.ts), so the CashBalance projection throws ZodError (path:[snapshot], received undefined) → CashBalance never materializes → funded() times out after 60s. Pre-existing: investor-bff was NOT changed by the ledger slice; the mismatch dates to the ~2026-06-08 consumer-contract work (event-subject-payload-build-tripwire / event-subject-contracts) that made investor-bff strict-parse BALANCE_UPDATED, without updating funded(). Blocks EVERY e2e scenario that uses funded() (e.g. the withdrawal flows that depend on the investor-bff CashBalance row). The textbook [[event-subject-contracts]] anti-pattern: a fixture emits a shape the real producer never emits. Fix: make funded() emit a contract-valid BALANCE_UPDATED — add snapshot:{positions:{}, cashBalanceCents, lastEventSequence} (matching ledger-ctrl/contracts BalanceUpdatedSchema), value-consistent with cashBalanceCents. Consider asserting the fixture's emitted detail against the producer contract so co-wrong fixtures fail loudly. Ranked 12 (appended) — boundary review should re-rank vs the typed-subject slices given it gates the whole e2e suite."
+notes: "E2E-SUITE BLOCKER surfaced 2026-06-09 by the typed-subject-contracts-ledger validation gate. apps/e2e-feature-tests funded() (src/helpers/fixtures.ts) emits a SYNTHETIC BALANCE_UPDATED with only {tenantId, userId, cashBalanceCents} — missing the contract-required `snapshot` field. The DEPLOYED investor-bff parses BALANCE_UPDATED against a schema requiring `snapshot` (the real ledger-ctrl producer always emits it via snapshot-to-events.ts), so the CashBalance projection throws ZodError (path:[snapshot], received undefined) → CashBalance never materializes → funded() times out after 60s. Pre-existing: investor-bff was NOT changed by the ledger slice; the mismatch dates to the ~2026-06-08 consumer-contract work (event-subject-payload-build-tripwire / event-subject-contracts) that made investor-bff strict-parse BALANCE_UPDATED, without updating funded(). Blocks EVERY e2e scenario that uses funded() (e.g. the withdrawal flows that depend on the investor-bff CashBalance row). The textbook [[event-subject-contracts]] anti-pattern: a fixture emits a shape the real producer never emits. Fix: make funded() emit a contract-valid BALANCE_UPDATED — add snapshot:{positions:{}, cashBalanceCents, lastEventSequence} (matching ledger-ctrl/contracts BalanceUpdatedSchema), value-consistent with cashBalanceCents. Consider asserting the fixture's emitted detail against the producer contract so co-wrong fixtures fail loudly. Ranked 2 (top of QUEUED, promoted 2026-06-09): a small Simple-lane fix that unblocks the WHOLE e2e suite (the validation mechanism every remaining typed-subject slice depends on) — do BEFORE slice 2 (typed-subject-contracts-investor)."
 references: []
 out_of_scope: []
 spec: null
@@ -70,5 +70,7 @@ materializes. Strongly consider validating the fixture's emitted `detail` agains
 
 ## Ranking
 
-Appended at rank 12; it gates the whole e2e suite, so the boundary review should re-rank it
-against the typed-subject slices.
+Promoted to rank 2 (top of QUEUED) 2026-06-09. It gates the whole e2e suite — the validation
+mechanism every remaining typed-subject slice depends on — and the fix is a small Simple-lane
+test-fixture change (no service deploy), so it leads the queue, ahead of slice 2
+(typed-subject-contracts-investor).
