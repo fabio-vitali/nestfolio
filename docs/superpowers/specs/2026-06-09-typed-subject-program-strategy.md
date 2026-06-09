@@ -35,8 +35,9 @@ Each contract types **both** the row (`TableEntry<Subject>`) and the event (`Bus
 convention (3). Convert the inline-declared row types (e.g. TaxLot, SnapshotRecord, SecFiling, the
 DWC projection rows, IP/MI snapshot rows, PE/AN AgentCompletionRow/AgentFailureRow) to
 `TableEntry<Subject>`. Establish the **cross-domain re-export**: an event consumed across a domain
-boundary has its producer contract re-exported via the consuming-direction **adapter's `/domain`**
-(the `ProposedTrade` precedent) — never service↔service direct imports (that created the
+boundary has its producer contract re-exported via the **producer domain's adapter `/domain`**
+(the `ProposedTrade` precedent: advisory *produces* it, so it sits in `advisory-adpt/domain`) — never
+service↔service direct imports (that created the
 broker-ctrl↔investor-bff project cycle the prior program hit). Fix the stale
 `compliance-ctrl DecisionApprovedSchema`. Includes the advisory inter-agent handoff contracts.
 
