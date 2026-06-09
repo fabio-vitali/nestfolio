@@ -40,3 +40,40 @@ export const WithdrawalInitiatedSchema = z.object({
   timestamp: z.string(),
 });
 export type WithdrawalInitiated = z.infer<typeof WithdrawalInitiatedSchema>;
+
+/**
+ * Subject shape for MANDATE_ISSUED / MANDATE_REVOKED / OPERATING_MODE_CHANGED.
+ * One aggregate, three event names — the whole Mandate sibling row (sk='Mandate',
+ * investor-bff transforms/onboarding-completed.ts + revokeMandate/updateOperatingMode
+ * resolvers) is CDC-emitted as the subject. OPERATING_MODE_CHANGED is re-sourced from
+ * this row's operatingMode field (onFieldChange), so operatingMode is a Mandate field.
+ *
+ * Owned here in the PRODUCER's cross-domain adapter (investor-adpt/domain) — investor
+ * produces it; compliance-ctrl (advisory domain) consumes it. Matches the
+ * DepositInitiated / ProposedTrade precedent. Dry subject — identity travels in the
+ * event context (RequestContext), not here.
+ */
+export const MandateSchema = z.object({
+  mandateId: z.string(),
+  level: z.enum(['ADVISORY', 'DISCRETIONARY']),
+  status: z.enum(['ACTIVE', 'REVOKED']),
+  operatingMode: z.enum(['CONSERVATIVE', 'BALANCED', 'AGGRESSIVE']),
+  effectiveDate: z.string(),
+  revokedAt: z.string().nullable().optional(),
+  __version: z.number().optional(),
+});
+export type Mandate = z.infer<typeof MandateSchema>;
+
+/**
+ * Subject shape for EXECUTION_MODE_CHANGED / EXECUTION_MODE_CHANGE_UPDATED.
+ * The ExecutionModeChange audit row (investor-bff investor-profile.repository.ts
+ * setExecutionMode). Owned here — broker-ctrl (execution domain) consumes
+ * EXECUTION_MODE_CHANGED. Dry subject — identity travels in the event context.
+ */
+export const ExecutionModeChangedSchema = z.object({
+  changeId: z.string(),
+  fromMode: z.enum(['simulation', 'live']),
+  toMode: z.enum(['simulation', 'live']),
+  changedAt: z.string(),
+});
+export type ExecutionModeChanged = z.infer<typeof ExecutionModeChangedSchema>;
