@@ -42,7 +42,6 @@ Stack: `services/execution/execution-ctrl/src/service.stack.ts`
 ### Unit (`test/unit/`)
 - event-listener.test.ts
 - market-hours.service.test.ts
-- order-lifecycle.service.test.ts
 - order.repository.test.ts
 - safety-checks.service.test.ts
 - staged-order-processor.test.ts
