@@ -15,7 +15,7 @@ out_of_scope:
   - "Already-filed side-findings that touch advisory-adjacent code but are their own items: broker-funding-completed-normalization-drift (rank 6), broker-ctrl-order-sf-input-contract-gap (LATER), advisory-handler-type-narrowing-debt (LATER), advisory-bff-decision-publisher-proposedtrade-shape-mismatch (LATER). New side-findings get file-and-continue via backlog-add."
   - "compliance-ctrl beyond the DECISION_APPROVED stale-schema fix: only the one drifted producer contract + its reconciliation is in scope; broader compliance-ctrl refactors are not."
 spec: docs/superpowers/specs/2026-06-09-typed-subject-producer-contracts-design.md
-plan: null
+plan: docs/superpowers/plans/2026-06-10-typed-subject-contracts-advisory.md
 topic_memory: []
 validation_gate: null
 ---
