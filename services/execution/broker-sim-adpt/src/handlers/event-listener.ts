@@ -3,7 +3,7 @@ import { logger, NotRetryableError } from '@nestfolio/event-processor';
 import { requireEnv } from '@nestfolio/event-processor';
 import { createIngestionHandler, skip, record, getTime, pickRequestContext, type EventPayload, type EventContext } from '@nestfolio/event-processor';
 import { BrokerSimEventTypes } from '../domain/events';
-import type { SimWithdrawalCompleted } from '../domain/contracts';
+import type { SimDepositCompleted, SimWithdrawalCompleted } from '../domain/contracts';
 import { VirtualLedgerRepository } from '../repositories/virtual-ledger.repository';
 import { MarketDataService } from '../services/market-data.service';
 import { SimulationEngineService } from '../services/simulation-engine.service';
@@ -156,15 +156,18 @@ export function createHandlers(deps: EventListenerDeps) {
 
       // Always emit DepositDetected so CDC can publish DEPOSIT_DETECTED to EventBridge
       // DDB PutItem on same pk/sk is idempotent — safe to re-emit on duplicate
-      return record('DepositDetected', {
-        __typename: 'DepositDetected',
-        tenantId,
+      const depositSubject: SimDepositCompleted = {
         depositId,
         amountCents,
         currency,
-        userId,
         sourceEventId: ctx.eventId,
         timestamp: getTime(),
+      };
+      return record('DepositDetected', {
+        __typename: 'DepositDetected',
+        tenantId,
+        userId,
+        ...depositSubject,
       }, { pk: `DepositDetected#${tenantId}#${ctx.eventId}`, sk: 'DepositDetected' });
     },
   };
