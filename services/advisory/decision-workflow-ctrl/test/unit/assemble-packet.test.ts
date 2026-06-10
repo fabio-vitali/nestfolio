@@ -9,6 +9,31 @@ jest.mock('../../src/repositories/decision-packet.repository', () => ({
 process.env.TABLE_NAME = 'test-table';
 
 import { createAssemblePacketHandler } from '../../src/handlers/assemble-packet';
+import type { PortfolioAgentOutput } from '@nestfolio/portfolio-engine-ctrl/contracts';
+import type { NarrativeAgentOutput } from '@nestfolio/advisory-narrative-ctrl/contracts';
+
+type Alloc = PortfolioAgentOutput['allocations']['allocations'][number];
+
+/** Builds a conforming Partial<PortfolioAgentOutput> from an allocation list — fills the
+ * required PortfolioConstruction sub-fields (equityWeight/riskMetrics/confidence) the handler
+ * never reads but the producer schema requires, so test fixtures stay type-honest (no `as any`). */
+const mkPortfolio = (allocations: Alloc[]): Partial<PortfolioAgentOutput> => ({
+  allocations: {
+    allocations,
+    totalExposure: 1,
+    equityWeight: 0,
+    riskMetrics: { concentrationRisk: 0, sectorDiversity: 0, largestPositionWeight: 0 },
+    confidence: 1,
+  },
+});
+
+/** Builds a conforming Partial<NarrativeAgentOutput> with just the rationale/summary the handler
+ * reads, plus a valid metadata sub-shape (durationMs is required when metadata is present). */
+const mkNarrative = (fields: { rationale?: string; summary?: string }): Partial<NarrativeAgentOutput> => ({
+  decisionId: 'dec-1',
+  ...fields,
+  metadata: { durationMs: 0 },
+});
 
 describe('assemble-packet handler', () => {
   const mockCreateDecisionPacket = jest.fn();
@@ -114,18 +139,24 @@ describe('assemble-packet handler', () => {
   });
 
   it('passes the 4 agent outputs through to the result envelope', async () => {
+    // Realistic minimal partials conforming to Partial<ProducerSchema> — the handler
+    // passes each agent output straight through to the result envelope unchanged.
+    const investorProfile = { riskCategory: 'MODERATE' as const };
+    const marketAnalysis = { marketOutlook: 'NEUTRAL' };
+    const portfolio = { decisionId: 'dec-1' };
+    const narrative = { summary: 's', rationale: 'r' };
     const result = await handler({
       ...baseEvent,
-      investorProfile: { test: true },
-      marketAnalysis: { test: true },
-      portfolio: { test: true },
-      narrative: { test: true },
+      investorProfile,
+      marketAnalysis,
+      portfolio,
+      narrative,
     });
 
-    expect(result.investorProfileOutput).toEqual({ test: true });
-    expect(result.marketAnalysisOutput).toEqual({ test: true });
-    expect(result.portfolioOutput).toEqual({ test: true });
-    expect(result.narrativeOutput).toEqual({ test: true });
+    expect(result.investorProfileOutput).toEqual(investorProfile);
+    expect(result.marketAnalysisOutput).toEqual(marketAnalysis);
+    expect(result.portfolioOutput).toEqual(portfolio);
+    expect(result.narrativeOutput).toEqual(narrative);
   });
 
   it('returns null for missing outputs', async () => {
@@ -192,7 +223,6 @@ describe('assemble-packet handler', () => {
           estimatedTurnover: 0.1,
           confidence: 0.8,
         },
-        currentPositions: [],
         metadata: { durationMs: 1234, modeUsed: 'BALANCED' },
       },
       narrative: null,
@@ -227,16 +257,10 @@ describe('assemble-packet handler', () => {
         triggerAmountCents: 100_000, // $1000 deposit
         investorProfile: { riskCategory: 'MODERATE' },
         marketAnalysis: null,
-        portfolio: {
-          allocations: {
-            allocations: [
-              { instrument: 'VTI', targetWeight: 0.14, assetClass: 'EQUITY', rationale: 'Core US' },
-            ],
-            totalExposure: 1,
-          },
-          currentPositions: [],
-        },
-        narrative: { decisionId: 'dec-1', rationale: 'ok', metadata: {} },
+        portfolio: mkPortfolio([
+          { instrument: 'VTI', targetWeight: 0.14, assetClass: 'EQUITY', rationale: 'Core US' },
+        ]),
+        narrative: mkNarrative({ rationale: 'ok' }),
       });
       expect(result.portfolioValueCents).toBe(100_000);
       expect(result.proposedTrades).toHaveLength(1);
@@ -273,8 +297,8 @@ describe('assemble-packet handler', () => {
         triggerAmountCents: 100_000,
         investorProfile: { riskCategory: 'MODERATE' },
         marketAnalysis: null,
-        portfolio: { allocations: { allocations: [], totalExposure: 1 }, currentPositions: [] },
-        narrative: { decisionId: 'dec-1', rationale: 'ok', metadata: {} },
+        portfolio: mkPortfolio([]),
+        narrative: mkNarrative({ rationale: 'ok' }),
       });
       expect(result.isInitialBuild).toBe(true);
     });
@@ -303,8 +327,8 @@ describe('assemble-packet handler', () => {
         triggerAmountCents: 100_000,
         investorProfile: {}, // no riskCategory
         marketAnalysis: null,
-        portfolio: { allocations: { allocations: [], totalExposure: 1 }, currentPositions: [] },
-        narrative: { decisionId: 'dec-1', rationale: 'ok', metadata: {} },
+        portfolio: mkPortfolio([]),
+        narrative: mkNarrative({ rationale: 'ok' }),
       });
       expect(result.riskCategory).toBe('MODERATE');
     });
@@ -316,8 +340,8 @@ describe('assemble-packet handler', () => {
           triggerAmountCents: 100_000,
           investorProfile: { riskCategory: cat },
           marketAnalysis: null,
-          portfolio: { allocations: { allocations: [], totalExposure: 1 }, currentPositions: [] },
-          narrative: { decisionId: 'dec-1', rationale: 'ok', metadata: {} },
+          portfolio: mkPortfolio([]),
+          narrative: mkNarrative({ rationale: 'ok' }),
         });
         expect(result.riskCategory).toBe(cat);
       }
@@ -331,14 +355,10 @@ describe('assemble-packet handler', () => {
         ...baseEvent,
         investorProfile: { riskCategory: 'MODERATE' },
         marketAnalysis: null,
-        portfolio: {
-          allocations: {
-            allocations: [{ instrument: 'VTI', targetWeight: 0.5, assetClass: 'EQUITY', rationale: 'x' }],
-            totalExposure: 1,
-          },
-          currentPositions: [],
-        },
-        narrative: { decisionId: 'dec-1', rationale: 'ok', metadata: {} },
+        portfolio: mkPortfolio([
+          { instrument: 'VTI', targetWeight: 0.5, assetClass: 'EQUITY', rationale: 'x' },
+        ]),
+        narrative: mkNarrative({ rationale: 'ok' }),
       });
       expect(result.portfolioValueCents).toBe(0);
       expect(result.proposedTrades).toEqual([]);

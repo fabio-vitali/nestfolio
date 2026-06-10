@@ -1,3 +1,5 @@
+import type { TableEntry, RequestContext, RegionContext } from '@nestfolio/event-processor';
+
 /** Status of a DecisionPacket through the Step Functions workflow.
  *  GENERATING/FAILED are cycle-lifecycle statuses set by advisory-bff (WS-2)
  *  from the SF-direct DECISION_CYCLE_STARTED/FAILED events — no DecisionPacket
@@ -29,22 +31,17 @@ export interface DecisionPacket {
   readonly updatedAt: string;
 }
 
-export interface InvestorProfileSnapshotProjectionRow {
-  readonly pk: string;                              // `InvestorProfileSnapshot#${tenantId}#${userId}`
-  readonly sk: 'InvestorProfileSnapshot';
-  readonly __typename: 'InvestorProfileSnapshot';
-  readonly tenantId: string;
-  readonly userId: string;
-  readonly agentOutput: Record<string, unknown>;
-  readonly sourceEventId: string;
-  readonly updatedAt: string;
-}
+/** DWC-local mirror of the upstream InvestorProfileSnapshot.
+ * agentOutput is stored JSON-stringified for States.StringToJson SF consumption
+ * — hence `string`, not the producer's structured object. */
+export type InvestorProfileSnapshotProjectionRow = TableEntry<
+  { agentOutput: string; sourceEventId: string },
+  RequestContext
+> & { readonly __typename: 'InvestorProfileSnapshot'; readonly sk: 'InvestorProfileSnapshot' };
 
-export interface MarketSnapshotProjectionRow {
-  readonly pk: string;                              // `MarketSnapshot#${region}`
-  readonly sk: 'MarketSnapshot';
-  readonly __typename: 'MarketSnapshot';
-  readonly region: string;
-  readonly agentOutput: Record<string, unknown>;
-  readonly updatedAt: string;
-}
+/** DWC-local mirror of the upstream MarketSnapshot (region-scoped).
+ * agentOutput JSON-stringified for States.StringToJson SF consumption. */
+export type MarketSnapshotProjectionRow = TableEntry<
+  { agentOutput: string },
+  RegionContext
+> & { readonly __typename: 'MarketSnapshot'; readonly sk: 'MarketSnapshot' };

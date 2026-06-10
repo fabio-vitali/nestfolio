@@ -1,5 +1,6 @@
 import {
   materializeToTable,
+  parseSubject,
   projectVersioned,
   skip,
   NotRetryableError,
@@ -8,13 +9,16 @@ import {
   type WriteIntent,
 } from '@nestfolio/event-processor';
 import { InvestorBffEventTypes } from '@nestfolio/investor-bff/events';
+import { MandateSnapshotSchema } from '../domain/contracts';
 import { mandateSnapshotPk, MANDATE_SNAPSHOT_SK } from '../repositories/mandate-snapshot.repository';
 
 function projectMandateSnapshot(payload: EventPayload, ctx: EventContext): WriteIntent {
-  const subject = payload.subject ?? {};
-  const tenantId = (subject.tenantId as string) ?? ctx.tenantId;
-  const userId = (subject.userId as string) ?? tenantId;
-  const operatingMode = subject.operatingMode as string | undefined;
+  // parseSubject validates the inbound mandate payload against the DWC-owned MandateSnapshotSchema.
+  // Identity (tenantId/userId) is read from ctx (EventContext extends RequestContext).
+  const subject = parseSubject(payload, MandateSnapshotSchema);
+  const tenantId = ctx.tenantId;
+  const userId = ctx.userId;
+  const operatingMode = subject.operatingMode;
 
   if (!operatingMode) {
     throw new NotRetryableError(
@@ -22,6 +26,8 @@ function projectMandateSnapshot(payload: EventPayload, ctx: EventContext): Write
     );
   }
 
+  // __version is optional in MandateSnapshotSchema so mandate-projector can read
+  // it from the parsed subject rather than raw payload.subject with a cast.
   const version = subject.__version;
   if (typeof version !== 'number') return skip();
 
@@ -32,11 +38,11 @@ function projectMandateSnapshot(payload: EventPayload, ctx: EventContext): Write
   return projectVersioned('MandateSnapshot', {
     tenantId,
     userId,
-    mandateId: subject.mandateId as string | undefined,
-    level: subject.level as string | undefined,
+    mandateId: subject.mandateId,
+    level: subject.level,
     operatingMode,
-    effectiveDate: subject.effectiveDate as string | undefined,
-    status: (subject.status as string | undefined) ?? 'ACTIVE',
+    effectiveDate: subject.effectiveDate,
+    status: subject.status ?? 'ACTIVE',
   }, {
     version,
     overrides: { pk: mandateSnapshotPk(tenantId, userId), sk: MANDATE_SNAPSHOT_SK },

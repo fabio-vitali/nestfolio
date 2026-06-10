@@ -1,4 +1,8 @@
 import { requireEnv } from '@nestfolio/event-processor';
+import type { InvestorProfileSnapshot } from '@nestfolio/investor-profile-ctrl/contracts';
+import type { MarketSnapshot } from '@nestfolio/market-intelligence-ctrl/contracts';
+import type { PortfolioAgentOutput } from '@nestfolio/portfolio-engine-ctrl/contracts';
+import type { NarrativeAgentOutput } from '@nestfolio/advisory-narrative-ctrl/contracts';
 import { DecisionPacketRepository } from '../repositories/decision-packet.repository';
 import { MICRO_TRADE_EPSILON_BPS } from '../trade-thresholds';
 
@@ -24,13 +28,17 @@ interface AssemblePacketEvent {
   triggerAmountCents?: number;
   // Agent outputs plumbed via SF state Parameters from $.agentResults.<Upstream>.agentOutput
   // (see services/advisory/decision-workflow-ctrl/src/constructs/decision-state-machine.ts
-  // AssembleDecisionPacket Parameters.Payload). Any may be null/undefined when the
-  // upstream agent failed to produce structured output — the placeholder fallbacks
-  // below keep the decision packet creatable in degraded states.
-  investorProfile?: Record<string, unknown> | null;
-  marketAnalysis?: Record<string, unknown> | null;
-  portfolio?: { allocations?: { allocations?: Array<Record<string, unknown>> } } | null;
-  narrative?: Record<string, unknown> | null;
+  // AssembleDecisionPacket Parameters.Payload). Each is typed as Partial<ProducerSchema>:
+  // the full structured agentOutput (the common runtime case, from States.StringToJson) AND
+  // the degraded `{}` / partial cases both conform, while every field the handler reads stays
+  // typed. No `| Record<string,unknown>` erasure — the producer contracts are the contract.
+  //
+  // investorProfile/marketAnalysis are the agentOutput SUB-object (hence ['agentOutput']);
+  // portfolio/narrative are the full composite output.
+  investorProfile?: Partial<InvestorProfileSnapshot['agentOutput']> | null;
+  marketAnalysis?: Partial<MarketSnapshot['agentOutput']> | null;
+  portfolio?: Partial<PortfolioAgentOutput> | null;
+  narrative?: Partial<NarrativeAgentOutput> | null;
   // Plumbed by the SF (Branch C of ParallelProjections); SF substitutes a default on absent-row.
   ledgerSnapshot?: LedgerSnapshotState;
 }
@@ -102,8 +110,7 @@ export function createAssemblePacketHandler(deps: AssemblePacketDeps) {
     // totalExposure (≈1.0) is the agent's normalization indicator and is NOT a
     // portfolio value; we derive portfolioValueCents from triggerAmountCents
     // + currentPositionsValueCents instead.
-    const allocationEnvelope = portfolio?.allocations ?? {};
-    const allocationsArray = allocationEnvelope.allocations ?? [];
+    const allocationsArray = portfolio?.allocations?.allocations ?? [];
 
     // LedgerSnapshot is plumbed in by the SF (Branch C of ParallelProjections).
     // On absent-row, the SF substitutes { positions: {}, cashBalanceCents: 0 } —
@@ -187,8 +194,7 @@ export function createAssemblePacketHandler(deps: AssemblePacketDeps) {
       .sort((a, b) => sideRank(a.side) - sideRank(b.side) || a.symbol.localeCompare(b.symbol));
 
     const isInitialBuild = currentPositions.length === 0;
-    const riskCategory =
-      (investorProfile?.riskCategory as 'CONSERVATIVE' | 'MODERATE' | 'AGGRESSIVE' | undefined) ?? 'MODERATE';
+    const riskCategory = investorProfile?.riskCategory ?? 'MODERATE';
 
     // Narrative output shape: advisory-narrative-ctrl's agent-service.ts spreads
     // `explainability` at the top level (`return { decisionId, ...explainability, metadata }`),
@@ -196,8 +202,8 @@ export function createAssemblePacketHandler(deps: AssemblePacketDeps) {
     // `.explainability.` nesting. `rationale` first, fall back to `summary`.
     // Final placeholder is defence-in-depth for the degraded-output path.
     const explanation =
-      (narrative?.rationale as string | undefined) ??
-      (narrative?.summary as string | undefined) ??
+      narrative?.rationale ??
+      narrative?.summary ??
       `Decision pending — the advisory narrative for this ${trigger} trigger has not been persisted yet.`;
 
     // Materialize the DecisionPacket row. CDC on this INSERT emits
