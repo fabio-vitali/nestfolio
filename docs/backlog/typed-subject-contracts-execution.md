@@ -14,8 +14,8 @@ out_of_scope:
   - "Enforcement capstone (typing-convention-enforcement-skills-docs): skills/docs/lint enforcement is a separate queued item."
   - "Other domains' producer contracts: ledger + investor already shipped; advisory is slice 4."
   - "Runtime changes to emitted CONTEXT payloads beyond what typing requires (subject = business aggregate only; metainfo stays in context)."
-spec: null
-plan: null
+spec: docs/superpowers/specs/2026-06-09-typed-subject-producer-contracts-design.md
+plan: docs/superpowers/plans/2026-06-10-typed-subject-contracts-execution.md
 topic_memory: []
 validation_gate: null
 ---
