@@ -2,28 +2,14 @@ import { DynamoDBClient } from '@aws-sdk/client-dynamodb';
 import { GetCommand, PutCommand, UpdateCommand } from '@aws-sdk/lib-dynamodb';
 import { TableRepository, getTime, type TableEntry, type RequestContext } from '@nestfolio/event-processor';
 import { withMethodLogging, guardedWrite } from '@nestfolio/event-processor';
+import type { VirtualTrade, VirtualCashBalance, VirtualPosition, VirtualSnapshot } from '../domain/contracts';
+
+// executedAt / createdAt are set by the repository, not passed by callers
+type VirtualTradeInput = Omit<VirtualTrade, 'executedAt'>;
+type VirtualSnapshotInput = Omit<VirtualSnapshot, 'createdAt'>;
 
 function ledgerPk(tenantId: string, userId: string): string {
   return `VirtualLedger#${tenantId}#${userId}`;
-}
-
-export interface VirtualTrade {
-  tradeId: string;
-  orderId: string;
-  symbol: string;
-  side: 'BUY' | 'SELL';
-  quantity: number;
-  fillPrice: number;
-  totalValue: number;
-  cashBefore: number;
-  cashAfter: number;
-}
-
-export interface VirtualSnapshot {
-  date: string;
-  cashBalance: number;
-  positions: Array<{ symbol: string; quantity: number; marketValue: number }>;
-  totalValue: number;
 }
 
 export class VirtualLedgerRepository extends TableRepository {
@@ -57,17 +43,18 @@ export class VirtualLedgerRepository extends TableRepository {
       ctx: RequestContext,
     ): Promise<void> => {
       const now = getTime();
-      const item: TableEntry = {
+      const item = {
         pk: ledgerPk(ctx.tenantId, ctx.userId),
         sk: `CashBalance#${currency}`,
-        __typename: 'VirtualCashBalance',
+        __typename: 'VirtualCashBalance' as const,
         ...ctx,
         timestamp: now,
         currency,
         balance: amount,
         version: 1,
         updatedAt: now,
-      };
+        createdAt: now,
+      } satisfies TableEntry<VirtualCashBalance, RequestContext> & { __typename: 'VirtualCashBalance'; timestamp: string };
       await this.put(item);
     },
   );
@@ -81,17 +68,18 @@ export class VirtualLedgerRepository extends TableRepository {
     ): Promise<void> => {
       const now = getTime();
       const pk = ledgerPk(ctx.tenantId, ctx.userId);
-      const item: TableEntry = {
+      const item = {
         pk,
         sk: `CashBalance#${currency}`,
-        __typename: 'VirtualCashBalance',
+        __typename: 'VirtualCashBalance' as const,
         ...ctx,
         timestamp: now,
         currency,
         balance: newBalance,
         version: expectedVersion + 1,
         updatedAt: now,
-      };
+        createdAt: now,
+      } satisfies TableEntry<VirtualCashBalance, RequestContext> & { __typename: 'VirtualCashBalance'; timestamp: string };
       await this.docClient.send(
         new PutCommand({
           TableName: this.tableName,
@@ -184,7 +172,7 @@ export class VirtualLedgerRepository extends TableRepository {
 
   readonly executeTrade = this.log('executeTrade',
     async (
-      trade: VirtualTrade,
+      trade: VirtualTradeInput,
       ctx: RequestContext,
     ): Promise<void> => {
       const now = getTime();
@@ -194,20 +182,23 @@ export class VirtualLedgerRepository extends TableRepository {
       const currentCash = await this.getCashBalance(ctx.tenantId, ctx.userId, 'USD');
       const currentVersion = (currentCash?.version as number) ?? 0;
 
+      const cashItem = {
+        pk,
+        sk: `CashBalance#USD`,
+        __typename: 'VirtualCashBalance' as const,
+        ...ctx,
+        timestamp: now,
+        currency: 'USD',
+        balance: trade.cashAfter,
+        version: currentVersion + 1,
+        updatedAt: now,
+        createdAt: now,
+      } satisfies TableEntry<VirtualCashBalance, RequestContext> & { __typename: 'VirtualCashBalance'; timestamp: string };
+
       const cashUpdate = {
         Put: {
           TableName: this.tableName,
-          Item: {
-            pk,
-            sk: `CashBalance#USD`,
-            __typename: 'VirtualCashBalance',
-            ...ctx,
-            timestamp: now,
-            currency: 'USD',
-            balance: trade.cashAfter,
-            version: currentVersion + 1,
-            updatedAt: now,
-          },
+          Item: cashItem,
           ...(currentVersion > 0
             ? {
                 ConditionExpression: '#v = :expectedVersion',
@@ -245,7 +236,7 @@ export class VirtualLedgerRepository extends TableRepository {
           Item: {
             pk,
             sk: `Position#${trade.symbol}`,
-            __typename: 'VirtualPosition',
+            __typename: 'VirtualPosition' as const,
             ...ctx,
             timestamp: now,
             symbol: trade.symbol,
@@ -253,7 +244,8 @@ export class VirtualLedgerRepository extends TableRepository {
             averageCostBasis: newAvgCost,
             marketValue: newQty * trade.fillPrice,
             updatedAt: now,
-          },
+            createdAt: now,
+          } satisfies TableEntry<VirtualPosition, RequestContext> & { __typename: 'VirtualPosition'; timestamp: string },
         },
       };
 
@@ -265,7 +257,7 @@ export class VirtualLedgerRepository extends TableRepository {
           Item: {
             pk,
             sk: `Trade#${tradeId}`,
-            __typename: 'VirtualTrade',
+            __typename: 'VirtualTrade' as const,
             ...ctx,
             timestamp: now,
             tradeId,
@@ -278,7 +270,8 @@ export class VirtualLedgerRepository extends TableRepository {
             cashBefore: trade.cashBefore,
             cashAfter: trade.cashAfter,
             executedAt: now,
-          },
+            createdAt: now,
+          } satisfies TableEntry<VirtualTrade, RequestContext> & { __typename: 'VirtualTrade'; timestamp: string },
         },
       };
 
@@ -311,19 +304,19 @@ export class VirtualLedgerRepository extends TableRepository {
 
   readonly createSnapshot = this.log('createSnapshot',
     async (
-      snapshot: VirtualSnapshot,
+      snapshot: VirtualSnapshotInput,
       ctx: RequestContext,
     ): Promise<void> => {
       const now = getTime();
-      const item: TableEntry = {
+      const item = {
         pk: ledgerPk(ctx.tenantId, ctx.userId),
         sk: `Snapshot#${snapshot.date}`,
-        __typename: 'VirtualSnapshot',
+        __typename: 'VirtualSnapshot' as const,
         ...ctx,
         timestamp: now,
         ...snapshot,
         createdAt: now,
-      };
+      } satisfies TableEntry<VirtualSnapshot, RequestContext> & { __typename: 'VirtualSnapshot'; timestamp: string };
       await this.put(item);
     },
   );

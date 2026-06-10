@@ -3,6 +3,7 @@ import { logger, NotRetryableError } from '@nestfolio/event-processor';
 import { requireEnv } from '@nestfolio/event-processor';
 import { createIngestionHandler, skip, record, getTime, pickRequestContext, type EventPayload, type EventContext } from '@nestfolio/event-processor';
 import { BrokerSimEventTypes } from '../domain/events';
+import type { SimWithdrawalCompleted } from '../domain/contracts';
 import { VirtualLedgerRepository } from '../repositories/virtual-ledger.repository';
 import { MarketDataService } from '../services/market-data.service';
 import { SimulationEngineService } from '../services/simulation-engine.service';
@@ -103,14 +104,17 @@ export function createHandlers(deps: EventListenerDeps) {
 
       // Always emit WithdrawalCompleted so CDC can publish WITHDRAWAL_COMPLETED to EventBridge
       // DDB PutItem on same pk/sk is idempotent — safe to re-emit on duplicate
+      const withdrawalSubject: SimWithdrawalCompleted = {
+        withdrawalId,
+        amount,
+        sourceEventId: ctx.eventId,
+        timestamp: getTime(),
+      };
       return record('WithdrawalCompleted', {
         __typename: 'WithdrawalCompleted',
         tenantId,
-        withdrawalId,
-        amount,
         userId,
-        sourceEventId: ctx.eventId,
-        timestamp: getTime(),
+        ...withdrawalSubject,
       }, { pk: `WithdrawalCompleted#${tenantId}#${ctx.eventId}`, sk: 'WithdrawalCompleted' });
     },
 
