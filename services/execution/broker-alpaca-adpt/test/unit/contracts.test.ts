@@ -47,6 +47,15 @@ describe('broker-alpaca-adpt contracts', () => {
     }).direction).toBe('INCOMING');
   });
 
+  it('AlpacaTransferResultSchema parses without timestamp (event-listener emission path)', () => {
+    const parsed = AlpacaTransferResultSchema.parse({
+      nestfolioTransferId: 'tr1', alpacaTransferId: 'at1', direction: 'OUTGOING',
+      amount: 250, status: 'INITIATED',
+    });
+    expect(parsed.timestamp).toBeUndefined();
+    expect(parsed.status).toBe('INITIATED');
+  });
+
   it('AlpacaAccountSnapshotSchema parses success + failure shapes', () => {
     // equity/buyingPower are raw Alpaca API strings on success (NOT Number()-converted) — see contract comment.
     expect(AlpacaAccountSnapshotSchema.parse({
