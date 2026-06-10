@@ -17,6 +17,10 @@ jest.mock('@nestfolio/agent-orchestrator', () => ({
   UnknownOperatingModeError: jest.requireActual('@nestfolio/agent-orchestrator').UnknownOperatingModeError,
   wrapAgentOutput: jest.requireActual('@nestfolio/agent-orchestrator').wrapAgentOutput,
   OutputTooLargeError: jest.requireActual('@nestfolio/agent-orchestrator').OutputTooLargeError,
+  agentCompletionPk: (decisionId: string) => `AgentCompletion#${decisionId}`,
+  agentCompletionSk: (agentName: string) => `AgentCompletion#${agentName}`,
+  agentFailurePk: (decisionId: string) => `AgentFailure#${decisionId}`,
+  agentFailureSk: (agentName: string) => `AgentFailure#${agentName}`,
 }));
 jest.mock('@nestfolio/event-processor', () => ({
   ...jest.requireActual('@nestfolio/event-processor'),

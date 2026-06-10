@@ -1,3 +1,6 @@
+import type { AgentCompletionRow, AgentFailureRow } from '@nestfolio/agent-orchestrator';
+import type { NarrativeAgentOutput } from './contracts';
+
 export interface AgentInvocation {
   readonly invocationId: string;
   readonly decisionId: string;
@@ -35,27 +38,10 @@ export interface FeedbackAnnotation {
   readonly annotatedAt: string;
 }
 
-export interface AgentCompletionRow {
-  readonly pk: string;                              // `AgentCompletion#${decisionId}`
-  readonly sk: string;                              // `AgentCompletion#${agentName}`
-  readonly __typename: 'AgentCompletion';
-  readonly decisionId: string;
-  readonly tenantId: string;
-  readonly agentName: 'advisory-narrative';
-  readonly taskToken: string;
-  readonly agentOutput: Record<string, unknown>;
-  readonly completedAt: string;
-}
+// Aliases use the same names as the deleted inline interfaces so that any
+// re-exports from domain/index.ts (which does `export * from './models'`) keep
+// the names stable for consumers outside this service.
+export type { AgentCompletionRow, AgentFailureRow };
 
-export interface AgentFailureRow {
-  readonly pk: string;                              // `AgentFailure#${decisionId}`
-  readonly sk: string;                              // `AgentFailure#${agentName}`
-  readonly __typename: 'AgentFailure';
-  readonly decisionId: string;
-  readonly tenantId: string;
-  readonly agentName: 'advisory-narrative';
-  readonly taskToken: string;
-  readonly errorType: string;
-  readonly errorMessage: string;
-  readonly failedAt: string;
-}
+export type NarrativeAgentCompletionRow = AgentCompletionRow<'advisory-narrative', NarrativeAgentOutput>;
+export type NarrativeAgentFailureRow = AgentFailureRow<'advisory-narrative'>;
