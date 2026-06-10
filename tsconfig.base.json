@@ -32,6 +32,7 @@
       ],
       "@nestfolio/broker-ctrl/events": ["services/execution/broker-ctrl/src/domain/events.ts"],
       "@nestfolio/broker-ctrl/domain": ["services/execution/broker-ctrl/src/domain/index.ts"],
+      "@nestfolio/broker-ctrl/contracts": ["services/execution/broker-ctrl/src/domain/contracts.ts"],
       "@nestfolio/cdk-constructs/core": ["libs/cdk-constructs/src/core/index.ts"],
       "@nestfolio/cdk-constructs/observability": ["libs/cdk-constructs/src/observability/index.ts"],
       "@nestfolio/cdk-constructs/extensions": ["libs/cdk-constructs/src/extensions/index.ts"],

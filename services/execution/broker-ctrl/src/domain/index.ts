@@ -1,3 +1,3 @@
 export { BrokerCtrlEventTypes, BrokerCtrlRoutedEventTypes, BrokerCtrlInboundEventTypes } from './events';
-export { BrokerOrderSchema, NormalizedEventSchema, ExecutionModeSchema } from './schemas';
-export type { BrokerOrder, NormalizedEvent, ExecutionMode } from './schemas';
+export { NormalizedOrderEventSchema, BrokerOrderSchema, ExecutionModeSchema } from './contracts';
+export type { NormalizedOrderEvent, BrokerOrder, ExecutionMode } from './contracts';

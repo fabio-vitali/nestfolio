@@ -1,6 +1,7 @@
 import { DynamoDBClient } from '@aws-sdk/client-dynamodb';
 import { GetCommand } from '@aws-sdk/lib-dynamodb';
-import { TableRepository, getTime, withMethodLogging } from '@nestfolio/event-processor';
+import { TableRepository, getTime, withMethodLogging, type TableEntry } from '@nestfolio/event-processor';
+import type { BrokerOrder } from '../domain/contracts';
 
 export interface CreateOrderParams {
   tenantId: string;
@@ -25,12 +26,12 @@ export class BrokerOrderRepository extends TableRepository {
       await this.put({
         pk: `BrokerOrder#${params.tenantId}#${params.orderId}`,
         sk: 'BrokerOrder',
-        __typename: 'BrokerOrder',
+        __typename: 'BrokerOrder' as const,
         state: 'AWAITING_FILL',
         tenantId: params.tenantId,
         orderId: params.orderId,
-        executionMode: params.executionMode,
-        routedTo: params.routedTo,
+        executionMode: params.executionMode as BrokerOrder['executionMode'],
+        routedTo: params.routedTo as BrokerOrder['routedTo'],
         fillTaskToken: params.fillTaskToken,
         requestedQty: params.requestedQty,
         filledQty: 0,
@@ -38,7 +39,8 @@ export class BrokerOrderRepository extends TableRepository {
         retryCount: 0,
         instrumentId: params.instrumentId,
         routedAt: now,
-      });
+        createdAt: now,
+      } satisfies TableEntry<BrokerOrder, { tenantId: string }> & { __typename: 'BrokerOrder' });
     },
   );
 
