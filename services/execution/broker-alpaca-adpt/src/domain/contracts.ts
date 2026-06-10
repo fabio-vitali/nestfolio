@@ -3,10 +3,13 @@
 import { z } from 'zod';
 
 /** ALPACA_ORDER_* subject — the `AlpacaOrderResult` row (sk='OrderMapping'|'CancelResult').
- * symbol/side/requestedQty are present on PLACED/REJECTED, absent on CancelResult. Tenant-scoped. */
+ * symbol/side/requestedQty are present on PLACED/REJECTED, absent on CancelResult. Tenant-scoped.
+ * `timestamp` is written by order-mapping.repository.createMapping (PLACED) but ABSENT on the
+ * event-listener rejection/cancel/error emissions (those rely on the pipeline-injected `createdAt`),
+ * so it is optional on the aggregate — see backlog broker-alpaca-result-timestamp-drift. */
 export const AlpacaOrderResultSchema = z.object({
   nestfolioOrderId: z.string(),
-  alpacaOrderId: z.string(),
+  alpacaOrderId: z.string().optional(),
   status: z.enum(['PLACED', 'FILLED', 'PARTIALLY_FILLED', 'REJECTED', 'CANCELLED', 'CANCEL_FAILED']),
   symbol: z.string().optional(),
   side: z.string().optional(),
@@ -14,11 +17,14 @@ export const AlpacaOrderResultSchema = z.object({
   filledQuantity: z.number().optional(),
   averageFillPrice: z.number().optional(),
   rejectionReason: z.string().optional(),
-  timestamp: z.string(),
+  timestamp: z.string().optional(),
 });
 export type AlpacaOrderResult = z.infer<typeof AlpacaOrderResultSchema>;
 
-/** ALPACA_TRANSFER_* subject — the `AlpacaTransferResult` row (sk='TransferMapping'). */
+/** ALPACA_TRANSFER_* subject — the `AlpacaTransferResult` row (sk='TransferMapping').
+ * `timestamp` is written by transfer-mapping.repository.createMapping (INITIATED) but ABSENT on the
+ * event-listener emissions (which rely on the pipeline-injected `createdAt`), so it is optional on
+ * the aggregate — see backlog broker-alpaca-result-timestamp-drift. */
 export const AlpacaTransferResultSchema = z.object({
   nestfolioTransferId: z.string(),
   alpacaTransferId: z.string(),
@@ -26,15 +32,16 @@ export const AlpacaTransferResultSchema = z.object({
   amount: z.number(),
   status: z.enum(['INITIATED', 'COMPLETED', 'FAILED']),
   failureReason: z.string().optional(),
-  timestamp: z.string(),
+  timestamp: z.string().optional(),
 });
 export type AlpacaTransferResult = z.infer<typeof AlpacaTransferResultSchema>;
 
 /** ALPACA_ACCOUNT_SNAPSHOT subject — the `AlpacaAccountSnapshot` row (sk='Snapshot#${ts}').
  * equity/buyingPower are null on the failure path. No `timestamp` on the subject (it is in sk). */
 export const AlpacaAccountSnapshotSchema = z.object({
-  equity: z.number().nullable(),
-  buyingPower: z.number().nullable(),
+  // equity/buyingPower are raw Alpaca API strings (NOT Number()-converted like positions) — latent inconsistency tracked by backlog broker-alpaca-account-snapshot-equity-string-drift.
+  equity: z.string().nullable(),
+  buyingPower: z.string().nullable(),
   positions: z.array(z.object({
     symbol: z.string(),
     qty: z.number(),

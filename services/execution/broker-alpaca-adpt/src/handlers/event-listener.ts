@@ -4,6 +4,7 @@ import { OrderMappingRepository } from '../repositories/order-mapping.repository
 import { CircuitBreakerRepository } from '../repositories/circuit-breaker.repository';
 import { AlpacaOrdersService } from '../services/alpaca-orders.service';
 import { AlpacaAdptEventTypes } from '../domain/events';
+import type { AlpacaOrderResult, AlpacaTransferResult, AlpacaAccountSnapshot } from '../domain/contracts';
 
 const TABLE_NAME = requireEnv('TABLE_NAME');
 const orderRepo = new OrderMappingRepository(TABLE_NAME);
@@ -38,16 +39,19 @@ async function handleApiFailure(error: unknown, ctx: EventContext): Promise<bool
 
 function rejectOrderAsBrokerUnavailable(ctx: EventContext, payload: EventPayload) {
   const s = payload.subject;
-  return record('AlpacaOrderResult', {
-    __typename: 'AlpacaOrderResult',
-    tenantId: ctx.tenantId,
-    nestfolioOrderId: s.orderId,
+  const subject: AlpacaOrderResult = {
+    nestfolioOrderId: s.orderId as string,
     alpacaOrderId: '',
     status: 'REJECTED',
     rejectionReason: 'BROKER_UNAVAILABLE',
-    symbol: s.symbol,
-    side: s.side,
-    requestedQty: s.quantity,
+    symbol: s.symbol as string,
+    side: s.side as string,
+    requestedQty: s.quantity as number,
+  };
+  return record('AlpacaOrderResult', {
+    __typename: 'AlpacaOrderResult',
+    tenantId: ctx.tenantId,
+    ...subject,
   }, {
     pk: `OrderMapping#${ctx.tenantId}#${s.orderId as string}`,
     sk: 'OrderMapping',
@@ -56,26 +60,32 @@ function rejectOrderAsBrokerUnavailable(ctx: EventContext, payload: EventPayload
 
 function rejectCancelAsBrokerUnavailable(ctx: EventContext, payload: EventPayload) {
   const s = payload.subject;
+  const subject: AlpacaOrderResult = {
+    nestfolioOrderId: s.orderId as string,
+    status: 'CANCEL_FAILED',
+    rejectionReason: 'BROKER_UNAVAILABLE',
+  };
   return record('AlpacaOrderResult', {
     __typename: 'AlpacaOrderResult',
     tenantId: ctx.tenantId,
-    nestfolioOrderId: s.orderId,
-    status: 'CANCEL_FAILED',
-    rejectionReason: 'BROKER_UNAVAILABLE',
+    ...subject,
   }, { pk: `OrderMapping#${ctx.tenantId}#${s.orderId as string}`, sk: 'CancelResult' });
 }
 
 function rejectTransferAsBrokerUnavailable(ctx: EventContext, payload: EventPayload) {
   const s = payload.subject;
+  const subject: AlpacaTransferResult = {
+    nestfolioTransferId: (s.transferId ?? ctx.eventId) as string,
+    alpacaTransferId: '',
+    direction: s.direction as AlpacaTransferResult['direction'],
+    amount: s.amount as number,
+    status: 'FAILED',
+    failureReason: 'BROKER_UNAVAILABLE',
+  };
   return record('AlpacaTransferResult', {
     __typename: 'AlpacaTransferResult',
     tenantId: ctx.tenantId,
-    nestfolioTransferId: s.transferId ?? ctx.eventId,
-    alpacaTransferId: '',
-    direction: s.direction,
-    amount: s.amount,
-    status: 'FAILED',
-    failureReason: 'BROKER_UNAVAILABLE',
+    ...subject,
   }, {
     pk: `TransferMapping#${ctx.tenantId}#${(s.transferId ?? ctx.eventId) as string}`,
     sk: 'TransferMapping',
@@ -83,14 +93,17 @@ function rejectTransferAsBrokerUnavailable(ctx: EventContext, payload: EventPayl
 }
 
 function rejectAccountCheckAsBrokerUnavailable(ctx: EventContext) {
-  return record('AlpacaAccountSnapshot', {
-    __typename: 'AlpacaAccountSnapshot',
-    tenantId: ctx.tenantId,
+  const subject: AlpacaAccountSnapshot = {
     equity: null,
     buyingPower: null,
     positions: [],
     status: 'FAILED',
     failureReason: 'BROKER_UNAVAILABLE',
+  };
+  return record('AlpacaAccountSnapshot', {
+    __typename: 'AlpacaAccountSnapshot',
+    tenantId: ctx.tenantId,
+    ...subject,
   }, {
     pk: `AccountSnapshot#${ctx.tenantId}`,
     sk: `Snapshot#${ctx.timestamp}`,
@@ -118,16 +131,19 @@ async function processOrderRequested(payload: EventPayload, ctx: EventContext) {
     const brokerDown = await handleApiFailure(error, ctx);
     const reason = brokerDown ? 'BROKER_UNAVAILABLE' : (error as Error).message;
     const s = payload.subject;
-    return record('AlpacaOrderResult', {
-      __typename: 'AlpacaOrderResult',
-      tenantId: ctx.tenantId,
-      nestfolioOrderId: s.orderId,
+    const subject: AlpacaOrderResult = {
+      nestfolioOrderId: s.orderId as string,
       alpacaOrderId: '',
       status: 'REJECTED',
       rejectionReason: reason,
-      symbol: s.symbol,
-      side: s.side,
-      requestedQty: s.quantity,
+      symbol: s.symbol as string,
+      side: s.side as string,
+      requestedQty: s.quantity as number,
+    };
+    return record('AlpacaOrderResult', {
+      __typename: 'AlpacaOrderResult',
+      tenantId: ctx.tenantId,
+      ...subject,
     }, {
       pk: `OrderMapping#${ctx.tenantId}#${s.orderId as string}`,
       sk: 'OrderMapping',
@@ -143,35 +159,44 @@ async function processCancelRequested(payload: EventPayload, ctx: EventContext) 
     const s = payload.subject;
     const mapping = await orderRepo.getByNestfolioOrderId(ctx.tenantId, s.orderId as string);
     if (!mapping) {
+      const notFound: AlpacaOrderResult = {
+        nestfolioOrderId: s.orderId as string,
+        status: 'CANCEL_FAILED',
+        rejectionReason: 'Order not found',
+      };
       return record('AlpacaOrderResult', {
         __typename: 'AlpacaOrderResult',
         tenantId: ctx.tenantId,
-        nestfolioOrderId: s.orderId,
-        status: 'CANCEL_FAILED',
-        rejectionReason: 'Order not found',
+        ...notFound,
       }, { pk: `OrderMapping#${ctx.tenantId}#${s.orderId}`, sk: 'CancelResult' });
     }
 
     const result = await client.cancelOrder(mapping.alpacaOrderId as string);
     const status = result.status < 300 ? 'CANCELLED' : 'CANCEL_FAILED';
+    const subject: AlpacaOrderResult = {
+      nestfolioOrderId: s.orderId as string,
+      alpacaOrderId: mapping.alpacaOrderId as string,
+      status,
+      rejectionReason: status === 'CANCEL_FAILED' ? JSON.stringify(result.data) : undefined,
+    };
     return record('AlpacaOrderResult', {
       __typename: 'AlpacaOrderResult',
       tenantId: ctx.tenantId,
-      nestfolioOrderId: s.orderId,
-      alpacaOrderId: mapping.alpacaOrderId,
-      status,
-      rejectionReason: status === 'CANCEL_FAILED' ? JSON.stringify(result.data) : undefined,
+      ...subject,
     }, { pk: `OrderMapping#${ctx.tenantId}#${s.orderId}`, sk: 'CancelResult' });
   } catch (error) {
     const brokerDown = await handleApiFailure(error, ctx);
     const reason = brokerDown ? 'BROKER_UNAVAILABLE' : (error as Error).message;
     const s = payload.subject;
+    const subject: AlpacaOrderResult = {
+      nestfolioOrderId: s.orderId as string,
+      status: 'CANCEL_FAILED',
+      rejectionReason: reason,
+    };
     return record('AlpacaOrderResult', {
       __typename: 'AlpacaOrderResult',
       tenantId: ctx.tenantId,
-      nestfolioOrderId: s.orderId,
-      status: 'CANCEL_FAILED',
-      rejectionReason: reason,
+      ...subject,
     }, { pk: `OrderMapping#${ctx.tenantId}#${s.orderId as string}`, sk: 'CancelResult' });
   }
 }
@@ -192,15 +217,18 @@ async function processTransferRequested(payload: EventPayload, ctx: EventContext
     const alpacaTransferId = result.status < 300 ? result.data.id : '';
     const status = result.status < 300 ? 'INITIATED' : 'FAILED';
 
+    const subject: AlpacaTransferResult = {
+      nestfolioTransferId: (s.transferId ?? ctx.eventId) as string,
+      alpacaTransferId,
+      direction: s.direction as AlpacaTransferResult['direction'],
+      amount: s.amount as number,
+      status,
+      failureReason: status === 'FAILED' ? JSON.stringify(result.data) : undefined,
+    };
     return record('AlpacaTransferResult', {
       __typename: 'AlpacaTransferResult',
       tenantId: ctx.tenantId,
-      nestfolioTransferId: s.transferId ?? ctx.eventId,
-      alpacaTransferId,
-      direction: s.direction,
-      amount: s.amount,
-      status,
-      failureReason: status === 'FAILED' ? JSON.stringify(result.data) : undefined,
+      ...subject,
     }, {
       pk: `TransferMapping#${ctx.tenantId}#${(s.transferId ?? ctx.eventId) as string}`,
       sk: 'TransferMapping',
@@ -209,15 +237,18 @@ async function processTransferRequested(payload: EventPayload, ctx: EventContext
     const brokerDown = await handleApiFailure(error, ctx);
     const reason = brokerDown ? 'BROKER_UNAVAILABLE' : (error as Error).message;
     const s = payload.subject;
+    const subject: AlpacaTransferResult = {
+      nestfolioTransferId: (s.transferId ?? ctx.eventId) as string,
+      alpacaTransferId: '',
+      direction: s.direction as AlpacaTransferResult['direction'],
+      amount: s.amount as number,
+      status: 'FAILED',
+      failureReason: reason,
+    };
     return record('AlpacaTransferResult', {
       __typename: 'AlpacaTransferResult',
       tenantId: ctx.tenantId,
-      nestfolioTransferId: s.transferId ?? ctx.eventId,
-      alpacaTransferId: '',
-      direction: s.direction,
-      amount: s.amount,
-      status: 'FAILED',
-      failureReason: reason,
+      ...subject,
     }, {
       pk: `TransferMapping#${ctx.tenantId}#${(s.transferId ?? ctx.eventId) as string}`,
       sk: 'TransferMapping',
@@ -235,14 +266,17 @@ async function processAccountCheck(payload: EventPayload, ctx: EventContext) {
       client.getPositions(),
     ]);
 
-    return record('AlpacaAccountSnapshot', {
-      __typename: 'AlpacaAccountSnapshot',
-      tenantId: ctx.tenantId,
+    const subject: AlpacaAccountSnapshot = {
       equity: account.data.equity,
       buyingPower: account.data.buying_power,
       positions: (positions.data ?? []).map((p) => ({
         symbol: p.symbol, qty: Number(p.qty), marketValue: Number(p.market_value),
       })),
+    };
+    return record('AlpacaAccountSnapshot', {
+      __typename: 'AlpacaAccountSnapshot',
+      tenantId: ctx.tenantId,
+      ...subject,
     }, {
       pk: `AccountSnapshot#${ctx.tenantId}`,
       sk: `Snapshot#${ctx.timestamp}`,
@@ -250,14 +284,17 @@ async function processAccountCheck(payload: EventPayload, ctx: EventContext) {
   } catch (error) {
     const brokerDown = await handleApiFailure(error, ctx);
     const reason = brokerDown ? 'BROKER_UNAVAILABLE' : (error as Error).message;
-    return record('AlpacaAccountSnapshot', {
-      __typename: 'AlpacaAccountSnapshot',
-      tenantId: ctx.tenantId,
+    const subject: AlpacaAccountSnapshot = {
       equity: null,
       buyingPower: null,
       positions: [],
       status: 'FAILED',
       failureReason: reason,
+    };
+    return record('AlpacaAccountSnapshot', {
+      __typename: 'AlpacaAccountSnapshot',
+      tenantId: ctx.tenantId,
+      ...subject,
     }, {
       pk: `AccountSnapshot#${ctx.tenantId}`,
       sk: `Snapshot#${ctx.timestamp}`,

@@ -30,6 +30,16 @@ describe('broker-alpaca-adpt contracts', () => {
     })).toThrow();
   });
 
+  it('AlpacaOrderResultSchema parses the event-listener emission shape (no timestamp, no alpacaOrderId)', () => {
+    // The CDC event-listener rejection/cancel emissions do NOT set timestamp/alpacaOrderId;
+    // only order-mapping.repository.createMapping writes them. Both are optional on the aggregate.
+    const parsed = AlpacaOrderResultSchema.parse({
+      nestfolioOrderId: 'o1', status: 'CANCEL_FAILED', rejectionReason: 'Order not found',
+    });
+    expect(parsed.timestamp).toBeUndefined();
+    expect(parsed.alpacaOrderId).toBeUndefined();
+  });
+
   it('AlpacaTransferResultSchema parses an INITIATED transfer subject (dry)', () => {
     expect(AlpacaTransferResultSchema.parse({
       nestfolioTransferId: 'tr1', alpacaTransferId: 'at1', direction: 'INCOMING',
@@ -38,9 +48,10 @@ describe('broker-alpaca-adpt contracts', () => {
   });
 
   it('AlpacaAccountSnapshotSchema parses success + failure shapes', () => {
+    // equity/buyingPower are raw Alpaca API strings on success (NOT Number()-converted) — see contract comment.
     expect(AlpacaAccountSnapshotSchema.parse({
-      equity: 10000, buyingPower: 5000, positions: [{ symbol: 'VTI', qty: 5, marketValue: 1000 }],
-    }).equity).toBe(10000);
+      equity: '10000.00', buyingPower: '5000.00', positions: [{ symbol: 'VTI', qty: 5, marketValue: 1000 }],
+    }).equity).toBe('10000.00');
     const failed = AlpacaAccountSnapshotSchema.parse({
       equity: null, buyingPower: null, positions: [], status: 'FAILED', failureReason: 'timeout',
     });
