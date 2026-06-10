@@ -1,14 +1,20 @@
 ---
 id: typed-subject-contracts-advisory
-status: queued
+status: active
 rank: 5
 type: refactor
 notes: "Advisory domain slice (slice 4) of the typed-subject-producer-contracts umbrella (design: docs/superpowers/specs/2026-06-09-typed-subject-producer-contracts-design.md § 'Advisory (slice 4)'). RICHEST slice — exercises RegionContext (MarketSnapshot), the bare-base global (SecFiling), the stale-compliance fix, and the Tier-3 inter-agent handoff cluster. Folds the dropped worktree-only items advisory-inter-agent-handoff-typed-contract + compliance-ctrl-stale-decision-approved-schema. Work: compliance-ctrl stale-schema fix (DecisionApprovedSchema declares {decisionId, complianceLevel, approvedAt} but the real ComplianceCheck CDC row carries {decisionId, decisionPacketId, authorityLevel, taskToken, mandateSnapshot, result, violations}) — author a PRODUCER contract for the real DECISION_APPROVED subject + reconcile the stale schema; convert the ProposedTrade plain interface (advisory-adpt/domain) to zod HERE (advisory-produced, nests in DecisionApproved as proposedTrades[]; execution-ctrl imports it cross-domain unchanged). decision-workflow-ctrl: DECISION_PACKET_CREATED/UPDATED, RECOMMENDATION_PROPOSED, MANDATE_SNAPSHOT_CREATED, DECISION_CYCLE_STARTED/FAILED contracts; convert DWC projection rows InvestorProfileSnapshotProjectionRow + MarketSnapshotProjectionRow (domain/models.ts) to TableEntry<Subject>. investor-profile-ctrl / market-intelligence-ctrl: convert inline rows InvestorProfileSnapshotRow (RequestContext) + MarketSnapshotRow (RegionContext — drop region). portfolio-engine-ctrl + advisory-narrative-ctrl: Portfolio*/Narrative* contracts; convert AgentCompletionRow/AgentFailureRow (structural dups differing only by agentName literal → a shared AgentCompletionRow<A extends string> generic, location TBD in this slice); type agentOutput against agents/schemas.ts (PortfolioConstructionSchema, ExplainabilitySchema, GoalInterpretationSchema, RiskEvaluationSchema, MarketAnalysisOutputSchema), removing Record<string,unknown> erasure. Tier-3: AssemblePacketEvent (assemble-packet.ts) typed against the agent schemas instead of Record<string,unknown>|null. advisory-bff: DECISION_READ_MODEL_CREATED/UPDATED, USER_CONFIRMED/REJECTED contracts. Feed adapters (sec-edgar/alpha-vantage/fred/marketwatch/yahoo-finance): convert plain-interface feed payloads (SecFiling, FredIndicator, MarketWatchArticle) to zod — mostly global (bare base) / RegionContext. Depends on phase-0 (typed-subject-platform-context-taxonomy). Validation: producer unit tests + tsc green + scoped e2e against REAL emissions (the stale compliance schema is proof fixtures hide drift — [[event-subject-contracts]]). Complex lane (worktree + deploy + e2e)."
 references:
   - docs/superpowers/specs/2026-06-09-typed-subject-producer-contracts-design.md
   - docs/superpowers/specs/2026-06-09-typed-subject-program-strategy.md
-out_of_scope: []
-spec: null
+out_of_scope:
+  - "WS-2 (cdc-publisher-typed-subjects) and WS-3 (consumer-parse-subject): separate program workstreams. This slice only AUTHORS/extends Advisory producer contracts + converts Advisory inline rows to TableEntry<Subject>; it does NOT retype CDC publishers or consumer parseSubject seams (consumers keep reading these events however they do today)."
+  - "Enforcement capstone (typing-convention-enforcement-skills-docs): codifying the conventions into create-*/audit-* skills + arch docs + any lint script is a separate queued item, not this slice."
+  - "Other domains' producer contracts: ledger + investor + execution slices already shipped (2026-06-09/10). Advisory is the final slice 4."
+  - "Runtime changes to emitted CONTEXT payloads beyond what typing requires (subject = business aggregate only; identity/partition metainfo stays in context S). No behavioural change to what fields are emitted at runtime."
+  - "Already-filed side-findings that touch advisory-adjacent code but are their own items: broker-funding-completed-normalization-drift (rank 6), broker-ctrl-order-sf-input-contract-gap (LATER), advisory-handler-type-narrowing-debt (LATER), advisory-bff-decision-publisher-proposedtrade-shape-mismatch (LATER). New side-findings get file-and-continue via backlog-add."
+  - "compliance-ctrl beyond the DECISION_APPROVED stale-schema fix: only the one drifted producer contract + its reconciliation is in scope; broader compliance-ctrl refactors are not."
+spec: docs/superpowers/specs/2026-06-09-typed-subject-producer-contracts-design.md
 plan: null
 topic_memory: []
 validation_gate: null
