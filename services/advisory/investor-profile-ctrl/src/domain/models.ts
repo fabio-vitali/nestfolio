@@ -34,24 +34,17 @@ export interface ReasoningOutput {
   readonly createdAt: string;
 }
 
-export interface InvestorProfileSnapshotRow {
-  readonly pk: string;                              // `InvestorProfileSnapshot#${tenantId}#${userId}`
-  readonly sk: 'InvestorProfileSnapshot';
+import type { TableEntry, RequestContext } from '@nestfolio/event-processor';
+import type { InvestorProfileSnapshot } from './contracts';
+
+/**
+ * Persisted InvestorProfileSnapshot row. The dry subject (agentOutput/sourceEventId/__version)
+ * comes from the producer contract; identity (tenantId/userId/region) from RequestContext; the
+ * remaining fields are row-only provenance (NOT on the emitted subject).
+ */
+export type InvestorProfileSnapshotRow = TableEntry<InvestorProfileSnapshot, RequestContext> & {
   readonly __typename: 'InvestorProfileSnapshot';
-  readonly tenantId: string;
-  readonly userId: string;
-  readonly agentOutput: {
-    readonly goals: ReadonlyArray<string>;
-    readonly timeHorizon: string;
-    readonly riskWillingness: string;
-    readonly riskScore: number;
-    readonly riskCategory: 'CONSERVATIVE' | 'MODERATE' | 'AGGRESSIVE';
-    readonly regulatoryFlags: ReadonlyArray<string>;
-    readonly suitabilityAssessment: string;
-    readonly confidence: number;
-  };
-  readonly sourceEventId: string;
+  readonly sk: 'InvestorProfileSnapshot';
   readonly sourceEventType: 'INVESTOR_PROFILE_UPDATED' | 'MANDATE_ISSUED';
   readonly agentInvocationId: string;
-  readonly updatedAt: string;
-}
+};

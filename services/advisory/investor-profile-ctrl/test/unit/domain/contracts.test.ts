@@ -1,6 +1,7 @@
 import {
   InvestorProfileSnapshotSchema,
 } from '../../../src/domain/contracts';
+import type { InvestorProfileSnapshotRow } from '../../../src/domain/models';
 
 const validAgentOutput = {
   goals: ['retire at 60', 'fund education'],
@@ -59,5 +60,16 @@ describe('investor-profile-ctrl contracts', () => {
         agentOutput: withoutRiskScore,
       }),
     ).toThrow();
+  });
+
+  it('InvestorProfileSnapshotRow composes TableEntry<InvestorProfileSnapshot, RequestContext>', () => {
+    const row: InvestorProfileSnapshotRow = {
+      pk: 'InvestorProfileSnapshot#t#u', sk: 'InvestorProfileSnapshot', __typename: 'InvestorProfileSnapshot',
+      tenantId: 't' as never, userId: 'u' as never, region: 'us-east-1', createdAt: '2026',
+      agentOutput: { goals: [], timeHorizon: '5y', riskWillingness: 'moderate', riskScore: 5,
+        riskCategory: 'MODERATE', regulatoryFlags: [], suitabilityAssessment: 'ok', confidence: 0.9 },
+      sourceEventType: 'INVESTOR_PROFILE_UPDATED', agentInvocationId: 'inv-1',
+    };
+    expect(row.__typename).toBe('InvestorProfileSnapshot');
   });
 });
