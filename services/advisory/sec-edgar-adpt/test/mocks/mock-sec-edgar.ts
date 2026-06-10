@@ -10,35 +10,46 @@ function text(statusCode: number, body: string): APIGatewayProxyResultV2 {
 
 const today = new Date().toISOString().split('T')[0];
 
+// SEC EDGAR returns filings as parallel arrays under `filings.recent`.
+// See: https://data.sec.gov/submissions/CIK##########.json
 const MOCK_SUBMISSIONS: Record<string, unknown> = {
   '0000102909': {
     cik: '0000102909',
     entityType: 'filer',
     name: 'Vanguard Group Inc',
-    recentFilings: {
-      filings: [
-        { accessionNumber: '0000102909-26-000001', form: '8-K', filingDate: today, primaryDocument: 'filing.htm' },
-      ],
+    filings: {
+      recent: {
+        accessionNumber: ['0000102909-26-000001'],
+        form: ['8-K'],
+        filingDate: [today],
+        primaryDocument: ['filing.htm'],
+      },
     },
   },
   '0000088053': {
     cik: '0000088053',
     entityType: 'filer',
     name: 'Fidelity Management & Research',
-    recentFilings: {
-      filings: [
-        { accessionNumber: '0000088053-26-000001', form: '485BPOS', filingDate: today, primaryDocument: 'prospectus.htm' },
-      ],
+    filings: {
+      recent: {
+        accessionNumber: ['0000088053-26-000001'],
+        form: ['485BPOS'],
+        filingDate: [today],
+        primaryDocument: ['prospectus.htm'],
+      },
     },
   },
   '0000914208': {
     cik: '0000914208',
     entityType: 'filer',
     name: 'iShares Trust',
-    recentFilings: {
-      filings: [
-        { accessionNumber: '0000914208-26-000001', form: '10-K', filingDate: today, primaryDocument: 'annual.htm' },
-      ],
+    filings: {
+      recent: {
+        accessionNumber: ['0000914208-26-000001'],
+        form: ['10-K'],
+        filingDate: [today],
+        primaryDocument: ['annual.htm'],
+      },
     },
   },
 };

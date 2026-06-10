@@ -7,11 +7,10 @@ import {
   type EventPayload,
   type EventContext,
 } from '@nestfolio/event-processor';
-import { fetchSubmissions, filterRecentFilings, buildFilingUrl } from '../clients/edgar-api';
+import { fetchSubmissions, filterRecentFilings, normalizeRecentFilings, buildFilingUrl, EDGAR_USER_AGENT } from '../clients/edgar-api';
 import { SecEdgarAdptEventTypes, type SecFiling } from '../domain/events';
 
 const TARGET_FORMS = ['8-K', '485BPOS', 'N-1A', '10-K', '10-Q'];
-const USER_AGENT = 'nestfolio/1.0 (advisory-agent; contact@nestfolio.dev)';
 
 function getCutoffDate(): string {
   const d = new Date();
@@ -52,11 +51,8 @@ export function createDeps(_ciks: string[]): EventListenerDeps {
     async fetchCikFilings(cik: string, sinceDate: string) {
       const baseUrl = await getBaseUrl();
       const submissions = await fetchSubmissions(baseUrl, cik);
-      const filteredFilings = filterRecentFilings(
-        submissions.recentFilings.filings,
-        TARGET_FORMS,
-        sinceDate,
-      );
+      const allFilings = normalizeRecentFilings(submissions);
+      const filteredFilings = filterRecentFilings(allFilings, TARGET_FORMS, sinceDate);
 
       const enriched: Array<{ form: string; filingDate: string; accessionNumber: string; content: string }> = [];
 
@@ -66,7 +62,7 @@ export function createDeps(_ciks: string[]): EventListenerDeps {
           const controller = new AbortController();
           const timeout = setTimeout(() => controller.abort(), 15_000);
           const response = await fetch(filingUrl, {
-            headers: { 'User-Agent': USER_AGENT },
+            headers: { 'User-Agent': EDGAR_USER_AGENT },
             signal: controller.signal,
           });
           clearTimeout(timeout);
