@@ -23,16 +23,28 @@ const payload = (subject: Record<string, unknown>): EventPayload => ({
   context: { tenantId: 'tenant-1', userId: 'user-1', region: 'us-east-1' },
 } as EventPayload);
 
-/** Minimal valid InvestorProfileSnapshot agentOutput matching the schema */
+/** Minimal valid InvestorProfileSnapshot agentOutput matching the COMPOSITE schema.
+ * agent-service.ts returns { decisionId, goals: GoalInterpretation, risk: RiskEvaluation, metadata }.
+ * The old flat shape (goals[], timeHorizon, riskScore…) was co-wrong; corrected 2026-06-10. */
 const validIpAgentOutput = {
-  goals: ['retire at 60'],
-  timeHorizon: '20 years',
-  riskWillingness: 'high',
-  riskScore: 70,
-  riskCategory: 'AGGRESSIVE' as const,
-  regulatoryFlags: [],
-  suitabilityAssessment: 'suitable',
-  confidence: 0.9,
+  decisionId: 'dec-test',
+  goals: {
+    goals: ['retire at 60'],
+    timeHorizon: '20 years',
+    riskWillingness: 'high',
+    confidence: 0.9,
+  },
+  risk: {
+    riskScore: 70,
+    riskCategory: 'AGGRESSIVE' as const,
+    regulatoryFlags: [],
+    suitabilityAssessment: 'suitable',
+    confidence: 0.9,
+  },
+  metadata: {
+    durationMs: 2000,
+    modelTiers: ['haiku', 'sonnet'],
+  },
 };
 
 /** Minimal valid MarketSnapshot agentOutput matching MarketAnalysisOutputSchema */
@@ -69,7 +81,7 @@ describe('snapshot-projector', () => {
     const fields = (intent as { fields: Record<string, unknown> }).fields;
     expect(fields.tenantId).toBe('tenant-1');
     expect(fields.userId).toBe('user-1');
-    expect(JSON.parse(fields.agentOutput as string)).toMatchObject({ riskScore: 70, riskCategory: 'AGGRESSIVE' });
+    expect(JSON.parse(fields.agentOutput as string)).toMatchObject({ risk: { riskScore: 70, riskCategory: 'AGGRESSIVE' } });
     expect(fields.sourceEventId).toBe('src-e1');
     expect(typeof fields.updatedAt).toBe('string');
   });
@@ -78,7 +90,7 @@ describe('snapshot-projector', () => {
     const result = await handlers.INVESTOR_PROFILE_SNAPSHOT_UPDATED(
       // Dry subject — identity is supplied by the event context.
       payload({
-        agentOutput: { ...validIpAgentOutput, riskScore: 55, riskCategory: 'MODERATE' },
+        agentOutput: { ...validIpAgentOutput, risk: { ...validIpAgentOutput.risk, riskScore: 55, riskCategory: 'MODERATE' } },
         sourceEventId: 'src-e2',
         __version: 4,
       }),
@@ -89,7 +101,7 @@ describe('snapshot-projector', () => {
     expect(intent!.typename).toBe('InvestorProfileSnapshot');
     expect((intent as { version: number }).version).toBe(4);
     const fields = (intent as { fields: Record<string, unknown> }).fields;
-    expect(JSON.parse(fields.agentOutput as string)).toMatchObject({ riskScore: 55 });
+    expect(JSON.parse(fields.agentOutput as string)).toMatchObject({ risk: { riskScore: 55 } });
     expect(fields.sourceEventId).toBe('src-e2');
   });
 

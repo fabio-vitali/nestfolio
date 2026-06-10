@@ -194,7 +194,11 @@ export function createAssemblePacketHandler(deps: AssemblePacketDeps) {
       .sort((a, b) => sideRank(a.side) - sideRank(b.side) || a.symbol.localeCompare(b.symbol));
 
     const isInitialBuild = currentPositions.length === 0;
-    const riskCategory = investorProfile?.riskCategory ?? 'MODERATE';
+    // Corrected 2026-06-10 (e2e gate): InvestorProfileSnapshot agentOutput is COMPOSITE
+    // { decisionId, goals: GoalInterpretation, risk: RiskEvaluation, metadata }.
+    // riskCategory lives at investorProfile.risk.riskCategory, NOT top-level.
+    // The old `investorProfile?.riskCategory` always resolved undefined → always-MODERATE latent bug.
+    const riskCategory = investorProfile?.risk?.riskCategory ?? 'MODERATE';
 
     // Narrative output shape: advisory-narrative-ctrl's agent-service.ts spreads
     // `explainability` at the top level (`return { decisionId, ...explainability, metadata }`),

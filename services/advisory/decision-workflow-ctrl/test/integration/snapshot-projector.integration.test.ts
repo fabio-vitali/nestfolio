@@ -60,17 +60,28 @@ describe('decision-workflow-ctrl SnapshotProjectorIngress', () => {
     ctx.userId = userId;
     const sourceEventId = `proj-ip-source-${randomUUID()}`;
 
-    // Full InvestorProfileSnapshotSchema.agentOutput — every field required by
+    // Full InvestorProfileSnapshotSchema.agentOutput — composite shape required by
     // the producer schema parsed at the consumer parseSubject seam.
+    // { decisionId, goals: GoalInterpretation, risk: RiskEvaluation, metadata }
     const agentOutput = {
-      goals: ['retirement'],
-      timeHorizon: 'LONG_TERM',
-      riskWillingness: 'MODERATE',
-      riskScore: 55,
-      riskCategory: 'MODERATE' as const,
-      regulatoryFlags: [],
-      suitabilityAssessment: 'integration projection test',
-      confidence: 0.9,
+      decisionId: 'dec-integ-proj',
+      goals: {
+        goals: ['retirement'],
+        timeHorizon: 'LONG_TERM',
+        riskWillingness: 'MODERATE',
+        confidence: 0.9,
+      },
+      risk: {
+        riskScore: 55,
+        riskCategory: 'MODERATE' as const,
+        regulatoryFlags: [],
+        suitabilityAssessment: 'integration projection test',
+        confidence: 0.9,
+      },
+      metadata: {
+        durationMs: 1800,
+        modelTiers: ['haiku', 'sonnet'],
+      },
     };
 
     await eb.putEvent({
@@ -108,25 +119,37 @@ describe('decision-workflow-ctrl SnapshotProjectorIngress', () => {
     const userId = `proj-ip-upd-user-${randomUUID()}`;
     ctx.userId = userId;
 
-    // Base agentOutput satisfying every required InvestorProfileSnapshotSchema
-    // field; per-test variants override only riskScore / extra flags.
+    // Base agentOutput satisfying every required InvestorProfileSnapshotSchema field.
+    // Composite shape: { decisionId, goals: GoalInterpretation, risk: RiskEvaluation, metadata }
+    // Per-test variants override risk sub-fields (riskScore / riskWillingness).
     const baseAgentOutput = {
-      goals: ['retirement'],
-      timeHorizon: 'LONG_TERM',
-      riskWillingness: 'MODERATE',
-      riskCategory: 'MODERATE' as const,
-      regulatoryFlags: [],
-      suitabilityAssessment: 'integration projection update test',
-      confidence: 0.8,
+      decisionId: 'dec-integ-upd',
+      goals: {
+        goals: ['retirement'],
+        timeHorizon: 'LONG_TERM',
+        riskWillingness: 'MODERATE',
+        confidence: 0.8,
+      },
+      risk: {
+        riskCategory: 'MODERATE' as const,
+        regulatoryFlags: [],
+        suitabilityAssessment: 'integration projection update test',
+        confidence: 0.8,
+        riskScore: 0, // overridden per-variant below
+      },
+      metadata: {
+        durationMs: 1500,
+        modelTiers: ['haiku', 'sonnet'],
+      },
     };
 
-    // Seed via CREATED first.
+    // Seed via CREATED first (composite shape — riskScore inside risk sub-object).
     await eb.putEvent({
       bus: 'advisory',
       targetService: 'decision-workflow-ctrl',
       detailType: 'INVESTOR_PROFILE_SNAPSHOT_CREATED',
       detail: {
-        agentOutput: { ...baseAgentOutput, riskScore: 30 },
+        agentOutput: { ...baseAgentOutput, risk: { ...baseAgentOutput.risk, riskScore: 30 } },
         sourceEventId: `seed-${randomUUID()}`,
         __version: 1,
       },
@@ -137,7 +160,8 @@ describe('decision-workflow-ctrl SnapshotProjectorIngress', () => {
       sk: 'InvestorProfileSnapshot',
       timeoutMs: 60_000,
     });
-    expect((JSON.parse(seeded['agentOutput'] as string) as Record<string, unknown>)['riskScore']).toBe(30);
+    // riskScore lives inside agentOutput.risk (composite shape)
+    expect((JSON.parse(seeded['agentOutput'] as string) as { risk: { riskScore: number } }).risk.riskScore).toBe(30);
     const seededUpdatedAt = seeded['updatedAt'];
 
     // Then publish UPDATED with a different riskScore + a distinguishing
@@ -147,8 +171,8 @@ describe('decision-workflow-ctrl SnapshotProjectorIngress', () => {
     await new Promise((r) => setTimeout(r, 1_000));
     const updatedAgentOutput = {
       ...baseAgentOutput,
-      riskScore: 85,
-      riskWillingness: 'HIGH',
+      goals: { ...baseAgentOutput.goals, riskWillingness: 'HIGH' },
+      risk: { ...baseAgentOutput.risk, riskScore: 85 },
     };
     await eb.putEvent({
       bus: 'advisory',
@@ -167,17 +191,19 @@ describe('decision-workflow-ctrl SnapshotProjectorIngress', () => {
       sk: 'InvestorProfileSnapshot',
       predicate: (item) => {
         try {
-          return (JSON.parse(item['agentOutput'] as string) as Record<string, unknown>)['riskScore'] === 85;
+          // riskScore is nested inside agentOutput.risk (composite schema)
+          return (JSON.parse(item['agentOutput'] as string) as { risk: { riskScore: number } }).risk.riskScore === 85;
         } catch {
           return false;
         }
       },
-      description: 'agentOutput.riskScore advances to 85',
+      description: 'agentOutput.risk.riskScore advances to 85',
       timeoutMs: 60_000,
     });
 
-    expect((JSON.parse(updated['agentOutput'] as string) as Record<string, unknown>)['riskScore']).toBe(85);
-    expect((JSON.parse(updated['agentOutput'] as string) as Record<string, unknown>)['riskWillingness']).toBe('HIGH');
+    expect((JSON.parse(updated['agentOutput'] as string) as { risk: { riskScore: number } }).risk.riskScore).toBe(85);
+    // riskWillingness lives inside agentOutput.goals (composite schema)
+    expect((JSON.parse(updated['agentOutput'] as string) as { goals: { riskWillingness: string } }).goals.riskWillingness).toBe('HIGH');
     expect(updated['updatedAt']).not.toBe(seededUpdatedAt);
   }, 120_000);
 

@@ -141,7 +141,8 @@ describe('assemble-packet handler', () => {
   it('passes the 4 agent outputs through to the result envelope', async () => {
     // Realistic minimal partials conforming to Partial<ProducerSchema> — the handler
     // passes each agent output straight through to the result envelope unchanged.
-    const investorProfile = { riskCategory: 'MODERATE' as const };
+    // investorProfile uses the composite shape: riskCategory lives at .risk.riskCategory
+    const investorProfile = { risk: { riskCategory: 'MODERATE' as const, riskScore: 40, regulatoryFlags: [], suitabilityAssessment: 'ok', confidence: 0.9 } };
     const marketAnalysis = { marketOutlook: 'NEUTRAL' };
     const portfolio = { decisionId: 'dec-1' };
     const narrative = { summary: 's', rationale: 'r' };
@@ -204,7 +205,7 @@ describe('assemble-packet handler', () => {
     const result = await handler({
       ...baseEvent,
       triggerAmountCents: 100_000, // $1000 deposit — the source of portfolioValueCents
-      investorProfile: { riskCategory: 'AGGRESSIVE' },
+      investorProfile: { risk: { riskCategory: 'AGGRESSIVE' as const, riskScore: 80, regulatoryFlags: [], suitabilityAssessment: 'ok', confidence: 0.9 } },
       marketAnalysis: null,
       portfolio: {
         decisionId: 'd-1',
@@ -255,7 +256,7 @@ describe('assemble-packet handler', () => {
       const result = await handler({
         ...baseEvent,
         triggerAmountCents: 100_000, // $1000 deposit
-        investorProfile: { riskCategory: 'MODERATE' },
+        investorProfile: { risk: { riskCategory: 'MODERATE' as const, riskScore: 50, regulatoryFlags: [], suitabilityAssessment: 'ok', confidence: 0.9 } },
         marketAnalysis: null,
         portfolio: mkPortfolio([
           { instrument: 'VTI', targetWeight: 0.14, assetClass: 'EQUITY', rationale: 'Core US' },
@@ -273,7 +274,7 @@ describe('assemble-packet handler', () => {
       const result = await handler({
         ...baseEvent,
         triggerAmountCents: 50_000, // $500 additional deposit
-        investorProfile: { riskCategory: 'AGGRESSIVE' },
+        investorProfile: { risk: { riskCategory: 'AGGRESSIVE' as const, riskScore: 80, regulatoryFlags: [], suitabilityAssessment: 'ok', confidence: 0.9 } },
         marketAnalysis: null,
         ledgerSnapshot: {
           positions: {
@@ -295,7 +296,7 @@ describe('assemble-packet handler', () => {
       const result = await handler({
         ...baseEvent,
         triggerAmountCents: 100_000,
-        investorProfile: { riskCategory: 'MODERATE' },
+        investorProfile: { risk: { riskCategory: 'MODERATE' as const, riskScore: 50, regulatoryFlags: [], suitabilityAssessment: 'ok', confidence: 0.9 } },
         marketAnalysis: null,
         portfolio: mkPortfolio([]),
         narrative: mkNarrative({ rationale: 'ok' }),
@@ -307,7 +308,7 @@ describe('assemble-packet handler', () => {
       const result = await handler({
         ...baseEvent,
         triggerAmountCents: 0,
-        investorProfile: { riskCategory: 'MODERATE' },
+        investorProfile: { risk: { riskCategory: 'MODERATE' as const, riskScore: 50, regulatoryFlags: [], suitabilityAssessment: 'ok', confidence: 0.9 } },
         marketAnalysis: null,
         ledgerSnapshot: {
           positions: { VTI: { quantity: 2, lastFillPrice: 500 } },
@@ -338,7 +339,8 @@ describe('assemble-packet handler', () => {
         const result = await handler({
           ...baseEvent,
           triggerAmountCents: 100_000,
-          investorProfile: { riskCategory: cat },
+          // Composite shape: riskCategory lives at investorProfile.risk.riskCategory
+          investorProfile: { risk: { riskCategory: cat, riskScore: 50, regulatoryFlags: [], suitabilityAssessment: 'ok', confidence: 0.9 } },
           marketAnalysis: null,
           portfolio: mkPortfolio([]),
           narrative: mkNarrative({ rationale: 'ok' }),
@@ -353,7 +355,7 @@ describe('assemble-packet handler', () => {
       // that the handler completes without throwing and returns an empty proposedTrades array.
       const result = await handler({
         ...baseEvent,
-        investorProfile: { riskCategory: 'MODERATE' },
+        investorProfile: { risk: { riskCategory: 'MODERATE' as const, riskScore: 50, regulatoryFlags: [], suitabilityAssessment: 'ok', confidence: 0.9 } },
         marketAnalysis: null,
         portfolio: mkPortfolio([
           { instrument: 'VTI', targetWeight: 0.5, assetClass: 'EQUITY', rationale: 'x' },
