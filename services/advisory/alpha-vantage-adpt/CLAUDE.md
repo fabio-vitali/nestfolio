@@ -30,6 +30,11 @@ Stack: services/advisory/alpha-vantage-adpt/src/service.stack.ts
 ## Event Types (domain/events.ts)
 - AlphaVantageAdptEventTypes: FETCH_REQUESTED (FETCH_ALPHA_VANTAGE_REQUESTED), ALPHA_VANTAGE_NEWS_UPDATED, ECONOMIC_INDICATOR_UPDATED (ALPHA_VANTAGE_ECONOMIC_INDICATOR_UPDATED)
 
+## Event Payload Contracts (domain/contracts.ts → @nestfolio/alpha-vantage-adpt/contracts)
+Producer-owned zod CDC subject contracts. GLOBAL aggregate — SubjectContext only, no identity context. project() injects pk/sk/__typename, so subjects are fields-only. This adapter had no payload interface prior to this slice.
+- AlphaVantageArticleSchema / AlphaVantageArticle — ALPHA_VANTAGE_NEWS_UPDATED subject. Fields: title, url, time_published, summary, overall_sentiment_score? (number). Schema uses .passthrough() to preserve additional raw feed keys from the Alpha Vantage NEWS_SENTIMENT feed.
+- EconomicIndicatorSchema / EconomicIndicator — ALPHA_VANTAGE_ECONOMIC_INDICATOR_UPDATED subject. Fields: function (string), data (unknown). Typename is distinct from fred-adpt's FredIndicator.
+
 ## Tests
 - handlers/event-listener.test.ts
 

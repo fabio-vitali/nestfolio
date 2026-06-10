@@ -34,6 +34,10 @@ Stack: services/advisory/sec-edgar-adpt/src/service.stack.ts
 ## Event Types (domain/events.ts)
 - SecEdgarAdptEventTypes: FETCH_REQUESTED (FETCH_SEC_EDGAR_REQUESTED), SEC_8K_FILED, SEC_PROSPECTUS_UPDATED, SEC_10K_UPDATED
 
+## Event Payload Contracts (domain/contracts.ts → @nestfolio/sec-edgar-adpt/contracts)
+Producer-owned zod CDC subject contracts. GLOBAL aggregate — SubjectContext only, no identity context. project() injects pk/sk/__typename, so subjects are fields-only.
+- SecFilingSchema / SecFiling — SEC_8K_FILED / SEC_PROSPECTUS_UPDATED / SEC_10K_UPDATED subject (field-mapped on formType). Fields: cik, issuer, formType, filingDate, accessionNumber, body, source (literal 'sec-edgar'), fetchedAt. Replaces the old `interface SecFiling` that redundantly declared pk/sk/__typename.
+
 ## Tests
 - edgar-api.test.ts
 - event-listener.test.ts

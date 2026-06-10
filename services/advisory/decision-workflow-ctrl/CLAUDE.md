@@ -109,6 +109,17 @@ Removed (Task 11): ANALYZE_INVESTOR_PROFILE, ANALYZE_MARKET, INVESTOR_PROFILE_CO
 - SSM: advisory-hub (models/haiku)
 - CDK alpha: @aws-cdk/aws-bedrock-agentcore-alpha, @aws-cdk/aws-bedrock-alpha
 
+## Event Payload Contracts (domain/contracts.ts → @nestfolio/decision-workflow-ctrl/contracts)
+Producer-owned zod CDC + SF-direct subject contracts, exported via `@nestfolio/decision-workflow-ctrl/contracts`. DRY domain subjects — identity travels in the event context (RequestContext), not on the subject.
+- DecisionPacketSchema / DecisionPacket — CDC subject carried on DECISION_PACKET_CREATED (insert) / DECISION_PACKET_UPDATED (modify). Full DecisionPacket row payload: decisionId, trigger, triggerEventId, executionArn?, explanation, proposedTrades (z.unknown() array), confirmationRequired, status (z.string() — covers all 8 WorkflowStatus values), __version, complianceResult?, authorityLevel?, userDecision?, blockReason?, rejectionReason?, timestamp, createdAt, updatedAt.
+- MandateSnapshotSchema / MandateSnapshot — CDC subject carried on MANDATE_SNAPSHOT_CREATED (insert only). Fields: mandateId?, level?, operatingMode (required — missing throws NotRetryableError), effectiveDate?, status?, __version?. The `?` fields are optional because investor-bff may omit them on some payloads; mandate-projector defaults `status` to 'ACTIVE' if absent, and drops the row silently if `__version` is missing.
+- RecommendationProposedSchema / RecommendationProposed — SF-direct putEvents subject (raw ASL in decision-state-machine.ts, no row/__typename). Emitted on WaitForCompliance state. Fields: decisionId, taskToken, awaitingCompliance (literal true), proposedTrades (z.unknown() array), portfolioValueCents, isInitialBuild, riskCategory, currentPositions (z.unknown() array).
+- DecisionCycleStartedSchema / DecisionCycleStarted — SF-direct fire-and-forget, emitted after UnpackTriggerEnvelope. Fields: decisionId, status (literal 'GENERATING'), __version (literal 0). No DecisionPacket row exists at emit time.
+- DecisionCycleFailedSchema / DecisionCycleFailed — SF-direct, emitted from the shared Catch covering ParallelProjections / InvokePortfolioEngine / InvokeAdvisoryNarrative / AssembleDecisionPacket. Fields: decisionId, status (literal 'FAILED'), __version (literal 1). No DecisionPacket row at emit time.
+Note: The 2 local mirror rows `InvestorProfileSnapshotProjectionRow` + `MarketSnapshotProjectionRow` live in domain/models.ts (NOT contracts.ts) — they are DWC-internal and are not exported. Both are now `TableEntry<{agentOutput:string;...}, Context> & {__typename; sk}` typed: agentOutput is JSON-stringified for `States.StringToJson` SF consumption. `InvestorProfileSnapshotProjectionRow` uses `RequestContext`; `MarketSnapshotProjectionRow` uses `RegionContext` (region is in context, not the subject).
+Note: The 4 agent-output fields on AssemblePacketEvent (assemble-packet.ts) are typed `Partial<ProducerType>|null` against the IP/MI/PE/AN producer schemas (was `Record<string,unknown>`).
+
 ## Exports (package subpaths)
 - `./events` — domain event types.
 - `./agent-budgets` — `AGENT_BUDGETS` constants (PE+AN UX budgets, shared with the agent service stacks).
+- `./contracts` — producer-owned zod subject contracts (DecisionPacketSchema, MandateSnapshotSchema, RecommendationProposedSchema, DecisionCycleStartedSchema, DecisionCycleFailedSchema).

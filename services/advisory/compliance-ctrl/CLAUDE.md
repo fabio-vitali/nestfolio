@@ -33,6 +33,10 @@ Post-resplit (2026-05-08): subscribes to semantic/lifecycle events directly inst
 ## Event Types (domain/events.ts)
 - ComplianceEventTypes (outbound, via CDC): DECISION_APPROVED, DECISION_BLOCKED, GUARDRAIL_VIOLATION_DETECTED, ESCALATION_TRIGGERED, COMPLIANCE_APPROVAL_GRANTED, AUDIT_ARTIFACT_CREATED, SUITABILITY_CHECK_PASSED, SUITABILITY_CHECK_FAILED, AUDIT_ARTIFACT_UPDATED
 
+## Event Payload Contracts (domain/contracts.ts → @nestfolio/compliance-ctrl/contracts)
+Producer-owned zod CDC subject contracts, exported via `@nestfolio/compliance-ctrl/contracts`. DRY domain subjects — identity travels in the event context (RequestContext), not on the subject. The old `domain/schemas.ts` (dead `DecisionApprovedSchema`/`DecisionBlockedSchema` — structurally wrong, unimported) was deleted and replaced by this contract.
+- ComplianceCheckSchema / ComplianceCheck — `ComplianceCheck` row (sk='ComplianceCheck'), CDC value-mapped on `result`: DECISION_APPROVED (result=APPROVED) / DECISION_BLOCKED (result=BLOCKED). Fields: ccId, decisionPacketId, decisionId (dual-field alias), taskToken, mandateSnapshot:{level['ADVISORY'|'DISCRETIONARY'],status['ACTIVE'|'REVOKED'],operatingMode['CONSERVATIVE'|'BALANCED'|'AGGRESSIVE'],effectiveDate}, status['COMPLETED'|'BLOCKED'], result['APPROVED'|'BLOCKED'], violations:[{rule,description,severity['WARNING'|'BLOCKING']}], authorityLevel['L1'|'L2'], sourceEventId.
+
 ## Tests
 - test/unit/authority-resolver.test.ts
 - test/unit/compliance.repository.test.ts

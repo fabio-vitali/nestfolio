@@ -53,6 +53,12 @@ Stack: services/advisory/advisory-bff/src/service.stack.ts
   - CommandOwned (AppSync fn.js PutItems): UserConfirmation, UserRejection, UserInteraction
 - Enforced by `nx run advisory-bff:typecheck` (test/types/read-model-ownership.type-test.ts)
 
+## Event Payload Contracts (domain/contracts.ts → @nestfolio/advisory-bff/contracts)
+Producer-owned zod CDC subject contracts, exported via `@nestfolio/advisory-bff/contracts`. DRY domain subjects — identity travels in the event context (RequestContext), not on the subject. JS resolvers cannot import TypeScript contracts at runtime; these contracts validate the emitted shape in unit tests and the e2e `parseSubject` gate.
+- DecisionReadModelSchema / DecisionReadModel — `DecisionReadModel` row (pk=`Decision#${tenantId}#${decisionId}`, sk='DecisionReadModel'), CDC-emitted DECISION_READ_MODEL_CREATED / DECISION_READ_MODEL_UPDATED. Written by TWO builders: decision-snapshot.ts (full) + decision-cycle-status.ts (minimal), so snapshot-only fields are optional. Required fields: decisionId, trigger (cycle-status writes '' not undefined), status, version, createdAt, updatedAt. Optional fields: proposedTrades, explanation, confirmationRequired, complianceChecks, agentInvocations, confirmedAt, rejectedAt, rejectionReason, taskToken.
+- UserConfirmationSchema / UserConfirmation — `UserConfirmation#${autoId}` intent row (JS resolver PutItem), CDC-emitted USER_CONFIRMED. Fields: decisionId, confirmedAt, confirmedBy, timestamp, taskToken?.
+- UserRejectionSchema / UserRejection — `UserRejection#${autoId}` intent row (JS resolver PutItem), CDC-emitted USER_REJECTED. Fields: decisionId, rejectedAt, rejectedBy, rejectionReason, timestamp, taskToken?.
+
 ## Event Types (domain/events.ts)
 - AdvisoryBffEventTypes: ADVISORY_STATUS_UPDATED, USER_CONFIRMED, USER_REJECTED, USER_VIEWED_EXPLANATION,
   DECISION_READ_MODEL_CREATED, DECISION_READ_MODEL_UPDATED, USER_INTERACTION_CREATED, USER_INTERACTION_UPDATED

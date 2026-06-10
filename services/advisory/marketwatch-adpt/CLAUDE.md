@@ -30,6 +30,10 @@ Stack: services/advisory/marketwatch-adpt/src/service.stack.ts
 ## Event Types (domain/events.ts)
 - MarketwatchAdptEventTypes: FETCH_REQUESTED (FETCH_MARKETWATCH_REQUESTED), MARKETWATCH_UPDATED
 
+## Event Payload Contracts (domain/contracts.ts → @nestfolio/marketwatch-adpt/contracts)
+Producer-owned zod CDC subject contracts. GLOBAL aggregate — SubjectContext only, no identity context. project() injects pk/sk/__typename, so subjects are fields-only.
+- MarketWatchArticleSchema / MarketWatchArticle — MARKETWATCH_UPDATED subject. Fields: feed, source (literal 'marketwatch'), articles (array — z.unknown(); RSS items are opaque at the producer level, parsed downstream by event-processor parseRssFeed). Replaces the old `interface MarketWatchArticle`.
+
 ## Tests
 - handlers/event-listener.test.ts
 

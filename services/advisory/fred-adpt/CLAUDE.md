@@ -30,6 +30,10 @@ Stack: services/advisory/fred-adpt/src/service.stack.ts
 ## Event Types (domain/events.ts)
 - FredAdptEventTypes: FETCH_REQUESTED (FETCH_FRED_REQUESTED), FRED_INDICATORS_UPDATED
 
+## Event Payload Contracts (domain/contracts.ts → @nestfolio/fred-adpt/contracts)
+Producer-owned zod CDC subject contracts. GLOBAL aggregate — SubjectContext only, no identity context. project() injects pk/sk/__typename, so subjects are fields-only.
+- FredIndicatorSchema / FredIndicator — FRED_INDICATORS_UPDATED subject. Fields: seriesId, label, date, value. Replaces the old `interface FredIndicator` (re-exported directly from contracts).
+
 ## Tests
 - handlers/event-listener.test.ts
 

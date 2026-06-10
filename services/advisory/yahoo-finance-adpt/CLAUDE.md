@@ -31,6 +31,10 @@ Stack: services/advisory/yahoo-finance-adpt/src/service.stack.ts
 ## Event Types (domain/events.ts)
 - YahooFinanceAdptEventTypes: FETCH_REQUESTED (FETCH_YAHOO_FINANCE_REQUESTED), YAHOO_FINANCE_UPDATED
 
+## Event Payload Contracts (domain/contracts.ts → @nestfolio/yahoo-finance-adpt/contracts)
+Producer-owned zod CDC subject contracts. GLOBAL aggregate — SubjectContext only, no identity context. project() injects pk/sk/__typename, so subjects are fields-only.
+- YahooFinanceArticleSchema / YahooFinanceArticle — YAHOO_FINANCE_UPDATED subject. Fields: ticker, source (literal 'yahoo-finance'), articles (array — z.unknown(); RSS items are opaque at the producer level, parsed downstream by event-processor parseRssFeed). Replaces the old `interface YahooFinanceArticle`.
+
 ## Tests
 - handlers/event-listener.test.ts
 

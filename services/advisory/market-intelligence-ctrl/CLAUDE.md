@@ -61,10 +61,11 @@ Agent folder: agents/market-intelligence/
   - (DWC mirror of MarketSnapshot is registered Projection<'P1'> in WS-C, not here.)
 - Enforced by `nx run market-intelligence-ctrl:typecheck` (test/types/read-model-ownership.type-test.ts)
 
-## Contracts (domain/contracts.ts)
-- Exported surface: `@nestfolio/market-intelligence-ctrl/contracts` (path alias in tsconfig.base.json). Producer-owned zod payload contracts, imports ONLY zod (+ MarketAnalysisOutputSchema reused from src/agents/schemas.ts).
-  - MarketSnapshotSchema (type MarketSnapshot): subject carried on MARKET_SNAPSHOT_UPDATED — `{ region, agentOutput, __version? }`. The CDC pipeline publishes the full MarketSnapshot DDB row as the subject; shape verified against MarketSnapshotRow (domain/models.ts) + the update() intent (handlers/event-listener.ts).
-- Consumed intra-domain by decision-workflow-ctrl snapshot-projector via `parseSubject(payload, MarketSnapshotSchema)` (home rule: intra-domain → direct `<svc>/contracts`). Payload changes break the consumer build.
+## Event Payload Contracts (domain/contracts.ts → @nestfolio/market-intelligence-ctrl/contracts)
+Producer-owned zod payload contracts, exported via `@nestfolio/market-intelligence-ctrl/contracts` (path alias in tsconfig.base.json). DRY domain subjects — identity travels in the event context (RegionContext), not on the subject.
+- MarketSnapshotSchema / MarketSnapshot — subject carried on MARKET_SNAPSHOT_UPDATED. Fields: agentOutput (MarketAnalysisOutputSchema from src/agents/schemas.ts), __version?. The snapshot is region-scoped: `region` was REMOVED from the subject (2026-06-10 typed-subject-contracts-advisory) — it now travels in RegionContext (the event context). The persisted row still physically carries `region` (intersected from RegionContext onto the row); the CDC publisher derives `context.region` from the row's `region` attribute. Verified against MarketSnapshotRow (domain/models.ts) + the update() intent (handlers/event-listener.ts).
+- Consumed intra-domain by decision-workflow-ctrl snapshot-projector via `parseSubject(payload, MarketSnapshotSchema)` (home rule: intra-domain → direct `<svc>/contracts`). Payload changes break the consumer build. DWC consumer co-change: `snapshot-projector.ts projectMarketSnapshot` now reads `region` from `ctx` (RegionContext) rather than `subject.region`.
+Note (row type, 2026-06-10): `MarketSnapshotRow` (domain/models.ts) is now `TableEntry<MarketSnapshot, RegionContext> & { __typename: 'MarketSnapshot'; sk: 'MarketSnapshot'; fastComponentsAt: string; slowComponentsAt?: string; sourceEventIds: ReadonlyArray<string> }`. Identity (region) comes from RegionContext; the dry subject (agentOutput/__version) comes from the producer contract type. Row-only operational fields (fastComponentsAt, slowComponentsAt, sourceEventIds) are projection metadata and are NOT part of the emitted CDC subject.
 
 ## Event Types (domain/events.ts)
 - MarketIntelligenceEventTypes (outbound): MARKET_SIGNAL_DETECTED, MARKET_INTELLIGENCE_AGENT_INVOCATION_TRACED, MARKET_SNAPSHOT_UPDATED, MARKET_SNAPSHOT_REFRESH_TICK

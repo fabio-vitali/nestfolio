@@ -66,6 +66,19 @@ Agent folder: agents/portfolio-engine/
 - **NO `states:SendTask*` grants.** Post-precomputation Task 6, the handler emits AgentCompletion/AgentFailure CDC rows; DWC's CallbackIngress owns the states:SendTask* grants and performs the SF resume. Lockdown asserted workspace-wide by Task 12's CDK invariant test.
 - BedrockUsageAlarms: per-service cost alarms wired to imported cost alert topic (`/nestfolio/${prefix}-investor/cost-controls/alertTopicArn`)
 
+## Event Payload Contracts (domain/contracts.ts → @nestfolio/portfolio-engine-ctrl/contracts)
+Producer-owned zod CDC subject contracts, exported via `@nestfolio/portfolio-engine-ctrl/contracts` (NOT re-exported through the `/domain` barrel). DRY domain subjects — identity travels in the event context (RequestContext), not on the subject.
+- PortfolioAgentOutputSchema / PortfolioAgentOutput — the COMPOSITE runPipeline return stored as AgentCompletion.agentOutput, CDC-emitted on PORTFOLIO_COMPLETED. Fields: decisionId, allocations (PortfolioConstructionSchema), trades (RebalancePlanSchema.optional()), metadata ({ durationMs: number, modelTiers?: string[], modeUsed?: string } .passthrough()).
+
+### Shared AgentCompletionRow (from @nestfolio/agent-orchestrator)
+The inline `AgentCompletionRow`/`AgentFailureRow` interfaces + the `AgentCompletion#`/`AgentFailure#` PK/SK helpers that used to live in this service were MOVED to `@nestfolio/agent-orchestrator` in the typed-subject-contracts slice. This service now uses the shared generics via typed aliases in `domain/models.ts`:
+- `PortfolioAgentCompletionRow = AgentCompletionRow<'portfolio-engine', PortfolioAgentOutput>`
+- `PortfolioAgentFailureRow = AgentFailureRow<'portfolio-engine'>`
+
+The key helpers are imported from `@nestfolio/agent-orchestrator` and re-exported under their legacy SCREAMING_SNAKE aliases for call-site stability:
+- `agentCompletionPk as AGENT_COMPLETION_PK`, `agentCompletionSk as AGENT_COMPLETION_SK`
+- `agentFailurePk as AGENT_FAILURE_PK`, `agentFailureSk as AGENT_FAILURE_SK`
+
 ## Tests
 - test/unit/agent-service.test.ts
 - test/unit/event-listener.test.ts

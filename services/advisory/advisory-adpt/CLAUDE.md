@@ -48,6 +48,10 @@ DECISION_PACKET_CREATED, DECISION_APPROVED, USER_CONFIRMATION_REQUESTED, EXPLANA
 ### AdvisoryIngestEventTypes (used in EB rules)
 INVESTOR_PROFILE_CREATED, INVESTOR_PROFILE_UPDATED, MANDATE_ISSUED, MANDATE_REVOKED, ORDER_FILLED, ORDER_REJECTED, ORDER_CANCELLED, DEPOSIT_DETECTED, PORTFOLIO_UPDATED, PORTFOLIO_DRIFT_DETECTED
 
+## Event Payload Contracts (domain/contracts.ts → @nestfolio/advisory-adpt/contracts)
+Producer-owned zod value-object contracts, exported via `@nestfolio/advisory-adpt/contracts` (new subpath) AND re-exported via the existing `@nestfolio/advisory-adpt/domain` barrel — the cross-domain import path for execution-ctrl consumers is unchanged. `ProposedTrade` was previously a plain TypeScript interface; it is now a zod-validated schema.
+- ProposedTradeSchema / ProposedTrade — value object nested in decision/order subjects (proposedTrades array). Fields: symbol, assetClass, side['BUY'|'SELL'], quantityOrAmountCents, targetWeightPercent, rationale. DRY (no identity fields).
+
 ## Tests
 
 - `test/service.stack.test.ts` -- CDK snapshot assertions (3 rules, 3 DLQs, tags)

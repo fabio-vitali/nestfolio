@@ -56,10 +56,11 @@ Agent folder: agents/investor-profile/
 - HANDLED_EVENT_TYPES (inbound triggers): INVESTOR_PROFILE_UPDATED, MANDATE_ISSUED
 - KB_INGESTION_EVENT_TYPES (inbound, KB-only): DECISION_BLOCKED, DECISION_APPROVED
 
-## Event Payload Contracts (domain/contracts.ts)
+## Event Payload Contracts (domain/contracts.ts → @nestfolio/investor-profile-ctrl/contracts)
 Producer-owned zod payload contracts, exported via the dedicated `/contracts` alias (`@nestfolio/investor-profile-ctrl/contracts`). DRY domain subjects — identity travels in the event context (RequestContext), not on the subject.
-- InvestorProfileSnapshotSchema / InvestorProfileSnapshot — subject carried on INVESTOR_PROFILE_SNAPSHOT_CREATED / INVESTOR_PROFILE_SNAPSHOT_UPDATED (the domain InvestorProfileSnapshot fields: agentOutput, sourceEventId?, __version?). Verified against InvestorProfileSnapshotRow in domain/models.ts + the update() intent in handlers/event-listener.ts.
+- InvestorProfileSnapshotSchema / InvestorProfileSnapshot — subject carried on INVESTOR_PROFILE_SNAPSHOT_CREATED / INVESTOR_PROFILE_SNAPSHOT_UPDATED. Fields: agentOutput (object: goals[], timeHorizon, riskWillingness, riskScore, riskCategory enum, regulatoryFlags[], suitabilityAssessment, confidence), sourceEventId?, __version?. Verified against InvestorProfileSnapshotRow in domain/models.ts + the update() intent in handlers/event-listener.ts.
 - Consumed cross-domain by decision-workflow-ctrl (snapshot-projector.ts) via `parseSubject` at the seam; a payload change breaks the consumer build.
+Note (row type, 2026-06-10): `InvestorProfileSnapshotRow` (domain/models.ts) is now `TableEntry<InvestorProfileSnapshot, RequestContext> & { __typename: 'InvestorProfileSnapshot'; sk: 'InvestorProfileSnapshot'; sourceEventType: 'INVESTOR_PROFILE_UPDATED'|'MANDATE_ISSUED'; agentInvocationId: string }`. It was previously a hand-rolled interface that re-declared pk/sk/__typename alongside the identity fields. The dry subject (agentOutput/sourceEventId/__version) now comes directly from the producer contract type; identity (tenantId/userId/region) is supplied by RequestContext — no duplication.
 
 ## IAM trace
 - Memory API: CreateEvent, RetrieveMemoryRecords, GetMemoryRecord, ListEvents, ListActors, ListSessions (resources: *)
