@@ -26,6 +26,23 @@ describe('advisory-bff contracts', () => {
     expect(parsed.agentInvocations).toBeUndefined();
   });
 
+  it('DecisionReadModelSchema parses a real row with rejectionReason:null (gate-proven nullable)', () => {
+    // The e2e gate caught a REAL DecisionReadModel row with rejectionReason:null —
+    // copied from DecisionPacketSchema's .nullable() source field. The schema MUST
+    // accept null (not just undefined) for this field.
+    const parsed = DecisionReadModelSchema.parse({
+      decisionId: 'd1', trigger: 'DEPOSIT', status: 'APPROVED',
+      proposedTrades: [], explanation: 'invest', confirmationRequired: false,
+      complianceChecks: [], agentInvocations: [],
+      confirmedAt: '2026', rejectedAt: undefined,
+      rejectionReason: null, // null — not absent — is what DDB stores for non-rejected decisions
+      version: 2, createdAt: '2026', updatedAt: '2026',
+    });
+    expect(parsed.rejectionReason).toBeNull();
+    // confirmedAt/rejectedAt are absent (undefined) on non-rejected rows — not null:
+    expect(parsed.rejectedAt).toBeUndefined();
+  });
+
   it('UserConfirmationSchema parses the resolver intent subject (decisionId + taskToken)', () => {
     const parsed = UserConfirmationSchema.parse({
       tenantId: 't', region: 'us-east-1', decisionId: 'd1',

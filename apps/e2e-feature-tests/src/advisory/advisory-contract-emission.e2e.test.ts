@@ -27,7 +27,7 @@
  *     (region is 'us-east-1'; NOT on the subject — it travels in RegionContext)
  *
  * Block B — Feed-fetch block (FETCH_<SOURCE>_REQUESTED → real external APIs):
- *   sec-edgar-adpt    SecFiling      pk=SecFiling#${cik}  (cik from TRACKED_CIKS env default '0000102909')
+ *   sec-edgar-adpt    SecFiling      pk=SecFiling#${cik}  (tries all 3 CIKs; which filed recently is date-dependent)
  *   fred-adpt         FredIndicator  pk=Fred#SYSTEM       sk=Indicator#${seriesId}
  *   marketwatch-adpt  MarketWatchArticle  pk=MarketWatch#SYSTEM  sk=Feed#topstories
  *   yahoo-finance-adpt  YahooFinanceArticle  pk=YahooFinance#SYSTEM  sk=Ticker#VTI
@@ -423,8 +423,16 @@ describe('advisory-domain producer contracts — feed-fetch (REAL external APIs)
       // Trigger: FETCH_SEC_EDGAR_REQUESTED → adapter fetches the configured CIKs
       // (TRACKED_CIKS env defaults to '0000102909,0000088053,0000914208').
       // The adapter writes SecFiling rows keyed pk=SecFiling#${cik} sk=Filing#${accessionNumber}.
-      // Query by pk prefix using the first CIK (Vanguard, cik=0000102909) — any
-      // SecFiling row under that pk satisfies the contract.
+      //
+      // ROBUST QUERY — query each of the 3 tracked CIKs and validate the first with rows.
+      // Rationale: which CIK has RECENT filings is date-dependent (e.g., in the last run,
+      // Vanguard (0000102909) and Deutsche (0000088053) had 0 new filings, while
+      // Invesco (0000914208) had 1). The typename-timestamp-index GSI is KEYS_ONLY and
+      // SecFiling rows carry no `timestamp` attribute, so the GSI returns 0 items for this
+      // type — it cannot be used to find SecFiling rows. Query by pk prefix (one per CIK)
+      // instead; the adapter writes whichever CIK(s) filed recently.
+      const TRACKED_CIKS = ['0000102909', '0000088053', '0000914208'];
+
       await eb.putEvent({
         bus: 'advisory',
         targetService: 'sec-edgar-adpt',
@@ -434,16 +442,19 @@ describe('advisory-domain producer contracts — feed-fetch (REAL external APIs)
 
       // SEC EDGAR is real — allow generous deadline.
       const rows = await pollFor('SecFiling', async () => {
-        const r = await ddbDoc.send(new QueryCommand({
-          TableName: table,
-          KeyConditionExpression: 'pk = :pk AND begins_with(sk, :sk)',
-          ExpressionAttributeValues: {
-            ':pk': 'SecFiling#0000102909',
-            ':sk': 'Filing#',
-          },
-        }));
-        const items = (r.Items ?? []) as Record<string, unknown>[];
-        return items.length ? items : undefined;
+        for (const cik of TRACKED_CIKS) {
+          const r = await ddbDoc.send(new QueryCommand({
+            TableName: table,
+            KeyConditionExpression: 'pk = :pk AND begins_with(sk, :sk)',
+            ExpressionAttributeValues: {
+              ':pk': `SecFiling#${cik}`,
+              ':sk': 'Filing#',
+            },
+          }));
+          const items = (r.Items ?? []) as Record<string, unknown>[];
+          if (items.length) return items;
+        }
+        return undefined;
       }, 240_000);
 
       expect(rows.length).toBeGreaterThan(0);

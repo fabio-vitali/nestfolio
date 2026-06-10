@@ -37,9 +37,15 @@ export const DecisionReadModelSchema = z.object({
   complianceChecks: z.array(z.unknown()).optional(),
   agentInvocations: z.array(z.unknown()).optional(),
   // Fields written by the full builder as optional attributes:
+  // confirmedAt + rejectedAt: absent on non-confirmed/non-rejected decisions (undefined, not null);
+  // the DecisionSnapshot local type declares them `?: string` so `.optional()` is correct.
   confirmedAt: z.string().optional(),
   rejectedAt: z.string().optional(),
-  rejectionReason: z.string().optional(),
+  // rejectionReason: copied from DecisionPacketSchema which declares `.nullable()` —
+  // the gate parsed a REAL row with rejectionReason:null for a non-rejected decision.
+  // Must be .nullable() (not just .optional()) to accept null from DDB.
+  rejectionReason: z.string().nullable().optional(),
+  // taskToken: absent on some rows (?: string in DecisionSnapshot), never null; .optional() is correct.
   taskToken: z.string().optional(),
   version: z.number(),
   createdAt: z.string(),
