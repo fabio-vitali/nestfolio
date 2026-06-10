@@ -6,75 +6,72 @@
  * contract (declared fields present + correctly typed; zod strips identity/keys).
  * This is the execution-domain twin of ledger-contract-emission.e2e.test.ts.
  *
- * Two paths:
+ * ─── Strategy: drive each producer's ADAPTER DIRECTLY ────────────────────────
+ *   Earlier drafts drove broker-ctrl's OrderStateMachine (via ORDER_SUBMITTED →
+ *   broker-ctrl) to reach the VirtualTrade / NormalizedOrderEvent legs. That SF
+ *   reads top-level `$.detail` routing fields (tenantId/orderId/symbol/side/
+ *   quantity), but the EventBridgeClient harness nests the payload under
+ *   `.subject` and injects `.context` — so a putEvent-emitted ORDER_SUBMITTED
+ *   never carries those fields where the SF expects them, and the canonical
+ *   ORDER_SUBMITTED → OrderStateMachine path is a latent/unexercised integration
+ *   gap (out of scope for this contracts slice; see boundary note + backlog id
+ *   `broker-ctrl-order-sf-input-contract-gap`).
  *
- *   Block A — SIM path (deterministic, no real money). Synthetic EventBridge
- *     triggers drive the REAL deployed producers and we read back the rows they
- *     materialise:
+ *   The clean fix for THIS gate: validate each producer by driving its adapter
+ *   directly. The execution adapters (broker-sim-adpt, broker-alpaca-adpt) are
+ *   SQS→Lambda event-processor handlers that read `payload.subject` (the standard
+ *   envelope) — exactly what EventBridgeClient.putEvent produces. So a direct
+ *   putEvent to the adapter's own inbound event drives the real deployed
+ *   producer, and we read back the row it materialises. No SF, no mode router,
+ *   no market-hours gate in the path.
+ *
+ *   Two blocks:
+ *
+ *   Block A — SIM path (deterministic, no real money). beforeEach onboarded() +
+ *     funded({ cashBalanceCents: 2_000_000 }):
  *       1. execution-ctrl Order      (DECISION_APPROVED → event-listener → Order row)
- *       2. broker-ctrl NormalizedEvent + broker-sim VirtualTrade
- *          (ORDER_SUBMITTED → OrderStateMachine → SIM_ORDER_REQUESTED → sim engine)
+ *       2. broker-sim VirtualTrade   (SIM_DEPOSIT_INITIATED to fund the virtual
+ *          ledger, then SIM_ORDER_REQUESTED → simulation engine → VirtualTrade row)
  *       3. broker-sim DepositDetected + WithdrawalCompleted
  *          (SIM_DEPOSIT_INITIATED / SIM_WITHDRAWAL_REQUESTED → virtual ledger)
  *       StagedOrder is a documented boundary (only written when the market is
  *       closed; covered by execution-ctrl unit tests). Asserted opportunistically.
  *
  *   Block B — REAL Alpaca paper path (gated, high-fidelity, real external API).
- *     Switches the tenant to LIVE mode, then drives a real paper order, a real
- *     paper transfer, and an account check, reading back the producer rows:
- *       - broker-alpaca AlpacaOrderResult     (real paper order)
- *       - broker-alpaca AlpacaTransferResult   (real paper ACH transfer)
- *       - broker-alpaca AlpacaAccountSnapshot   (real account GET)
+ *     NO mode switch needed — broker-alpaca-adpt always talks to the real Alpaca
+ *     paper API, so we drive its inbound events directly (bypassing broker-ctrl's
+ *     mode router):
+ *       - broker-alpaca AlpacaOrderResult     (ALPACA_ORDER_REQUESTED → real paper order)
+ *       - broker-alpaca AlpacaTransferResult   (ALPACA_TRANSFER_REQUESTED → real paper ACH)
+ *       - broker-alpaca AlpacaAccountSnapshot   (ALPACA_ACCOUNT_CHECK → real account GET)
  *     Safety mitigations:
  *       - alpacaPaperReset() in beforeAll + afterAll (refuses any non-paper baseUrl).
  *       - Orphaned poll-SF cleanup in afterAll: stops any RUNNING broker-alpaca
  *         Order/Transfer polling Step Function executions for this tenant so they
  *         stop hitting the real paper account after the test ends.
- *     Documented boundaries: BrokerCircuitEvent / CircuitBreaker are NOT driven
- *     here (covered by unit tests + circuit-breaker-lifecycle.e2e.test.ts).
  *
- * ─── CONTRACT vs REAL-PRODUCER caveats (read before running) ─────────────────
- *   This file is structurally complete and typecheck/lint-clean. It is wired for
- *   a LATER closing phase to run + harden against deployed dev. DO NOT run it
- *   outside that closing phase. The following mechanics are best-effort and are
- *   flagged for the controller to validate against the REAL deployed system
- *   (per the typed-subject-contracts lesson: validate vs the real producer, not
- *   fixtures):
+ * ─── Documented boundaries (NOT driven here) ─────────────────────────────────
+ *   - broker-ctrl NormalizedOrderEvent (ORDER_FILLED etc.) — emitted ONLY by
+ *     broker-ctrl's OrderStateMachine, which has a latent input-shape gap (the SF
+ *     reads top-level $.detail routing fields; the canonical ORDER_SUBMITTED → SF
+ *     path is unexercised — the harness nests payload under .subject/.context).
+ *     Unit-test-validated; e2e deferred. Backlog: broker-ctrl-order-sf-input-contract-gap.
+ *   - broker-ctrl BrokerOrder / ExecutionMode — internal rows, NOT CDC-emitted.
+ *     Unit-validated.
+ *   - broker-alpaca BrokerCircuitEvent / CircuitBreaker — covered by unit tests +
+ *     circuit-breaker-lifecycle.e2e.test.ts.
+ *   - broker-sim internal Virtual* rows (VirtualCashBalance / VirtualPosition /
+ *     VirtualSnapshot) — NOT CDC-emitted. Unit-validated.
+ *   - execution-ctrl StagedOrder — only written when the market is closed.
+ *     Unit-validated; asserted opportunistically in it 1 if the run lands outside
+ *     market hours.
  *
- *   (a) ORDER_SUBMITTED → OrderStateMachine input shape. The Orchestration
- *       construct triggers the SF with `RuleTargetInput.fromEventPath('$.detail')`
- *       and the OrderStateMachine reads `$.tenantId` / `$.orderId` / `$.symbol` /
- *       `$.side` / `$.quantity` at the TOP of `$.detail` (see
- *       broker-ctrl/src/state-machine/order-state-machine.ts + route-order.ts
- *       RouteOrderEvent). The EventBridgeClient test harness wraps `detail` as the
- *       envelope `subject` and injects `context`, so a putEvent-emitted
- *       ORDER_SUBMITTED carries those fields under `.subject` / `.context`, NOT at
- *       the top level. The real production ORDER_SUBMITTED is CDC-emitted from
- *       execution-ctrl's Order row, whose subject carries `proposedTrades` (NOT
- *       symbol/side/quantity) — so the real SF input shape is itself an open
- *       question this gate surfaces. The controller must confirm the canonical
- *       ORDER_SUBMITTED shape and, if needed, emit a raw EB event with the routing
- *       fields at the top of `detail` (bypassing the harness wrapper). The
- *       VirtualTrade leg is therefore the load-bearing assertion in step 2; the
- *       NormalizedEvent leg depends on the SF completing a full task-token round
- *       trip (RouteOrder → SIM_ORDER_REQUESTED → sim fill → SIM_ORDER_FILLED →
- *       callback-resolver) and may need the controller to also inject the
- *       SIM_ORDER_FILLED callback if the sim adapter's fill does not auto-resolve.
- *
- *   (b) Live-mode SSM cache. EXECUTION_MODE_CHANGED materialises the broker-ctrl
- *       ExecutionMode row (pk=`ExecutionMode#${tenantId}`, sk='ExecutionMode'),
- *       which the SF's ReadExecutionMode GetItem reads to route to alpaca. We poll
- *       that row to mode='live' BEFORE submitting. The AlpacaClient additionally
- *       caches its baseUrl from the Parameters-and-Secrets extension (~300s); that
- *       cache is orthogonal to mode routing but the controller should be aware of
- *       it when interpreting a first-call miss.
- *
- *   (c) Poll-SF cleanup. Implemented precisely against the deployed SF naming
- *       (`${prefix}-broker-alpaca-adpt-orderpollingstatemachine` /
- *       `...-transferpollingstatemachine`, from the Orchestration construct's
- *       `${naming.prefix}-${naming.service}-${id.toLowerCase()}`). Wrapped in
- *       try/catch + logging so a discovery miss never fails the suite; the
- *       controller hardens it during the closing run.
+ * ─── Run discipline ──────────────────────────────────────────────────────────
+ *   This file is typecheck/lint-clean and wired for a closing phase to run +
+ *   harden against deployed dev. DO NOT run it outside that closing phase (Block B
+ *   hits the real Alpaca paper account). Per the typed-subject-contracts lesson,
+ *   the controller validates the mechanics against the REAL deployed system, not
+ *   fixtures.
  */
 
 import {
@@ -92,7 +89,7 @@ import {
   type FreshTenant,
 } from '..';
 import { DynamoDBClient } from '@aws-sdk/client-dynamodb';
-import { DynamoDBDocumentClient, GetCommand, QueryCommand } from '@aws-sdk/lib-dynamodb';
+import { DynamoDBDocumentClient, QueryCommand } from '@aws-sdk/lib-dynamodb';
 import {
   SFNClient,
   ListStateMachinesCommand,
@@ -102,7 +99,6 @@ import {
 } from '@aws-sdk/client-sfn';
 import { randomUUID } from 'crypto';
 import { OrderSchema, StagedOrderSchema } from '@nestfolio/execution-ctrl/contracts';
-import { NormalizedOrderEventSchema } from '@nestfolio/broker-ctrl/contracts';
 import {
   VirtualTradeSchema,
   SimDepositCompletedSchema,
@@ -151,9 +147,10 @@ describe('execution-domain producer contracts — SIM path', () => {
   beforeEach(async () => {
     ctx = await createTestContext();
     tenant = await freshTenant(ctx);
-    // onboarded() defaults the tenant to SIMULATION mode → broker-ctrl routes
-    // orders to broker-sim. funded() seeds the virtual cash balance so sim BUY
-    // orders fill instead of rejecting on insufficient funds.
+    // onboarded() defaults the tenant to SIMULATION mode. funded() seeds the
+    // investor-bff CashBalance read model (NOT the broker-sim virtual ledger);
+    // each broker-sim leg that needs virtual cash funds it explicitly via a
+    // SIM_DEPOSIT_INITIATED below.
     await applyFixtures(ctx, tenant, [
       onboarded(),
       funded({ cashBalanceCents: 2_000_000 }),
@@ -223,85 +220,65 @@ describe('execution-domain producer contracts — SIM path', () => {
   );
 
   // -------------------------------------------------------------------------
-  // it 2 — broker-ctrl NormalizedOrderEvent + broker-sim VirtualTrade
+  // it 2 — broker-sim VirtualTrade (DIRECT, not via broker-ctrl SF)
   // -------------------------------------------------------------------------
   it(
-    'broker-ctrl NormalizedEvent + broker-sim VirtualTrade subjects parse (SIM order route)',
+    'broker-sim: VirtualTrade subject parses (direct SIM_ORDER_REQUESTED)',
     async () => {
       const eb = new EventBridgeClient(ctx);
-      const brokerCtrlTable = await ctx.ssm.tableName('broker-ctrl');
-      const brokerSimTable = await ctx.ssm.tableName('broker-sim-adpt');
-      const brokerCtrlByTypename = makeByTypename(ddbDoc, brokerCtrlTable, tenant.tenantId);
-      const brokerSimByTypename = makeByTypename(ddbDoc, brokerSimTable, tenant.tenantId);
+      const table = await ctx.ssm.tableName('broker-sim-adpt');
+      const byTypename = makeByTypename(ddbDoc, table, tenant.tenantId);
 
-      // Seed the SIMULATION ExecutionMode cache so the OrderStateMachine's
-      // ReadExecutionMode GetItem resolves to 'simulation' and RouteOrder routes
-      // to broker-sim. onboarded() sets accountMode=simulation upstream, but the
-      // broker-ctrl ExecutionMode row is materialised from EXECUTION_MODE_CHANGED,
-      // so seed it explicitly to make the route deterministic.
+      // funded() seeds investor-bff, NOT the broker-sim VIRTUAL ledger. The sim
+      // BUY order would otherwise reject on insufficient virtual cash, so fund the
+      // virtual ledger first with a SIM_DEPOSIT_INITIATED and wait for the
+      // DepositDetected row (proves the guarded credit landed). Subject fields are
+      // those read by broker-sim's event-listener SIM_DEPOSIT_INITIATED handler:
+      // {depositId, amountCents, currency, userId}.
       await eb.putEvent({
         bus: 'execution',
-        targetService: 'broker-ctrl',
-        detailType: 'EXECUTION_MODE_CHANGED',
-        detail: { mode: 'simulation' },
+        targetService: 'broker-sim-adpt',
+        detailType: 'SIM_DEPOSIT_INITIATED',
+        detail: {
+          depositId: `e2e-simdep-${randomUUID()}`,
+          amountCents: 1_000_000,
+          currency: 'USD',
+          userId: tenant.userId,
+        },
       });
       await poll(async () => {
-        const r = await ddbDoc.send(
-          new GetCommand({
-            TableName: brokerCtrlTable,
-            Key: { pk: `ExecutionMode#${tenant.tenantId}`, sk: 'ExecutionMode' },
-          }),
-        );
-        const item = r.Item as { mode?: string } | undefined;
-        return item?.mode === 'simulation' ? item : undefined;
-      }, 60_000);
+        const items = await byTypename('DepositDetected');
+        return items.length ? items : undefined;
+      }, 180_000);
 
-      // Drive the order through broker-ctrl's OrderStateMachine WITHOUT
-      // execution-ctrl's market-hours gate by emitting ORDER_SUBMITTED directly to
-      // broker-ctrl. Subject fields mirror RouteOrderEvent.order
-      // (broker-ctrl/src/handlers/route-order.ts) + the SIM_ORDER_REQUESTED subject
-      // consumed by broker-sim's event-listener ({orderId, userId, symbol, side,
-      // quantity}). See caveat (a): the SF reads several of these at the TOP of
-      // `$.detail`, but the harness nests them under `.subject`; the controller
-      // confirms/repairs the canonical shape during the closing run.
-      const orderId = `e2e-order-${randomUUID()}`;
+      // Drive the sim engine DIRECTLY via SIM_ORDER_REQUESTED. broker-sim's
+      // event-listener reads the subject as {orderId, userId, symbol, side,
+      // quantity} (services/execution/broker-sim-adpt/src/handlers/event-listener.ts
+      // SIM_ORDER_REQUESTED handler, lines 24-28). The engine fills the order and
+      // writes a VirtualTrade row (sk=`Trade#${tradeId}`, __typename='VirtualTrade')
+      // → CDC SIM_ORDER_FILLED. The emitted subject is validated by VirtualTradeSchema.
+      const orderId = `e2e-simord-${randomUUID()}`;
       await eb.putEvent({
         bus: 'execution',
-        targetService: 'broker-ctrl',
-        detailType: 'ORDER_SUBMITTED',
+        targetService: 'broker-sim-adpt',
+        detailType: 'SIM_ORDER_REQUESTED',
         detail: {
           orderId,
+          tenantId: tenant.tenantId,
           userId: tenant.userId,
           symbol: 'VTI',
           side: 'BUY',
           quantity: 5,
-          instrumentId: 'VTI',
         },
       });
 
-      // broker-sim VirtualTrade — written by the simulation engine on
-      // SIM_ORDER_REQUESTED (sk=`Trade#${tradeId}`, __typename='VirtualTrade').
-      // This is the load-bearing assertion for the SIM order route (see caveat a).
       const trades = await poll(async () => {
-        const items = await brokerSimByTypename('VirtualTrade');
+        const items = await byTypename('VirtualTrade');
         return items.length ? items : undefined;
       }, 240_000);
       expect(trades.length).toBeGreaterThan(0);
       trades.forEach((row, i) =>
         expectContractMatch(VirtualTradeSchema, row, `VirtualTrade[${i}]`),
-      );
-
-      // broker-ctrl NormalizedEvent — written by the OrderStateMachine when the
-      // adapter callback resolves (ORDER_FILLED / ORDER_REJECTED, sk=`ORDER_*#${ts}`,
-      // __typename='NormalizedEvent'). Depends on a full task-token round trip; see
-      // caveat (a). Polled with a generous deadline.
-      const normalized = await poll(async () => {
-        const items = await brokerCtrlByTypename('NormalizedEvent');
-        return items.length ? items : undefined;
-      }, 240_000);
-      expect(normalized.length).toBeGreaterThan(0);
-      normalized.forEach((row, i) =>
-        expectContractMatch(NormalizedOrderEventSchema, row, `NormalizedOrderEvent[${i}]`),
       );
     },
     420_000,
@@ -311,7 +288,7 @@ describe('execution-domain producer contracts — SIM path', () => {
   // it 3 — broker-sim funding: DepositDetected + WithdrawalCompleted
   // -------------------------------------------------------------------------
   it(
-    'broker-sim DepositDetected + WithdrawalCompleted subjects parse (SIM funding)',
+    'broker-sim: DepositDetected + WithdrawalCompleted subjects parse (SIM funding)',
     async () => {
       const eb = new EventBridgeClient(ctx);
       const table = await ctx.ssm.tableName('broker-sim-adpt');
@@ -322,7 +299,8 @@ describe('execution-domain producer contracts — SIM path', () => {
       // {depositId, amountCents, currency, userId}. It writes a `DepositDetected`
       // row (pk=`DepositDetected#${tenantId}#${eventId}`, sk='DepositDetected',
       // __typename='DepositDetected') → CDC SIM_DEPOSIT_COMPLETED. The emitted
-      // subject is validated by SimDepositCompletedSchema.
+      // subject is validated by SimDepositCompletedSchema. This deposit also funds
+      // the virtual ledger so the withdrawal below can draw from it.
       await eb.putEvent({
         bus: 'execution',
         targetService: 'broker-sim-adpt',
@@ -344,12 +322,12 @@ describe('execution-domain producer contracts — SIM path', () => {
         expectContractMatch(SimDepositCompletedSchema, row, `SimDepositCompleted[${i}]`),
       );
 
-      // Emit SIM_WITHDRAWAL_REQUESTED directly to broker-sim-adpt. Subject fields:
-      // {withdrawalId, amount, userId}. NOTE the deposit/withdrawal asymmetry —
-      // withdrawal carries `amount` (dollars), not amountCents. The funded() fixture
-      // seeded 2_000_000 cents = $20_000 of virtual cash; withdraw $2_500 (< balance)
-      // so the guarded debit succeeds and a `WithdrawalCompleted` row is written
-      // (__typename='WithdrawalCompleted') → CDC SIM_WITHDRAWAL_COMPLETED.
+      // Emit SIM_WITHDRAWAL_REQUESTED directly to broker-sim-adpt. Subject fields
+      // read by the handler (lines 76-78): {withdrawalId, amount, userId}. NOTE the
+      // deposit/withdrawal asymmetry — withdrawal carries `amount` in DOLLARS, not
+      // amountCents. The deposit above credited $5,000 of virtual cash; withdraw
+      // $2,500 (< balance) so the guarded debit succeeds and a `WithdrawalCompleted`
+      // row is written (__typename='WithdrawalCompleted') → CDC SIM_WITHDRAWAL_COMPLETED.
       await eb.putEvent({
         bus: 'execution',
         targetService: 'broker-sim-adpt',
@@ -376,6 +354,10 @@ describe('execution-domain producer contracts — SIM path', () => {
 
 // ===========================================================================
 // Block B — REAL Alpaca paper path (gated, high-fidelity)
+//
+// Drives broker-alpaca-adpt's inbound events DIRECTLY. The adapter always talks
+// to the real Alpaca paper API — there is no mode router to satisfy, so no
+// EXECUTION_MODE_CHANGED switch and no broker-ctrl ExecutionMode-row poll-confirm.
 // ===========================================================================
 
 describe('execution-domain producer contracts — REAL Alpaca paper path', () => {
@@ -406,65 +388,44 @@ describe('execution-domain producer contracts — REAL Alpaca paper path', () =>
   afterAll(async () => {
     // 1. Reset the paper account again so no test orders/positions linger.
     await alpacaPaperReset(ctx.prefix, { region: ctx.region });
-    // 2. Orphaned poll-SF cleanup (safety, 2026-04-10 real-paper-leak): stop any
-    //    RUNNING broker-alpaca Order/Transfer polling executions for this tenant so
-    //    they don't keep polling the real paper account after the suite ends.
+    // 2. Orphaned poll-SF cleanup (safety, real-paper-leak): stop any RUNNING
+    //    broker-alpaca Order/Transfer polling executions for this tenant so they
+    //    don't keep polling the real paper account after the suite ends.
     await stopOrphanedPollExecutions(ctx, tenant?.tenantId);
   }, 180_000);
 
   // -------------------------------------------------------------------------
-  // it 1 — broker-alpaca AlpacaOrderResult (REAL paper order)
+  // it 1 — broker-alpaca AlpacaOrderResult (REAL paper order, DIRECT)
   // -------------------------------------------------------------------------
   it(
     'broker-alpaca: AlpacaOrderResult subject parses (REAL paper order)',
     async () => {
       const eb = new EventBridgeClient(ctx);
-      const brokerCtrlTable = await ctx.ssm.tableName('broker-ctrl');
       const alpacaTable = await ctx.ssm.tableName('broker-alpaca-adpt');
       const alpacaByTypename = makeByTypename(ddbDoc, alpacaTable, tenant.tenantId);
 
-      // Switch the tenant to LIVE. EXECUTION_MODE_CHANGED materialises the
-      // broker-ctrl ExecutionMode row that ReadExecutionMode reads to route to
-      // alpaca. Poll the row to mode='live' BEFORE submitting (see caveat b).
-      await eb.putEvent({
-        bus: 'execution',
-        targetService: 'broker-ctrl',
-        detailType: 'EXECUTION_MODE_CHANGED',
-        detail: { mode: 'live' },
-      });
-      await poll(async () => {
-        const r = await ddbDoc.send(
-          new GetCommand({
-            TableName: brokerCtrlTable,
-            Key: { pk: `ExecutionMode#${tenant.tenantId}`, sk: 'ExecutionMode' },
-          }),
-        );
-        const item = r.Item as { mode?: string } | undefined;
-        return item?.mode === 'live' ? item : undefined;
-      }, 60_000);
-
-      // Drive a REAL paper order. The order route (live) emits ALPACA_ORDER_REQUESTED
-      // to broker-alpaca-adpt, which submits to the real paper API and writes an
-      // AlpacaOrderResult row (pk=`OrderMapping#${tenantId}#${nestfolioOrderId}`,
-      // sk='OrderMapping', __typename='AlpacaOrderResult'). Same ORDER_SUBMITTED
-      // caveat (a) as the SIM route — the controller confirms/repairs the SF input
-      // shape; the closing run hardens this leg.
+      // Drive a REAL paper order DIRECTLY via ALPACA_ORDER_REQUESTED. broker-alpaca's
+      // processOrderRequested reads the subject as {orderId, symbol, side, quantity}
+      // (services/execution/broker-alpaca-adpt/src/handlers/event-listener.ts
+      // processOrderRequested, lines 122-124). It submits to the real paper API and
+      // writes an AlpacaOrderResult row (pk=`OrderMapping#${tenantId}#${orderId}`,
+      // sk='OrderMapping', __typename='AlpacaOrderResult') → CDC ALPACA_ORDER_*. The
+      // emitted subject is validated by AlpacaOrderResultSchema (REJECTED is a valid
+      // status, so the contract still holds even if the paper API rejects the order).
       const orderId = `e2e-live-order-${randomUUID()}`;
       await eb.putEvent({
         bus: 'execution',
-        targetService: 'broker-ctrl',
-        detailType: 'ORDER_SUBMITTED',
+        targetService: 'broker-alpaca-adpt',
+        detailType: 'ALPACA_ORDER_REQUESTED',
         detail: {
           orderId,
-          userId: tenant.userId,
           symbol: 'VTI',
           side: 'BUY',
           quantity: 1,
-          instrumentId: 'VTI',
         },
       });
 
-      // Generous deadline — real Alpaca API + the order-polling SF.
+      // Generous deadline — real Alpaca API.
       const results = await poll(async () => {
         const items = await alpacaByTypename('AlpacaOrderResult');
         return items.length ? items : undefined;
@@ -478,54 +439,35 @@ describe('execution-domain producer contracts — REAL Alpaca paper path', () =>
   );
 
   // -------------------------------------------------------------------------
-  // it 2 — broker-alpaca AlpacaTransferResult (REAL paper transfer)
+  // it 2 — broker-alpaca AlpacaTransferResult (REAL paper transfer, DIRECT)
   // -------------------------------------------------------------------------
   it(
     'broker-alpaca: AlpacaTransferResult subject parses (REAL paper transfer)',
     async () => {
       const eb = new EventBridgeClient(ctx);
-      const brokerCtrlTable = await ctx.ssm.tableName('broker-ctrl');
       const alpacaTable = await ctx.ssm.tableName('broker-alpaca-adpt');
       const alpacaByTypename = makeByTypename(ddbDoc, alpacaTable, tenant.tenantId);
 
-      // Ensure LIVE mode (broker-ctrl deposit/withdrawal router routes transfers to
-      // alpaca only in live mode).
+      // Drive a REAL paper transfer DIRECTLY via ALPACA_TRANSFER_REQUESTED.
+      // broker-alpaca's processTransferRequested reads the subject as {transferId,
+      // direction, amount, relationshipId} (event-listener.ts processTransferRequested,
+      // lines 209-215). It initiates a real paper ACH transfer and writes an
+      // AlpacaTransferResult row (pk=`TransferMapping#${tenantId}#${transferId}`,
+      // sk='TransferMapping', __typename='AlpacaTransferResult') → CDC ALPACA_TRANSFER_*.
+      // NOTE: a real ACH transfer may need a funded relationship; with relationshipId=''
+      // the paper API rejects it and the handler writes the row with status='FAILED'
+      // (failureReason set). FAILED is a valid status, so AlpacaTransferResultSchema
+      // still validates — this leg proves the contract regardless of transfer outcome.
+      const transferId = `e2e-live-transfer-${randomUUID()}`;
       await eb.putEvent({
         bus: 'execution',
-        targetService: 'broker-ctrl',
-        detailType: 'EXECUTION_MODE_CHANGED',
-        detail: { mode: 'live' },
-      });
-      await poll(async () => {
-        const r = await ddbDoc.send(
-          new GetCommand({
-            TableName: brokerCtrlTable,
-            Key: { pk: `ExecutionMode#${tenant.tenantId}`, sk: 'ExecutionMode' },
-          }),
-        );
-        const item = r.Item as { mode?: string } | undefined;
-        return item?.mode === 'live' ? item : undefined;
-      }, 60_000);
-
-      // Drive a REAL paper transfer. DEPOSIT_INITIATED (live) → broker-ctrl
-      // deposit-withdrawal-router → ALPACA_TRANSFER_REQUESTED → broker-alpaca, which
-      // initiates a real paper ACH transfer and writes an AlpacaTransferResult row
-      // (sk='TransferMapping', __typename='AlpacaTransferResult').
-      // NOTE: the broker-alpaca transfer handler reads {transferId, direction, amount,
-      // relationshipId} off the routed ALPACA_TRANSFER_REQUESTED subject; the
-      // broker-ctrl router builds that from DEPOSIT_INITIATED. The DEPOSIT_INITIATED
-      // subject shape here ({depositId, amountCents, currency, userId}) mirrors the
-      // investor-adpt DepositInitiatedSchema the router parses — the controller
-      // confirms the exact router→adapter field mapping during the closing run.
-      await eb.putEvent({
-        bus: 'execution',
-        targetService: 'broker-ctrl',
-        detailType: 'DEPOSIT_INITIATED',
+        targetService: 'broker-alpaca-adpt',
+        detailType: 'ALPACA_TRANSFER_REQUESTED',
         detail: {
-          depositId: `e2e-live-deposit-${randomUUID()}`,
-          amountCents: 100_00,
-          currency: 'USD',
-          userId: tenant.userId,
+          transferId,
+          direction: 'INCOMING',
+          amount: 100,
+          relationshipId: '',
         },
       });
 
@@ -542,7 +484,7 @@ describe('execution-domain producer contracts — REAL Alpaca paper path', () =>
   );
 
   // -------------------------------------------------------------------------
-  // it 3 — broker-alpaca AlpacaAccountSnapshot (REAL account check)
+  // it 3 — broker-alpaca AlpacaAccountSnapshot (REAL account check, DIRECT)
   // -------------------------------------------------------------------------
   it(
     'broker-alpaca: AlpacaAccountSnapshot subject parses (REAL account check)',
@@ -551,12 +493,13 @@ describe('execution-domain producer contracts — REAL Alpaca paper path', () =>
       const alpacaTable = await ctx.ssm.tableName('broker-alpaca-adpt');
       const alpacaByTypename = makeByTypename(ddbDoc, alpacaTable, tenant.tenantId);
 
-      // ALPACA_ACCOUNT_CHECK is handled directly by broker-alpaca's Ingress
-      // (no SF, no live-mode gate — the handler GETs the account + positions and
-      // writes an AlpacaAccountSnapshot row, pk=`AccountSnapshot#${tenantId}`,
-      // sk=`Snapshot#${ts}`, __typename='AlpacaAccountSnapshot'). The subject needs
-      // no fields. NOTE the contract: equity/buyingPower are STRING|null (raw Alpaca
-      // API strings), status?/failureReason? optional — intentional/real (see
+      // ALPACA_ACCOUNT_CHECK is handled directly by broker-alpaca's processAccountCheck
+      // (event-listener.ts, lines 259-275) — it reads NO subject fields, GETs the
+      // account + positions, and writes an AlpacaAccountSnapshot row
+      // (pk=`AccountSnapshot#${tenantId}`, sk=`Snapshot#${ts}`,
+      // __typename='AlpacaAccountSnapshot') → CDC ALPACA_ACCOUNT_SNAPSHOT. The subject
+      // needs no fields. NOTE the contract: equity/buyingPower are STRING|null (raw
+      // Alpaca API strings), status?/failureReason? optional — intentional/real (see
       // contract doc-comments + backlog broker-alpaca-account-snapshot-equity-string-drift).
       await eb.putEvent({
         bus: 'execution',
@@ -583,8 +526,11 @@ describe('execution-domain producer contracts — REAL Alpaca paper path', () =>
 //
 // Stops any RUNNING broker-alpaca Order/Transfer polling Step Function executions
 // whose input carries this tenantId, so they stop hitting the real paper account
-// after the test ends. SF names follow the Orchestration construct's convention
-// `${prefix}-${service}-${id.toLowerCase()}`:
+// after the test ends. The polling SFs still start even when we drive the adapter
+// directly: ALPACA_ORDER_PLACED triggers OrderPollingStateMachine and
+// ALPACA_TRANSFER_INITIATED triggers TransferPollingStateMachine (CDC-emitted from
+// the rows the direct calls write). SF names follow the Orchestration construct's
+// convention `${prefix}-${service}-${id.toLowerCase()}`:
 //   ${prefix}-broker-alpaca-adpt-orderpollingstatemachine
 //   ${prefix}-broker-alpaca-adpt-transferpollingstatemachine
 // (the polling SFs use EB-trigger naming, not executionName, so the tenantId lives
@@ -601,7 +547,10 @@ async function stopOrphanedPollExecutions(
   try {
     const namePrefix = `${ctx.prefix}-broker-alpaca-adpt-`;
     const isPollingSm = (name: string | undefined): boolean =>
-      !!name && name.startsWith(namePrefix) && name.toLowerCase().includes('pollingstatemachine');
+      !!name &&
+      name.startsWith(namePrefix) &&
+      (name.toLowerCase().includes('orderpollingstatemachine') ||
+        name.toLowerCase().includes('transferpollingstatemachine'));
 
     // 1. Discover the polling state machines by name prefix.
     const smArns: string[] = [];
