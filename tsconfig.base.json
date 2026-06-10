@@ -67,13 +67,24 @@
       "@nestfolio/yahoo-finance-adpt/events": [
         "services/advisory/yahoo-finance-adpt/src/domain/events.ts"
       ],
+      "@nestfolio/yahoo-finance-adpt/contracts": [
+        "services/advisory/yahoo-finance-adpt/src/domain/contracts.ts"
+      ],
       "@nestfolio/marketwatch-adpt/events": [
         "services/advisory/marketwatch-adpt/src/domain/events.ts"
       ],
+      "@nestfolio/marketwatch-adpt/contracts": [
+        "services/advisory/marketwatch-adpt/src/domain/contracts.ts"
+      ],
       "@nestfolio/sec-edgar-adpt/events": ["services/advisory/sec-edgar-adpt/src/domain/events.ts"],
+      "@nestfolio/sec-edgar-adpt/contracts": ["services/advisory/sec-edgar-adpt/src/domain/contracts.ts"],
       "@nestfolio/fred-adpt/events": ["services/advisory/fred-adpt/src/domain/events.ts"],
+      "@nestfolio/fred-adpt/contracts": ["services/advisory/fred-adpt/src/domain/contracts.ts"],
       "@nestfolio/alpha-vantage-adpt/events": [
         "services/advisory/alpha-vantage-adpt/src/domain/events.ts"
+      ],
+      "@nestfolio/alpha-vantage-adpt/contracts": [
+        "services/advisory/alpha-vantage-adpt/src/domain/contracts.ts"
       ],
       "@nestfolio/portfolio-engine-ctrl/events": [
         "services/advisory/portfolio-engine-ctrl/src/domain/events.ts"

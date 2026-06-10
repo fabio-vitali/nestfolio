@@ -1,5 +1,6 @@
 import { materializeToTable, project, requireEnv, logger, parseRssFeed, type WriteIntent, type EventPayload, type EventContext } from '@nestfolio/event-processor';
 import { YahooFinanceAdptEventTypes } from '../domain/events';
+import type { YahooFinanceArticle } from '../domain/contracts';
 
 const FETCH_TIMEOUT_MS = 10_000;
 
@@ -76,8 +77,9 @@ async function handleFetchRequested(
     if (xml) {
       const articles = deps.parseRss(xml);
 
+      const articleRow: YahooFinanceArticle = { source: 'yahoo-finance', ticker, articles };
       intents.push(
-        project('YahooFinanceArticle', { source: 'yahoo-finance', ticker, articles }, {
+        project('YahooFinanceArticle', articleRow, {
           pk: 'YahooFinance#SYSTEM',
           sk: `Ticker#${ticker}`,
         }),

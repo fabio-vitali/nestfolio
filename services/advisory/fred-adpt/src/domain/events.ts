@@ -5,9 +5,4 @@ export const FredAdptEventTypes = {
   FRED_INDICATORS_UPDATED: eventName('FRED_INDICATORS_UPDATED'),
 } as const;
 
-export interface FredIndicator {
-  seriesId: string;
-  label: string;
-  date: string;
-  value: string;
-}
+export type { FredIndicator } from './contracts';

@@ -101,7 +101,7 @@ async function handleFetchRequested(
       logger.info('Found filings', { cik, issuer, count: filings.length });
 
       for (const filing of filings) {
-        const filingData: Omit<SecFiling, '__typename' | 'pk' | 'sk'> = {
+        const filingData: SecFiling = {
           cik,
           issuer,
           formType: filing.form,

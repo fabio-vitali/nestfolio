@@ -5,8 +5,4 @@ export const YahooFinanceAdptEventTypes = {
   YAHOO_FINANCE_UPDATED: eventName('YAHOO_FINANCE_UPDATED'),
 } as const;
 
-export interface YahooFinanceArticle {
-  ticker: string;
-  source: string;
-  articles: unknown[];
-}
+export type { YahooFinanceArticle } from './contracts';

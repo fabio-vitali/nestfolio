@@ -1,5 +1,6 @@
 import { materializeToTable, project, requireEnv, logger, type WriteIntent, type EventPayload, type EventContext } from '@nestfolio/event-processor';
 import { AlphaVantageAdptEventTypes } from '../domain/events';
+import type { EconomicIndicator } from '../domain/contracts';
 
 const FETCH_TIMEOUT_MS = 15_000;
 const MAX_REQUESTS_PER_CYCLE = 25;
@@ -115,8 +116,9 @@ async function handleFetchRequested(
     requestCount++;
 
     if (data) {
+      const indicator: EconomicIndicator = { function: fn, data };
       intents.push(
-        project('EconomicIndicator', { function: fn, data }, {
+        project('EconomicIndicator', indicator, {
           pk: 'AlphaVantage#SYSTEM',
           sk: `Indicator#${fn}`,
         }),

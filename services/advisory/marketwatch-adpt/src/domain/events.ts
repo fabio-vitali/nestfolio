@@ -5,8 +5,4 @@ export const MarketwatchAdptEventTypes = {
   MARKETWATCH_UPDATED: eventName('MARKETWATCH_UPDATED'),
 } as const;
 
-export interface MarketWatchArticle {
-  feed: string;
-  source: string;
-  articles: unknown[];
-}
+export type { MarketWatchArticle } from './contracts';
