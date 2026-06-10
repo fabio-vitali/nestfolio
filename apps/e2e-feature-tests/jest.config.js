@@ -33,6 +33,10 @@ module.exports = {
     '^@nestfolio/investor-adpt/domain$': '<rootDir>/../../services/investor/investor-adpt/src/domain/index.ts',
     '^@nestfolio/broker-ctrl/events$': '<rootDir>/../../services/execution/broker-ctrl/src/domain/events.ts',
     '^@nestfolio/broker-alpaca-adpt/events$': '<rootDir>/../../services/execution/broker-alpaca-adpt/src/domain/events.ts',
+    '^@nestfolio/execution-ctrl/contracts$': '<rootDir>/../../services/execution/execution-ctrl/src/domain/contracts.ts',
+    '^@nestfolio/broker-ctrl/contracts$': '<rootDir>/../../services/execution/broker-ctrl/src/domain/contracts.ts',
+    '^@nestfolio/broker-sim-adpt/contracts$': '<rootDir>/../../services/execution/broker-sim-adpt/src/domain/contracts.ts',
+    '^@nestfolio/broker-alpaca-adpt/contracts$': '<rootDir>/../../services/execution/broker-alpaca-adpt/src/domain/contracts.ts',
   },
   transform: {
     '^.+\\.[tj]sx?$': ['ts-jest', { tsconfig: '<rootDir>/tsconfig.spec.json', diagnostics: false }],
