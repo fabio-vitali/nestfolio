@@ -1,6 +1,7 @@
 import { DynamoDBClient } from '@aws-sdk/client-dynamodb';
 import { GetCommand, PutCommand } from '@aws-sdk/lib-dynamodb';
-import { TableRepository, getTime, withMethodLogging, type RequestContext } from '@nestfolio/event-processor';
+import { TableRepository, getTime, withMethodLogging, type RequestContext, type TableEntry } from '@nestfolio/event-processor';
+import type { BrokerCircuitEvent } from '../domain/contracts';
 
 export class CircuitBreakerRepository extends TableRepository {
   private readonly log = withMethodLogging('CircuitBreakerRepository');
@@ -74,7 +75,8 @@ export class CircuitBreakerRepository extends TableRepository {
         ...context,
         timestamp,
         adapter: adapterId,
-      });
+        createdAt: timestamp,
+      } satisfies TableEntry<BrokerCircuitEvent, RequestContext> & { __typename: 'NormalizedEvent'; timestamp: string });
     },
   );
 }

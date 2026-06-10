@@ -1,6 +1,7 @@
 import { DynamoDBClient } from '@aws-sdk/client-dynamodb';
 import { GetCommand, UpdateCommand } from '@aws-sdk/lib-dynamodb';
-import { TableRepository, getTime, withMethodLogging } from '@nestfolio/event-processor';
+import { TableRepository, getTime, withMethodLogging, type TableEntry } from '@nestfolio/event-processor';
+import type { AlpacaOrderResult } from '../domain/contracts';
 
 export class OrderMappingRepository extends TableRepository {
   private readonly log = withMethodLogging('OrderMappingRepository');
@@ -11,6 +12,7 @@ export class OrderMappingRepository extends TableRepository {
 
   readonly createMapping = this.log('createMapping',
     async (tenantId: string, nestfolioOrderId: string, alpacaOrderId: string, symbol: string, side: string, qty: number): Promise<void> => {
+      const ts = getTime();
       await this.put({
         pk: `OrderMapping#${tenantId}#${nestfolioOrderId}`,
         sk: 'OrderMapping',
@@ -22,8 +24,9 @@ export class OrderMappingRepository extends TableRepository {
         side,
         requestedQty: qty,
         status: 'PLACED',
-        timestamp: getTime(),
-      });
+        timestamp: ts,
+        createdAt: ts,
+      } satisfies TableEntry<AlpacaOrderResult, { tenantId: string }> & { __typename: 'AlpacaOrderResult'; timestamp: string });
       // Reverse lookup so getByAlpacaOrderId works
       await this.put({
         pk: `AlpacaOrder#${tenantId}#${alpacaOrderId}`,

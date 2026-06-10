@@ -27,6 +27,7 @@
       "@nestfolio/broker-alpaca-adpt/domain": [
         "services/execution/broker-alpaca-adpt/src/domain/index.ts"
       ],
+      "@nestfolio/broker-alpaca-adpt/contracts": ["services/execution/broker-alpaca-adpt/src/domain/contracts.ts"],
       "@nestfolio/broker-sim-adpt/contracts": [
         "services/execution/broker-sim-adpt/src/domain/contracts.ts"
       ],

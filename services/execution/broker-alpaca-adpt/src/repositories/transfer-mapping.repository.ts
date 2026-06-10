@@ -1,6 +1,7 @@
 import { DynamoDBClient } from '@aws-sdk/client-dynamodb';
 import { UpdateCommand } from '@aws-sdk/lib-dynamodb';
-import { TableRepository, getTime, withMethodLogging } from '@nestfolio/event-processor';
+import { TableRepository, getTime, withMethodLogging, type TableEntry } from '@nestfolio/event-processor';
+import type { AlpacaTransferResult } from '../domain/contracts';
 
 export class TransferMappingRepository extends TableRepository {
   private readonly log = withMethodLogging('TransferMappingRepository');
@@ -11,6 +12,7 @@ export class TransferMappingRepository extends TableRepository {
 
   readonly createMapping = this.log('createMapping',
     async (tenantId: string, nestfolioTransferId: string, alpacaTransferId: string, direction: string, amount: number): Promise<void> => {
+      const ts = getTime();
       await this.put({
         pk: `TransferMapping#${tenantId}#${nestfolioTransferId}`,
         sk: 'TransferMapping',
@@ -18,11 +20,12 @@ export class TransferMappingRepository extends TableRepository {
         tenantId,
         nestfolioTransferId,
         alpacaTransferId,
-        direction,
+        direction: direction as AlpacaTransferResult['direction'],
         amount,
         status: 'INITIATED',
-        timestamp: getTime(),
-      });
+        timestamp: ts,
+        createdAt: ts,
+      } satisfies TableEntry<AlpacaTransferResult, { tenantId: string }> & { __typename: 'AlpacaTransferResult'; timestamp: string });
     },
   );
 
