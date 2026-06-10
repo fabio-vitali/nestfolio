@@ -5,12 +5,7 @@ import { logger } from '@nestfolio/event-processor';
 import '../read-model-ownership';
 import { DecisionWorkflowEventTypes } from '@nestfolio/decision-workflow-ctrl/events';
 import { InvestorBffEventTypes } from '@nestfolio/investor-bff/events';
-
-// Subject field carrying the SF taskToken across the compliance hop. Persisted
-// onto the ComplianceCheck row so CDC re-emits it on DECISION_APPROVED |
-// DECISION_BLOCKED, allowing decision-workflow-ctrl/sfn-callback.ts to call
-// SendTaskSuccess. Without this, the SF execution remains stuck at
-// WaitForCompliance.
+import type { ComplianceCheck } from '../domain/contracts';
 import { ComplianceRepository } from '../repositories/compliance.repository';
 import { RuleEngine, type ComplianceInput, type MandateSnapshot } from '../rules/rule-engine';
 import { MandateValidator } from '../rules/mandate-validator';
@@ -63,8 +58,7 @@ async function processDecisionPacket(
   const mandateRecord = await deps.repository.getMandateSnapshot(tenantId, userId);
   if (!mandateRecord) {
     logger.error('No mandate snapshot found for user', { tenantId, userId });
-    return record('ComplianceCheck', {
-      tenantId,
+    const fallbackSubject: ComplianceCheck = {
       ccId,
       decisionPacketId,
       // Dual-field: CDC carries this on subject so advisory-bff's
@@ -73,7 +67,7 @@ async function processDecisionPacket(
       // `decisionPacketId` field stays for execution-ctrl / ledger-ctrl
       // consumers that already key on that name.
       decisionId: decisionPacketId,
-      taskToken,
+      taskToken: taskToken!,
       mandateSnapshot: {
         level: 'ADVISORY',
         status: 'ACTIVE',
@@ -85,7 +79,8 @@ async function processDecisionPacket(
       violations: [{ rule: 'MANDATE_MISSING', description: 'No mandate found for user', severity: 'BLOCKING' }],
       authorityLevel: 'L2',
       sourceEventId: ctx.eventId,
-    }, { pk: complianceCheckPk(tenantId, ccId), sk: 'ComplianceCheck' });
+    };
+    return record('ComplianceCheck', { tenantId, ...fallbackSubject }, { pk: complianceCheckPk(tenantId, ccId), sk: 'ComplianceCheck' });
   }
 
   const mandate: MandateSnapshot = {
@@ -126,24 +121,25 @@ async function processDecisionPacket(
     violationCount: output.violations.length,
   });
 
+  const happySubject: ComplianceCheck = {
+    ccId,
+    decisionPacketId,
+    // Dual-field: see fallback-path note above. CDC must carry
+    // `decisionId` on subject so advisory-bff can address the
+    // DecisionReadModel pk; existing consumers keep reading
+    // `decisionPacketId`.
+    decisionId: decisionPacketId,
+    taskToken: taskToken!,
+    mandateSnapshot: mandate,
+    status: 'COMPLETED',
+    result: output.result,
+    violations: output.violations,
+    authorityLevel: output.authorityLevel,
+    sourceEventId: ctx.eventId,
+  };
+
   return [
-    record('ComplianceCheck', {
-      tenantId,
-      ccId,
-      decisionPacketId,
-      // Dual-field: see fallback-path note above. CDC must carry
-      // `decisionId` on subject so advisory-bff can address the
-      // DecisionReadModel pk; existing consumers keep reading
-      // `decisionPacketId`.
-      decisionId: decisionPacketId,
-      taskToken,
-      mandateSnapshot: mandate,
-      status: 'COMPLETED',
-      result: output.result,
-      violations: output.violations,
-      authorityLevel: output.authorityLevel,
-      sourceEventId: ctx.eventId,
-    }, { pk: complianceCheckPk(tenantId, ccId), sk: 'ComplianceCheck' }),
+    record('ComplianceCheck', { tenantId, ...happySubject }, { pk: complianceCheckPk(tenantId, ccId), sk: 'ComplianceCheck' }),
     record('AuditArtifact', {
       tenantId,
       ccId,
