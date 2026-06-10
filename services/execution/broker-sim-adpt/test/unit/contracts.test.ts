@@ -24,6 +24,13 @@ describe('broker-sim-adpt contracts', () => {
     expect(parsed.amount).toBe(250);
   });
 
+  it('SimWithdrawalCompletedSchema rejects a non-positive amount', () => {
+    expect(() => SimWithdrawalCompletedSchema.parse({
+      withdrawalId: 'w1', amount: -100,
+      sourceEventId: 'e1', timestamp: '2026-06-10T00:00:00.000Z',
+    })).toThrow();
+  });
+
   it('VirtualTradeSchema parses a SIM_ORDER_FILLED trade subject (dry)', () => {
     const parsed = VirtualTradeSchema.parse({
       tenantId: 't', userId: 'u', region: 'us-east-1', pk: 'VirtualLedger#t#u', sk: 'Trade#x',

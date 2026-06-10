@@ -28,7 +28,7 @@ export type SimDepositCompleted = z.infer<typeof SimDepositCompletedSchema>;
  */
 export const SimWithdrawalCompletedSchema = z.object({
   withdrawalId: z.string(),
-  amount: z.number(),
+  amount: z.number().positive(),
   sourceEventId: z.string(),
   timestamp: z.string(),
 });
@@ -51,12 +51,13 @@ export const VirtualTradeSchema = z.object({
 });
 export type VirtualTrade = z.infer<typeof VirtualTradeSchema>;
 
-/** Internal (NOT CDC-emitted) virtual-ledger read-model rows. Tenant+user-scoped. */
+/** Internal (NOT CDC-emitted) virtual-ledger read-model rows. Tenant+user-scoped.
+ * Dry subjects — generic envelope timestamps (createdAt/updatedAt) are excluded;
+ * they live on the TableEntry envelope, not the business subject. */
 export const VirtualCashBalanceSchema = z.object({
   currency: z.string(),
   balance: z.number(),
   version: z.number(),
-  updatedAt: z.string(),
 });
 export type VirtualCashBalance = z.infer<typeof VirtualCashBalanceSchema>;
 
@@ -65,7 +66,6 @@ export const VirtualPositionSchema = z.object({
   quantity: z.number(),
   averageCostBasis: z.number(),
   marketValue: z.number(),
-  updatedAt: z.string(),
 });
 export type VirtualPosition = z.infer<typeof VirtualPositionSchema>;
 
@@ -74,6 +74,5 @@ export const VirtualSnapshotSchema = z.object({
   cashBalance: z.number(),
   positions: z.array(z.unknown()),
   totalValue: z.number(),
-  createdAt: z.string(),
 });
 export type VirtualSnapshot = z.infer<typeof VirtualSnapshotSchema>;
