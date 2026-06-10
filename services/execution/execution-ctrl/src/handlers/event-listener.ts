@@ -6,6 +6,7 @@ import '../read-model-ownership';
 import { AdvisoryCrossDomainEventTypes } from '@nestfolio/advisory-adpt/domain';
 import { InvestorCrossDomainEventTypes } from '@nestfolio/investor-adpt/domain';
 import type { ProposedTrade } from '@nestfolio/advisory-adpt/domain';
+import type { Order, StagedOrder } from '../domain/contracts';
 import { OrderRepository } from '../repositories/order.repository';
 import { SafetyChecksService } from '../services/safety-checks.service';
 import { MarketHoursService } from '../services/market-hours.service';
@@ -43,59 +44,44 @@ async function processApprovedDecision(
 
   if (!safetyResult.passed) {
     logger.info('Safety checks failed, rejecting order', { orderId, reason: safetyResult.reason });
-    return record('Order', {
-      __typename: 'Order',
-      tenantId,
+    const subject: Order = {
       orderId,
       decisionPacketId,
       proposedTrades,
       status: 'REJECTED',
       reason: safetyResult.reason,
       sourceEventId: ctx.eventId,
-      createdAt: now,
-      updatedAt: now,
       timestamp: now,
-    }, { pk: `Order#${tenantId}#${orderId}`, sk: 'Order' });
+    };
+    return record('Order', { __typename: 'Order', tenantId, ...subject, createdAt: now, updatedAt: now }, { pk: `Order#${tenantId}#${orderId}`, sk: 'Order' });
   }
 
   if (await deps.marketHours.isMarketOpen()) {
     logger.info('Market open, submitting order', { orderId });
-    return record('Order', {
-      __typename: 'Order',
-      tenantId,
+    const subject: Order = {
       orderId,
       decisionPacketId,
       proposedTrades,
       status: 'SUBMITTED',
       sourceEventId: ctx.eventId,
-      createdAt: now,
-      updatedAt: now,
       timestamp: now,
-    }, { pk: `Order#${tenantId}#${orderId}`, sk: 'Order' });
+    };
+    return record('Order', { __typename: 'Order', tenantId, ...subject, createdAt: now, updatedAt: now }, { pk: `Order#${tenantId}#${orderId}`, sk: 'Order' });
   }
 
   logger.info('Market closed, staging order', { orderId });
+  const stagedOrderSubject: Order = {
+    orderId,
+    decisionPacketId,
+    proposedTrades,
+    status: 'STAGED',
+    sourceEventId: ctx.eventId,
+    timestamp: now,
+  };
+  const stagedSubject: StagedOrder = { orderId, proposedTrades, stagedAt: now, timestamp: now };
   return [
-    record('Order', {
-      __typename: 'Order',
-      tenantId,
-      orderId,
-      decisionPacketId,
-      proposedTrades,
-      status: 'STAGED',
-      sourceEventId: ctx.eventId,
-      createdAt: now,
-      updatedAt: now,
-      timestamp: now,
-    }, { pk: `Order#${tenantId}#${orderId}`, sk: 'Order' }),
-    record('StagedOrder', {
-      __typename: 'StagedOrder',
-      tenantId,
-      orderId,
-      proposedTrades,
-      stagedAt: now,
-      timestamp: now,
-    }, { pk: `StagedOrder#${tenantId}#${orderId}`, sk: 'StagedOrder' }),
+    record('Order', { __typename: 'Order', tenantId, ...stagedOrderSubject, createdAt: now, updatedAt: now }, { pk: `Order#${tenantId}#${orderId}`, sk: 'Order' }),
+    record('StagedOrder', { __typename: 'StagedOrder', tenantId, ...stagedSubject }, { pk: `StagedOrder#${tenantId}#${orderId}`, sk: 'StagedOrder' }),
   ];
 }
 

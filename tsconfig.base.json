@@ -90,6 +90,7 @@
       "@nestfolio/market-intelligence-ctrl/contracts": [
         "services/advisory/market-intelligence-ctrl/src/domain/contracts.ts"
       ],
+      "@nestfolio/execution-ctrl/contracts": ["services/execution/execution-ctrl/src/domain/contracts.ts"],
       "@nestfolio/execution-ctrl/events": [
         "services/execution/execution-ctrl/src/domain/events.ts"
       ],
