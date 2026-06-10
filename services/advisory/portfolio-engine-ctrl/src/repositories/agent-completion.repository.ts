@@ -11,13 +11,13 @@
 //
 // Writes go through the standard event-processor `record()` intent; this file
 // deliberately exposes only key formulas (no custom SDK code).
+//
+// Key helpers are re-exported from @nestfolio/agent-orchestrator (camelCase functions)
+// under SCREAMING_SNAKE aliases so call sites in event-listener.ts remain unchanged.
 
-export const AGENT_COMPLETION_PK = (decisionId: string): string =>
-  `AgentCompletion#${decisionId}`;
-export const AGENT_COMPLETION_SK = (agentName: string): string =>
-  `AgentCompletion#${agentName}`;
-
-export const AGENT_FAILURE_PK = (decisionId: string): string =>
-  `AgentFailure#${decisionId}`;
-export const AGENT_FAILURE_SK = (agentName: string): string =>
-  `AgentFailure#${agentName}`;
+export {
+  agentCompletionPk as AGENT_COMPLETION_PK,
+  agentCompletionSk as AGENT_COMPLETION_SK,
+  agentFailurePk as AGENT_FAILURE_PK,
+  agentFailureSk as AGENT_FAILURE_SK,
+} from '@nestfolio/agent-orchestrator';

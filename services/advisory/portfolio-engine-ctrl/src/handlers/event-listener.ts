@@ -23,6 +23,7 @@ import {
   AGENT_COMPLETION_PK, AGENT_COMPLETION_SK,
   AGENT_FAILURE_PK, AGENT_FAILURE_SK,
 } from '../repositories/agent-completion.repository';
+import type { PortfolioAgentOutput } from '../domain/contracts';
 
 const AGENT_NAME = 'portfolio-engine';
 
@@ -99,7 +100,7 @@ export const createHandlers = (deps: IngressDeps) => {
               tenantId,
               agentName: AGENT_NAME,
               taskToken,
-              agentOutput: result,
+              agentOutput: result as PortfolioAgentOutput,
               completedAt: new Date().toISOString(),
             },
             { pk: AGENT_COMPLETION_PK(decisionId), sk: AGENT_COMPLETION_SK(AGENT_NAME) },

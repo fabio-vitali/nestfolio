@@ -1,3 +1,6 @@
+import type { AgentCompletionRow, AgentFailureRow } from '@nestfolio/agent-orchestrator';
+import type { PortfolioAgentOutput } from './contracts';
+
 export interface AgentInvocation {
   readonly invocationId: string;
   readonly decisionId: string;
@@ -43,27 +46,10 @@ export interface PortfolioSnapshot {
   readonly totalValue: number;
 }
 
-export interface AgentCompletionRow {
-  readonly pk: string;                              // `AgentCompletion#${decisionId}`
-  readonly sk: string;                              // `AgentCompletion#${agentName}`
-  readonly __typename: 'AgentCompletion';
-  readonly decisionId: string;
-  readonly tenantId: string;
-  readonly agentName: 'portfolio-engine';
-  readonly taskToken: string;
-  readonly agentOutput: Record<string, unknown>;
-  readonly completedAt: string;
-}
+// Aliases use the same names as the deleted inline interfaces so that any
+// re-exports from domain/index.ts (which does `export * from './models'`) keep
+// the names stable for consumers outside this service.
+export type { AgentCompletionRow, AgentFailureRow };
 
-export interface AgentFailureRow {
-  readonly pk: string;                              // `AgentFailure#${decisionId}`
-  readonly sk: string;                              // `AgentFailure#${agentName}`
-  readonly __typename: 'AgentFailure';
-  readonly decisionId: string;
-  readonly tenantId: string;
-  readonly agentName: 'portfolio-engine';
-  readonly taskToken: string;
-  readonly errorType: string;
-  readonly errorMessage: string;
-  readonly failedAt: string;
-}
+export type PortfolioAgentCompletionRow = AgentCompletionRow<'portfolio-engine', PortfolioAgentOutput>;
+export type PortfolioAgentFailureRow = AgentFailureRow<'portfolio-engine'>;

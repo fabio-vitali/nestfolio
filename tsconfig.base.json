@@ -76,6 +76,9 @@
       "@nestfolio/portfolio-engine-ctrl/events": [
         "services/advisory/portfolio-engine-ctrl/src/domain/events.ts"
       ],
+      "@nestfolio/portfolio-engine-ctrl/contracts": [
+        "services/advisory/portfolio-engine-ctrl/src/domain/contracts.ts"
+      ],
       "@nestfolio/advisory-narrative-ctrl/events": [
         "services/advisory/advisory-narrative-ctrl/src/domain/events.ts"
       ],
