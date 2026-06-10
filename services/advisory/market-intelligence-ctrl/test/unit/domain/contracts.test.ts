@@ -18,34 +18,28 @@ const validAgentOutput = {
 };
 
 describe('market-intelligence-ctrl contracts', () => {
-  it('MarketSnapshotSchema parses a full CDC snapshot subject', () => {
-    const subject = {
-      region: 'us-east-1',
-      agentOutput: validAgentOutput,
-      __version: 9,
-    };
-    const parsed = MarketSnapshotSchema.parse(subject);
-    expect(parsed.region).toBe('us-east-1');
-    expect(parsed.agentOutput.confidenceScore).toBe(0.75);
-    expect(parsed.agentOutput.signals[0].sentiment).toBe('BULLISH');
-    expect(parsed.__version).toBe(9);
+  it('MarketSnapshotSchema is dry — region is NOT on the subject (it travels in RegionContext)', () => {
+    const parsed = MarketSnapshotSchema.parse({
+      region: 'us-east-1', // extra key — must be stripped, not required
+      agentOutput: { signals: [], tickersMentioned: [], marketOutlook: 'neutral', confidenceScore: 0.5 },
+      __version: 1,
+    });
+    expect('region' in parsed).toBe(false);
+    expect(parsed.agentOutput.marketOutlook).toBe('neutral');
+  });
+
+  it('MarketSnapshotSchema still requires agentOutput', () => {
+    expect(() => MarketSnapshotSchema.parse({ __version: 1 })).toThrow();
   });
 
   it('__version is optional', () => {
-    const subject = { region: 'us-east-1', agentOutput: validAgentOutput };
+    const subject = { agentOutput: validAgentOutput };
     const parsed = MarketSnapshotSchema.parse(subject);
     expect(parsed.__version).toBeUndefined();
   });
 
-  it('requires region', () => {
-    expect(() =>
-      MarketSnapshotSchema.parse({ agentOutput: validAgentOutput }),
-    ).toThrow();
-  });
-
   it('signal sentiment must be BULLISH | BEARISH | NEUTRAL', () => {
     const invalidSubject = {
-      region: 'us-east-1',
       agentOutput: {
         ...validAgentOutput,
         signals: [{ ...validSignal, sentiment: 'VERY_BULLISH' }],
@@ -57,14 +51,14 @@ describe('market-intelligence-ctrl contracts', () => {
   it('agentOutput shape is verified — missing signals throws', () => {
     const { signals: _omitted, ...withoutSignals } = validAgentOutput;
     expect(() =>
-      MarketSnapshotSchema.parse({ region: 'us-east-1', agentOutput: withoutSignals }),
+      MarketSnapshotSchema.parse({ agentOutput: withoutSignals }),
     ).toThrow();
   });
 
   it('agentOutput shape is verified — missing confidenceScore throws', () => {
     const { confidenceScore: _omitted, ...withoutScore } = validAgentOutput;
     expect(() =>
-      MarketSnapshotSchema.parse({ region: 'us-east-1', agentOutput: withoutScore }),
+      MarketSnapshotSchema.parse({ agentOutput: withoutScore }),
     ).toThrow();
   });
 });

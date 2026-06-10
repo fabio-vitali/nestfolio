@@ -1,3 +1,6 @@
+import type { TableEntry, RegionContext } from '@nestfolio/event-processor';
+import type { MarketSnapshot } from './contracts';
+
 export interface MarketSignal {
   readonly type: string;
   readonly ticker: string;
@@ -35,25 +38,13 @@ export interface ReasoningOutput {
   readonly createdAt: string;
 }
 
-export interface MarketSnapshotRow {
-  readonly pk: string;                              // `MarketSnapshot#${region}`
-  readonly sk: 'MarketSnapshot';
+/** Persisted MarketSnapshot row. Region-scoped (RegionContext supplies `region`; no tenant). The
+ * row-only operational fields are projection metadata, not part of the emitted business subject. */
+export type MarketSnapshotRow = TableEntry<MarketSnapshot, RegionContext> & {
   readonly __typename: 'MarketSnapshot';
-  readonly region: string;
-  readonly agentOutput: {
-    readonly signals: ReadonlyArray<{
-      readonly type: string;
-      readonly ticker: string;
-      readonly sentiment: 'BULLISH' | 'BEARISH' | 'NEUTRAL';
-      readonly confidence: number;
-      readonly source: string;
-    }>;
-    readonly tickersMentioned: ReadonlyArray<string>;
-    readonly marketOutlook: string;
-    readonly confidenceScore: number;
-  };
+  readonly sk: 'MarketSnapshot';
   readonly fastComponentsAt: string;
-  readonly slowComponentsAt: string;
-  readonly sourceEventIds: ReadonlyArray<string>;   // ring buffer, last 20
-  readonly updatedAt: string;
-}
+  /** Set only on slow-tier (tick) rebuilds; absent on fast-tier (feed) snapshots. */
+  readonly slowComponentsAt?: string;
+  readonly sourceEventIds: ReadonlyArray<string>;
+};

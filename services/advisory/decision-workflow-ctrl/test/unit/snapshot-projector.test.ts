@@ -144,9 +144,9 @@ describe('snapshot-projector', () => {
   });
 
   it('MARKET_SNAPSHOT_UPDATED → projectVersioned keyed on subject.__version', async () => {
+    // region is a RegionContext field — it travels in the event context, not the (now dry) subject.
     const result = await handlers.MARKET_SNAPSHOT_UPDATED(
       payload({
-        region: 'us-east-1',
         agentOutput: validMarketAgentOutput,
         __version: 9,
       }),
@@ -170,7 +170,7 @@ describe('snapshot-projector', () => {
 
   it('MARKET_SNAPSHOT_UPDATED drops (undefined) when __version is absent', async () => {
     const result = await handlers.MARKET_SNAPSHOT_UPDATED(
-      payload({ region: 'us-east-1', agentOutput: validMarketAgentOutput }),
+      payload({ agentOutput: validMarketAgentOutput }),
       ctx('MARKET_SNAPSHOT_UPDATED', { tenantId: 'SYSTEM' }),
     );
     expect(result).toBeUndefined();
@@ -180,20 +180,26 @@ describe('snapshot-projector', () => {
     // agentOutput missing required fields (e.g. signals) should throw ZodError
     await expect(
       handlers.MARKET_SNAPSHOT_UPDATED(
-        payload({ region: 'us-east-1', agentOutput: { outlook: 'bullish' }, __version: 1 }),
+        payload({ agentOutput: { outlook: 'bullish' }, __version: 1 }),
         ctx('MARKET_SNAPSHOT_UPDATED', { tenantId: 'SYSTEM' }),
       ),
     ).rejects.toThrow();
   });
 
-  it('MARKET_SNAPSHOT_UPDATED throws on missing subject.region (schema enforcement)', async () => {
-    // subject missing region should throw ZodError
-    await expect(
-      handlers.MARKET_SNAPSHOT_UPDATED(
-        payload({ agentOutput: validMarketAgentOutput, __version: 1 }),
-        ctx('MARKET_SNAPSHOT_UPDATED', { tenantId: 'SYSTEM' }),
-      ),
-    ).rejects.toThrow();
+  it('MARKET_SNAPSHOT_UPDATED sources region from ctx, not the dry subject', async () => {
+    // region is a RegionContext field — it travels in the event context, not the (now dry) subject.
+    // A subject without region still projects; region is derived from ctx.
+    const result = await handlers.MARKET_SNAPSHOT_UPDATED(
+      payload({ agentOutput: validMarketAgentOutput, __version: 2 }),
+      ctx('MARKET_SNAPSHOT_UPDATED', { tenantId: 'SYSTEM', region: 'eu-west-1' }),
+    );
+    const intent = Array.isArray(result) ? result[0] : result;
+    expect(intent!._tag).toBe('projectVersioned');
+    const fields = (intent as { fields: Record<string, unknown> }).fields;
+    expect(fields.region).toBe('eu-west-1');
+    expect((intent as { overrides?: { pk?: string } }).overrides?.pk).toBe(
+      projectedMarketSnapshotPk('eu-west-1'),
+    );
   });
 });
 

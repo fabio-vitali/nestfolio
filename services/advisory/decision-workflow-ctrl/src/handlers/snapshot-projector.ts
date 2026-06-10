@@ -52,9 +52,10 @@ function projectIpSnapshot(
   });
 }
 
-function projectMarketSnapshot(payload: EventPayload): WriteIntent | undefined {
+function projectMarketSnapshot(payload: EventPayload, ctx: EventContext): WriteIntent | undefined {
   const subject = parseSubject(payload, MarketSnapshotSchema);
-  const region = subject.region;
+  // region is a RegionContext field — it travels in the event context, not the (now dry) subject.
+  const region = ctx.region;
   const agentOutput = subject.agentOutput;
   if (!agentOutput) {
     throw new NotRetryableError(
@@ -126,8 +127,8 @@ export const createHandlers = () => ({
   ) => projectIpSnapshot(p, c),
   [MarketIntelligenceEventTypes.MARKET_SNAPSHOT_UPDATED]: async (
     p: EventPayload,
-    _c: EventContext,
-  ) => projectMarketSnapshot(p),
+    c: EventContext,
+  ) => projectMarketSnapshot(p, c),
   [LedgerCtrlEventTypes.PORTFOLIO_UPDATED]: async (
     p: EventPayload,
     c: EventContext,
