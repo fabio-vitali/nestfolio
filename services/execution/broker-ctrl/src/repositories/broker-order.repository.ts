@@ -26,7 +26,7 @@ export class BrokerOrderRepository extends TableRepository {
       await this.put({
         pk: `BrokerOrder#${params.tenantId}#${params.orderId}`,
         sk: 'BrokerOrder',
-        __typename: 'BrokerOrder' as const,
+        __typename: 'BrokerOrder',
         state: 'AWAITING_FILL',
         tenantId: params.tenantId,
         orderId: params.orderId,
