@@ -31,7 +31,8 @@ Stack: services/execution/broker-ctrl/src/service.stack.ts
 ## Egress
 - CDC: DynamoDB Streams -> broker-ctrl-egress (Lambda)
   Emits:
-  - NormalizedEvent (insert): passthrough on `sk` field — ORDER_FILLED, ORDER_PARTIALLY_FILLED, ORDER_REJECTED, ORDER_CANCELLED, ORDER_ESCALATED, DEPOSIT_DETECTED, WITHDRAWAL_COMPLETED, TRANSFER_FAILED
+  - NormalizedEvent (insert, passthrough on `sk`): ORDER_FILLED, ORDER_PARTIALLY_FILLED, ORDER_REJECTED, ORDER_CANCELLED, ORDER_ESCALATED
+  - FundingEvent (insert, passthrough on `sk`): DEPOSIT_REQUESTED, DEPOSIT_DETECTED, DEPOSIT_SETTLED, DEPOSIT_FAILED, WITHDRAWAL_REQUESTED, WITHDRAWAL_SETTLED, WITHDRAWAL_FAILED
 
 ## Orchestration
 - OrderStateMachine: orchestrates order lifecycle (ReadExecutionMode -> RouteOrder -> ClassifyResult)
@@ -56,9 +57,15 @@ Stack: services/execution/broker-ctrl/src/service.stack.ts
 - route-order.ts — routes order to correct adapter, writes BrokerOrder with taskToken (standalone, SF-invoked)
 
 ## Event Types (domain/events.ts)
-- BrokerCtrlEventTypes (outbound/CDC): ORDER_FILLED, ORDER_PARTIALLY_FILLED, ORDER_REJECTED, ORDER_CANCELLED, ORDER_ESCALATED, DEPOSIT_DETECTED, WITHDRAWAL_COMPLETED, TRANSFER_FAILED
+- BrokerCtrlEventTypes (outbound/CDC): ORDER_FILLED, ORDER_PARTIALLY_FILLED, ORDER_REJECTED, ORDER_CANCELLED, ORDER_ESCALATED, DEPOSIT_REQUESTED, DEPOSIT_DETECTED, DEPOSIT_SETTLED, DEPOSIT_FAILED, WITHDRAWAL_REQUESTED, WITHDRAWAL_SETTLED, WITHDRAWAL_FAILED
 - BrokerCtrlRoutedEventTypes (routed to adapters): SIM_ORDER_REQUESTED, SIM_DEPOSIT_INITIATED, SIM_WITHDRAWAL_REQUESTED, ALPACA_ORDER_REQUESTED, ALPACA_ORDER_CANCEL_REQUESTED, ALPACA_TRANSFER_REQUESTED, ALPACA_ACCOUNT_CHECK
-- BrokerCtrlInboundEventTypes (subscribed): ORDER_SUBMITTED, EXECUTION_MODE_CHANGED, DEPOSIT_INITIATED, WITHDRAWAL_REQUESTED, SIM_ORDER_FILLED, SIM_ORDER_REJECTED, SIM_DEPOSIT_COMPLETED, SIM_WITHDRAWAL_COMPLETED, ALPACA_ORDER_FILLED, ALPACA_ORDER_PARTIALLY_FILLED, ALPACA_ORDER_REJECTED, ALPACA_ORDER_CANCELLED, ALPACA_ORDER_CANCEL_FAILED, ALPACA_TRANSFER_COMPLETED, ALPACA_TRANSFER_FAILED
+- BrokerCtrlInboundEventTypes (subscribed): ORDER_SUBMITTED, EXECUTION_MODE_CHANGED, DEPOSIT_INITIATED, WITHDRAWAL_INITIATED, SIM_ORDER_FILLED, SIM_ORDER_REJECTED, SIM_DEPOSIT_COMPLETED, SIM_WITHDRAWAL_COMPLETED, ALPACA_ORDER_FILLED, ALPACA_ORDER_PARTIALLY_FILLED, ALPACA_ORDER_REJECTED, ALPACA_ORDER_CANCELLED, ALPACA_ORDER_CANCEL_FAILED, ALPACA_TRANSFER_COMPLETED, ALPACA_TRANSFER_FAILED
+
+## Event Payload Contracts (domain/contracts.ts → @nestfolio/broker-ctrl/contracts)
+Producer-owned zod CDC subject contracts, exported via `@nestfolio/broker-ctrl/contracts` (NOT re-exported through the `/domain` barrel). DRY domain subjects — identity travels in the event context (RequestContext), not on the subject.
+- NormalizedOrderEventSchema / NormalizedOrderEvent — ORDER_FILLED / ORDER_PARTIALLY_FILLED / ORDER_REJECTED / ORDER_CANCELLED / ORDER_ESCALATED subject (the `NormalizedEvent` row, sk passthrough). Fields: orderId, executionMode, filledQty?, averageFillPrice?, failureReason?, timestamp. (The old `NormalizedEvent` row schema in domain/schemas.ts was removed — row schema → dry contract.)
+- BrokerOrderSchema / BrokerOrder — internal BrokerOrder state row (sk='BrokerOrder'), NOT CDC-emitted. Tenant-scoped mutable order-routing state. Fields: orderId, executionMode, state (ROUTING/AWAITING_FILL/FILLED/PARTIALLY_FILLED/REJECTED/CANCELLED/ESCALATED), routedTo (sim|alpaca), fillTaskToken?, requestedQty, filledQty, remainingQty, averageFillPrice?, retryCount, instrumentId, routedAt, filledAt?, failureReason?.
+- ExecutionModeSchema / ExecutionMode — internal ExecutionMode cache row (sk='ExecutionMode'), NOT CDC-emitted. CommandOwned, single per-tenant operating-mode cache. Fields: mode (simulation|live), updatedAt.
 
 ## Tests
 - broker-order.repository.test.ts

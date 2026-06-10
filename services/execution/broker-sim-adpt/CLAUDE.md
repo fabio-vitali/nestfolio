@@ -27,10 +27,15 @@ Stack: services/execution/broker-sim-adpt/src/service.stack.ts
 - BrokerSimEventTypes (inbound): SIM_ORDER_REQUESTED, SIM_DEPOSIT_INITIATED, SIM_WITHDRAWAL_REQUESTED
 - BrokerSimEventTypes (outbound/CDC): SIM_ORDER_FILLED, SIM_ORDER_REJECTED, SIM_DEPOSIT_COMPLETED, SIM_WITHDRAWAL_COMPLETED
 
-## Event Payload Contracts (domain/contracts.ts)
-Producer-owned zod CDC subject contract, exported via `@nestfolio/broker-sim-adpt/contracts` (NOT re-exported through the `/domain` barrel). DRY domain subject — identity travels in the event context (RequestContext), not on the subject.
+## Event Payload Contracts (domain/contracts.ts → @nestfolio/broker-sim-adpt/contracts)
+Producer-owned zod CDC subject contracts, exported via `@nestfolio/broker-sim-adpt/contracts` (NOT re-exported through the `/domain` barrel). DRY domain subjects — identity travels in the event context (RequestContext), not on the subject.
 - SimDepositCompletedSchema / SimDepositCompleted — SIM_DEPOSIT_COMPLETED subject (from the `DepositDetected` row written by event-listener.ts on SIM_DEPOSIT_INITIATED). Fields: depositId, amountCents, currency, sourceEventId, timestamp.
-Inbound-event schemas live separately in domain/schemas.ts. No consumer imports the contract yet (SIM_* completions are intra-execution CDC carriers).
+- SimWithdrawalCompletedSchema / SimWithdrawalCompleted — SIM_WITHDRAWAL_COMPLETED subject (from the `WithdrawalCompleted` row). Fields: withdrawalId, amount (dollars, NOT cents — deposit/withdrawal asymmetry tracked in backlog), sourceEventId, timestamp.
+- VirtualTradeSchema / VirtualTrade — SIM_ORDER_FILLED / SIM_ORDER_REJECTED subject (from the `VirtualTrade` row written by the simulation engine). Fields: tradeId, orderId, symbol, side (BUY|SELL), quantity, fillPrice, totalValue, cashBefore, cashAfter, executedAt.
+- VirtualCashBalanceSchema / VirtualCashBalance — internal virtual-ledger cash balance row, NOT CDC-emitted. Fields: currency, balance, version.
+- VirtualPositionSchema / VirtualPosition — internal virtual-ledger position row, NOT CDC-emitted. Fields: symbol, quantity, averageCostBasis, marketValue.
+- VirtualSnapshotSchema / VirtualSnapshot — internal virtual-ledger snapshot row, NOT CDC-emitted. Fields: date, cashBalance, positions (array), totalValue.
+Inbound-event schemas live separately in domain/schemas.ts. SIM_* completions are intra-execution CDC carriers; broker-ctrl is the current consumer via `parseSubject`.
 
 ## Tests
 - event-listener.test.ts
