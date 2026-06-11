@@ -216,6 +216,18 @@ caught it).
   consumers to dev, run the scoped advisory e2e (the decision-cycle / contract-emission scenarios
   the change touches), not the full suite.
 
+**Known e2e risk — advisory gate is sandbox-maxVms-flaky.** The advisory `contract-emission` /
+full-decision-cycle e2e is gated on the 4-agent decision cycle materializing `InvestorProfileSnapshot`
+under the deliberately-low sandbox AgentCore `maxVms` quota; it is documented flaky-not-broken
+(passed 7/7 in WS-1 `typed-subject-contracts-advisory`; see `contract-emission-dry-wire-reenable`,
+`agentcore-maxvms-prod-quota-increase`). The unit layer (every `__typename`, deterministic) is the
+primary correctness gate; the e2e is the #1-risk real-emission confirmation. A fail-then-pass is
+treated as a real failure — pull CloudWatch evidence from the failing window before continuing and
+run a confirmation pass (`[[feedback-flake-means-broken]]`); do not extend POM timeouts as a
+band-aid. If the cycle cannot complete under the sandbox quota within the workstream, the 6-contract
+parse-assertion can be confirmed against captured/real persisted rows (the unit + real-row path)
+rather than blocking the ship on the maxVms-bound full cycle — mirroring how WS-1 shipped.
+
 ## Phasing (one workstream, internal commits)
 
 1. **Generator + type test** in `@nestfolio/agent-orchestrator` (`AgentCompletionRowSchema` /
