@@ -76,7 +76,7 @@ every emitted `__typename`.
 |---|----------|--------|
 | 1 | The 8 consumer-less telemetry events | **Stop emitting all 8** (user direction 2026-06-11). Remove each `__typename`→event from the service's CDK Egress `eventTypes` map *and* from `exemptTypenames`. Rows still persist in DDB; only the CDC→EventBridge emission stops. Rationale: zero consumers; a dedicated `AgentTraceEnvelope` channel (`*_AGENT_INVOCATION_TRACED` via `EventBridgeTraceEmitter`) is already the canonical agent-observability pattern, so these CDC `*_PRODUCED`/`*_CREATED` events are duplicate signal; `[[no-deprecation]]` favours removing a row no consumer reads; agents resume via SF task tokens, not these events. |
 | 2 | The 4 `AgentCompletion`/`AgentFailure` contracts | **Shared zod-schema generator in `@nestfolio/agent-orchestrator`**, mirroring the existing `AgentCompletionRow<A,O>`/`AgentFailureRow<A>` TS generics — not hand-rolled per service. Reusability is the primary objective: any future task-token agent gets a row contract for free, and the four contracts become one-liners. |
-| 3 | The 2 bespoke contracts' homes | Cross-domain consumed → **`advisory-adpt/domain/contracts.ts`** (the `ProposedTrade` precedent). `dashboard-bff` and `investor-adpt` are both in the *investor* domain. |
+| 3 | The 2 bespoke contracts' homes | **Defined in the producer's own `/contracts`** (`ExplanationGenerated` → `advisory-narrative-ctrl/contracts`; `AdvisoryStatus` → `advisory-bff/contracts`) — the producer owns its event subject, matching the `UserConfirmation`/`UserRejection` precedent. The `advisory-adpt/domain` cross-domain **re-export** (the import surface for the investor-domain consumers `investor-adpt`/`dashboard-bff`) is added by WS-3 (consumer-side), out of scope here — exactly as WS-1 left `UserConfirmation`. (`ProposedTrade` lives directly in `advisory-adpt/domain` only because it is a shared *value object* with no single producer service, not an event subject.) |
 | 4 | The 4 AgentCompletion/Failure contract homes | Consumed by DWC (advisory) → **intra-domain** → each producer's own `@nestfolio/<svc>/contracts`. |
 | 5 | Workstream shape | **One workstream** (the backlog Done = whole registry drained), internally phased: generator → AgentCompletion/Failure contracts → bespoke contracts → stop-emit the 8 → closing deploy + scoped e2e. |
 
@@ -134,8 +134,8 @@ export const AgentFailureRowSchema = <A extends string>(agentName: A) =>
 | `PORTFOLIO_FAILED` | AgentFailure | `AgentFailureRowSchema('portfolio-engine')` | `@nestfolio/portfolio-engine-ctrl/contracts` |
 | `NARRATIVE_COMPLETED` | AgentCompletion | `AgentCompletionRowSchema('advisory-narrative', NarrativeAgentOutputSchema)` | `@nestfolio/advisory-narrative-ctrl/contracts` |
 | `NARRATIVE_FAILED` | AgentFailure | `AgentFailureRowSchema('advisory-narrative')` | `@nestfolio/advisory-narrative-ctrl/contracts` |
-| `EXPLANATION_GENERATED` | ReasoningOutput | bespoke `ExplanationGenerated` schema (real AN `ReasoningOutput` row shape) | `@nestfolio/advisory-adpt/domain` (cross) |
-| `ADVISORY_STATUS_UPDATED` | AdvisoryStatus | bespoke `AdvisoryStatus` schema (real bff `AdvisoryStatus` row shape) | `@nestfolio/advisory-adpt/domain` (cross) |
+| `EXPLANATION_GENERATED` | ReasoningOutput | bespoke `ExplanationGenerated` schema (real AN `ReasoningOutput` row shape) | `@nestfolio/advisory-narrative-ctrl/contracts` |
+| `ADVISORY_STATUS_UPDATED` | AdvisoryStatus | bespoke `AdvisoryStatus` schema (real bff `AdvisoryStatus` row shape) | `@nestfolio/advisory-bff/contracts` |
 
 - The agent name literals must match the values the producers actually persist (`'portfolio-engine'`
   / `'advisory-narrative'` per the `domain/models.ts` typed aliases) — confirmed in the plan against
@@ -144,10 +144,12 @@ export const AgentFailureRowSchema = <A extends string>(agentName: A) =>
   **real persisted row** (read the producer's writer + a captured/real row), DRY (identity in
   `context`, not subject), named per convention 4 (clean event-concept name, no `Subject` suffix).
 - Each producer's `publisher-schemas.ts` adds the schema to `subjectSchemas` and removes the
-  `__typename` from `exemptTypenames`. Producers import their contract per the home rule: intra
-  cases from their own `/contracts`; AN-ctrl and advisory-bff publishers import the bespoke schemas
-  from `@nestfolio/advisory-adpt/domain` — **same domain, different service → intra-domain import,
-  no project cycle** (the WS-2 corrected home rule).
+  `__typename` from `exemptTypenames`. **Every producer imports its contract from its OWN
+  `@nestfolio/<svc>/contracts`** — the publisher emits its own service's rows, so this is always an
+  intra-service import (no adapter, no cross-domain import in this workstream). The
+  `advisory-adpt/domain` re-export that lets the investor-domain consumers (`investor-adpt`,
+  `dashboard-bff`) import `ExplanationGenerated`/`AdvisoryStatus` cross-domain is **WS-3's** job —
+  out of scope here, exactly as WS-1 left the `UserConfirmation` re-export for WS-3.
 - **Note on `ReasoningOutput` reuse.** `ReasoningOutput` is a `__typename` used by 3 services with
   distinct payloads: AN→`EXPLANATION_GENERATED` (typed here), IP→`RISK_EVALUATION_PRODUCED` and
   PE→`REBALANCE_PLAN_PRODUCED` (both stop-emitted in Part B). Each service's `ReasoningOutput` row is
@@ -242,13 +244,24 @@ rather than blocking the ship on the maxVms-bound full cycle — mirroring how W
 5. **Closing deploy + scoped e2e** (extended contract-emission gate: 6 parse-asserts + 8
    no-longer-emitted asserts) + verify every advisory-core `exemptTypenames` is `[]`.
 
-## Open consistency check (resolve at planning time)
+## Resolved consistency check (was: open at planning time)
 
-Confirm how WS-1 placed the analogous **cross-domain `UserConfirmation`/`UserRejection`** contracts
-(advisory-bff produces them; execution-ctrl consumes `USER_CONFIRMED` cross-domain). If WS-1 put them
-in `advisory-bff/contracts` rather than `advisory-adpt/domain`, reconcile Decision 3 with that
-precedent (either follow WS-1's placement for the 2 new bespoke contracts, or note the intentional
-difference). The `ProposedTrade` precedent (advisory-adpt/domain) is the current basis for Decision 3.
+**Resolved (user direction, 2026-06-11): producer-owned `/contracts`.** WS-1 defined the analogous
+cross-domain event subjects `UserConfirmation`/`UserRejection` in **`advisory-bff/contracts`** (the
+producer), and did **not** re-export them through `advisory-adpt/domain` — because the cross-domain
+re-export is the **consumer-side** (WS-3) step, not the producer step. The home rule is:
+
+- The producer **defines** its event-subject contract in its own `@nestfolio/<svc>/contracts`.
+- A **same-domain** consumer imports from `{producer}/contracts`.
+- A **cross-domain** consumer imports from `{producer-domain}-adpt/domain`, which **re-exports** the
+  producer contract — added by the consumer-side workstream (WS-3).
+- A shared **value object** with no single producer service (e.g. `ProposedTrade`) lives **directly**
+  in `{domain}-adpt/domain` — this is the *only* reason `ProposedTrade` sits in the adapter, and it is
+  not the case for an event subject like `ExplanationGenerated`/`AdvisoryStatus`.
+
+So `ExplanationGenerated` → `advisory-narrative-ctrl/contracts` and `AdvisoryStatus` →
+`advisory-bff/contracts` (Decision 3, corrected). The `advisory-adpt/domain` re-export for the
+investor-domain consumers is WS-3, out of scope here.
 
 ## Out of scope
 
