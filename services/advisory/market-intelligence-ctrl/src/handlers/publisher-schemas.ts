@@ -4,4 +4,4 @@ export const subjectSchemas = {
   MarketSnapshot: MarketSnapshotSchema,
 };
 
-export const exemptTypenames: string[] = ['AgentInvocation'];
+export const exemptTypenames: string[] = [];

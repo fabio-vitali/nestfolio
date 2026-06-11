@@ -61,7 +61,6 @@ export class MarketIntelligenceCtrlStack extends ServiceStack {
     const egress = new Egress(this, 'Egress', {
       state,
       eventTypes: {
-        'AgentInvocation': { insert: MarketIntelligenceEventTypes.MARKET_SIGNAL_DETECTED },
         'MarketSnapshot': {
           insert: MarketIntelligenceEventTypes.MARKET_SNAPSHOT_UPDATED,
           modify: MarketIntelligenceEventTypes.MARKET_SNAPSHOT_UPDATED,

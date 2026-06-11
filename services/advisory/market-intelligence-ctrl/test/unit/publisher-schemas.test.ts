@@ -1,6 +1,6 @@
 import { subjectSchemas, exemptTypenames } from '../../src/handlers/publisher-schemas';
 
-const EMITTED = ['AgentInvocation', 'MarketSnapshot'];
+const EMITTED = ['MarketSnapshot'];
 
 describe('market-intelligence-ctrl CDC publisher registry', () => {
   it('covers every emitted __typename (schemas ∪ exempt === emitted)', () => {
