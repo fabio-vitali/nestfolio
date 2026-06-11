@@ -107,6 +107,9 @@ import { FredIndicatorSchema } from '@nestfolio/fred-adpt/contracts';
 import { MarketWatchArticleSchema } from '@nestfolio/marketwatch-adpt/contracts';
 import { YahooFinanceArticleSchema } from '@nestfolio/yahoo-finance-adpt/contracts';
 import { AlphaVantageArticleSchema, EconomicIndicatorSchema } from '@nestfolio/alpha-vantage-adpt/contracts';
+import { PortfolioAgentCompletionSchema } from '@nestfolio/portfolio-engine-ctrl/contracts';
+import { NarrativeAgentCompletionSchema, ExplanationGeneratedSchema } from '@nestfolio/advisory-narrative-ctrl/contracts';
+import { AdvisoryStatusSchema } from '@nestfolio/advisory-bff/contracts';
 import { expectContractMatch } from '../helpers/contract-assert';
 import { armEventSubjectTrap } from '../helpers/event-subject-trap';
 import { AdvisoryBffEventTypes } from '@nestfolio/advisory-bff/events';
@@ -281,6 +284,18 @@ describe('advisory-domain producer contracts — REAL decision cycle', () => {
         return r.Item as Record<string, unknown> | undefined;
       }, 60_000);
       expectContractMatch(DecisionReadModelSchema, decisionRmRow, 'DecisionReadModel');
+
+      // WS — advisory-bff AdvisoryStatus aggregate (ADVISORY_STATUS_UPDATED subject).
+      // pk=T#${tenantId}, sk='AdvisoryStatus'. Recomputed by AdvisoryStatusProjector when the
+      // DecisionReadModel row commits — so it exists once the decision has surfaced.
+      const advisoryStatusRow = await pollFor('AdvisoryStatus', async () => {
+        const r = await ddbDoc.send(new GetCommand({
+          TableName: bffTable,
+          Key: { pk: `T#${tenant.tenantId}`, sk: 'AdvisoryStatus' },
+        }));
+        return r.Item as Record<string, unknown> | undefined;
+      }, 60_000);
+      expectContractMatch(AdvisoryStatusSchema, advisoryStatusRow, 'AdvisoryStatus');
     },
     420_000,
   );
@@ -311,6 +326,8 @@ describe('advisory-domain producer contracts — REAL decision cycle', () => {
       // the agentOutput value, not the row envelope.
       const peOutput = (peRow as Record<string, unknown>)['agentOutput'];
       expectContractMatch(PortfolioAgentOutputSchema, peOutput as Record<string, unknown>, 'PortfolioAgentOutput');
+      // WS — whole-row AgentCompletion contract (PORTFOLIO_COMPLETED subject).
+      expectContractMatch(PortfolioAgentCompletionSchema, peRow, 'PortfolioAgentCompletion (row)');
 
       // ── advisory-narrative-ctrl: AgentCompletion ───────────────────────────
       // pk=AgentCompletion#${decisionId}  sk=AgentCompletion#advisory-narrative
@@ -328,6 +345,22 @@ describe('advisory-domain producer contracts — REAL decision cycle', () => {
       }, 120_000);
       const anOutput = (anRow as Record<string, unknown>)['agentOutput'];
       expectContractMatch(NarrativeAgentOutputSchema, anOutput as Record<string, unknown>, 'NarrativeAgentOutput');
+      // WS — whole-row AgentCompletion contract (NARRATIVE_COMPLETED subject).
+      expectContractMatch(NarrativeAgentCompletionSchema, anRow, 'NarrativeAgentCompletion (row)');
+
+      // WS — AN ReasoningOutput row (EXPLANATION_GENERATED subject). pk=DECISION#${decisionId},
+      // sk begins_with 'REASONING#' (sk carries the agent eventId, not observable at e2e level).
+      const anReasoning = await pollFor('AN ReasoningOutput', async () => {
+        const r = await ddbDoc.send(new QueryCommand({
+          TableName: anTable,
+          KeyConditionExpression: 'pk = :pk AND begins_with(sk, :sk)',
+          ExpressionAttributeValues: { ':pk': `DECISION#${decisionId}`, ':sk': 'REASONING#' },
+        }));
+        const items = (r.Items ?? []) as Record<string, unknown>[];
+        return items.length ? items : undefined;
+      }, 60_000);
+      anReasoning.forEach((row, i) =>
+        expectContractMatch(ExplanationGeneratedSchema, row, `ExplanationGenerated[${i}]`));
 
       // ── investor-profile-ctrl: InvestorProfileSnapshot ────────────────────
       // pk=InvestorProfileSnapshot#${tenantId}#${userId}  sk='InvestorProfileSnapshot'
