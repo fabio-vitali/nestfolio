@@ -60,8 +60,6 @@ export class PortfolioEngineCtrlStack extends ServiceStack {
     const egress = new Egress(this, 'Egress', {
       state,
       eventTypes: {
-        'AgentInvocation': { insert: PortfolioEngineEventTypes.PORTFOLIO_CONSTRUCTION_PROPOSED },
-        'ReasoningOutput': { insert: PortfolioEngineEventTypes.REBALANCE_PLAN_PRODUCED },
         'AgentCompletion': { insert: PortfolioEngineEventTypes.PORTFOLIO_COMPLETED },
         'AgentFailure':    { insert: PortfolioEngineEventTypes.PORTFOLIO_FAILED },
       },

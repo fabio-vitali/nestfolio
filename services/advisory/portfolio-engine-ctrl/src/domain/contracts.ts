@@ -9,6 +9,7 @@
 // `modelTiers` is a string[] in reality (['opus', 'sonnet']), not a Record — modelled accordingly.
 import { z } from 'zod';
 import { PortfolioConstructionSchema, RebalancePlanSchema } from '../agents/schemas';
+import { AgentCompletionRowSchema, AgentFailureRowSchema } from '@nestfolio/agent-orchestrator';
 
 export const PortfolioAgentOutputSchema = z.object({
   decisionId: z.string(),
@@ -21,3 +22,11 @@ export const PortfolioAgentOutputSchema = z.object({
   }).passthrough(),
 });
 export type PortfolioAgentOutput = z.infer<typeof PortfolioAgentOutputSchema>;
+
+/** PORTFOLIO_COMPLETED — the AgentCompletion row subject (agentOutput = PortfolioAgentOutput). */
+export const PortfolioAgentCompletionSchema = AgentCompletionRowSchema('portfolio-engine', PortfolioAgentOutputSchema);
+export type PortfolioAgentCompletion = z.infer<typeof PortfolioAgentCompletionSchema>;
+
+/** PORTFOLIO_FAILED — the AgentFailure row subject. */
+export const PortfolioAgentFailureSchema = AgentFailureRowSchema('portfolio-engine');
+export type PortfolioAgentFailure = z.infer<typeof PortfolioAgentFailureSchema>;
