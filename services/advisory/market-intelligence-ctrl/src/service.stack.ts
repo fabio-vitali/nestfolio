@@ -54,7 +54,8 @@ export class MarketIntelligenceCtrlStack extends ServiceStack {
     });
 
     // Egress: CDC events.
-    // - AgentInvocation row: legacy MARKET_SIGNAL_DETECTED event (insert only).
+    // - AgentInvocation row: still written by the snapshot writer, but no longer CDC-emitted
+    //   (MARKET_SIGNAL_DETECTED stop-emitted — zero consumers; advisory-agent-event-contract-coverage).
     // - MarketSnapshot row: continuous-projection MARKET_SNAPSHOT_UPDATED on
     //   both INSERT and MODIFY — every fast-tier feed write or slow-tier
     //   rebuild emits one downstream notification.
