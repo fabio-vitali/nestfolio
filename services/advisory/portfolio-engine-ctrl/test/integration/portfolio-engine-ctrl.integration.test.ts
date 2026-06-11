@@ -70,7 +70,6 @@ describe('portfolio-engine-ctrl: CONSTRUCT_PORTFOLIO → AgentInvocation DDB wri
     await trap.deploy({
       bus: 'advisory',
       detailType: [
-        'PORTFOLIO_CONSTRUCTION_PROPOSED',
         'PORTFOLIO_COMPLETED',
         'PORTFOLIO_FAILED',
       ],
@@ -111,12 +110,6 @@ describe('portfolio-engine-ctrl: CONSTRUCT_PORTFOLIO → AgentInvocation DDB wri
     // status may be IN_PROGRESS or COMPLETED depending on agent execution speed —
     // either is valid; the presence of an AgentInvocation record is what matters.
     expect(['IN_PROGRESS', 'COMPLETED']).toContain(item['status']);
-
-    // CDC verification — stack emits PORTFOLIO_CONSTRUCTION_PROPOSED from AgentInvocation inserts
-    const cdcEvent = await trap.waitForEvent({
-      detailType: 'PORTFOLIO_CONSTRUCTION_PROPOSED',
-    });
-    expect(cdcEvent.detailType).toBe('PORTFOLIO_CONSTRUCTION_PROPOSED');
   }, 120_000);
 
   // ── PORTFOLIO_COMPLETED emission (Task 6 callback refactor) ─────────

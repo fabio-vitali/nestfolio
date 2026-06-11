@@ -153,7 +153,7 @@ describe('portfolio-engine-ctrl resilience: order-agnostic pairwise', () => {
       const trapA = new EventBusTrap(ctxA);
       await trapA.deploy({
         bus: 'advisory',
-        detailType: ['PORTFOLIO_CONSTRUCTION_PROPOSED'],
+        detailType: ['PORTFOLIO_COMPLETED'],
       });
 
       const decisionIdA = `pair-A-decision-${randomUUID()}`;
@@ -177,7 +177,7 @@ describe('portfolio-engine-ctrl resilience: order-agnostic pairwise', () => {
       // unavailable this throws — we tolerate it and continue.
       try {
         await trapA.waitForEvent({
-          detailType: 'PORTFOLIO_CONSTRUCTION_PROPOSED',
+          detailType: 'PORTFOLIO_COMPLETED',
           timeoutMs: 90_000,
         });
       } catch {
@@ -210,7 +210,7 @@ describe('portfolio-engine-ctrl resilience: order-agnostic pairwise', () => {
         const trapB = new EventBusTrap(ctxB);
         await trapB.deploy({
           bus: 'advisory',
-          detailType: ['PORTFOLIO_CONSTRUCTION_PROPOSED'],
+          detailType: ['PORTFOLIO_COMPLETED'],
         });
 
         const decisionIdB = `pair-B-decision-${randomUUID()}`;
@@ -247,7 +247,7 @@ describe('portfolio-engine-ctrl resilience: order-agnostic pairwise', () => {
         // Best-effort wait on CDC.
         try {
           await trapB.waitForEvent({
-            detailType: 'PORTFOLIO_CONSTRUCTION_PROPOSED',
+            detailType: 'PORTFOLIO_COMPLETED',
             timeoutMs: 90_000,
           });
         } catch {
