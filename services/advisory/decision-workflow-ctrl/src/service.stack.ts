@@ -224,10 +224,6 @@ export class DecisionWorkflowCtrlStack extends ServiceStack {
           insert: DecisionWorkflowEventTypes.DECISION_PACKET_CREATED,
           modify: DecisionWorkflowEventTypes.DECISION_PACKET_UPDATED,
         },
-        'AgentOutput': {
-          insert: DecisionWorkflowEventTypes.AGENT_OUTPUT_CREATED,
-          modify: DecisionWorkflowEventTypes.AGENT_OUTPUT_UPDATED,
-        },
         'MandateSnapshot': {
           insert: DecisionWorkflowEventTypes.MANDATE_SNAPSHOT_CREATED,
           // No modify entry — operatingMode changes do NOT re-trigger first decision.

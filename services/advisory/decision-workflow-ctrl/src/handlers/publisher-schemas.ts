@@ -5,4 +5,4 @@ export const subjectSchemas = {
   MandateSnapshot: MandateSnapshotSchema,
 };
 
-export const exemptTypenames: string[] = ['AgentOutput'];
+export const exemptTypenames: string[] = [];

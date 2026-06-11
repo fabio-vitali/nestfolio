@@ -99,14 +99,13 @@ describe('decision-workflow-ctrl', () => {
     const ident = await sts.send(new (await import('@aws-sdk/client-sts')).GetCallerIdentityCommand({}));
     stateMachineArn = `arn:aws:states:${ctx.region}:${ident.Account}:stateMachine:${ctx.prefix}-decision-workflow-ctrl-decisionstatemachine`;
 
-    // Trap CDC events emitted by decision-workflow-ctrl Egress (DECISION_PACKET / AGENT_OUTPUT only;
-    // WORKFLOW_TRIGGER_* was removed in Phase 2).
+    // Trap CDC events emitted by decision-workflow-ctrl Egress (DECISION_PACKET only;
+    // AGENT_OUTPUT_CREATED/UPDATED removed — no cross-service consumers; WORKFLOW_TRIGGER_* removed Phase 2).
     await trap.deploy({
       bus: 'advisory',
       detailType: [
         'DECISION_PACKET_CREATED',
         'DECISION_PACKET_UPDATED',
-        'AGENT_OUTPUT_CREATED',
       ],
     });
   }, 90_000);
