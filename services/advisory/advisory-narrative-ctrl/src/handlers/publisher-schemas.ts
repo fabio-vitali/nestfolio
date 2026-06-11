@@ -1,3 +1,11 @@
-export const subjectSchemas = {};
+import {
+  ExplanationGeneratedSchema, NarrativeAgentCompletionSchema, NarrativeAgentFailureSchema,
+} from '../domain/contracts';
 
-export const exemptTypenames: string[] = ['ReasoningOutput', 'AgentCompletion', 'AgentFailure'];
+export const subjectSchemas = {
+  ReasoningOutput: ExplanationGeneratedSchema,
+  AgentCompletion: NarrativeAgentCompletionSchema,
+  AgentFailure: NarrativeAgentFailureSchema,
+};
+
+export const exemptTypenames: string[] = [];
