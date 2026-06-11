@@ -15,7 +15,7 @@ out_of_scope:
   - "The 8 primary advisory subjects already contracted + e2e-validated by WS-1 (InvestorProfileSnapshot, MarketSnapshot, DecisionPacket, MandateSnapshot, ComplianceCheck, DecisionReadModel, UserConfirmation, UserRejection) — not re-authored."
   - "Latent producer/consumer drift BUGS surfaced by the program but tracked separately (dwc-sfn-callback-reason-blockreason-gap, broker-funding-completed-normalization-drift) — file-and-continue if more surface."
 spec: docs/superpowers/specs/2026-06-11-advisory-agent-event-contract-coverage-design.md
-plan: null
+plan: docs/superpowers/plans/2026-06-11-advisory-agent-event-contract-coverage.md
 topic_memory: []
 validation_gate: null
 ---
