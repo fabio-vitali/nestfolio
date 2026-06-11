@@ -304,6 +304,14 @@ In `services/advisory/portfolio-engine-ctrl/src/service.stack.ts`, the Egress `e
 Run: `pnpm nx test portfolio-engine-ctrl`
 Expected: PASS (contracts test, publisher-schemas registry test with `EMITTED=['AgentCompletion','AgentFailure']`, service.stack test unaffected).
 
+- [ ] **Step 8b: Fix integration tests that assert the now-stopped emission** (added during execution — surfaced by Task 2 code review)
+
+Two integration tests assert/await `PORTFOLIO_CONSTRUCTION_PROPOSED`, which no longer emits:
+- `test/integration/portfolio-engine-ctrl.integration.test.ts` — **hard assertion** (`trap.deploy` detailType array line 73 + the `waitForEvent({detailType:'PORTFOLIO_CONSTRUCTION_PROPOSED'})` + `expect(...).toBe('PORTFOLIO_CONSTRUCTION_PROPOSED')` at lines 115-119). Remove the `'PORTFOLIO_CONSTRUCTION_PROPOSED'` entry from the line-73 array, and delete the lines-115-119 CDC-verification block (keep the preceding AgentInvocation row-status assertion — the `AgentInvocation` ROW is still written; only its CDC emission stopped).
+- `test/integration/portfolio-engine-ctrl.resilience.integration.test.ts` — best-effort `waitForEvent` in try/catch (lines ~156/180/213/250). Switch every `PORTFOLIO_CONSTRUCTION_PROPOSED` reference there to `PORTFOLIO_COMPLETED` (still emitted, the meaningful completion signal) so the best-effort CDC check stays live instead of waiting for an event that can never fire.
+
+(These run on the `test-integration` target against deployed dev, not in the `test` unit suite — they will not surface until Task 11, but fix them here with the change that caused them.) Do not run the integration suite locally (needs deployed dev); a `tsc`/lint check is enough.
+
 - [ ] **Step 9: Commit**
 
 ```bash
@@ -695,6 +703,14 @@ const EMITTED = ['DecisionPacket', 'MandateSnapshot'];
 ```
 
 - [ ] **Step 4: Stop-emit in CDK** — in `services/advisory/decision-workflow-ctrl/src/service.stack.ts`, remove the `'AgentOutput'` block (lines 227-230). The `eventTypes` map keeps `DecisionPacket` and `MandateSnapshot`.
+
+- [ ] **Step 4b: Fix the integration test referencing AGENT_OUTPUT_CREATED** (added during execution — same gap class as Task 2)
+
+`test/integration/decision-workflow-ctrl.integration.test.ts` lists `'AGENT_OUTPUT_CREATED'` in a `trap.deploy({ detailType: [...] })` array (around line 109). Read the file and check whether any `waitForEvent`/`expect` HARD-asserts `AGENT_OUTPUT_CREATED`:
+- If a hard assertion exists, delete it (the `AgentOutput` row is still written by `sfn-callback.ts`; only its CDC emission stopped).
+- Remove `'AGENT_OUTPUT_CREATED'` from the `trap.deploy` detailType array regardless (no longer emitted).
+- Keep `DECISION_PACKET_CREATED`/`DECISION_PACKET_UPDATED` (still emitted).
+Do not run the integration suite locally; a `tsc`/lint check suffices.
 
 - [ ] **Step 5: Run + commit**
 
