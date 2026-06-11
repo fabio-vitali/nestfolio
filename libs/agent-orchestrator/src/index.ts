@@ -71,5 +71,6 @@ export { wrapAgentOutput, OutputTooLargeError, INLINE_SIZE_THRESHOLD_BYTES, type
 
 export {
   agentCompletionPk, agentCompletionSk, agentFailurePk, agentFailureSk,
+  AgentCompletionRowSchema, AgentFailureRowSchema,
 } from './agent-completion-row';
 export type { AgentCompletionRow, AgentFailureRow } from './agent-completion-row';
