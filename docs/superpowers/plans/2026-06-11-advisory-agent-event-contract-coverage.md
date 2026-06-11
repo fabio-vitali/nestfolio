@@ -933,7 +933,15 @@ Run: `node .claude/skills/backlog-lint/lint.mjs --fix` then commit `docs/BACKLOG
 
 - [ ] **Step 7: Regenerate the affected service cards**
 
-The 7 advisory-core service cards reference the exempt set + Egress emissions in their `## Egress` / `publisher-schemas.ts` lines. Run `audit-service` for each changed service (or hand-update the `Exempt:` notes + Egress `Emits:` lists) so the cards match code, and commit. (Per `/backlog-next` 6.1 doc-derivation: source + derived ship together.)
+The 7 advisory-core service cards (+ dashboard-bff) reference the exempt set + Egress emissions in their `## Egress` / `publisher-schemas.ts` lines. Run `audit-service` for each changed service (or hand-update the `Exempt:` notes + Egress `Emits:` lists) so the cards match code, and commit. (Per `/backlog-next` 6.1 doc-derivation: source + derived ship together.) Known stale cards from this workstream: portfolio-engine-ctrl, market-intelligence-ctrl, investor-profile-ctrl, decision-workflow-ctrl, compliance-ctrl, advisory-bff (all list a now-removed exempt entry / stopped Egress emission); dashboard-bff advisory-status.ts note (now reads context.tenantId).
+
+- [ ] **Step 7b: Update the 3 flow specs that document stopped emissions** (doc-derivation — surfaced during execution)
+
+Stop-emitting removes documented `emits:` steps from 3 canonical flow specs. Remove ONLY the stopped-event mentions, keeping every still-emitted event on the same line:
+- `flows/market-data-ingestion.flow.yaml` — line ~54 `emits: MARKET_SIGNAL_DETECTED (CDC, AgentInvocation insert)` and the line ~69 narrative bullet "MARKET_SIGNAL_DETECTED event emitted when agent invocation completes": remove/annotate (MARKET_SIGNAL_DETECTED no longer emitted).
+- `flows/portfolio-rebalance.flow.yaml` — line ~66 `emits: GOAL_INTERPRETATION_PRODUCED`, line ~75 `emits: MARKET_SIGNAL_DETECTED`, line ~85 `emits: PORTFOLIO_CONSTRUCTION_PROPOSED …, REBALANCE_PLAN_PRODUCED …`: all four are stopped — remove those `emits:` clauses (if a step's only emission was one of these, mark the step as emitting nothing / persisting a row only).
+- `flows/advisory-cycle.flow.yaml` — line ~71/74 `MARKET_SIGNAL_DETECTED` (drop; KEEP `MARKET_SNAPSHOT_UPDATED` + the TRACED envelope on line 74), line ~144 drop `PORTFOLIO_CONSTRUCTION_PROPOSED (… legacy)` (KEEP `PORTFOLIO_COMPLETED` + `PORTFOLIO_FAILED`), lines ~156/183 drop the whole `emits: AGENT_OUTPUT_CREATED | AGENT_OUTPUT_UPDATED …` clause, line ~276 drop `USER_INTERACTION_CREATED (…)` (KEEP `DECISION_READ_MODEL_*` + `ADVISORY_STATUS_UPDATED`).
+After editing, run the `validate-flow` skill on each of the 3 specs to confirm they now match code (no stale emissions), and commit. (Line numbers are approximate — grep each event name in the file to locate.)
 
 - [ ] **Step 8: Hand off to `finishing-a-development-branch`** (Complex lane) for merge/PR + worktree cleanup.
 
