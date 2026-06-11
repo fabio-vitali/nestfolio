@@ -1,6 +1,6 @@
 import { subjectSchemas, exemptTypenames } from '../../src/handlers/publisher-schemas';
 
-const EMITTED = ['AgentInvocation', 'ReasoningOutput', 'InvestorProfileSnapshot'];
+const EMITTED = ['InvestorProfileSnapshot'];
 
 describe('investor-profile-ctrl CDC publisher registry', () => {
   it('covers every emitted __typename (schemas ∪ exempt === emitted)', () => {

@@ -4,4 +4,4 @@ export const subjectSchemas = {
   InvestorProfileSnapshot: InvestorProfileSnapshotSchema,
 };
 
-export const exemptTypenames: string[] = ['AgentInvocation', 'ReasoningOutput'];
+export const exemptTypenames: string[] = [];

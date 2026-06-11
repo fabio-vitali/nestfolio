@@ -55,8 +55,6 @@ export class InvestorProfileCtrlStack extends ServiceStack {
     const egress = new Egress(this, 'Egress', {
       state,
       eventTypes: {
-        'AgentInvocation': { insert: InvestorProfileEventTypes.GOAL_INTERPRETATION_PRODUCED },
-        'ReasoningOutput': { insert: InvestorProfileEventTypes.RISK_EVALUATION_PRODUCED },
         'InvestorProfileSnapshot': {
           insert: InvestorProfileEventTypes.INVESTOR_PROFILE_SNAPSHOT_CREATED,
           modify: InvestorProfileEventTypes.INVESTOR_PROFILE_SNAPSHOT_UPDATED,
