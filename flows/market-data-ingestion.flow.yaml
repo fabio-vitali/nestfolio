@@ -51,7 +51,7 @@ steps:
     receives: ALPHA_VANTAGE_NEWS_UPDATED | FRED_INDICATORS_UPDATED | MARKETWATCH_UPDATED | SEC_8K_FILED | YAHOO_FINANCE_UPDATED
     via: AdvisoryBus → SQS → market-intelligence-ctrl-ingress
     state_change: Ingests feed data into Bedrock Knowledge Base (S3 vector store), refreshes market intelligence
-    emits: MARKET_SIGNAL_DETECTED (CDC, AgentInvocation insert)
+    emits: MARKET_SNAPSHOT_UPDATED (CDC, MarketSnapshot insert/modify) # MARKET_SIGNAL_DETECTED (AgentInvocation) stop-emitted — zero consumers (advisory-agent-event-contract-coverage)
     idempotent: true
 
   # ── Portfolio Engine KB ingestion (SEC filing events) ───────────────
@@ -66,7 +66,7 @@ success_criteria:
   - All 5 feed adapters fetch data on schedule and emit CDC events to AdvisoryBus
   - market-intelligence-ctrl Knowledge Base is refreshed with latest market data from 5 sources
   - portfolio-engine-ctrl Fund KB is refreshed with SEC prospectus and 10-K filings
-  - MARKET_SIGNAL_DETECTED event emitted when agent invocation completes
+  - MARKET_SNAPSHOT_UPDATED event emitted when the market snapshot row is refreshed (the AgentInvocation-row MARKET_SIGNAL_DETECTED signal is no longer CDC-emitted — zero consumers)
 
 failure_modes:
   - step 1 fails: alpha-vantage-adpt ingress DLQ; stale market news and economic indicator data

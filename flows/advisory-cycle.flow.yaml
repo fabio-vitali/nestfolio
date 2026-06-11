@@ -68,10 +68,10 @@ steps:
       LangGraph market-intelligence agent (Sonnet) runs against the Market KB plus deterministic
       in-process context (market-data + instrument-universe pre-fetch); materializeToTable
       writes the MarketSnapshot row (one per region) carrying the agent output. Also writes
-      legacy AgentInvocation row (emits MARKET_SIGNAL_DETECTED on insert only). Slow-tier tick
+      legacy AgentInvocation row (no longer CDC-emitted — MARKET_SIGNAL_DETECTED stop-emitted, zero consumers). Slow-tier tick
       (every 15 min) backstops idle feed periods; on stack Create a BootstrapSnapshotFn custom
       resource emits a synthetic tick and polls until the row materialises (5-min deadline).
-    emits: MARKET_SNAPSHOT_UPDATED (CDC, MarketSnapshot:INSERT and MODIFY) | MARKET_SIGNAL_DETECTED (CDC, AgentInvocation:INSERT) | MARKET_INTELLIGENCE_AGENT_INVOCATION_TRACED (EventBridgeTraceEmitter)
+    emits: MARKET_SNAPSHOT_UPDATED (CDC, MarketSnapshot:INSERT and MODIFY) | MARKET_INTELLIGENCE_AGENT_INVOCATION_TRACED (EventBridgeTraceEmitter) # MARKET_SIGNAL_DETECTED (AgentInvocation) stop-emitted — zero consumers
     idempotent: true
 
   - service: decision-workflow-ctrl
@@ -141,7 +141,7 @@ steps:
       + agentOutput {allocations, trades, metadata}) or AgentFailure row on failure
       (carries taskToken + errorCode + cause). No states:SendTask* IAM grant on this service;
       the CDC event from the Egress is the sole bridge back to the SF.
-    emits: PORTFOLIO_COMPLETED (CDC, AgentCompletion:INSERT) | PORTFOLIO_FAILED (CDC, AgentFailure:INSERT) | PORTFOLIO_CONSTRUCTION_PROPOSED (CDC, AgentInvocation:INSERT, legacy)
+    emits: PORTFOLIO_COMPLETED (CDC, AgentCompletion:INSERT) | PORTFOLIO_FAILED (CDC, AgentFailure:INSERT) # PORTFOLIO_CONSTRUCTION_PROPOSED (AgentInvocation) stop-emitted — zero consumers (advisory-agent-event-contract-coverage)
     idempotent: false
 
   - service: decision-workflow-ctrl
@@ -153,7 +153,7 @@ steps:
       persists an AgentOutput record for the cycle.
       PORTFOLIO_FAILED: SendTaskFailure with errorCode + cause; SF state catches and
       the cycle ends as DECISION_WORKFLOW_FAILED.
-    emits: AGENT_OUTPUT_CREATED | AGENT_OUTPUT_UPDATED (CDC, AgentOutput insert/modify, on success path)
+    emits: none (sfn-callback persists an AgentOutput record, but AGENT_OUTPUT_CREATED/UPDATED are stop-emitted — zero consumers; advisory-agent-event-contract-coverage)
     idempotent: true
 
   # Phase 2e: Sequential — Narrative Agent (after portfolio)
@@ -180,7 +180,7 @@ steps:
       NARRATIVE_COMPLETED: SendTaskSuccess resumes SF with agentOutput (explanation);
       sfn-callback persists an AgentOutput record.
       NARRATIVE_FAILED: SendTaskFailure; SF state catches and the cycle ends as DECISION_WORKFLOW_FAILED.
-    emits: AGENT_OUTPUT_CREATED | AGENT_OUTPUT_UPDATED (CDC, AgentOutput insert/modify, on success path)
+    emits: none (sfn-callback persists an AgentOutput record, but AGENT_OUTPUT_CREATED/UPDATED are stop-emitted — zero consumers; advisory-agent-event-contract-coverage)
     idempotent: true
 
   # -- Phase 3: Assemble Decision Packet --
@@ -273,7 +273,7 @@ steps:
     state_change: >
       Materialises DecisionReadModel for GraphQL queries; user sees decision in UI.
       DECISION_PACKET_CREATED also decrements AdvisoryStatus.inFlightCount (counter closes at packet-creation time).
-    emits: DECISION_READ_MODEL_CREATED | DECISION_READ_MODEL_UPDATED (CDC, DecisionReadModel insert/modify) | USER_INTERACTION_CREATED (CDC, UserInteraction insert) | ADVISORY_STATUS_UPDATED (CDC, AdvisoryStatus modify on DECISION_PACKET_CREATED)
+    emits: DECISION_READ_MODEL_CREATED | DECISION_READ_MODEL_UPDATED (CDC, DecisionReadModel insert/modify) | ADVISORY_STATUS_UPDATED (CDC, AdvisoryStatus insert/modify; DRY subject — typed AdvisoryStatusSchema) # USER_INTERACTION_CREATED (UserInteraction) stop-emitted — zero consumers (advisory-agent-event-contract-coverage)
     idempotent: true
 
   # -- Phase 10: User responds via advisory-bff mutations --
