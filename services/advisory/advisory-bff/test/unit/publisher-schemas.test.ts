@@ -1,6 +1,6 @@
 import { subjectSchemas, exemptTypenames } from '../../src/handlers/publisher-schemas';
 
-const EMITTED = ['DecisionReadModel', 'AdvisoryStatus', 'UserInteraction', 'UserConfirmation', 'UserRejection'];
+const EMITTED = ['DecisionReadModel', 'AdvisoryStatus', 'UserConfirmation', 'UserRejection'];
 
 describe('advisory-bff CDC publisher registry', () => {
   it('covers every emitted __typename (schemas ∪ exempt === emitted)', () => {

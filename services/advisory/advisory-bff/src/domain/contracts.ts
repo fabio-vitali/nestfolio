@@ -94,3 +94,18 @@ export const UserRejectionSchema = z.object({
   taskToken: z.string().optional(),
 });
 export type UserRejection = z.infer<typeof UserRejectionSchema>;
+
+/**
+ * ADVISORY_STATUS_UPDATED — advisory-bff's command-owned AdvisoryStatus aggregate (DRY subject).
+ * `__version` is RETAINED in the subject: dashboard-bff projects this row P3 keyed on the carried
+ * `__version` (see advisory-status-projector.ts). `oldestGeneratingAt` is the min GENERATING
+ * createdAt, or null. Identity (tenantId) + envelope travel in context, not the subject.
+ */
+export const AdvisoryStatusSchema = z.object({
+  inFlightCount: z.number(),
+  generatingCount: z.number(),
+  failedCount: z.number(),
+  oldestGeneratingAt: z.string().nullable(),
+  __version: z.number(),
+});
+export type AdvisoryStatus = z.infer<typeof AdvisoryStatusSchema>;

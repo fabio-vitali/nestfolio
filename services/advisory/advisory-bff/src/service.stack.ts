@@ -45,10 +45,6 @@ export class AdvisoryBffStack extends ServiceStack {
           insert: AdvisoryBffEventTypes.ADVISORY_STATUS_UPDATED,
           modify: AdvisoryBffEventTypes.ADVISORY_STATUS_UPDATED,
         },
-        'UserInteraction': {
-          insert: AdvisoryBffEventTypes.USER_INTERACTION_CREATED,
-          modify: AdvisoryBffEventTypes.USER_INTERACTION_UPDATED,
-        },
         'UserConfirmation': { insert: AdvisoryBffEventTypes.USER_CONFIRMED },
         'UserRejection': { insert: AdvisoryBffEventTypes.USER_REJECTED },
       },

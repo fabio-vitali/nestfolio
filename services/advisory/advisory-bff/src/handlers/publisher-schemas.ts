@@ -1,9 +1,12 @@
-import { DecisionReadModelSchema, UserConfirmationSchema, UserRejectionSchema } from '../domain/contracts';
+import {
+  DecisionReadModelSchema, UserConfirmationSchema, UserRejectionSchema, AdvisoryStatusSchema,
+} from '../domain/contracts';
 
 export const subjectSchemas = {
   DecisionReadModel: DecisionReadModelSchema,
   UserConfirmation: UserConfirmationSchema,
   UserRejection: UserRejectionSchema,
+  AdvisoryStatus: AdvisoryStatusSchema,
 };
 
-export const exemptTypenames: string[] = ['AdvisoryStatus', 'UserInteraction'];
+export const exemptTypenames: string[] = [];
