@@ -270,6 +270,14 @@ investor-domain consumers is WS-3, out of scope here.
 - **WS-3 consumer-side `parseSubject` conversions** of the 6 consumer-having events (DWC
   sfn-callback/CallbackIngress, investor-adpt, advisory-adpt, dashboard-bff event-listener) — this
   workstream authors the producer contracts only; retyping the consumers is `consumer-parse-subject`.
+  **Exception (Decision-4 surgical fix, in scope):** when typing one of these 6 events to DRY makes a
+  consumer hard-break by reading a now-stripped envelope/identity field off the subject, the minimal
+  surgical read-fix (read that field from `context`) travels with this workstream. The 2026-06-11
+  consumer sweep found exactly ONE such break: `dashboard-bff/src/transforms/advisory-status.ts`
+  reads `subject.tenantId` for the `AdvisoryStatus` P3 projection key → fixed to
+  `uow.event.context.tenantId` (the full `parseSubject(AdvisoryStatusSchema)` conversion stays WS-3).
+  `sfn-callback` (4 completion/failure events) already falls back to `ctx.tenantId`; `EXPLANATION_GENERATED`
+  has no subject-reading consumer.
 - **Re-engineering the CDC publisher pipeline / `changeDataCapture` mechanism** — shipped in WS-2.
   This item only authors the missing contracts and drains `exemptTypenames`.
 - **The enforcement capstone** (lint rule / `tools/` check-script / `create-*`/`audit-*` skill +

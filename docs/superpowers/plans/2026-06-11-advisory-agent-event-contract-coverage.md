@@ -460,7 +460,7 @@ git commit --no-verify -m "feat(advisory-narrative-ctrl): type ReasoningOutput/A
 
 ---
 
-## Task 4: advisory-bff — AdvisoryStatus contract + stop-emit UserInteraction
+## Task 4: advisory-bff — AdvisoryStatus contract + stop-emit UserInteraction (+ Decision-4 dashboard-bff fix)
 
 **Files:**
 - Modify: `services/advisory/advisory-bff/src/domain/contracts.ts`
@@ -468,6 +468,8 @@ git commit --no-verify -m "feat(advisory-narrative-ctrl): type ReasoningOutput/A
 - Modify: `services/advisory/advisory-bff/src/handlers/publisher-schemas.ts`
 - Modify: `services/advisory/advisory-bff/test/unit/publisher-schemas.test.ts:3`
 - Modify: `services/advisory/advisory-bff/src/service.stack.ts:48-51`
+- Modify: `services/investor/dashboard-bff/src/transforms/advisory-status.ts` (Decision-4 surgical consumer fix — Step 7b)
+- Modify: `services/investor/dashboard-bff/src/transforms/advisory-status.test.ts` (move `tenantId` to context — Step 7b)
 
 - [ ] **Step 1: Write the failing AdvisoryStatus parse test**
 
@@ -582,16 +584,48 @@ In `services/advisory/advisory-bff/src/service.stack.ts`, remove the `'UserInter
 
 (The `UserInteraction` row — if ever written — still persists; `USER_INTERACTION_CREATED`/`USER_INTERACTION_UPDATED` simply stop emitting.)
 
-- [ ] **Step 8: Run the service's unit suite**
+- [ ] **Step 7b: Decision-4 surgical consumer fix — dashboard-bff reads `tenantId` from context, not subject** (added during execution; verified critical break)
 
-Run: `pnpm nx test advisory-bff`
-Expected: PASS.
+Typing `AdvisoryStatus` makes its emitted subject DRY — `tenantId` is stripped (→ event context). The sole consumer, `services/investor/dashboard-bff/src/transforms/advisory-status.ts`, reads `p.tenantId` **off the subject** for the projection key (`pk: T#${p.tenantId}`), which would become `T#undefined`, silently breaking the dashboard's AdvisoryStatus P3 row. Per spec **Decision 4**, the minimal surgical read-fix travels with the breaking change (the full `parseSubject` conversion stays in WS-3). Verified (2026-06-11): this is the ONLY consumer of the 6 newly-typed events that reads a stripped field (sfn-callback has a `?? ctx.tenantId` fallback; `EXPLANATION_GENERATED` has no subject consumer). `toUow` exposes the RequestContext at `uow.event.context` (`libs/event-processor/src/util/to-uow.ts`), so the fix is to read `uow.event.context.tenantId`.
+
+Edit `services/investor/dashboard-bff/src/transforms/advisory-status.ts`:
+- Remove `tenantId: string;` from the inline `BusEvent<{ ... }>` subject type (it is no longer read from the subject).
+- Change the override from `pk: \`T#${p.tenantId}\`` to `pk: \`T#${uow.event.context.tenantId}\``.
+
+```ts
+export const advisoryStatus = (
+  uow: UnitOfWork<BusEvent<{
+    inFlightCount: number; __version: number;
+    generatingCount?: number; failedCount?: number; oldestGeneratingAt?: string | null;
+  }>>,
+): WriteIntent | undefined => {
+  const p = uow.event.subject;
+  if (typeof p.__version !== 'number') return undefined;
+  return projectVersioned(
+    'AdvisoryStatus',
+    {
+      pendingDecisionsCount: p.inFlightCount,
+      generatingCount: p.generatingCount ?? 0,
+      failedCount: p.failedCount ?? 0,
+      oldestGeneratingAt: p.oldestGeneratingAt ?? null,
+    },
+    { version: p.__version, overrides: { pk: `T#${uow.event.context.tenantId}`, sk: 'AdvisoryStatus' } },
+  );
+};
+```
+
+Then update `services/investor/dashboard-bff/src/transforms/advisory-status.test.ts`: the fixture must now carry `tenantId` in the event **context** (the `toUow`/`BusEvent.context` RequestContext), NOT in the subject, and still assert the row is keyed `pk: T#<tenantId>`. Read the test first to match its `BusEvent`/`toUow` construction style; if it builds the `uow` inline, move `tenantId` from the `subject` object into the `context` object. Keep every existing assertion (the `pendingDecisionsCount` mapping, the `__version`-absent → undefined guard, the WS-4 cycle-signal defaults).
+
+- [ ] **Step 8: Run both services' unit suites**
+
+Run: `pnpm nx test advisory-bff` and `pnpm nx test dashboard-bff`
+Expected: PASS for both (advisory-bff contracts + registry; dashboard-bff advisory-status transform test with `tenantId` now in context).
 
 - [ ] **Step 9: Commit**
 
 ```bash
-git add services/advisory/advisory-bff
-git commit --no-verify -m "feat(advisory-bff): type AdvisoryStatus, stop-emit UserInteraction"
+git add services/advisory/advisory-bff services/investor/dashboard-bff
+git commit --no-verify -m "feat(advisory-bff): type AdvisoryStatus, stop-emit UserInteraction; fix(dashboard-bff): read tenantId from context (Decision-4 DRY consumer fix)"
 ```
 
 ---
