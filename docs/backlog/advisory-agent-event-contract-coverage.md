@@ -14,7 +14,7 @@ out_of_scope:
   - "Non-advisory-core publishers already fully covered by WS-2 (ledger, investor-ctrl, execution-ctrl, broker-*, the advisory feed adapters, onboarding-bff) — not re-touched."
   - "The 8 primary advisory subjects already contracted + e2e-validated by WS-1 (InvestorProfileSnapshot, MarketSnapshot, DecisionPacket, MandateSnapshot, ComplianceCheck, DecisionReadModel, UserConfirmation, UserRejection) — not re-authored."
   - "Latent producer/consumer drift BUGS surfaced by the program but tracked separately (dwc-sfn-callback-reason-blockreason-gap, broker-funding-completed-normalization-drift) — file-and-continue if more surface."
-spec: null
+spec: docs/superpowers/specs/2026-06-11-advisory-agent-event-contract-coverage-design.md
 plan: null
 topic_memory: []
 validation_gate: null
