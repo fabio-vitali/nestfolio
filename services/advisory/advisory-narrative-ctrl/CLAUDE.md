@@ -43,7 +43,7 @@ Agent folder: agents/advisory-narrative/
 ## Handlers
 - event-listener.ts -- Ingress: dispatches GENERATE_NARRATIVE through the agent (wraps the orchestrator output via `wrapAgentOutput`) and records AgentCompletion / AgentFailure rows. DECISION_FEEDBACK is routed through feedback-correlator.
 - event-publisher.ts -- Egress CDC publisher (changeDataCapture pipeline, typed-subject mode)
-- publisher-schemas.ts — typed-subject registry: maps each emitted __typename → its producer zod contract (subjectSchemas) + exemptTypenames; the publisher emits schema.parse(row) (the DRY subject) for covered types, the fat row for exempt. Exempt: ReasoningOutput, AgentCompletion, AgentFailure (no row-level contract — see backlog advisory-agent-event-contract-coverage).
+- publisher-schemas.ts — typed-subject registry: maps each emitted __typename → its producer zod contract (subjectSchemas) + exemptTypenames; the publisher emits schema.parse(row) (the DRY subject) for covered types, the fat row for exempt. Exempt: none (every emitted __typename now has a row-level contract — ReasoningOutput → ExplanationGeneratedSchema, AgentCompletion → NarrativeAgentCompletionSchema, AgentFailure → NarrativeAgentFailureSchema).
 - feedback-correlator.ts -- Processes DECISION_FEEDBACK events, annotates decisions, writes to KB S3 bucket, triggers KB ingestion
 
 ## Event Types (domain/events.ts)
@@ -60,6 +60,9 @@ Agent folder: agents/advisory-narrative/
 ## Event Payload Contracts (domain/contracts.ts → @nestfolio/advisory-narrative-ctrl/contracts)
 Producer-owned zod CDC subject contracts, exported via `@nestfolio/advisory-narrative-ctrl/contracts` (NOT re-exported through the `/domain` barrel). DRY domain subjects — identity travels in the event context (RequestContext), not on the subject.
 - NarrativeAgentOutputSchema / NarrativeAgentOutput — the COMPOSITE runPipeline return stored as AgentCompletion.agentOutput, CDC-emitted on NARRATIVE_COMPLETED. Extends ExplainabilitySchema (summary, rationale, keyFactors: string[], tone, wordCount: number, confidence: number [0–1]) with: decisionId, metadata ({ durationMs: number, modelTier?: string } .passthrough()).
+- NarrativeAgentCompletionSchema / NarrativeAgentCompletion — the AgentCompletion row DRY subject, CDC-emitted as NARRATIVE_COMPLETED. Composed via `AgentCompletionRowSchema('advisory-narrative', NarrativeAgentOutputSchema)` from `@nestfolio/agent-orchestrator`.
+- NarrativeAgentFailureSchema / NarrativeAgentFailure — the AgentFailure row DRY subject, CDC-emitted as NARRATIVE_FAILED. Composed via `AgentFailureRowSchema('advisory-narrative')` from `@nestfolio/agent-orchestrator`.
+- ExplanationGeneratedSchema / ExplanationGenerated — the ReasoningOutput row DRY subject, CDC-emitted as EXPLANATION_GENERATED. `ExplainabilitySchema.extend({ invocationId: z.string(), decisionId: z.string() })`. Identity (tenantId) travels in RequestContext.
 
 ### Shared AgentCompletionRow (from @nestfolio/agent-orchestrator)
 The inline `AgentCompletionRow`/`AgentFailureRow` interfaces + the `AgentCompletion#`/`AgentFailure#` PK/SK helpers that used to live in this service were MOVED to `@nestfolio/agent-orchestrator` in the typed-subject-contracts slice. This service now uses the shared generics via typed aliases in `domain/models.ts`:

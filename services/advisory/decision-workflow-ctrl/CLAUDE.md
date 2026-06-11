@@ -30,9 +30,9 @@ Stack: services/advisory/decision-workflow-ctrl/src/service.stack.ts
 ## Egress
 - CDC: DynamoDB Streams → decision-workflow-ctrl-egress (Lambda)
   Emits:
-  - DecisionPacket → DECISION_PACKET_CREATED (insert), DECISION_PACKET_UPDATED (modify)
-  - AgentOutput → AGENT_OUTPUT_CREATED (insert), AGENT_OUTPUT_UPDATED (modify)
-  - MandateSnapshot → MANDATE_SNAPSHOT_CREATED (insert only — operatingMode changes do NOT re-trigger the first decision)
+  - DecisionPacket → DECISION_PACKET_CREATED (insert), DECISION_PACKET_UPDATED (modify) [typed: DecisionPacketSchema]
+  - MandateSnapshot → MANDATE_SNAPSHOT_CREATED (insert only — operatingMode changes do NOT re-trigger the first decision) [typed: MandateSnapshotSchema]
+  (AgentOutput row is still written by sfn-callback but NOT CDC-emitted — AGENT_OUTPUT_CREATED + AGENT_OUTPUT_UPDATED were stop-emitted; zero consumers.)
   Note: InvestorProfileSnapshot + MarketSnapshot projected rows are NOT in the Egress map — they are read by the SF only.
 
 ## Orchestration (Direct EB → SF, precomputation rewrite — Task 9)
@@ -68,7 +68,7 @@ Stack: services/advisory/decision-workflow-ctrl/src/service.stack.ts
 - snapshot-projector.ts — SnapshotProjectorIngress handler (materializeToTable). Validates each payload at the seam via `parseSubject(payload, <ProducerSchema>)` — InvestorProfileSnapshotSchema / MarketSnapshotSchema / PortfolioUpdatedSchema imported from the producers' `/contracts` (no local types, no `as` casts). INVESTOR_PROFILE_SNAPSHOT_CREATED/_UPDATED → projectVersioned(InvestorProfileSnapshot) keyed on subject.__version; MARKET_SNAPSHOT_UPDATED → projectVersioned(MarketSnapshot) keyed on subject.__version; PORTFOLIO_UPDATED → projectVersioned(LedgerSnapshot) keyed on snapshot.lastEventSequence. Missing subject.agentOutput/snapshot → NotRetryableError; absent version → drop (undefined).
 - assemble-packet.ts — Assembles decision packet (invoked by SF).
 - event-publisher.ts — Egress CDC publisher (changeDataCapture pipeline, typed-subject mode).
-- publisher-schemas.ts — typed-subject registry: maps each emitted __typename → its producer zod contract (subjectSchemas) + exemptTypenames; the publisher emits schema.parse(row) (the DRY subject) for covered types, the fat row for exempt. Exempt: AgentOutput (no row-level contract — see backlog advisory-agent-event-contract-coverage).
+- publisher-schemas.ts — typed-subject registry: maps each emitted __typename → its producer zod contract (subjectSchemas) + exemptTypenames; the publisher emits schema.parse(row) (the DRY subject) for covered types, the fat row for exempt. Exempt: none (every emitted __typename now has a row-level contract — DecisionPacket → DecisionPacketSchema, MandateSnapshot → MandateSnapshotSchema).
 
 ## Event Types (domain/events.ts)
 - DecisionWorkflowEventTypes (outbound + routed): DECISION_PACKET_CREATED, DECISION_PACKET_UPDATED, CONSTRUCT_PORTFOLIO, GENERATE_NARRATIVE, RECOMMENDATION_PROPOSED, DECISION_FEEDBACK, DECISION_WORKFLOW_FAILED, AGENT_OUTPUT_CREATED, AGENT_OUTPUT_UPDATED, MANDATE_SNAPSHOT_CREATED, DECISION_CYCLE_STARTED, DECISION_CYCLE_FAILED

@@ -15,15 +15,15 @@ Post-resplit (2026-05-08): subscribes to semantic/lifecycle events directly inst
 ## Egress
 - CDC: DynamoDB Streams → compliance-ctrl-egress (Lambda)
   Emits:
-  - ComplianceCheck → insert: field dispatch on `result` — APPROVED → DECISION_APPROVED, BLOCKED → DECISION_BLOCKED
-  - AuditArtifact → insert: AUDIT_ARTIFACT_CREATED, modify: AUDIT_ARTIFACT_UPDATED
+  - ComplianceCheck → insert: field dispatch on `result` — APPROVED → DECISION_APPROVED, BLOCKED → DECISION_BLOCKED [typed: ComplianceCheckSchema]
+  (AuditArtifact row is still written but NOT CDC-emitted — AUDIT_ARTIFACT_CREATED + AUDIT_ARTIFACT_UPDATED were stop-emitted; zero consumers.)
 
 ## Handlers
 - event-listener.ts — Ingress event handler
   - RECOMMENDATION_PROPOSED: loads GuardrailPolicy (MandateSnapshot) from DDB, runs RuleEngine (MandateValidator + GuardrailEvaluator + SuitabilityChecker + AuthorityResolver), writes ComplianceCheck + AuditArtifact records. Requires `taskToken` on subject (SF callback to decision-workflow-ctrl on DECISION_APPROVED|BLOCKED). Throws NotRetryableError if taskToken missing or required fields absent.
   - MANDATE_ISSUED / OPERATING_MODE_CHANGED / MANDATE_REVOKED: all three route to a single `projectMandateSnapshot` helper that calls `projectVersioned('MandateSnapshot', fullImage, { version: subject.__version, overrides: { pk, sk } })`. Every Mandate event now carries the full Mandate image + Mandate `__version`; the version guard is the sole idempotency mechanism (the old REVOKED-skip conditional is gone). Missing `operatingMode` throws NotRetryableError; missing `__version` returns `skip()`.
 - event-publisher.ts — Egress CDC publisher (changeDataCapture pipeline, typed-subject mode)
-- publisher-schemas.ts — typed-subject registry: maps each emitted __typename → its producer zod contract (subjectSchemas) + exemptTypenames; the publisher emits schema.parse(row) (the DRY subject) for covered types, the fat row for exempt. Exempt: AuditArtifact (append-only audit log, no typed subject contract — see backlog advisory-agent-event-contract-coverage).
+- publisher-schemas.ts — typed-subject registry: maps each emitted __typename → its producer zod contract (subjectSchemas) + exemptTypenames; the publisher emits schema.parse(row) (the DRY subject) for covered types, the fat row for exempt. Exempt: none (every emitted __typename now has a row-level contract — ComplianceCheck → ComplianceCheckSchema).
 
 ## Read model
 - ReadModelOwnership registered in src/read-model-ownership.ts

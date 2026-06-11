@@ -24,9 +24,8 @@ Stack: services/advisory/investor-profile-ctrl/src/service.stack.ts
 ## Egress
 - CDC: DynamoDB Streams -> investor-profile-ctrl-egress (Lambda)
   Emits:
-  - AgentInvocation -> GOAL_INTERPRETATION_PRODUCED (insert only)
-  - ReasoningOutput -> RISK_EVALUATION_PRODUCED (insert only)
-  - InvestorProfileSnapshot -> INVESTOR_PROFILE_SNAPSHOT_CREATED (insert), INVESTOR_PROFILE_SNAPSHOT_UPDATED (modify)
+  - InvestorProfileSnapshot -> INVESTOR_PROFILE_SNAPSHOT_CREATED (insert), INVESTOR_PROFILE_SNAPSHOT_UPDATED (modify) [typed: InvestorProfileSnapshotSchema]
+  (AgentInvocation + ReasoningOutput rows are still written but NOT CDC-emitted — GOAL_INTERPRETATION_PRODUCED + RISK_EVALUATION_PRODUCED were stop-emitted; zero consumers.)
 
 ## AgentRuntime
 Agent folder: agents/investor-profile/
@@ -43,7 +42,7 @@ Agent folder: agents/investor-profile/
 ## Handlers
 - event-listener.ts -- Ingress snapshot writer (materializeToTable). Each trigger event resolves operatingMode + runs the agent + records both an AgentInvocation row and an InvestorProfileSnapshot row keyed by (tenantId, userId). DuplicateInvocationError → deduplicated short-circuit. UnknownOperatingModeError is thrown when neither subject.operatingMode nor subject.mandate.operatingMode is present.
 - event-publisher.ts -- Egress CDC publisher (changeDataCapture pipeline, typed-subject mode)
-- publisher-schemas.ts — typed-subject registry: maps each emitted __typename → its producer zod contract (subjectSchemas) + exemptTypenames; the publisher emits schema.parse(row) (the DRY subject) for covered types, the fat row for exempt. Exempt: AgentInvocation, ReasoningOutput (no row-level contract — see backlog advisory-agent-event-contract-coverage).
+- publisher-schemas.ts — typed-subject registry: maps each emitted __typename → its producer zod contract (subjectSchemas) + exemptTypenames; the publisher emits schema.parse(row) (the DRY subject) for covered types, the fat row for exempt. Exempt: none (every emitted __typename now has a row-level contract — InvestorProfileSnapshot → InvestorProfileSnapshotSchema).
 - kb-ingestion-handler.ts -- KB ingestion for regulatory precedents
 
 ## Read model

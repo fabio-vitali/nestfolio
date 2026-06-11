@@ -18,11 +18,11 @@ Stack: services/advisory/advisory-bff/src/service.stack.ts
 ## Egress
 - CDC: DynamoDB Streams → advisory-bff-egress (Lambda)
   Emits:
-  - DecisionReadModel → insert: DECISION_READ_MODEL_CREATED, modify: DECISION_READ_MODEL_UPDATED
-  - UserInteraction → insert: USER_INTERACTION_CREATED, modify: USER_INTERACTION_UPDATED
-  - UserConfirmation → insert: USER_CONFIRMED
-  - UserRejection → insert: USER_REJECTED
-  - AdvisoryStatus → insert: ADVISORY_STATUS_UPDATED, modify: ADVISORY_STATUS_UPDATED
+  - DecisionReadModel → insert: DECISION_READ_MODEL_CREATED, modify: DECISION_READ_MODEL_UPDATED [typed: DecisionReadModelSchema]
+  - AdvisoryStatus → insert: ADVISORY_STATUS_UPDATED, modify: ADVISORY_STATUS_UPDATED [typed: AdvisoryStatusSchema]
+  - UserConfirmation → insert: USER_CONFIRMED [typed: UserConfirmationSchema]
+  - UserRejection → insert: USER_REJECTED [typed: UserRejectionSchema]
+  (UserInteraction row is still written but NOT CDC-emitted — USER_INTERACTION_CREATED + USER_INTERACTION_UPDATED were stop-emitted; zero consumers.)
 
 ## Facade
 - AppSync GraphQL API (Cognito auth via investor user pool SSM; IAM auth also enabled)
@@ -40,7 +40,7 @@ Stack: services/advisory/advisory-bff/src/service.stack.ts
 - advisory-status-projector.ts — DDB-stream consumer (advisory-bff's own command-owned derived aggregate); recomputes the AdvisoryStatus aggregate post-commit via `repo.deriveAdvisoryAggregate(tenantId)` — ONE `tenantId-index` query over this tenant's non-terminal DecisionReadModel rows (status+createdAt projected) yielding `inFlightCount` (PENDING/AWAITING_CONFIRMATION), `generatingCount` (GENERATING), `failedCount` (FAILED), `oldestGeneratingAt` (min GENERATING createdAt, or null); writes all four via update(..., { add: { __version: 1 } }) (atomic strictly-monotonic __version self-increment, was projectVersioned+Date.now()); loop-guarded to skip AdvisoryStatus records. (WS-4: generating/failed/oldestGeneratingAt added so dashboard-bff can reflect generating/failed cycle states; replaced the prior COUNT-only countInFlightDecisions.)
 - decision-publisher.ts — DDB-stream consumer; broadcasts DecisionReadModel changes to MFE via AppSync publishDecisionUpdate mutation (WS-3: the AdvisoryStatus → publishAdvisoryStatusUpdate broadcast was removed — no MFE subscriber remains)
 - event-publisher.ts — Egress CDC publisher (changeDataCapture pipeline, typed-subject mode)
-- publisher-schemas.ts — typed-subject registry: maps each emitted __typename → its producer zod contract (subjectSchemas) + exemptTypenames; the publisher emits schema.parse(row) (the DRY subject) for covered types, the fat row for exempt. Exempt: AdvisoryStatus, UserInteraction (command-owned derived aggregates with no cross-domain CDC consumers — see backlog advisory-agent-event-contract-coverage).
+- publisher-schemas.ts — typed-subject registry: maps each emitted __typename → its producer zod contract (subjectSchemas) + exemptTypenames; the publisher emits schema.parse(row) (the DRY subject) for covered types, the fat row for exempt. Exempt: none (every emitted __typename now has a row-level contract — DecisionReadModel → DecisionReadModelSchema, AdvisoryStatus → AdvisoryStatusSchema, UserConfirmation → UserConfirmationSchema, UserRejection → UserRejectionSchema).
 
 ## Transforms
 - decision-snapshot.ts — single transform for DECISION_PACKET_CREATED + DECISION_PACKET_UPDATED; projects the full CDC subject (DecisionPacket NewImage) into DecisionReadModel P1 via projectVersioned; returns undefined (→ skip()) for degraded snapshots (no explanation AND no proposedTrades)
@@ -59,6 +59,7 @@ Producer-owned zod CDC subject contracts, exported via `@nestfolio/advisory-bff/
 - DecisionReadModelSchema / DecisionReadModel — `DecisionReadModel` row (pk=`Decision#${tenantId}#${decisionId}`, sk='DecisionReadModel'), CDC-emitted DECISION_READ_MODEL_CREATED / DECISION_READ_MODEL_UPDATED. Written by TWO builders: decision-snapshot.ts (full) + decision-cycle-status.ts (minimal), so snapshot-only fields are optional. Required fields: decisionId, trigger (cycle-status writes '' not undefined), status, version, createdAt, updatedAt. Optional fields: proposedTrades, explanation, confirmationRequired, complianceChecks, agentInvocations, confirmedAt, rejectedAt, taskToken. Outcome field nullability: `rejectionReason` is `.nullable().optional()` — copied from DecisionPacketSchema (which declares it `.nullable()`), so non-rejected rows carry `rejectionReason:null` in DDB (proven by the e2e gate). `confirmedAt` and `rejectedAt` are absent (undefined) on non-confirmed/non-rejected rows (`.optional()` only, not nullable).
 - UserConfirmationSchema / UserConfirmation — `UserConfirmation#${autoId}` intent row (JS resolver PutItem), CDC-emitted USER_CONFIRMED. Fields: decisionId, confirmedAt, confirmedBy, timestamp, taskToken?.
 - UserRejectionSchema / UserRejection — `UserRejection#${autoId}` intent row (JS resolver PutItem), CDC-emitted USER_REJECTED. Fields: decisionId, rejectedAt, rejectedBy, rejectionReason, timestamp, taskToken?.
+- AdvisoryStatusSchema / AdvisoryStatus — the command-owned derived AdvisoryStatus aggregate DRY subject, CDC-emitted as ADVISORY_STATUS_UPDATED (insert + modify). Fields: inFlightCount (number), generatingCount (number), failedCount (number), oldestGeneratingAt (string | null), __version (number — retained in subject for downstream P3 keying by dashboard-bff). Identity (tenantId) travels in RequestContext.
 
 ## Event Types (domain/events.ts)
 - AdvisoryBffEventTypes: ADVISORY_STATUS_UPDATED, USER_CONFIRMED, USER_REJECTED, USER_VIEWED_EXPLANATION,

@@ -24,10 +24,9 @@ Stack: services/advisory/portfolio-engine-ctrl/src/service.stack.ts
 ## Egress
 - CDC: DynamoDB Streams -> portfolio-engine-ctrl-egress (Lambda)
   Emits:
-  - AgentInvocation -> PORTFOLIO_CONSTRUCTION_PROPOSED (insert only)
-  - ReasoningOutput -> REBALANCE_PLAN_PRODUCED (insert only)
-  - AgentCompletion -> PORTFOLIO_COMPLETED (insert only)
-  - AgentFailure -> PORTFOLIO_FAILED (insert only)
+  - AgentCompletion -> PORTFOLIO_COMPLETED (insert only) [typed: PortfolioAgentCompletionSchema]
+  - AgentFailure -> PORTFOLIO_FAILED (insert only) [typed: PortfolioAgentFailureSchema]
+  (AgentInvocation + ReasoningOutput rows are still written but NOT CDC-emitted — PORTFOLIO_CONSTRUCTION_PROPOSED + REBALANCE_PLAN_PRODUCED were stop-emitted; zero consumers.)
 
   Flow: handler writes AgentCompletion/AgentFailure via materializeToTable -> DDB Stream -> CDC publisher -> EB -> DWC CallbackIngress -> states:SendTaskSuccess / states:SendTaskFailure. (No states:* IAM owned by this service.)
 
@@ -50,7 +49,7 @@ Agent folder: agents/portfolio-engine/
 ## Handlers
 - event-listener.ts -- Ingress: dispatches CONSTRUCT_PORTFOLIO through the agent and records AgentCompletion (success) or AgentFailure (caught error) rows. SEC ingestion events are routed through to kb-ingestion-handler.
 - event-publisher.ts -- Egress CDC publisher (changeDataCapture pipeline, typed-subject mode)
-- publisher-schemas.ts — typed-subject registry: maps each emitted __typename → its producer zod contract (subjectSchemas) + exemptTypenames; the publisher emits schema.parse(row) (the DRY subject) for covered types, the fat row for exempt. Exempt: AgentInvocation, ReasoningOutput, AgentCompletion, AgentFailure (no row-level contract — see backlog advisory-agent-event-contract-coverage).
+- publisher-schemas.ts — typed-subject registry: maps each emitted __typename → its producer zod contract (subjectSchemas) + exemptTypenames; the publisher emits schema.parse(row) (the DRY subject) for covered types, the fat row for exempt. Exempt: none (every emitted __typename now has a row-level contract — AgentCompletion → PortfolioAgentCompletionSchema, AgentFailure → PortfolioAgentFailureSchema).
 - kb-ingestion-handler.ts -- KB ingestion for SEC filing data
 
 ## Event Types (domain/events.ts)
@@ -70,6 +69,8 @@ Agent folder: agents/portfolio-engine/
 ## Event Payload Contracts (domain/contracts.ts → @nestfolio/portfolio-engine-ctrl/contracts)
 Producer-owned zod CDC subject contracts, exported via `@nestfolio/portfolio-engine-ctrl/contracts` (NOT re-exported through the `/domain` barrel). DRY domain subjects — identity travels in the event context (RequestContext), not on the subject.
 - PortfolioAgentOutputSchema / PortfolioAgentOutput — the COMPOSITE runPipeline return stored as AgentCompletion.agentOutput, CDC-emitted on PORTFOLIO_COMPLETED. Fields: decisionId, allocations (PortfolioConstructionSchema), trades (RebalancePlanSchema.optional()), metadata ({ durationMs: number, modelTiers?: string[], modeUsed?: string } .passthrough()).
+- PortfolioAgentCompletionSchema / PortfolioAgentCompletion — the AgentCompletion row DRY subject, CDC-emitted as PORTFOLIO_COMPLETED. Composed via `AgentCompletionRowSchema('portfolio-engine', PortfolioAgentOutputSchema)` from `@nestfolio/agent-orchestrator`. Fields: the generator-produced envelope (agentId='portfolio-engine', agentOutput: PortfolioAgentOutput, …).
+- PortfolioAgentFailureSchema / PortfolioAgentFailure — the AgentFailure row DRY subject, CDC-emitted as PORTFOLIO_FAILED. Composed via `AgentFailureRowSchema('portfolio-engine')` from `@nestfolio/agent-orchestrator`.
 
 ### Shared AgentCompletionRow (from @nestfolio/agent-orchestrator)
 The inline `AgentCompletionRow`/`AgentFailureRow` interfaces + the `AgentCompletion#`/`AgentFailure#` PK/SK helpers that used to live in this service were MOVED to `@nestfolio/agent-orchestrator` in the typed-subject-contracts slice. This service now uses the shared generics via typed aliases in `domain/models.ts`:
