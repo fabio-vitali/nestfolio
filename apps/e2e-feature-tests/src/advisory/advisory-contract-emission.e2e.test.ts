@@ -108,6 +108,8 @@ import { MarketWatchArticleSchema } from '@nestfolio/marketwatch-adpt/contracts'
 import { YahooFinanceArticleSchema } from '@nestfolio/yahoo-finance-adpt/contracts';
 import { AlphaVantageArticleSchema, EconomicIndicatorSchema } from '@nestfolio/alpha-vantage-adpt/contracts';
 import { expectContractMatch } from '../helpers/contract-assert';
+import { armEventSubjectTrap } from '../helpers/event-subject-trap';
+import { AdvisoryBffEventTypes } from '@nestfolio/advisory-bff/events';
 
 // ---------------------------------------------------------------------------
 // Shared GSI helper — tenantId-index (PK=tenantId, SK=__typename, projection=ALL)
@@ -646,5 +648,72 @@ describe('advisory-domain producer contracts — feed-fetch (REAL external APIs)
       );
     },
     420_000,
+  );
+});
+
+// ===========================================================================
+// DRY-wire emission capture — advisory domain (Task 9)
+//
+// Proves the REAL emitted EventBridge event carries a DRY subject
+// (no envelope/identity keys) for DECISION_READ_MODEL_CREATED.
+// Representative event: DECISION_READ_MODEL_CREATED (DecisionReadModel INSERT
+// from advisory-bff, written on DECISION_PACKET_CREATED → decision-snapshot
+// projectVersioned).
+//
+// Arm BEFORE applyFixtures so the trap's EB rule is active when the CDC
+// publisher fires. The withLiveDecision() fixture drives the full Bedrock
+// agent pipeline through to DECISION_READ_MODEL_CREATED. subject =
+// DecisionReadModelSchema.parse(row) — no pk/sk/__typename/tenantId.
+//
+// ONE SHARED TENANT (beforeAll): withProfileSnapshot() + withLiveDecision()
+// are expensive (30–110s Bedrock agents). Running once covers the intent.
+// ===========================================================================
+
+describe('advisory-domain DRY-wire emission — DECISION_READ_MODEL_CREATED subject (Task 9)', () => {
+  let ctx: TestContext;
+  let tenant: FreshTenant;
+
+  beforeAll(async () => {
+    ctx = await createTestContext();
+    tenant = await freshTenant(ctx);
+  }, 30_000);
+
+  afterAll(async () => {
+    await ctx.cleanup.runAll();
+  }, 60_000);
+
+  it(
+    'emits a DRY DECISION_READ_MODEL_CREATED subject (no envelope keys)',
+    async () => {
+      // Arm BEFORE the fixtures that drive the CDC emission. withLiveDecision()
+      // drives DECISION_PACKET_CREATED → advisory-bff writes DecisionReadModel row
+      // (INSERT) → CDC DECISION_READ_MODEL_CREATED.
+      const trap = await armEventSubjectTrap(ctx, {
+        bus: 'advisory',
+        detailType: AdvisoryBffEventTypes.DECISION_READ_MODEL_CREATED,
+      });
+
+      // Full decision cycle: onboarded() + withProfileSnapshot() + withLiveDecision().
+      // withProfileSnapshot() waits for the IP-ctrl agent (up to 360s).
+      // withLiveDecision() drives the SF + Bedrock agent wave (up to 180s).
+      await applyFixtures(ctx, tenant, [
+        onboarded(),
+        withProfileSnapshot(),
+        withLiveDecision(),
+      ]);
+
+      // Wait for the live CDC emission; generous deadline covers the full pipeline.
+      const subject = await trap.waitForSubject(600_000);
+
+      // 1. Subject must parse as a well-formed DecisionReadModel contract.
+      expectContractMatch(DecisionReadModelSchema, subject, 'DECISION_READ_MODEL_CREATED.subject');
+
+      // 2. Identity keys must NOT be on the subject — they travel in detail.context.
+      expect(subject['pk']).toBeUndefined();
+      expect(subject['sk']).toBeUndefined();
+      expect(subject['__typename']).toBeUndefined();
+      expect(subject['tenantId']).toBeUndefined();
+    },
+    900_000, // 15 min: onboarded (60s) + withProfileSnapshot (360s) + withLiveDecision (180s) + pipeline
   );
 });

@@ -50,6 +50,8 @@ import { InvestorProfileUpdatedSchema, NotificationReadSchema } from '@nestfolio
 import { MandateSchema } from '@nestfolio/investor-adpt/domain';
 import { NotificationCreatedSchema, MonthlyReportSchema } from '@nestfolio/investor-ctrl/contracts';
 import { expectContractMatch } from '../helpers/contract-assert';
+import { armEventSubjectTrap } from '../helpers/event-subject-trap';
+import { InvestorBffEventTypes } from '@nestfolio/investor-bff/events';
 
 describe('investor-domain producer contracts match REAL deployed emission', () => {
   let ctx: TestContext;
@@ -169,6 +171,61 @@ describe('investor-domain producer contracts match REAL deployed emission', () =
       }, 240_000);
       expect(reports.length).toBeGreaterThan(0);
       reports.forEach((row, i) => expectContractMatch(MonthlyReportSchema, row, `MonthlyReport[${i}]`));
+    },
+    600_000,
+  );
+});
+
+// ===========================================================================
+// DRY-wire emission capture — investor domain (Task 9)
+//
+// Proves the REAL emitted EventBridge event carries a DRY subject
+// (no envelope/identity keys) for INVESTOR_PROFILE_UPDATED.
+// Representative event: INVESTOR_PROFILE_UPDATED (InvestorProfile row from
+// investor-bff, written by the ONBOARDING_COMPLETED transform).
+//
+// Arm BEFORE onboarded() so the trap's EB rule is active when the CDC
+// publisher fires the INSERT/MODIFY on the InvestorProfile row.
+// subject = InvestorProfileUpdatedSchema.parse(row) — no pk/sk/__typename/tenantId.
+// ===========================================================================
+
+describe('investor-domain DRY-wire emission — INVESTOR_PROFILE_UPDATED subject (Task 9)', () => {
+  let ctx: TestContext;
+  let tenant: FreshTenant;
+
+  beforeEach(async () => {
+    ctx = await createTestContext();
+    tenant = await freshTenant(ctx);
+  }, 30_000);
+
+  afterEach(async () => {
+    await ctx.cleanup.runAll();
+  }, 60_000);
+
+  it(
+    'emits a DRY INVESTOR_PROFILE_UPDATED subject (no envelope keys)',
+    async () => {
+      // Arm BEFORE the fixture that drives the CDC emission.
+      const trap = await armEventSubjectTrap(ctx, {
+        bus: 'investor',
+        detailType: InvestorBffEventTypes.INVESTOR_PROFILE_UPDATED,
+      });
+
+      // onboarded() → ONBOARDING_COMPLETED → investor-bff writes InvestorProfile row
+      // → CDC INVESTOR_PROFILE_UPDATED. Arm MUST precede applyFixtures.
+      await applyFixtures(ctx, tenant, [onboarded()]);
+
+      // Wait for the live CDC emission; covers real onboarding agent pipeline.
+      const subject = await trap.waitForSubject(300_000);
+
+      // 1. Subject must parse as a well-formed InvestorProfileUpdated contract.
+      expectContractMatch(InvestorProfileUpdatedSchema, subject, 'INVESTOR_PROFILE_UPDATED.subject');
+
+      // 2. Identity keys must NOT be on the subject — they travel in detail.context.
+      expect(subject['pk']).toBeUndefined();
+      expect(subject['sk']).toBeUndefined();
+      expect(subject['__typename']).toBeUndefined();
+      expect(subject['tenantId']).toBeUndefined();
     },
     600_000,
   );

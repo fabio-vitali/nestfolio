@@ -55,6 +55,8 @@ import {
   DriftRecordSchema,
 } from '@nestfolio/reconciliation-ctrl/contracts';
 import { expectContractMatch } from '../helpers/contract-assert';
+import { armEventSubjectTrap } from '../helpers/event-subject-trap';
+import { LedgerCtrlEventTypes } from '@nestfolio/ledger-ctrl/events';
 
 // ---------------------------------------------------------------------------
 // Suite
@@ -246,5 +248,63 @@ describe('ledger-domain producer contracts match REAL deployed emission', () => 
       );
     },
     420_000,
+  );
+});
+
+// ===========================================================================
+// DRY-wire emission capture — ledger domain (Task 9)
+//
+// Proves the REAL emitted EventBridge event carries a DRY subject
+// (no envelope/identity keys) by capturing the live event via EventSubjectTrap.
+// Representative event: BALANCE_UPDATED (BalanceEvent row → schema.parse(row)).
+//
+// Arm BEFORE applyFixtures so the trap's EB rule is active when the CDC
+// publisher fires. The withHoldings() fill drives ORDER_FILLED → ledger-ctrl
+// → snapshotToEvents writes BalanceEvent row → CDC emits BALANCE_UPDATED with
+// subject = BalanceUpdatedSchema.parse(row) (no pk/sk/__typename/tenantId).
+// ===========================================================================
+
+describe('ledger-domain DRY-wire emission — BALANCE_UPDATED subject (Task 9)', () => {
+  let ctx: TestContext;
+  let tenant: FreshTenant;
+
+  beforeEach(async () => {
+    ctx = await createTestContext();
+    tenant = await freshTenant(ctx);
+  }, 30_000);
+
+  afterEach(async () => {
+    await ctx.cleanup.runAll();
+  }, 60_000);
+
+  it(
+    'emits a DRY BALANCE_UPDATED subject (no envelope keys)',
+    async () => {
+      // Arm BEFORE the fixture that drives the CDC emission.
+      const trap = await armEventSubjectTrap(ctx, {
+        bus: 'ledger',
+        detailType: LedgerCtrlEventTypes.BALANCE_UPDATED,
+      });
+
+      // withHoldings() drives ORDER_FILLED → ledger-ctrl → snapshotToEvents →
+      // BalanceEvent rows → CDC BALANCE_UPDATED. Arm MUST precede applyFixtures.
+      await applyFixtures(ctx, tenant, [
+        onboarded(),
+        withHoldings([{ symbol: 'VTI', quantity: 10, fillPrice: 200 }]),
+      ]);
+
+      // Wait for the live CDC emission; generous deadline covers agent + ledger pipeline.
+      const subject = await trap.waitForSubject(300_000);
+
+      // 1. Subject must parse as a well-formed BalanceUpdated contract.
+      expectContractMatch(BalanceUpdatedSchema, subject, 'BALANCE_UPDATED.subject');
+
+      // 2. Identity keys must NOT be on the subject — they travel in detail.context.
+      expect(subject['pk']).toBeUndefined();
+      expect(subject['sk']).toBeUndefined();
+      expect(subject['__typename']).toBeUndefined();
+      expect(subject['tenantId']).toBeUndefined();
+    },
+    600_000,
   );
 });

@@ -110,6 +110,8 @@ import {
   AlpacaAccountSnapshotSchema,
 } from '@nestfolio/broker-alpaca-adpt/contracts';
 import { expectContractMatch } from '../helpers/contract-assert';
+import { armEventSubjectTrap } from '../helpers/event-subject-trap';
+import { ExecutionCtrlEventTypes } from '@nestfolio/execution-ctrl/events';
 
 // ---------------------------------------------------------------------------
 // Shared GSI helper: tenantId-index (PK=tenantId, SK=__typename, projection=ALL)
@@ -610,3 +612,77 @@ async function stopOrphanedPollExecutions(
     sfn.destroy();
   }
 }
+
+// ===========================================================================
+// DRY-wire emission capture — execution domain (Task 9)
+//
+// Proves the REAL emitted EventBridge event carries a DRY subject
+// (no envelope/identity keys) for ORDER_CREATED.
+// Representative event: ORDER_CREATED (Order INSERT row from execution-ctrl,
+// written when DECISION_APPROVED is processed).
+//
+// Arm BEFORE the DECISION_APPROVED putEvent so the trap's EB rule is active
+// when the CDC publisher fires. subject = OrderSchema.parse(row) —
+// no pk/sk/__typename/tenantId on the emitted subject.
+// ===========================================================================
+
+describe('execution-domain DRY-wire emission — ORDER_CREATED subject (Task 9)', () => {
+  let ctx: TestContext;
+  let tenant: FreshTenant;
+
+  beforeEach(async () => {
+    ctx = await createTestContext();
+    tenant = await freshTenant(ctx);
+    await applyFixtures(ctx, tenant, [onboarded(), funded({ cashBalanceCents: 2_000_000 })]);
+  }, 600_000);
+
+  afterEach(async () => {
+    await ctx.cleanup.runAll();
+  }, 60_000);
+
+  it(
+    'emits a DRY ORDER_CREATED subject (no envelope keys)',
+    async () => {
+      // Arm BEFORE the putEvent that triggers Order row INSERT.
+      const trap = await armEventSubjectTrap(ctx, {
+        bus: 'execution',
+        detailType: ExecutionCtrlEventTypes.ORDER_CREATED,
+      });
+
+      // DECISION_APPROVED → execution-ctrl event-listener writes Order row (INSERT)
+      // → CDC ORDER_CREATED. subject = OrderSchema.parse(row) — DRY.
+      const eb = new EventBridgeClient(ctx);
+      await eb.putEvent({
+        bus: 'execution',
+        targetService: 'execution-ctrl',
+        detailType: 'DECISION_APPROVED',
+        detail: {
+          decisionPacketId: `e2e-dp-dry-${randomUUID()}`,
+          proposedTrades: [
+            {
+              symbol: 'VTI',
+              assetClass: 'EQUITY',
+              side: 'BUY',
+              quantityOrAmountCents: 500_000,
+              targetWeightPercent: 100,
+              rationale: 'e2e DRY wire check',
+            },
+          ],
+        },
+      });
+
+      // Wait for the live CDC emission.
+      const subject = await trap.waitForSubject(180_000);
+
+      // 1. Subject must parse as a well-formed Order contract.
+      expectContractMatch(OrderSchema, subject, 'ORDER_CREATED.subject');
+
+      // 2. Identity keys must NOT be on the subject — they travel in detail.context.
+      expect(subject['pk']).toBeUndefined();
+      expect(subject['sk']).toBeUndefined();
+      expect(subject['__typename']).toBeUndefined();
+      expect(subject['tenantId']).toBeUndefined();
+    },
+    420_000,
+  );
+});
