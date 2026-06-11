@@ -1,8 +1,9 @@
 ---
 id: contract-emission-dry-wire-reenable
-status: parking
+status: queued
+rank: 13
 type: tooling
-notes: "Surfaced 2026-06-11 by cdc-publisher-typed-subjects (WS-2) Task-10 validation — first-ever execution of the *-contract-emission.e2e gates against dev. The ledger + investor contract-emission gates pass fully (row-parse + DRY-wire capture). Two DRY-wire capture `it`s were `describe.skip`'d at WS-2 close, to re-enable here: (1) execution `emits a DRY ORDER_CREATED subject` — wrong event name: the Order row is INSERTed with a status that field-dispatches to ORDER_SUBMITTED (not the default ORDER_CREATED the trap waits for), so it times out; fix to the real emitted event name (confirm via execution-ctrl Order field-dispatch). (2) advisory `emits a DRY DECISION_READ_MODEL_CREATED subject` — depends on a full decision cycle, which the sandbox cannot reliably complete under AgentCore maxVms saturation (Task-10 observed the IP agent ingress redeliver 576x without finishing the snapshot → withProfileSnapshot 360s timeout). The SAME maxVms block also fails the advisory contract-emission ROW-PARSE gate (REAL decision cycle describe) in the sandbox; it passed 7/7 in the WS-1 typed-subject-contracts-advisory slice, so it is genuinely flaky, not broken. Re-enable both DRY-wire its + reliably run the advisory row-parse gate once maxVms headroom lands (see agentcore-maxvms-prod-quota-increase + agentcore-invocation-resilience) OR by pre-warming / serialising the agent fan-out. WS-2's publisher correctness is NOT in doubt: a zero-contract-violation sweep across all 28 deployed egress publishers + by-construction DRY (WS-1 validated the rows parse → schema.parse(row) succeeds) + 312 unit tests establish it. This item is purely the e2e DRY-wire capture coverage + advisory-gate maxVms reliability."
+notes: "Surfaced 2026-06-11 by cdc-publisher-typed-subjects (WS-2). QUEUED scope (actionable, no deps): fix the execution contract-emission DRY-wire `it` `emits a DRY ORDER_CREATED subject` — it traps ORDER_CREATED, but the execution-ctrl Order row INSERTs with a status that field-dispatches to ORDER_SUBMITTED (read the Order field-dispatch in execution-ctrl/src/service.stack.ts), so the trap times out; point its detailType at the real emitted event, drop the .skip, re-run the execution gate vs deployed dev (no deploy / no agents needed). SEPARATELY TRACKED (NOT this item's scope): the advisory DRY-wire `it` + the advisory contract-emission ROW-PARSE gate are sandbox-maxVms-bound (the 4-agent decision cycle cannot reliably materialise InvestorProfileSnapshot under the deliberately-low sandbox AgentCore maxVms quota — Task-10 saw the IP agent ingress redeliver 576x without finishing; passed 7/7 in WS-1 typed-subject-contracts-advisory, so flaky not broken, orthogonal to WS-2) — gated on the maxVms work in agentcore-maxvms-prod-quota-increase / agentcore-invocation-resilience. WS-2 publisher DRY-emission correctness is established independently: a zero-contract-violation sweep across all 28 deployed egress publishers + by-construction DRY (WS-1 validated the rows parse → schema.parse(row) succeeds) + 312 unit tests."
 references: []
 out_of_scope: []
 spec: null
@@ -11,40 +12,39 @@ topic_memory: []
 validation_gate: null
 ---
 
-# Re-enable the contract-emission DRY-wire captures + advisory row-parse gate (post-WS-2)
+# Re-enable the execution contract-emission DRY-wire capture (post-WS-2)
 
 WS-2 (`cdc-publisher-typed-subjects`) Task 10 ran the four `*-contract-emission.e2e.test.ts`
-gates against deployed dev for the first time (they were previously typecheck-only stubs).
-**Ledger + investor passed fully** (real-row parse + the new DRY-wire emission capture). Two
-follow-ups remain.
+gates against deployed dev for the first time. Ledger + investor passed fully (real-row parse +
+the new DRY-wire emission capture). This item's queued scope is the single actionable,
+dependency-free follow-up; the maxVms-bound follow-up is tracked elsewhere (below).
 
-## A. Re-enable the 2 skipped DRY-wire capture `it`s
+## Queued scope — fix the execution DRY-wire `it`
 
-Both were `describe.skip`'d at WS-2 close (they are belt-and-suspenders — DRY emission is already
-proven by the ledger + investor DRY-wire its and the `change-data-capture` unit tests):
+`apps/e2e-feature-tests/src/execution/execution-contract-emission.e2e.test.ts` has a
+`describe.skip`'d block `emits a DRY ORDER_CREATED subject`. It arms the trap on `ORDER_CREATED`,
+but the execution-ctrl `Order` row INSERTs with a `status` that field-dispatches to
+`ORDER_SUBMITTED` (read the Egress `eventTypes` Order field-dispatch in
+`services/execution/execution-ctrl/src/service.stack.ts`), so the trap times out. Fix: point the
+trap's `detailType` at the event the order actually emits (or drive an order whose status maps to
+the default `ORDER_CREATED`), drop the `.skip`, and re-run the execution contract-emission gate
+against deployed dev to confirm green. No deploy and no agent pipeline are involved.
 
-1. **execution `emits a DRY ORDER_CREATED subject`** — the Order row is INSERTed with a `status`
-   that field-dispatches to `ORDER_SUBMITTED`, not the default `ORDER_CREATED` the trap waits for
-   → timeout. Fix: trap the event the order actually emits (read execution-ctrl's Order
-   field-dispatch in `service.stack.ts`), or drive an order whose status maps to `ORDER_CREATED`.
-2. **advisory `emits a DRY DECISION_READ_MODEL_CREATED subject`** — needs a completed decision
-   cycle; blocked by maxVms (see B).
+## Separately tracked (NOT this item's scope) — advisory maxVms reliability
 
-## B. Reliably run the advisory contract-emission ROW-PARSE gate
+The advisory DRY-wire `it` (`DECISION_READ_MODEL_CREATED`) and the advisory contract-emission
+ROW-PARSE gate (its `REAL decision cycle` describe) both need the 4-agent pipeline to materialise
+an `InvestorProfileSnapshot` (`withProfileSnapshot()`), which the sandbox cannot reliably complete
+under its **deliberately-low AgentCore maxVms quota** (Task-10 saw the IP-ctrl agent ingress
+redeliver **576×** — throttle → SQS redrive — without finishing; the same gate passed **7/7** in
+the WS-1 `typed-subject-contracts-advisory` slice, so it is flaky, not broken, and orthogonal to
+WS-2). That re-enable is gated on the maxVms work tracked by `agentcore-maxvms-prod-quota-increase`
++ `agentcore-invocation-resilience` (or by pre-warming / serialising the agent fan-out so one
+cycle fits the sandbox quota) — deliberately kept out of this queued item.
 
-The advisory gate's `REAL decision cycle` describe needs the 4-agent pipeline to materialise an
-`InvestorProfileSnapshot` (`withProfileSnapshot()`), which the sandbox cannot reliably complete
-under AgentCore **maxVms** saturation — Task 10 observed the IP-ctrl agent ingress redeliver
-**576×** (throttle → SQS redrive) without finishing, → 360s timeout. It passed **7/7** in the
-WS-1 `typed-subject-contracts-advisory` slice, so it is **flaky** (maxVms-bound), not broken, and
-orthogonal to WS-2. Re-enable reliable execution once maxVms headroom lands
-(`agentcore-maxvms-prod-quota-increase`, `agentcore-invocation-resilience`) or by
-pre-warming / serialising the agent fan-out so a single cycle fits the sandbox quota.
+## WS-2 correctness (not a concern)
 
-## Not in scope / not a concern
-
-WS-2's publisher DRY emission is validated independently: a **zero-contract-violation sweep
-across all 28 deployed egress publishers** (no publisher rejects any real row), **by-construction
-DRY** (WS-1 validated the advisory rows parse against their contracts → `schema.parse(row)`
-succeeds), and **312 unit tests**. This item is e2e-capture coverage + advisory-gate maxVms
-reliability only.
+WS-2's publisher DRY emission is validated independently of the skipped captures: a
+**zero-contract-violation sweep across all 28 deployed egress publishers** (no publisher rejects a
+real row), **by-construction DRY** (WS-1 validated the rows parse against their contracts →
+`schema.parse(row)` succeeds), and **312 unit tests**. This item is e2e DRY-wire capture coverage.
