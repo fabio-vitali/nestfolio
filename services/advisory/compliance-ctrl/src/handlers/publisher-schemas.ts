@@ -4,4 +4,4 @@ export const subjectSchemas = {
   ComplianceCheck: ComplianceCheckSchema,
 };
 
-export const exemptTypenames: string[] = ['AuditArtifact'];
+export const exemptTypenames: string[] = [];

@@ -1,6 +1,6 @@
 import { subjectSchemas, exemptTypenames } from '../../src/handlers/publisher-schemas';
 
-const EMITTED = ['ComplianceCheck', 'AuditArtifact'];
+const EMITTED = ['ComplianceCheck'];
 
 describe('compliance-ctrl CDC publisher registry', () => {
   it('covers every emitted __typename (schemas ∪ exempt === emitted)', () => {

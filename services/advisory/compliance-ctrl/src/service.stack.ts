@@ -29,10 +29,6 @@ export class ComplianceCtrlStack extends ServiceStack {
             BLOCKED: ComplianceEventTypes.DECISION_BLOCKED,
           }},
         },
-        'AuditArtifact': {
-          insert: ComplianceEventTypes.AUDIT_ARTIFACT_CREATED,
-          modify: ComplianceEventTypes.AUDIT_ARTIFACT_UPDATED,
-        },
       },
     });
 
