@@ -32,7 +32,8 @@ Post-resplit (2026-05-08): INVESTOR_PROFILE_UPDATED diff-detect handler removed.
   - 3 system events (BROKER_CIRCUIT_OPEN, BROKER_CIRCUIT_CLOSED, BROKER_HEAL_ESCALATED) -> record('Notification', tenantId='SYSTEM')
   - relatedEntityType/relatedEntityId derived from each triggering event's subject via NOTIFICATION_ENTITY_MAP (DECISION→decisionId, ORDER→orderId, DEPOSIT→depositId, WITHDRAWAL→transferId, MANDATE→mandateId, PROFILE→userId; BALANCE/SYSTEM have no id, fall back to ctx.eventId). Powers the investor-mfe deep-link.
   - No INVESTOR_PROFILE_UPDATED diff handler (removed in resplit 2026-05-08)
-- event-publisher.ts (changeDataCapture)
+- event-publisher.ts (changeDataCapture, typed-subject mode)
+- publisher-schemas.ts — typed-subject registry: maps each emitted __typename → its producer zod contract (subjectSchemas) + exemptTypenames; the publisher emits schema.parse(row) (the DRY subject) for covered types, the fat row for exempt.
 
 ## Read model
 - ReadModelOwnership registered in src/read-model-ownership.ts

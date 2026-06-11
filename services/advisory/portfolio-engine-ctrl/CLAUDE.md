@@ -49,7 +49,8 @@ Agent folder: agents/portfolio-engine/
 
 ## Handlers
 - event-listener.ts -- Ingress: dispatches CONSTRUCT_PORTFOLIO through the agent and records AgentCompletion (success) or AgentFailure (caught error) rows. SEC ingestion events are routed through to kb-ingestion-handler.
-- event-publisher.ts -- Egress CDC publisher (changeDataCapture pipeline)
+- event-publisher.ts -- Egress CDC publisher (changeDataCapture pipeline, typed-subject mode)
+- publisher-schemas.ts — typed-subject registry: maps each emitted __typename → its producer zod contract (subjectSchemas) + exemptTypenames; the publisher emits schema.parse(row) (the DRY subject) for covered types, the fat row for exempt. Exempt: AgentInvocation, ReasoningOutput, AgentCompletion, AgentFailure (no row-level contract — see backlog advisory-agent-event-contract-coverage).
 - kb-ingestion-handler.ts -- KB ingestion for SEC filing data
 
 ## Event Types (domain/events.ts)

@@ -52,7 +52,8 @@ Note: legacy per-entity rows (Goal, RiskProfile, OperatingModeRecord, AccountMod
 ## Handlers
 - event-listener.ts — materializes USER_REGISTERED, NOTIFICATION_CREATED, BALANCE_UPDATED, ONBOARDING_COMPLETED (transactWrite: composite InvestorProfile + Mandate sibling row + conditional Deposit), GO_LIVE_CONFIRMED (`parseSubject(payload, GoLiveConfirmedSchema)` then sets executionMode='live' on the composite row); also routes broker funding lifecycle (DEPOSIT_*/WITHDRAWAL_*) to the deposit-/withdrawal-lifecycle transforms. Each transform validates its inbound subject at runtime via `parseSubject(payload, <producer Schema>)` rather than local types/`as` casts.
 - broadcast-listener.ts — BROKER_CIRCUIT_OPEN disables 3 feature flags (confirmDecision, initiateDeposit, requestWithdrawal) via IAM-signed AppSync mutation; BROKER_CIRCUIT_CLOSED re-enables them; DEPOSIT_DETECTED published to investor-facing notification flow
-- event-publisher.ts — CDC (changeDataCapture) using the declarative eventTypes map
+- event-publisher.ts — CDC (changeDataCapture) using the declarative eventTypes map (typed-subject mode)
+- publisher-schemas.ts — typed-subject registry: maps each emitted __typename → its producer zod contract (subjectSchemas) + exemptTypenames; the publisher emits schema.parse(row) (the DRY subject) for covered types, the fat row for exempt.
 - deposit-publisher.ts — `DepositBroadcaster` (Broadcaster construct): DDB-stream-driven; fans Deposit/WithdrawalRequest P1 row status transitions out via @aws_subscribe (onDepositUpdate / onWithdrawalUpdate). SECOND stream consumer on the table (Egress CDC is first). DLQ + bisectBatchOnError owned by the construct.
 
 ## Feature Flags (Circuit Breaker)

@@ -48,7 +48,8 @@ Agent folder: agents/market-intelligence/
 
 ## Handlers
 - event-listener.ts -- Ingress snapshot writer (materializeToTable). Each feed event or tick runs the agent and records both an AgentInvocation row and the MarketSnapshot row keyed by region.
-- event-publisher.ts -- Egress CDC publisher (changeDataCapture pipeline)
+- event-publisher.ts -- Egress CDC publisher (changeDataCapture pipeline, typed-subject mode)
+- publisher-schemas.ts — typed-subject registry: maps each emitted __typename → its producer zod contract (subjectSchemas) + exemptTypenames; the publisher emits schema.parse(row) (the DRY subject) for covered types, the fat row for exempt. Exempt: AgentInvocation (no row-level contract — see backlog advisory-agent-event-contract-coverage).
 - kb-ingestion-handler.ts -- KB ingestion for 5 market feed sources
 - scheduled-emitter.ts -- EventBridge schedule target: PutEvents a MARKET_SNAPSHOT_REFRESH_TICK envelope
 - agents/tools/market-data.ts -- Market data factory (in-process, called from agents/market-intelligence/graph.ts)

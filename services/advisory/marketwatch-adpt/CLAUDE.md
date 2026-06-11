@@ -24,7 +24,8 @@ Stack: services/advisory/marketwatch-adpt/src/service.stack.ts
 
 ## Handlers
 - event-listener.ts — Ingress event handler (fetches MarketWatch articles, materializes to DDB)
-- event-publisher.ts — Egress CDC publisher
+- event-publisher.ts — Egress CDC publisher (changeDataCapture pipeline, typed-subject mode)
+- publisher-schemas.ts — typed-subject registry: maps each emitted __typename → its producer zod contract (subjectSchemas) + exemptTypenames; the publisher emits schema.parse(row) (the DRY subject) for covered types, the fat row for exempt.
 - fetch-trigger.ts — Scheduler trigger Lambda
 
 ## Event Types (domain/events.ts)

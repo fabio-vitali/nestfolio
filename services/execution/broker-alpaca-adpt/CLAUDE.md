@@ -54,7 +54,8 @@ Stack: services/execution/broker-alpaca-adpt/src/service.stack.ts
 
 ## Handlers
 - event-listener.ts — SQS Ingress handler (event-processor pipeline); includes circuit breaker check + failure detection
-- event-publisher.ts — CDC Egress handler (event-processor pipeline)
+- event-publisher.ts — CDC Egress handler (event-processor pipeline, typed-subject mode)
+- publisher-schemas.ts — typed-subject registry: maps each emitted __typename → its producer zod contract (subjectSchemas) + exemptTypenames; the publisher emits schema.parse(row) (the DRY subject) for covered types, the fat row for exempt.
 - order-poll-handler.ts — polls Alpaca API for order status (standalone, SF-invoked)
 - transfer-poll-handler.ts — polls Alpaca API for transfer status (standalone, SF-invoked)
 

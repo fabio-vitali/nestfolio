@@ -24,7 +24,8 @@ Stack: services/ledger/ledger-ctrl/src/service.stack.ts
 
 ## Handlers
 - event-listener.ts — Ingress event handler
-- event-publisher.ts — Egress CDC publisher
+- event-publisher.ts — Egress CDC publisher (changeDataCapture pipeline, typed-subject mode)
+- publisher-schemas.ts — typed-subject registry: maps each emitted __typename → its producer zod contract (subjectSchemas) + exemptTypenames; the publisher emits schema.parse(row) (the DRY subject) for covered types, the fat row for exempt.
 - reducer.ts — Account snapshot materializer (DDB Stream consumer)
 - snapshot-publisher.ts — deriveFromStream pipeline; filters AccountSnapshot records, transforms to domain events via snapshotToEvents (transforms/snapshot-to-events.ts — emits BalanceEvent/PortfolioEvent/LedgerEntryEvent[+snapshotAt]/SnapshotHistory; errorEventType LEDGER_SNAPSHOT_PUBLISHER_FAILED)
 

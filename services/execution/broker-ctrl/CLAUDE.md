@@ -52,7 +52,8 @@ Stack: services/execution/broker-ctrl/src/service.stack.ts
 - callback-resolver.ts — resolves SF task token callbacks from adapter results (createIngestionHandler)
 - deposit-withdrawal-normalizer.ts — normalizes deposit/withdrawal results to NormalizedEvent for CDC (materializeToTable)
 - deposit-withdrawal-router.ts — routes deposit/withdrawal to correct adapter; validates inbound subjects via `parseSubject` against producer contracts `DepositInitiatedSchema`/`WithdrawalInitiatedSchema` from `@nestfolio/investor-adpt/domain` (materializeToTable)
-- event-publisher.ts — CDC Egress handler (changeDataCapture)
+- event-publisher.ts — CDC Egress handler (changeDataCapture, typed-subject mode)
+- publisher-schemas.ts — typed-subject registry: maps each emitted __typename → its producer zod contract (subjectSchemas) + exemptTypenames; the publisher emits schema.parse(row) (the DRY subject) for covered types, the fat row for exempt.
 - mode-listener.ts — caches execution mode changes to DynamoDB (materializeToTable)
 - route-order.ts — routes order to correct adapter, writes BrokerOrder with taskToken (standalone, SF-invoked)
 

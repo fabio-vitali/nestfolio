@@ -20,7 +20,8 @@ Stack: services/execution/broker-sim-adpt/src/service.stack.ts
 
 ## Handlers
 - event-listener.ts — SQS Ingress handler (event-processor pipeline)
-- event-publisher.ts — CDC Egress handler (event-processor pipeline)
+- event-publisher.ts — CDC Egress handler (event-processor pipeline, typed-subject mode)
+- publisher-schemas.ts — typed-subject registry: maps each emitted __typename → its producer zod contract (subjectSchemas) + exemptTypenames; the publisher emits schema.parse(row) (the DRY subject) for covered types, the fat row for exempt.
 
 ## Event Types (domain/events.ts)
 - ExecutionAdptEventTypes: ORDER_ACCEPTED, ORDER_PARTIALLY_FILLED, ORDER_FILLED, ORDER_REJECTED, ORDER_CANCELLED, PORTFOLIO_SNAPSHOT_IMPORTED, BROKER_SESSION_ESTABLISHED, BROKER_SESSION_LOST, STREAM_CONNECTED, STREAM_DISCONNECTED, BROKER_AUTHORIZATION_REVOKED, DEPOSIT_DETECTED, WITHDRAWAL_SUBMITTED, WITHDRAWAL_COMPLETED, WITHDRAWAL_REJECTED

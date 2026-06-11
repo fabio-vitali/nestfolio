@@ -42,7 +42,8 @@ Agent folder: agents/investor-profile/
 
 ## Handlers
 - event-listener.ts -- Ingress snapshot writer (materializeToTable). Each trigger event resolves operatingMode + runs the agent + records both an AgentInvocation row and an InvestorProfileSnapshot row keyed by (tenantId, userId). DuplicateInvocationError → deduplicated short-circuit. UnknownOperatingModeError is thrown when neither subject.operatingMode nor subject.mandate.operatingMode is present.
-- event-publisher.ts -- Egress CDC publisher (changeDataCapture pipeline)
+- event-publisher.ts -- Egress CDC publisher (changeDataCapture pipeline, typed-subject mode)
+- publisher-schemas.ts — typed-subject registry: maps each emitted __typename → its producer zod contract (subjectSchemas) + exemptTypenames; the publisher emits schema.parse(row) (the DRY subject) for covered types, the fat row for exempt. Exempt: AgentInvocation, ReasoningOutput (no row-level contract — see backlog advisory-agent-event-contract-coverage).
 - kb-ingestion-handler.ts -- KB ingestion for regulatory precedents
 
 ## Read model

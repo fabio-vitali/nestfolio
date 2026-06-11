@@ -34,7 +34,8 @@ Tooling support code remains under src/agent/ (tools, prompts, state, router, se
 - SearchKbFn: RAG search over knowledge base (invoked by AgentRuntime tool, not via Ingress)
 
 ## Handlers
-- event-publisher.ts -- Egress CDC publisher
+- event-publisher.ts -- Egress CDC publisher (changeDataCapture pipeline, typed-subject mode)
+- publisher-schemas.ts — typed-subject registry: maps each emitted __typename → its producer zod contract (subjectSchemas) + exemptTypenames; the publisher emits schema.parse(row) (the DRY subject) for covered types, the fat row for exempt.
 - agent/tools/search-kb.handler.ts -- KB search tool for AgentRuntime
 - agent/tools/commit-phase.ts -- Commit onboarding phase
 - agent/tools/compute-risk.ts -- Compute risk profile

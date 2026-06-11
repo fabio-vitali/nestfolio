@@ -42,7 +42,8 @@ Agent folder: agents/advisory-narrative/
 
 ## Handlers
 - event-listener.ts -- Ingress: dispatches GENERATE_NARRATIVE through the agent (wraps the orchestrator output via `wrapAgentOutput`) and records AgentCompletion / AgentFailure rows. DECISION_FEEDBACK is routed through feedback-correlator.
-- event-publisher.ts -- Egress CDC publisher (changeDataCapture pipeline)
+- event-publisher.ts -- Egress CDC publisher (changeDataCapture pipeline, typed-subject mode)
+- publisher-schemas.ts — typed-subject registry: maps each emitted __typename → its producer zod contract (subjectSchemas) + exemptTypenames; the publisher emits schema.parse(row) (the DRY subject) for covered types, the fat row for exempt. Exempt: ReasoningOutput, AgentCompletion, AgentFailure (no row-level contract — see backlog advisory-agent-event-contract-coverage).
 - feedback-correlator.ts -- Processes DECISION_FEEDBACK events, annotates decisions, writes to KB S3 bucket, triggers KB ingestion
 
 ## Event Types (domain/events.ts)

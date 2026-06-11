@@ -25,7 +25,8 @@ Stack: `services/execution/execution-ctrl/src/service.stack.ts`
 
 ## Handlers
 - `event-listener.ts` — materializeToTable pipeline, errorEventType: EXECUTION_CTRL_FAILED
-- `event-publisher.ts` — changeDataCapture pipeline
+- `event-publisher.ts` — changeDataCapture pipeline (typed-subject mode)
+- `publisher-schemas.ts` — typed-subject registry: maps each emitted __typename → its producer zod contract (subjectSchemas) + exemptTypenames; the publisher emits schema.parse(row) (the DRY subject) for covered types, the fat row for exempt.
 - `staged-order-processor.ts` — standalone scheduled Lambda (not event-processor pipeline)
 
 ## Read model

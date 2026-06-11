@@ -22,7 +22,8 @@ Post-resplit (2026-05-08): subscribes to semantic/lifecycle events directly inst
 - event-listener.ts — Ingress event handler
   - RECOMMENDATION_PROPOSED: loads GuardrailPolicy (MandateSnapshot) from DDB, runs RuleEngine (MandateValidator + GuardrailEvaluator + SuitabilityChecker + AuthorityResolver), writes ComplianceCheck + AuditArtifact records. Requires `taskToken` on subject (SF callback to decision-workflow-ctrl on DECISION_APPROVED|BLOCKED). Throws NotRetryableError if taskToken missing or required fields absent.
   - MANDATE_ISSUED / OPERATING_MODE_CHANGED / MANDATE_REVOKED: all three route to a single `projectMandateSnapshot` helper that calls `projectVersioned('MandateSnapshot', fullImage, { version: subject.__version, overrides: { pk, sk } })`. Every Mandate event now carries the full Mandate image + Mandate `__version`; the version guard is the sole idempotency mechanism (the old REVOKED-skip conditional is gone). Missing `operatingMode` throws NotRetryableError; missing `__version` returns `skip()`.
-- event-publisher.ts — Egress CDC publisher
+- event-publisher.ts — Egress CDC publisher (changeDataCapture pipeline, typed-subject mode)
+- publisher-schemas.ts — typed-subject registry: maps each emitted __typename → its producer zod contract (subjectSchemas) + exemptTypenames; the publisher emits schema.parse(row) (the DRY subject) for covered types, the fat row for exempt. Exempt: AuditArtifact (append-only audit log, no typed subject contract — see backlog advisory-agent-event-contract-coverage).
 
 ## Read model
 - ReadModelOwnership registered in src/read-model-ownership.ts
