@@ -1,8 +1,9 @@
 /**
  * Validation-gate e2e — advisory-domain producer contracts vs REAL deployed emission.
  *
- * The CDC publisher emits the whole DDB row as the event subject. A row that parses
- * against its producer contract proves the emitted subject satisfies the contract.
+ * Under WS-2 the CDC publisher emits `schema.parse(row)` (the DRY subject); a row
+ * that parses here proves the emitted DRY subject is well-formed (the live DRY-wire
+ * assertion is added by Task 9's capture).
  * This is the advisory-domain twin of ledger-contract-emission.e2e.test.ts and
  * investor-contract-emission.e2e.test.ts, and the #1-risk mechanism of the
  * typed-subject-contracts-advisory slice.

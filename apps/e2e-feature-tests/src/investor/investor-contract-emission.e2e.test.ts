@@ -1,8 +1,9 @@
 /**
  * Validation-gate e2e — investor-domain producer contracts vs REAL deployed emission.
  *
- * The CDC publisher emits the whole DDB row as the event subject. A row that parses
- * against its contract proves the emitted subject satisfies the contract.
+ * Under WS-2 the CDC publisher emits `schema.parse(row)` (the DRY subject); a row
+ * that parses here proves the emitted DRY subject is well-formed (the live DRY-wire
+ * assertion is added by Task 9's capture).
  *
  * Coverage:
  *   investor-bff:  InvestorProfile (sk='InvestorProfile'), Mandate (sk='Mandate'),

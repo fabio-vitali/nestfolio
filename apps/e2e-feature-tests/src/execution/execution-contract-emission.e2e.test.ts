@@ -1,9 +1,9 @@
 /**
  * Validation-gate e2e — execution-domain producer contracts vs REAL deployed emission.
  *
- * The CDC publisher emits the whole DDB row as the event subject. A row that
- * parses against its producer contract proves the emitted subject satisfies the
- * contract (declared fields present + correctly typed; zod strips identity/keys).
+ * Under WS-2 the CDC publisher emits `schema.parse(row)` (the DRY subject); a row
+ * that parses here proves the emitted DRY subject is well-formed (the live DRY-wire
+ * assertion is added by Task 9's capture).
  * This is the execution-domain twin of ledger-contract-emission.e2e.test.ts.
  *
  * ─── Strategy: drive each producer's ADAPTER DIRECTLY ────────────────────────

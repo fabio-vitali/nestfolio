@@ -2,9 +2,10 @@ import type { ZodTypeAny, z } from 'zod';
 
 /**
  * Validate a REAL persisted producer row against its producer contract.
- * The CDC publisher emits the whole row as the event subject, so a row that
- * parses IS proof the emitted subject satisfies the contract (declared fields
- * present + correctly typed; zod strips identity/keys). Returns the parsed
+ * Under WS-2 the CDC publisher emits `schema.parse(row)` as the event subject
+ * (the DRY subject — envelope/identity fields are dropped). A row that parses
+ * here IS proof that the emitted subject is a well-formed instance of the
+ * contract (declared fields present + correctly typed). Returns the parsed
  * aggregate for further field assertions.
  */
 export function expectContractMatch<S extends ZodTypeAny>(
