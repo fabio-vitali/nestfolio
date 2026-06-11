@@ -41,6 +41,14 @@ export interface ChangeDataCaptureConfig {
   };
   bus?: string;
   concurrency?: number;
+  /**
+   * Typed mode: presence of either `schemas` or `exemptTypenames` activates it.
+   * - The completeness guard runs at init: every emitted `__typename` (from
+   *   `EVENT_TYPE_MAP`) MUST be covered by a schema or listed in `exemptTypenames`.
+   * - A covered `__typename` emits `schema.parse(record)` as its subject — DRY:
+   *   the subject IS the contract (envelope/identity fields are dropped).
+   * A bare call (neither field) is legacy mode: emits the fat row, no guard.
+   */
   schemas?: Record<string, ZodTypeAny>;   // keyed by __typename → producer WS-1 contract
   exemptTypenames?: string[];             // emitted __typenames knowingly without a contract
 }
@@ -148,6 +156,8 @@ function buildEntry(
       region: record.region,
     },
   };
+  // Old image shares the new image's __typename, so the same schema applies;
+  // a missing __typename falls back to the fat old-image (defensive).
   if (emission.previousSubject) detail.previousSubject = buildSubject(emission.previousSubject as StreamRecord, schemas);
 
   // Tag CDC events from test tenants so other services' EB rules filter them out

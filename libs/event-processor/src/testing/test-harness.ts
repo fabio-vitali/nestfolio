@@ -195,7 +195,6 @@ export function createCdcTestHarness(config: {
   serviceName: string;
   eventTypeMap: Record<string, string | ((record: StreamRecord) => string)>;
   groupBy?: { key: (record: StreamRecord) => string; pick?: 'first' | 'last' };
-  transform?: (record: StreamRecord, eventType: string) => Record<string, unknown>;
 }) {
   return {
     async process(records: DynamoDBRecord[]): Promise<CdcTestResult> {
@@ -225,7 +224,7 @@ export function createCdcTestHarness(config: {
         if (!resolver) continue;
 
         const eventType = typeof resolver === 'function' ? resolver(streamRecord) : resolver;
-        const subject = config.transform ? config.transform(streamRecord, eventType) : (streamRecord as unknown as Record<string, unknown>);
+        const subject = streamRecord as unknown as Record<string, unknown>;
 
         publishedEvents.push({
           eventType,
