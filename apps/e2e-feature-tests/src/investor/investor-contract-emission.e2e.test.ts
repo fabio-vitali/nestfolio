@@ -203,23 +203,25 @@ describe('investor-domain DRY-wire emission — INVESTOR_PROFILE_UPDATED subject
   }, 60_000);
 
   it(
-    'emits a DRY INVESTOR_PROFILE_UPDATED subject (no envelope keys)',
+    'emits a DRY INVESTOR_PROFILE_CREATED subject (no envelope keys)',
     async () => {
       // Arm BEFORE the fixture that drives the CDC emission.
       const trap = await armEventSubjectTrap(ctx, {
         bus: 'investor',
-        detailType: InvestorBffEventTypes.INVESTOR_PROFILE_UPDATED,
+        detailType: InvestorBffEventTypes.INVESTOR_PROFILE_CREATED,
       });
 
-      // onboarded() → ONBOARDING_COMPLETED → investor-bff writes InvestorProfile row
-      // → CDC INVESTOR_PROFILE_UPDATED. Arm MUST precede applyFixtures.
+      // onboarded() → ONBOARDING_COMPLETED → investor-bff INSERTs the InvestorProfile row
+      // → CDC INVESTOR_PROFILE_CREATED (INVESTOR_PROFILE_UPDATED only fires on a later
+      // profile MODIFY, which onboarding does not perform). Arm MUST precede applyFixtures.
       await applyFixtures(ctx, tenant, [onboarded()]);
 
       // Wait for the live CDC emission; covers real onboarding agent pipeline.
       const subject = await trap.waitForSubject(300_000);
 
-      // 1. Subject must parse as a well-formed InvestorProfileUpdated contract.
-      expectContractMatch(InvestorProfileUpdatedSchema, subject, 'INVESTOR_PROFILE_UPDATED.subject');
+      // 1. Subject must parse against the InvestorProfile row's DRY contract (same subject
+      //    schema for the CREATED and UPDATED events — both carry the InvestorProfile row).
+      expectContractMatch(InvestorProfileUpdatedSchema, subject, 'INVESTOR_PROFILE_CREATED.subject');
 
       // 2. Identity keys must NOT be on the subject — they travel in detail.context.
       expect(subject['pk']).toBeUndefined();
