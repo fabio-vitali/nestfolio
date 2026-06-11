@@ -1,2 +1,4 @@
 import { changeDataCapture } from '@nestfolio/event-processor';
-export const handler = changeDataCapture();
+import { subjectSchemas, exemptTypenames } from './publisher-schemas';
+
+export const handler = changeDataCapture({ schemas: subjectSchemas, exemptTypenames });
