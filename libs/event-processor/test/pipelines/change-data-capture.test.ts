@@ -1,5 +1,6 @@
 import { changeDataCapture } from '../../src/pipelines/change-data-capture';
 import { fakeDdbStreamRecord } from '../../src/testing/fake-records';
+import { z } from 'zod';
 
 const mockPublish = jest.fn().mockResolvedValue(undefined);
 jest.mock('../../src/util/event-bridge-publisher', () => ({
@@ -8,9 +9,10 @@ jest.mock('../../src/util/event-bridge-publisher', () => ({
   })),
 }));
 
+const mockPublishErrors = jest.fn().mockResolvedValue(undefined);
 jest.mock('../../src/engine/error-event-publisher', () => ({
   ErrorEventPublisher: jest.fn().mockImplementation(() => ({
-    publishErrors: jest.fn().mockResolvedValue(undefined),
+    publishErrors: mockPublishErrors,
   })),
 }));
 
@@ -337,22 +339,6 @@ describe('changeDataCapture', () => {
   });
 
   describe('advanced features', () => {
-    it('applies transform when provided', async () => {
-      process.env.EVENT_TYPE_MAP = JSON.stringify({
-        'Order:INSERT': 'ORDER_CREATED',
-      });
-      const handler = changeDataCapture({
-        transform: (r) => ({ orderId: r.sk, total: r.amount }),
-      });
-      await handler({
-        Records: [
-          fakeDdbStreamRecord('INSERT', { pk: 'T#t1', sk: 'Order#1', __typename: 'Order', tenantId: 't1', amount: 500 }),
-        ],
-      });
-      const detail = JSON.parse(mockPublish.mock.calls[0][0][0].Detail);
-      expect(detail.subject).toEqual({ orderId: 'Order#1', total: 500 });
-    });
-
     it('deduplicates with groupBy pick:last', async () => {
       process.env.EVENT_TYPE_MAP = JSON.stringify({
         'Order:INSERT': 'ORDER_CREATED',
@@ -371,6 +357,69 @@ describe('changeDataCapture', () => {
       expect(entries).toHaveLength(1);
       const detail = JSON.parse(entries[0].Detail);
       expect(detail.subject.v).toBe(2);
+    });
+  });
+
+  describe('typed-subject mode (schemas / exemptTypenames)', () => {
+    const BalanceSchema = z.object({
+      cashBalanceCents: z.number(),
+      snapshot: z.object({ lastEventSequence: z.number() }),
+    });
+
+    it('emits the DRY parsed subject (drops envelope + identity) for a covered __typename', async () => {
+      process.env.EVENT_TYPE_MAP = JSON.stringify({ 'BalanceEvent:INSERT': 'BALANCE_UPDATED' });
+      const handler = changeDataCapture({ schemas: { BalanceEvent: BalanceSchema }, exemptTypenames: [] });
+      await handler({ Records: [ fakeDdbStreamRecord('INSERT', {
+        pk: 'Account#t1', sk: 'BalanceEvent#1', __typename: 'BalanceEvent',
+        tenantId: 't1', userId: 'u1', region: 'us-east-1', createdAt: 'x',
+        cashBalanceCents: 1000, snapshot: { lastEventSequence: 5 },
+      }) ] });
+      const detail = JSON.parse(mockPublish.mock.calls[0][0][0].Detail);
+      expect(detail.subject).toEqual({ cashBalanceCents: 1000, snapshot: { lastEventSequence: 5 } });
+      expect(detail.subject.pk).toBeUndefined();
+      expect(detail.subject.__typename).toBeUndefined();
+      expect(detail.subject.tenantId).toBeUndefined();
+      expect(detail.context.tenantId).toBe('t1');
+    });
+
+    it('emits the fat row unchanged for an exempt __typename', async () => {
+      process.env.EVENT_TYPE_MAP = JSON.stringify({ 'AgentInvocation:INSERT': 'GOAL_INTERPRETATION_PRODUCED' });
+      const handler = changeDataCapture({ schemas: {}, exemptTypenames: ['AgentInvocation'] });
+      await handler({ Records: [ fakeDdbStreamRecord('INSERT', {
+        pk: 'D#1', sk: 'AgentInvocation#x', __typename: 'AgentInvocation', tenantId: 't1', decisionId: 'd1',
+      }) ] });
+      const detail = JSON.parse(mockPublish.mock.calls[0][0][0].Detail);
+      expect(detail.subject.__typename).toBe('AgentInvocation');
+      expect(detail.subject.decisionId).toBe('d1');
+    });
+
+    it('routes a covered row that drifts from its schema to the error publisher (NotRetryable, not retried)', async () => {
+      process.env.EVENT_TYPE_MAP = JSON.stringify({ 'BalanceEvent:INSERT': 'BALANCE_UPDATED' });
+      const handler = changeDataCapture({ schemas: { BalanceEvent: BalanceSchema }, exemptTypenames: [] });
+      await handler({ Records: [ fakeDdbStreamRecord('INSERT', {
+        pk: 'Account#t1', sk: 'BalanceEvent#1', __typename: 'BalanceEvent', tenantId: 't1',
+      }) ] });
+      expect(mockPublish).not.toHaveBeenCalled();
+      expect(mockPublishErrors).toHaveBeenCalled();
+    });
+
+    it('throws at init when a mapped __typename is neither covered nor exempt', () => {
+      process.env.EVENT_TYPE_MAP = JSON.stringify({
+        'BalanceEvent:INSERT': 'BALANCE_UPDATED',
+        'Forgot:INSERT': 'FORGOTTEN',
+      });
+      expect(() => changeDataCapture({ schemas: { BalanceEvent: BalanceSchema } })).toThrow(/Forgot/);
+    });
+
+    it('does NOT run the completeness guard in legacy mode (no schemas, no exempt)', async () => {
+      process.env.EVENT_TYPE_MAP = JSON.stringify({ 'Anything:INSERT': 'X' });
+      const handler = changeDataCapture();
+      await handler({ Records: [ fakeDdbStreamRecord('INSERT', {
+        pk: 'p', sk: 's', __typename: 'Anything', tenantId: 't1', foo: 'bar',
+      }) ] });
+      const detail = JSON.parse(mockPublish.mock.calls[0][0][0].Detail);
+      expect(detail.subject.__typename).toBe('Anything');
+      expect(detail.subject.foo).toBe('bar');
     });
   });
 });

@@ -124,7 +124,19 @@ function toAttributeMap(obj: Record<string, unknown>): Record<string, AttributeV
     else if (typeof value === 'number') map[key] = { N: String(value) };
     else if (typeof value === 'boolean') map[key] = { BOOL: value };
     else if (value === null || value === undefined) map[key] = { NULL: true };
-    else map[key] = { S: JSON.stringify(value) };
+    else if (Array.isArray(value)) map[key] = { L: value.map((v) => toAttributeValue(v)) };
+    else if (typeof value === 'object') map[key] = { M: toAttributeMap(value as Record<string, unknown>) };
+    else map[key] = { S: String(value) };
   }
   return map;
+}
+
+function toAttributeValue(value: unknown): AttributeValue {
+  if (typeof value === 'string') return { S: value };
+  if (typeof value === 'number') return { N: String(value) };
+  if (typeof value === 'boolean') return { BOOL: value };
+  if (value === null || value === undefined) return { NULL: true };
+  if (Array.isArray(value)) return { L: value.map((v) => toAttributeValue(v)) };
+  if (typeof value === 'object') return { M: toAttributeMap(value as Record<string, unknown>) };
+  return { S: String(value) };
 }

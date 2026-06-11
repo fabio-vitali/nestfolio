@@ -10,10 +10,11 @@
 // EB-layer at-most-once will flake under load.
 import type { DynamoDBStreamEvent } from 'aws-lambda';
 import type { PutEventsRequestEntry } from '@aws-sdk/client-eventbridge';
+import type { ZodTypeAny } from 'zod';
 import type { StreamRecord, StreamContext } from '../types/stream-types';
 import { EgestionEngine } from '../engine/egestion-engine';
 import { EventBridgePublisher } from '../util/event-bridge-publisher';
-import { getUUID } from '../internal';
+import { getUUID, NotRetryableError } from '../internal';
 
 type RuntimeFieldDispatch = {
   field: string;
@@ -40,7 +41,8 @@ export interface ChangeDataCaptureConfig {
   };
   bus?: string;
   concurrency?: number;
-  transform?: (record: StreamRecord, eventType: string) => Record<string, unknown>;
+  schemas?: Record<string, ZodTypeAny>;   // keyed by __typename → producer WS-1 contract
+  exemptTypenames?: string[];             // emitted __typenames knowingly without a contract
 }
 
 type Emission = { eventType: string; previousSubject?: Record<string, unknown> };
@@ -114,26 +116,39 @@ function resolveEmissions(
   return eventType ? [{ eventType }] : [];
 }
 
+function buildSubject(record: StreamRecord, schemas?: Record<string, ZodTypeAny>): unknown {
+  const schema = schemas?.[record.__typename];
+  if (!schema) return record;                       // legacy / exempt → fat row
+  try {
+    return schema.parse(record);                    // DRY: subject IS the contract
+  } catch (err) {
+    throw new NotRetryableError(
+      `publisher subject contract violation: ${record.__typename}`,
+      { typename: record.__typename, issues: err instanceof Error ? err.message : String(err) },
+    );
+  }
+}
+
 function buildEntry(
   record: StreamRecord,
   ctx: StreamContext,
   emission: Emission,
   busName: string,
   serviceName: string,
-  transform?: ChangeDataCaptureConfig['transform'],
+  schemas?: Record<string, ZodTypeAny>,
 ): PutEventsRequestEntry {
   const detail: Record<string, unknown> = {
     id: ctx.record.eventID ?? getUUID(),
     type: emission.eventType,
     timestamp: new Date().toISOString(),
-    subject: transform ? transform(record, emission.eventType) : record,
+    subject: buildSubject(record, schemas),
     context: {
       tenantId: record.tenantId,
       userId: record.userId,
       region: record.region,
     },
   };
-  if (emission.previousSubject) detail.previousSubject = emission.previousSubject;
+  if (emission.previousSubject) detail.previousSubject = buildSubject(emission.previousSubject as StreamRecord, schemas);
 
   // Tag CDC events from test tenants so other services' EB rules filter them out
   const isTestTenant = record.tenantId?.startsWith('integ-');
@@ -155,12 +170,26 @@ export function changeDataCapture(
   const runtimeConfig: RuntimeConfig = JSON.parse(process.env.EVENT_TYPE_MAP!);
   const serviceName = process.env.SERVICE_NAME!;
   const busName = config.bus ?? process.env.BUS_NAME!;
+
+  if (config.schemas || config.exemptTypenames) {
+    const covered = new Set(Object.keys(config.schemas ?? {}));
+    const exempt = new Set(config.exemptTypenames ?? []);
+    const emitted = new Set(Object.keys(runtimeConfig).map((k) => k.split(':')[0]));
+    const missing = [...emitted].filter((t) => !covered.has(t) && !exempt.has(t));
+    if (missing.length > 0) {
+      throw new Error(
+        `changeDataCapture: emitted __typename(s) without a schema or exemption: ` +
+        `${missing.join(', ')} (service ${serviceName})`,
+      );
+    }
+  }
+
   const publisher = new EventBridgePublisher(busName, `${busName}@${serviceName}`);
 
   const processRecord = async (record: StreamRecord, ctx: StreamContext): Promise<void> => {
     const emissions = resolveEmissions(record, ctx, record.eventName, runtimeConfig);
     if (emissions.length === 0) return;
-    const entries = emissions.map(em => buildEntry(record, ctx, em, busName, serviceName, config.transform));
+    const entries = emissions.map(em => buildEntry(record, ctx, em, busName, serviceName, config.schemas));
     await publisher.publish(entries);
   };
 
@@ -169,7 +198,7 @@ export function changeDataCapture(
     for (const record of records) {
       const emissions = resolveEmissions(record, ctx, record.eventName, runtimeConfig);
       for (const em of emissions) {
-        entries.push(buildEntry(record, ctx, em, busName, serviceName, config.transform));
+        entries.push(buildEntry(record, ctx, em, busName, serviceName, config.schemas));
       }
     }
     if (entries.length > 0) {
