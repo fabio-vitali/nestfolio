@@ -1,7 +1,8 @@
 import { DynamoDBClient } from '@aws-sdk/client-dynamodb';
-import { logger, NotRetryableError } from '@nestfolio/event-processor';
+import { logger, NotRetryableError, parseSubject } from '@nestfolio/event-processor';
 import { requireEnv } from '@nestfolio/event-processor';
 import { createIngestionHandler, skip, record, getTime, pickRequestContext, type EventPayload, type EventContext } from '@nestfolio/event-processor';
+import { DepositInitiatedSchema } from '@nestfolio/investor-adpt/domain';
 import { BrokerSimEventTypes } from '../domain/events';
 import type { SimDepositCompleted, SimWithdrawalCompleted } from '../domain/contracts';
 import { VirtualLedgerRepository } from '../repositories/virtual-ledger.repository';
@@ -16,6 +17,7 @@ export interface EventListenerDeps {
 export function createHandlers(deps: EventListenerDeps) {
   return {
     [BrokerSimEventTypes.SIM_ORDER_REQUESTED]: async (payload: EventPayload, ctx: EventContext) => {
+      // boundary: SIM_ORDER_REQUESTED is a broker-ctrl internal routing event (no exported nestfolio contract).
       const subject = payload.subject;
       if (!subject) {
         throw new NotRetryableError(`Missing subject in ORDER_SUBMITTED event ${ctx.eventId}`);
@@ -68,6 +70,7 @@ export function createHandlers(deps: EventListenerDeps) {
     },
 
     [BrokerSimEventTypes.SIM_WITHDRAWAL_REQUESTED]: async (payload: EventPayload, ctx: EventContext) => {
+      // boundary: SIM_WITHDRAWAL_REQUESTED is a broker-ctrl internal routing event (no exported nestfolio contract).
       const subject = payload.subject;
       if (!subject) {
         throw new NotRetryableError(`Missing subject in WITHDRAWAL_REQUESTED event ${ctx.eventId}`);
@@ -119,21 +122,14 @@ export function createHandlers(deps: EventListenerDeps) {
     },
 
     [BrokerSimEventTypes.SIM_DEPOSIT_INITIATED]: async (payload: EventPayload, ctx: EventContext) => {
-      const subject = payload.subject;
-      if (!subject) {
-        throw new NotRetryableError(`Missing subject in DEPOSIT_INITIATED event ${ctx.eventId}`);
-      }
+      // Contract: DepositInitiatedSchema (investor-adpt/domain — the investor-domain producer contract).
+      // Identity (userId) is NOT on the subject — it travels in ctx per the DRY rule.
+      const subject = parseSubject(payload, DepositInitiatedSchema);
       const tenantId = ctx.tenantId;
-      const userId = (subject.userId as string) ?? tenantId;
-      const depositId = subject.depositId as string;
-      const amountCents = subject.amountCents as number;
-      const currency = (subject.currency as string) ?? 'USD';
-
-      if (!depositId || amountCents === undefined) {
-        throw new NotRetryableError(
-          `Missing required DEPOSIT_INITIATED fields: depositId=${depositId}, amountCents=${amountCents}`,
-        );
-      }
+      const userId = ctx.userId ?? tenantId;
+      const depositId = subject.depositId;
+      const amountCents = subject.amountCents;
+      const currency = subject.currency ?? 'USD';
 
       // Convert cents to dollars for virtual ledger
       const amount = amountCents / 100;

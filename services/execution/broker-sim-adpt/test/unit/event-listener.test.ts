@@ -103,6 +103,11 @@ const mockGuardedWrite = jest.fn().mockResolvedValue(true);
 
 import { createTestHarness, fakeSqsRecord } from '@nestfolio/event-processor';
 import { createHandlers, type EventListenerDeps } from '../../src/handlers/event-listener';
+
+// Valid DepositInitiatedSchema subject fixture (identity fields omitted — they travel in ctx).
+function depositInitiatedSubject(depositId: string): Record<string, unknown> {
+  return { depositId, amountCents: 10000, currency: 'USD', timestamp: '2025-01-01T00:00:00.000Z' };
+}
 import { VirtualLedgerRepository } from '../../src/repositories/virtual-ledger.repository';
 import { MarketDataService } from '../../src/services/market-data.service';
 import { SimulationEngineService } from '../../src/services/simulation-engine.service';
@@ -125,6 +130,14 @@ describe('event-listener handler', () => {
 
   afterAll(() => {
     process.env = ORIGINAL_ENV;
+  });
+
+  // --- TDD regression: ZodError thrown when SIM_DEPOSIT_INITIATED subject is missing required fields ---
+  // parseSubject(DepositInitiatedSchema) rejects a subject without depositId/amountCents/currency/timestamp.
+  it('SIM_DEPOSIT_INITIATED with empty subject → ZodError → batchItemFailure', async () => {
+    const record = fakeSqsRecord('SIM_DEPOSIT_INITIATED', {}, { eventId: 'evt-zod-fail', tenantId: 't-1', userId: 'u-1' });
+    const result = await harness.process([record]);
+    expect(result.batchItemFailures).toHaveLength(1);
   });
 
   it('should process ORDER_SUBMITTED and fill a valid BUY order', async () => {
@@ -270,13 +283,7 @@ describe('event-listener handler', () => {
     // guardedAddToCashBalance -> duplicate
     mockGuardedWrite.mockResolvedValueOnce(false);
 
-    const record = fakeSqsRecord('SIM_DEPOSIT_INITIATED', {
-      depositId: 'dep-dup',
-      tenantId: 't-1',
-      userId: 'u-1',
-      amountCents: 10000,
-      currency: 'USD',
-    }, { eventId: 'evt-dup-deposit', tenantId: 't-1', userId: 'u-1' });
+    const record = fakeSqsRecord('SIM_DEPOSIT_INITIATED', depositInitiatedSubject('dep-dup'), { eventId: 'evt-dup-deposit', tenantId: 't-1', userId: 'u-1' });
 
     const result = await harness.process([record]);
     expect(result.batchItemFailures).toHaveLength(0);
@@ -302,13 +309,7 @@ describe('event-listener handler', () => {
     // getCashBalance (lazy init check) -> found
     mockSend.mockResolvedValueOnce({ Item: { balance: 50000 } });
 
-    const record = fakeSqsRecord('SIM_DEPOSIT_INITIATED', {
-      depositId: 'dep-1',
-      tenantId: 't-1',
-      userId: 'u-1',
-      amountCents: 10000,
-      currency: 'USD',
-    }, { eventId: 'evt-deposit', tenantId: 't-1', userId: 'u-1' });
+    const record = fakeSqsRecord('SIM_DEPOSIT_INITIATED', depositInitiatedSubject('dep-1'), { eventId: 'evt-deposit', tenantId: 't-1', userId: 'u-1' });
 
     const result = await harness.process([record]);
     expect(result.batchItemFailures).toHaveLength(0);
@@ -333,13 +334,10 @@ describe('event-listener handler', () => {
     // getCashBalance (lazy init check) -> found
     mockSend.mockResolvedValueOnce({ Item: { balance: 50000 } });
 
-    const sqsRecord = fakeSqsRecord('SIM_DEPOSIT_INITIATED', {
-      depositId: 'dep-2',
-      tenantId: 't-1',
-      userId: 'u-1',
-      amountCents: 20000,
-      currency: 'USD',
-    }, { eventId: 'evt-deposit-record', tenantId: 't-1', userId: 'u-1' });
+    const sqsRecord = fakeSqsRecord('SIM_DEPOSIT_INITIATED',
+      { ...depositInitiatedSubject('dep-2'), amountCents: 20000 },
+      { eventId: 'evt-deposit-record', tenantId: 't-1', userId: 'u-1' },
+    );
 
     const result = await harness.process([sqsRecord]);
     expect(result.batchItemFailures).toHaveLength(0);
@@ -367,13 +365,7 @@ describe('event-listener handler', () => {
     // guardedAddToCashBalance -> duplicate
     mockGuardedWrite.mockResolvedValueOnce(false);
 
-    const sqsRecord = fakeSqsRecord('SIM_DEPOSIT_INITIATED', {
-      depositId: 'dep-dup2',
-      tenantId: 't-1',
-      userId: 'u-1',
-      amountCents: 10000,
-      currency: 'USD',
-    }, { eventId: 'evt-dup-deposit2', tenantId: 't-1', userId: 'u-1' });
+    const sqsRecord = fakeSqsRecord('SIM_DEPOSIT_INITIATED', depositInitiatedSubject('dep-dup2'), { eventId: 'evt-dup-deposit2', tenantId: 't-1', userId: 'u-1' });
 
     const result = await harness.process([sqsRecord]);
     expect(result.batchItemFailures).toHaveLength(0);

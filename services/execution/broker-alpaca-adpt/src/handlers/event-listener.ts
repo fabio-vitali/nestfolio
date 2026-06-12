@@ -38,6 +38,7 @@ async function handleApiFailure(error: unknown, ctx: EventContext): Promise<bool
 // ---------------------------------------------------------------------------
 
 function rejectOrderAsBrokerUnavailable(ctx: EventContext, payload: EventPayload) {
+  // boundary: subject is broker-ctrl internal routing shape (see processOrderRequested boundary comment).
   const s = payload.subject;
   const subject: AlpacaOrderResult = {
     nestfolioOrderId: s.orderId as string,
@@ -59,6 +60,7 @@ function rejectOrderAsBrokerUnavailable(ctx: EventContext, payload: EventPayload
 }
 
 function rejectCancelAsBrokerUnavailable(ctx: EventContext, payload: EventPayload) {
+  // boundary: subject is broker-ctrl internal routing shape (see processCancelRequested boundary comment).
   const s = payload.subject;
   const subject: AlpacaOrderResult = {
     nestfolioOrderId: s.orderId as string,
@@ -73,6 +75,7 @@ function rejectCancelAsBrokerUnavailable(ctx: EventContext, payload: EventPayloa
 }
 
 function rejectTransferAsBrokerUnavailable(ctx: EventContext, payload: EventPayload) {
+  // boundary: subject is broker-ctrl internal routing shape (see processTransferRequested boundary comment).
   const s = payload.subject;
   const subject: AlpacaTransferResult = {
     nestfolioTransferId: (s.transferId ?? ctx.eventId) as string,
@@ -115,6 +118,7 @@ function rejectAccountCheckAsBrokerUnavailable(ctx: EventContext) {
 // ---------------------------------------------------------------------------
 
 async function processOrderRequested(payload: EventPayload, ctx: EventContext) {
+  // boundary: ALPACA_ORDER_REQUESTED is a broker-ctrl internal routing event (no exported nestfolio contract).
   if (await checkBreaker()) {
     return rejectOrderAsBrokerUnavailable(ctx, payload);
   }
@@ -152,6 +156,7 @@ async function processOrderRequested(payload: EventPayload, ctx: EventContext) {
 }
 
 async function processCancelRequested(payload: EventPayload, ctx: EventContext) {
+  // boundary: ALPACA_ORDER_CANCEL_REQUESTED is a broker-ctrl internal routing event (no exported nestfolio contract).
   if (await checkBreaker()) {
     return rejectCancelAsBrokerUnavailable(ctx, payload);
   }
@@ -202,6 +207,8 @@ async function processCancelRequested(payload: EventPayload, ctx: EventContext) 
 }
 
 async function processTransferRequested(payload: EventPayload, ctx: EventContext) {
+  // boundary: ALPACA_TRANSFER_REQUESTED is a broker-ctrl internal routing event (compound subject
+  // merging DepositInitiatedSchema/WithdrawalInitiatedSchema + direction; no single exported contract).
   if (await checkBreaker()) {
     return rejectTransferAsBrokerUnavailable(ctx, payload);
   }
@@ -257,6 +264,7 @@ async function processTransferRequested(payload: EventPayload, ctx: EventContext
 }
 
 async function processAccountCheck(payload: EventPayload, ctx: EventContext) {
+  // boundary: ALPACA_ACCOUNT_CHECK is a broker-ctrl internal scheduling trigger (no subject fields read).
   if (await checkBreaker()) {
     return rejectAccountCheckAsBrokerUnavailable(ctx);
   }
