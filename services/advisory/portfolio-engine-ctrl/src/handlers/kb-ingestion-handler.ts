@@ -13,6 +13,8 @@ export interface KbIngestionDeps {
 
 export const createKbIngestionHandlers = (deps: KbIngestionDeps) => {
   const handleIngestion = async (payload: EventPayload, ctx: EventContext) => {
+    // boundary: SEC_PROSPECTUS_UPDATED and SEC_10K_UPDATED are external SEC EDGAR
+    // feed events with no producer CDC zod contracts (third-party ingestion).
     const subject = payload.subject ?? {};
 
     // Determine content: inline or pre-signed URL

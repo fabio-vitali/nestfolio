@@ -41,6 +41,9 @@ export interface IngressDeps {
 export const createHandlers = (deps: IngressDeps) => {
   const handlers: Record<string, (payload: EventPayload, ctx: EventContext) => Promise<WriteIntent[]>> = {
     CONSTRUCT_PORTFOLIO: async (payload: EventPayload, ctx: EventContext): Promise<WriteIntent[]> => {
+      // boundary: SF-direct orchestration event — CONSTRUCT_PORTFOLIO is a Step Functions
+      // PutEvents call with no CDC producer contract. Payload assembled by
+      // decision-workflow-ctrl decision-state-machine.ts from SF execution state.
       const subject = payload.subject ?? {};
       const tenantId = (subject.tenantId as string) ?? (ctx.tenantId as unknown as string);
       const decisionId = subject.decisionId as string;
