@@ -16,6 +16,17 @@ describe('parseSubject', () => {
     expect(parseSubject(uow as never, Schema)).toEqual({ cashBalanceCents: 100 });
   });
 
+  it('parses the subject from a bare BusEvent (event.subject)', () => {
+    // A BusEvent has no `.event` field, so the else-branch reads `.subject` directly.
+    const busEvent = {
+      id: '1',
+      type: 'X',
+      timestamp: 't',
+      subject: { cashBalanceCents: 300 },
+    };
+    expect(parseSubject(busEvent, Schema)).toEqual({ cashBalanceCents: 300 });
+  });
+
   it('parses the subject from an EventPayload (payload.subject)', () => {
     const payload = { subject: { cashBalanceCents: 200 } };
     expect(parseSubject(payload, Schema)).toEqual({ cashBalanceCents: 200 });

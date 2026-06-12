@@ -1,4 +1,4 @@
-import { logger, parseSubject, type BusEvent, type EventPayload, type RequestContext } from '@nestfolio/event-processor';
+import { logger, parseSubject, type BusEvent, type RequestContext } from '@nestfolio/event-processor';
 import { withMethodLogging } from '@nestfolio/event-processor';
 import { NormalizedOrderEventSchema } from '@nestfolio/execution-adpt/domain';
 import { NotificationRepository } from '../repositories/notification.repository';
@@ -74,8 +74,8 @@ export class NotificationLifecycleService {
       if (context.triggerEvent.type === 'ORDER_FILLED') {
         const reportId = context.triggerEvent.id + '-report';
         // parseSubject validates the NormalizedOrderEventSchema contract at the consumer seam.
-        // BusEvent structurally satisfies EventPayload (both have .subject); cast is safe.
-        const orderSubject = parseSubject(context.triggerEvent as unknown as EventPayload, NormalizedOrderEventSchema);
+        // It accepts a bare BusEvent carrier directly (reads .subject) — no cast needed.
+        const orderSubject = parseSubject(context.triggerEvent, NormalizedOrderEventSchema);
         const reportCreated = await this.repository.createMonthlyReport(reportId, {
           period: this.getCurrentPeriod(),
           orderDetails: orderSubject,
