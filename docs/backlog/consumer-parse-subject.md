@@ -12,7 +12,7 @@ out_of_scope:
   - "WS-1 producer contracts and WS-2 CDC-publisher typing (both shipped). WS-3 imports those contracts; it does not re-author them or re-touch publisher row typing."
   - "Any consumer behavioral change beyond the one captured execution-ctrl USER_CONFIRMED decisionId fallback. Conversion is read-typing only; do not alter what handlers do with the parsed values."
 spec: null
-plan: null
+plan: docs/superpowers/plans/2026-06-12-consumer-parse-subject.md
 topic_memory: []
 validation_gate: null
 ---
