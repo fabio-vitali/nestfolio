@@ -10,6 +10,7 @@ module.exports = {
     '^@nestfolio/event-processor$': '<rootDir>/../../../libs/event-processor/src/index.ts',
     '^@nestfolio/event-processor/(.*)$': '<rootDir>/../../../libs/event-processor/src/$1',
     '^@nestfolio/investor-bff/events$': '<rootDir>/../../investor/investor-bff/src/domain/events.ts',
+    '^@nestfolio/investor-bff/contracts$': '<rootDir>/../../investor/investor-bff/src/domain/contracts.ts',
     '^@nestfolio/investor-adpt/domain$': '<rootDir>/../../investor/investor-adpt/src/domain/index.ts',
     '^@nestfolio/investor-ctrl/events$': '<rootDir>/../../investor/investor-ctrl/src/domain/events.ts',
     '^@nestfolio/investor-ctrl/contracts$': '<rootDir>/../../investor/investor-ctrl/src/domain/contracts.ts',

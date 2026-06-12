@@ -14,6 +14,7 @@ module.exports = {
     '^@nestfolio/compliance-ctrl/contracts$': '<rootDir>/../../advisory/compliance-ctrl/src/domain/contracts.ts',
     '^@nestfolio/decision-workflow-ctrl/contracts$': '<rootDir>/../../advisory/decision-workflow-ctrl/src/domain/contracts.ts',
     '^@nestfolio/investor-adpt/domain$': '<rootDir>/../../investor/investor-adpt/src/domain/index.ts',
+    '^@nestfolio/investor-bff/contracts$': '<rootDir>/../../investor/investor-bff/src/domain/contracts.ts',
     '^@nestfolio/execution-adpt/domain$': '<rootDir>/../../execution/execution-adpt/src/domain/index.ts',
   },
   transform: {
