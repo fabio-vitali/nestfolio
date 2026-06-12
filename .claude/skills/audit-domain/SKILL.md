@@ -24,6 +24,18 @@ description: Verify domain-level consistency — service completeness, adapter f
 | Bus configuration: rules match subscriptions | Warning |
 | Infinite loop detection: flag cycles where Service A subscribes to Event X → writes Entity Y → CDC emits Event Z → Event Z reaches Service A's subscription (directly or via adapter). Must trace COMPLETE cycle. A service emitting an event that other services consume is normal — only flag if the chain loops back to the originating service's subscription. | Warning |
 | Read-model ownership drift: run `pnpm nx run event-processor:read-model-drift`; flag any violation naming a row written by this domain's services (accumulate-on-projection, unguarded P1, command+event dual-writer, registry conflict, unclassified intent-factory write, exclusion conflict). See `docs/architecture/READ-MODEL-OWNERSHIP.md`. | Hard fail |
+| Typed-subject convention drift: run `pnpm nx run event-processor:typed-subject-drift` — see sub-check below. | Hard fail |
+
+### Typed-subject convention check
+
+Run the deterministic gate and treat any failure as a finding:
+`pnpm nx run event-processor:typed-subject-drift` (or `node tools/check-typed-subjects.mjs`).
+It enforces: no untyped `subject as …` reads (convention 1), cross-domain `/contracts`+
+`/events` imports routed via `*-adpt/domain` (convention 2), no `Subject`-suffix contract
+names (convention 4), no reintroduced `opaqueSubject`, and a TableEntry-row heuristic
+(convention 3). Additionally flag by inspection: a dropped context generic `S` on
+`BusEvent`/`TableEntry` (convention 5), and any new entry added to
+`tools/typed-subject-exclusions.json` without a justifying reason.
 
 - [ ] 4. **Aggregate results** into domain report
 - [ ] 5. **Auto-fix:** regenerate stale service cards

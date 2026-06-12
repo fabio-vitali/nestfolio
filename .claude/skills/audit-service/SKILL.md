@@ -106,12 +106,24 @@ Write the result to: services/{domain}/{service}/CLAUDE.md
 | 8 | Event emission completeness: all emission paths documented in card | Warning | Check CDC Egress, errorEventType, grantPutEventsTo, noneDataSource resolvers, SF PutEvents integrations |
 | 9 | Integration test coverage: test/integration/ exists and passes audit-integration-test (gated on service suffix) | Hard fail | `ls test/integration/`; if absent → hard fail (for -ctrl/-bff/-adpt only); if present → invoke audit-integration-test skill |
 | 10 | Read-model ownership: no drift + no structural-zero | Hard fail (drift) / Warning (structural-zero) | Run `pnpm nx run event-processor:read-model-drift`; plus the structural-zero prose check below |
+| 11 | Typed-subject conventions: no drift | Hard fail | Run `pnpm nx run event-processor:typed-subject-drift` — see sub-check below |
 
 **Read-model ownership sub-check (check #10)** — see `docs/architecture/READ-MODEL-OWNERSHIP.md`:
 
 - **Drift (hard fail):** run `pnpm nx run event-processor:read-model-drift` (or `node tools/check-read-model-drift.mjs`). It is repo-wide; treat any reported violation that names a row written by *this* service as a hard fail. The four classes: a `Projection` written by `accumulate`; a `Projection<'P1'>` written by a non-`projectVersioned` factory (no version guard); a `__typename` written by both a command resolver (`*.fn.js`) and an event-side ongoing intent (dual authority — only the `record`-seed pattern may coexist); the same `__typename` registered with conflicting tags; an intent-factory write that is neither registered nor excluded (R5); a `(service, typename)` both registered and excluded (R6).
 - **Unclassified write (hard fail):** the gate errors (`unclassified-write`) on any intent-factory write that is neither registered in a `ReadModelOwnership` augmentation nor listed in `tools/read-model-exclusions.json`. Treat any such error naming a row written by *this* service as a hard fail — register it (CommandOwned / Projection) or add an exclusion entry with a reason if it is a verified non-governed outbox/carrier/feed-cache row.
 - **Structural-zero (warning, prose — the checker cannot see this):** for each field in the service's read-type SDL (`src/schema.graphql`), confirm some transform/factory call actually writes it. A schema field never written is a structural zero (the bug class the redesign dissolved); flag it.
+
+### Typed-subject convention check
+
+Run the deterministic gate and treat any failure as a finding:
+`pnpm nx run event-processor:typed-subject-drift` (or `node tools/check-typed-subjects.mjs`).
+It enforces: no untyped `subject as …` reads (convention 1), cross-domain `/contracts`+
+`/events` imports routed via `*-adpt/domain` (convention 2), no `Subject`-suffix contract
+names (convention 4), no reintroduced `opaqueSubject`, and a TableEntry-row heuristic
+(convention 3). Additionally flag by inspection: a dropped context generic `S` on
+`BusEvent`/`TableEntry` (convention 5), and any new entry added to
+`tools/typed-subject-exclusions.json` without a justifying reason.
 
 **Integration test sub-check (check #9)**: Determine applicability by service suffix, then act:
 
