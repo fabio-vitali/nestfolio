@@ -43,6 +43,12 @@ async function runSnapshotAgent(
   ctx: EventContext,
   sourceEventType: SourceEventType,
 ): Promise<WriteIntent[]> {
+  // boundary: INVESTOR_PROFILE_UPDATED and MANDATE_ISSUED both route here. Neither
+  // has a single producer zod contract that covers all fields used (operatingMode
+  // fallback across subject.operatingMode + subject.mandate.operatingMode, userId,
+  // tenantId). The whole subject is forwarded to the agent as investorProfile —
+  // a typed parse would restrict the shape. Cross-domain adapter home rule: if a
+  // single-event parseSubject is introduced, split handlers first.
   const subject = (payload.subject ?? {}) as Record<string, unknown>;
   const tenantId = (subject.tenantId as string | undefined) ?? (ctx.tenantId as unknown as string);
   // userId defaults to tenantId in the precomputation model: an investor

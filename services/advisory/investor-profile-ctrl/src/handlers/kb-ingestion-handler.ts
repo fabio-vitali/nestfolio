@@ -1,9 +1,10 @@
 import { BedrockAgentClient, StartIngestionJobCommand } from '@aws-sdk/client-bedrock-agent';
 import {
-  materializeToBucket, store,
+  materializeToBucket, store, parseSubject,
   type EventPayload, type EventContext,
   requireEnv, logger,
 } from '@nestfolio/event-processor';
+import { ComplianceCheckSchema, type ComplianceCheck } from '@nestfolio/compliance-ctrl/contracts';
 
 export interface KbIngestionDeps {
   readonly bedrockAgent: BedrockAgentClient;
@@ -11,18 +12,19 @@ export interface KbIngestionDeps {
   readonly kbDataSourceId: string;
 }
 
-function buildNarrative(eventType: string, subject: Record<string, unknown>): string {
+function buildNarrative(eventType: string, subject: ComplianceCheck): string {
   if (eventType === 'DECISION_BLOCKED') {
-    return `Decision ${subject.decisionId} blocked: ${subject.reason ?? 'No reason provided'}. Risk category: ${subject.riskCategory ?? 'unknown'}. Details: ${JSON.stringify(subject)}`;
+    const reasons = subject.violations.map(v => v.description).join('; ') || 'No reason provided';
+    return `Decision ${subject.decisionId} blocked: ${reasons}. Authority: ${subject.authorityLevel}. Details: ${JSON.stringify(subject)}`;
   }
-  return `Decision ${subject.decisionId} approved at ${subject.authorityLevel ?? 'L1'}. Risk category: ${subject.riskCategory ?? 'unknown'}. Summary: ${JSON.stringify(subject)}`;
+  return `Decision ${subject.decisionId} approved at ${subject.authorityLevel}. Summary: ${JSON.stringify(subject)}`;
 }
 
 export const createKbIngestionHandlers = (deps: KbIngestionDeps) => {
   const handleIngestion = async (payload: EventPayload, ctx: EventContext) => {
-    const subject = payload.subject ?? {};
-    const decisionId = subject.decisionId as string;
-    const content = buildNarrative(ctx.eventType, subject as Record<string, unknown>);
+    const subject = parseSubject(payload, ComplianceCheckSchema);
+    const decisionId = subject.decisionId;
+    const content = buildNarrative(ctx.eventType, subject);
     const key = `compliance/${ctx.eventType.toLowerCase()}/${decisionId}-${Date.now()}.txt`;
 
     logger.info('Triggering KB sync', { eventType: ctx.eventType });

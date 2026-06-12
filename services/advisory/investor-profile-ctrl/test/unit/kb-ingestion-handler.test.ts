@@ -26,6 +26,35 @@ process.env.KB_DATA_SOURCE_ID = 'test-ds-id';
 import { createTestHarness, fakeSqsRecord } from '@nestfolio/event-processor';
 import { createKbIngestionHandlers, type KbIngestionDeps } from '../../src/handlers/kb-ingestion-handler';
 
+/** Minimal valid ComplianceCheck subject as produced by compliance-ctrl CDC. */
+const validComplianceCheck = {
+  ccId: 'cc-1',
+  decisionPacketId: 'dp-1',
+  decisionId: 'dp-1',
+  taskToken: 'tok-abc',
+  mandateSnapshot: {
+    level: 'ADVISORY' as const,
+    status: 'ACTIVE' as const,
+    operatingMode: 'BALANCED' as const,
+    effectiveDate: '2026-01-01',
+  },
+  status: 'BLOCKED' as const,
+  result: 'BLOCKED' as const,
+  violations: [{ rule: 'MAX_EQUITY_EXPOSURE', description: 'Exceeds risk limits', severity: 'BLOCKING' as const }],
+  authorityLevel: 'L1' as const,
+  sourceEventId: 'src-1',
+};
+
+const validApprovedCheck = {
+  ...validComplianceCheck,
+  decisionPacketId: 'dp-2',
+  decisionId: 'dp-2',
+  status: 'COMPLETED' as const,
+  result: 'APPROVED' as const,
+  violations: [],
+  authorityLevel: 'L1' as const,
+};
+
 describe('investor-profile-ctrl kb-ingestion-handler', () => {
   const bedrockAgent = new BedrockAgentClient({});
 
@@ -47,11 +76,7 @@ describe('investor-profile-ctrl kb-ingestion-handler', () => {
 
   it('should return store intent for DECISION_BLOCKED and trigger KB sync', async () => {
     const result = await harness.process([
-      fakeSqsRecord('DECISION_BLOCKED', {
-        decisionId: 'dp-1',
-        reason: 'Exceeds risk limits',
-        riskCategory: 'AGGRESSIVE',
-      }, { tenantId: 't1' }),
+      fakeSqsRecord('DECISION_BLOCKED', validComplianceCheck, { tenantId: 't1' }),
     ]);
 
     expect(result.batchItemFailures).toHaveLength(0);
@@ -66,13 +91,22 @@ describe('investor-profile-ctrl kb-ingestion-handler', () => {
     });
   });
 
+  it('narrative for DECISION_BLOCKED contains violation description', async () => {
+    const result = await harness.process([
+      fakeSqsRecord('DECISION_BLOCKED', validComplianceCheck, { tenantId: 't1' }),
+    ]);
+
+    expect(result.batchItemFailures).toHaveLength(0);
+    // The store intent body should reference violation description and authority
+    const intent = result.intents[0] as { _tag: string; body: string };
+    expect(intent.body).toContain('Exceeds risk limits');
+    expect(intent.body).toContain('L1');
+    expect(intent.body).not.toContain('undefined');
+  });
+
   it('should return store intent for DECISION_APPROVED and trigger KB sync', async () => {
     const result = await harness.process([
-      fakeSqsRecord('DECISION_APPROVED', {
-        decisionId: 'dp-2',
-        authorityLevel: 'L1',
-        riskCategory: 'MODERATE',
-      }, { tenantId: 't1' }),
+      fakeSqsRecord('DECISION_APPROVED', validApprovedCheck, { tenantId: 't1' }),
     ]);
 
     expect(result.batchItemFailures).toHaveLength(0);
@@ -81,13 +115,22 @@ describe('investor-profile-ctrl kb-ingestion-handler', () => {
     expect(bedrockMock).toHaveReceivedCommand(StartIngestionJobCommand);
   });
 
+  it('should throw ZodError (batchItemFailure) when subject does not match ComplianceCheckSchema', async () => {
+    const result = await harness.process([
+      fakeSqsRecord('DECISION_BLOCKED', {
+        // missing required fields: ccId, taskToken, mandateSnapshot, violations, etc.
+        decisionId: 'dp-bad',
+      }, { tenantId: 't1' }),
+    ]);
+
+    expect(result.batchItemFailures).toHaveLength(1);
+  });
+
   it('should report failure when Bedrock sync throws', async () => {
     bedrockMock.on(StartIngestionJobCommand).rejects(new Error('Bedrock sync failed'));
 
     const result = await harness.process([
-      fakeSqsRecord('DECISION_BLOCKED', {
-        decisionId: 'dp-3',
-      }, { tenantId: 't1' }),
+      fakeSqsRecord('DECISION_BLOCKED', validComplianceCheck, { tenantId: 't1' }),
     ]);
 
     expect(result.batchItemFailures).toHaveLength(1);
