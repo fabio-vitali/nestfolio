@@ -1,0 +1,222 @@
+#!/usr/bin/env node
+// check-typed-subjects.mjs — typed-subject convention gate (capstone).
+//
+// Enforces the typed-subject conventions across services + libs `src`:
+//   subject-cast        (C1) — `subject … as Record<string,unknown>` / `as <PascalType>`.
+//                              parseSubject(carrier, <ProducerSchema>) is the only sanctioned read.
+//                              Excludes the parseSubject platform seams (by path) + registry files.
+//   cross-domain-import (C2) — a services/<domain>/<svc>/src file importing
+//                              @nestfolio/<otherSvc>/{contracts,events} where <otherSvc> is in a
+//                              DIFFERENT domain. Cross-domain must route via the producer-domain
+//                              `*-adpt/domain` re-export. Intra-domain + `*-adpt/domain` imports
+//                              are fine; libs/** + apps/** have no domain (exempt). (nx can't
+//                              express this — services are Nx apps, so its apps-forbidden rule
+//                              blocks intra-domain imports too.)
+//   subject-suffix      (C4) — a contract named `<Name>SubjectSchema` / type `<Name>Subject`
+//                              in **/domain/contracts.ts or **/domain/events.ts.
+//   opaque-subject           — the `opaqueSubject` identifier reintroduced anywhere in `src`.
+//   inline-row          (C3) — a top-level interface/type declaring pk + sk + __typename inline
+//                              (not via TableEntry<>). Heuristic regression guard.
+//
+// Conventions 3 (full) + 5 (context generic) remain skills/docs only.
+//
+// Usage: node tools/check-typed-subjects.mjs [--root <dir>]
+// Scope: services/**/src + libs/**/src (excludes test dirs + *.test.ts/*.spec.ts).
+// No AST dep — string/regex scanning, mirroring tools/check-read-model-drift.mjs.
+
+import { readdirSync, readFileSync } from 'node:fs';
+import { join, relative, sep } from 'node:path';
+import { fileURLToPath } from 'node:url';
+
+const EXCLUDE_FRAGMENTS = ['node_modules', 'dist', 'cdk.out', '.worktrees', '.nx', 'coverage', 'test'];
+const EXCLUDED_BASENAME_SUFFIXES = ['.test.ts', '.spec.ts'];
+const SCAN_ROOTS = ['services', 'libs'];
+const EXCLUSIONS_FILE = 'tools/typed-subject-exclusions.json';
+
+// The parseSubject carrier itself reads subject as Record by design.
+const PLATFORM_SEAMS = new Set([
+  'libs/event-processor/src/util/to-uow.ts',
+  'libs/event-processor/src/internal/sqs-parser.ts',
+  'libs/event-processor/src/engine/ingestion-engine.ts',
+  'libs/event-processor/src/testing/test-harness.ts',
+]);
+
+// Matches a `subject` token (property `.subject` OR a local `subject`/`subject.field`)
+// cast to Record<string,unknown> or a PascalCase type, before the next `;`/`=`/EOL.
+const SUBJECT_CAST_RE = /(?<![A-Za-z0-9_])subject\b[^\n;=]*?\bas\s+(Record<\s*string\s*,\s*unknown\s*>|[A-Z][A-Za-z0-9_]*)/g;
+const SUBJECT_SUFFIX_RE = /export\s+(?:const\s+([A-Za-z0-9_]+SubjectSchema)\b|type\s+([A-Za-z0-9_]+Subject)\b)/g;
+const OPAQUE_RE = /\bopaqueSubject\b/g;
+const CROSS_DOMAIN_IMPORT_RE = /from\s+['"]@nestfolio\/([a-z0-9-]+)\/(contracts|events)['"]/g;
+
+function parseArgs(argv) {
+  let root = process.cwd();
+  for (let i = 2; i < argv.length; i++) if (argv[i] === '--root') root = argv[++i];
+  return { root };
+}
+
+export function parseExclusions(root) {
+  let raw;
+  try { raw = readFileSync(join(root, EXCLUSIONS_FILE), 'utf8'); }
+  catch { return { exclusions: new Set(), entries: [] }; }
+  let parsed;
+  try { parsed = JSON.parse(raw); }
+  catch (e) { throw new Error(`${EXCLUSIONS_FILE}: invalid JSON — ${e.message}`); }
+  const entries = Array.isArray(parsed) ? parsed : (parsed.exclusions ?? []);
+  const exclusions = new Set();
+  for (const e of entries) {
+    const ok = e && typeof e.rule === 'string' && e.rule &&
+      typeof e.file === 'string' && e.file &&
+      typeof e.reason === 'string' && e.reason.trim();
+    if (!ok) throw new Error(`${EXCLUSIONS_FILE}: each entry needs non-empty {rule, file, reason} — bad: ${JSON.stringify(e)}`);
+    exclusions.add(`${e.rule}::${e.file}`);
+  }
+  return { exclusions, entries };
+}
+
+function* walk(dir) {
+  let entries;
+  try { entries = readdirSync(dir, { withFileTypes: true }); }
+  catch { return; }
+  for (const e of entries) {
+    if (EXCLUDE_FRAGMENTS.some(f => e.name === f)) continue;
+    const p = join(dir, e.name);
+    if (e.isDirectory()) yield* walk(p);
+    else if (e.isFile()) yield p;
+  }
+}
+
+function lineOf(text, index) { return text.slice(0, index).split('\n').length; }
+
+function inComment(text, index) {
+  const open = text.lastIndexOf('/*', index);
+  if (open !== -1) { const close = text.indexOf('*/', open); if (close === -1 || close >= index) return true; }
+  const lineStart = text.lastIndexOf('\n', index - 1) + 1;
+  if (text.slice(lineStart, index).includes('//')) return true;
+  return false;
+}
+
+// Build serviceName -> domain from the services/<domain>/<svc>/ layout.
+export function buildServiceDomains(root) {
+  const map = {};
+  let domains;
+  try { domains = readdirSync(join(root, 'services'), { withFileTypes: true }); } catch { return map; }
+  for (const d of domains) {
+    if (!d.isDirectory()) continue;
+    let svcs;
+    try { svcs = readdirSync(join(root, 'services', d.name), { withFileTypes: true }); } catch { continue; }
+    for (const s of svcs) if (s.isDirectory()) map[s.name] = d.name;
+  }
+  return map;
+}
+
+// C3 heuristic: a top-level interface/type whose block (closes with a line starting `}`)
+// declares pk + sk + __typename and does not use TableEntry.
+function scanInlineRows(rel, text) {
+  const lines = text.split('\n');
+  const hits = [];
+  const declRe = /^\s*(?:export\s+)?(?:interface\s+([A-Za-z0-9_]+)|type\s+([A-Za-z0-9_]+)\s*=)[^{]*\{\s*$/;
+  for (let i = 0; i < lines.length; i++) {
+    const m = lines[i].match(declRe);
+    if (!m) continue;
+    const name = m[1] || m[2];
+    let block = lines[i];
+    let j = i + 1;
+    for (; j < lines.length && j < i + 200; j++) { block += '\n' + lines[j]; if (/^\}/.test(lines[j])) break; }
+    const has = (k) => new RegExp('(^|\\n)\\s*' + k + '\\s*\\??:').test(block);
+    if (has('pk') && has('sk') && has('__typename') && !/\bTableEntry\b/.test(block)) {
+      hits.push({ rule: 'inline-row', file: rel, line: i + 1,
+        msg: `row type \`${name}\` re-declares pk/sk/__typename inline — use TableEntry<Subject> (reuse the producer contract)` });
+    }
+  }
+  return hits;
+}
+
+export function scanFile(rel, text) {
+  const hits = [];
+  SUBJECT_CAST_RE.lastIndex = 0; let m;
+  while ((m = SUBJECT_CAST_RE.exec(text)) !== null) {
+    if (inComment(text, m.index)) continue;
+    hits.push({ rule: 'subject-cast', file: rel, line: lineOf(text, m.index),
+      msg: `untyped subject read \`${m[0].trim()}\` — parse it with parseSubject(carrier, <ProducerSchema>) instead` });
+  }
+  if (rel.endsWith('/domain/contracts.ts') || rel.endsWith('/domain/events.ts') || rel.endsWith('/contracts.ts')) {
+    SUBJECT_SUFFIX_RE.lastIndex = 0;
+    while ((m = SUBJECT_SUFFIX_RE.exec(text)) !== null) {
+      const name = m[1] || m[2];
+      hits.push({ rule: 'subject-suffix', file: rel, line: lineOf(text, m.index),
+        msg: `contract \`${name}\` uses a Subject suffix — name it after the clean domain/event concept (<Name>Schema / <Name>)` });
+    }
+  }
+  OPAQUE_RE.lastIndex = 0;
+  while ((m = OPAQUE_RE.exec(text)) !== null) {
+    if (inComment(text, m.index)) continue;
+    hits.push({ rule: 'opaque-subject', file: rel, line: lineOf(text, m.index),
+      msg: `opaqueSubject reintroduced — every event has a producer schema; use parseSubject(...) (the helper was deleted in WS-3)` });
+  }
+  hits.push(...scanInlineRows(rel, text));
+  return hits;
+}
+
+// Convention 2 — cross-domain import channel. Only for services/<domain>/<svc>/ files.
+export function scanCrossDomainImports(rel, text, serviceDomains) {
+  const hits = [];
+  const m0 = rel.match(/^services\/([^/]+)\/([^/]+)\//);
+  if (!m0) return hits;
+  const fileDomain = m0[1];
+  CROSS_DOMAIN_IMPORT_RE.lastIndex = 0;
+  let m;
+  while ((m = CROSS_DOMAIN_IMPORT_RE.exec(text)) !== null) {
+    const pkg = m[1], sub = m[2];
+    const pkgDomain = serviceDomains[pkg];
+    if (!pkgDomain || pkgDomain === fileDomain) continue;
+    hits.push({ rule: 'cross-domain-import', file: rel, line: lineOf(text, m.index),
+      msg: `cross-domain import \`@nestfolio/${pkg}/${sub}\` — route it through the producer-domain adapter \`@nestfolio/${pkgDomain}-adpt/domain\` instead (convention 2)` });
+  }
+  return hits;
+}
+
+export function scanTree(root) {
+  const hits = [];
+  const serviceDomains = buildServiceDomains(root);
+  for (const sub of SCAN_ROOTS) {
+    for (const file of walk(join(root, sub))) {
+      if (!file.endsWith('.ts')) continue;
+      if (EXCLUDED_BASENAME_SUFFIXES.some(s => file.endsWith(s))) continue;
+      const rel = relative(root, file).split(sep).join('/');
+      if (!rel.includes('/src/')) continue;
+      let text;
+      try { text = readFileSync(file, 'utf8'); } catch { continue; }
+      hits.push(...scanFile(rel, text));
+      hits.push(...scanCrossDomainImports(rel, text, serviceDomains));
+    }
+  }
+  return hits;
+}
+
+export function evaluate(hits, exclusions = new Set()) {
+  return hits.filter(h => {
+    if (h.rule === 'subject-cast' && PLATFORM_SEAMS.has(h.file)) return false;
+    if (exclusions.has(`${h.rule}::${h.file}`)) return false;
+    return true;
+  });
+}
+
+function main() {
+  const { root } = parseArgs(process.argv);
+  const { exclusions, entries } = parseExclusions(root);
+  const hits = scanTree(root);
+  const errors = evaluate(hits, exclusions);
+  if (errors.length === 0) {
+    console.log(`typed-subject: OK (${hits.length} raw hit(s), ${entries.length} excluded, 0 violation(s))`);
+    process.exit(0);
+  }
+  console.error('typed-subject: FAIL');
+  console.error(`Found ${errors.length} typed-subject convention violation(s). See docs/agent-system.md + the project_event_subject_contracts dossier.\n`);
+  for (const e of errors) {
+    console.error(`  [${e.rule}] ${e.file}:${e.line}`);
+    console.error(`    ${e.msg}`);
+  }
+  process.exit(1);
+}
+
+if (process.argv[1] && process.argv[1] === fileURLToPath(import.meta.url)) main();

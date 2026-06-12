@@ -1,0 +1,15 @@
+{
+  "exclusions": [
+    { "rule": "subject-cast", "file": "services/execution/broker-ctrl/src/handlers/deposit-withdrawal-normalizer.ts", "reason": "Shared sim/alpaca funding-completed handler reads 4 differently-shaped subjects; cannot type against one producer schema until normalized.", "backlogRef": "broker-funding-completed-normalization-drift" },
+    { "rule": "subject-cast", "file": "services/advisory/market-intelligence-ctrl/src/handlers/kb-ingestion-handler.ts", "reason": "KB-stringify polymorphic fan-in over many feed events — a documented consumer-view read, not a single-producer subject." },
+    { "rule": "subject-cast", "file": "services/ledger/ledger-ctrl/src/handlers/event-listener.ts", "reason": "ORDER_FILLED live-fill tax-lot boundary read of symbol/side/quantity not carried on the minimal NormalizedOrderEvent.", "backlogRef": "ledger-ctrl-live-tax-lot-missing-order-fields" },
+    { "rule": "subject-cast", "file": "services/advisory/portfolio-engine-ctrl/src/handlers/event-listener.ts", "reason": "AssemblePacket-style polymorphic fan-in over upstream agent outputs (investorProfile/marketAnalysis)." },
+    { "rule": "subject-cast", "file": "services/advisory/portfolio-engine-ctrl/src/agent-service.ts", "reason": "Agent-runtime entry shim normalizes a direct-invoke payload OR an EB event subject — genuinely polymorphic." },
+    { "rule": "subject-cast", "file": "services/advisory/advisory-narrative-ctrl/src/handlers/event-listener.ts", "reason": "Polymorphic fan-in over upstream agent outputs (investorProfile/marketAnalysis/portfolio)." },
+    { "rule": "subject-cast", "file": "services/advisory/advisory-narrative-ctrl/src/agent-service.ts", "reason": "Agent-runtime entry shim — direct-invoke OR EB event subject; genuinely polymorphic." },
+    { "rule": "subject-cast", "file": "services/advisory/advisory-narrative-ctrl/src/handlers/feedback-correlator.ts", "reason": "Polymorphic feedback correlation over multiple event types." },
+    { "rule": "subject-cast", "file": "services/advisory/market-intelligence-ctrl/src/agent-service.ts", "reason": "Agent-runtime entry shim — direct-invoke OR EB event subject; genuinely polymorphic." },
+    { "rule": "subject-cast", "file": "services/advisory/market-intelligence-ctrl/src/handlers/event-listener.ts", "reason": "Polymorphic fan-in entry — narrows per-branch downstream." },
+    { "rule": "subject-cast", "file": "services/advisory/investor-profile-ctrl/src/agent-service.ts", "reason": "Agent-runtime entry shim — direct-invoke OR EB event subject; genuinely polymorphic." }
+  ]
+}
