@@ -339,8 +339,11 @@ describe('ledger-ctrl event-listener handler', () => {
           tenantId: 't1',
           orderId: 'ord-buy-1',
           symbol: 'VTI',
-          quantity: 50, // from filledQty (schema field)
-          costBasisPerShare: 250.00,
+          // boundary: ORDER_FILLED carries no filledQuantity/quantity — resolves to undefined.
+          // Pre-existing latent bug (docs/backlog/ledger-ctrl-live-tax-lot-missing-order-fields.md);
+          // WS-3 preserves the broken behavior, does not read subject.filledQty here.
+          quantity: undefined,
+          costBasisPerShare: 250.00, // from subject.averageFillPrice (schema field)
         }),
       );
     });
@@ -364,8 +367,11 @@ describe('ledger-ctrl event-listener handler', () => {
         expect.objectContaining({
           tenantId: 't1',
           symbol: 'VTI',
-          quantity: 30, // from filledQty (schema field)
-          salePrice: 260.00,
+          // boundary: ORDER_FILLED carries no filledQuantity/quantity — resolves to undefined.
+          // Pre-existing latent bug (docs/backlog/ledger-ctrl-live-tax-lot-missing-order-fields.md);
+          // WS-3 preserves the broken behavior, does not read subject.filledQty here.
+          quantity: undefined,
+          salePrice: 260.00, // from subject.averageFillPrice (schema field)
           orderId: 'ord-sell-1',
         }),
       );

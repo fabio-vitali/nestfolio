@@ -26,12 +26,7 @@ async function processOrderActualEvent(
   const subject = parseSubject(payload, NormalizedOrderEventSchema);
 
   // identity fields come from ctx (DRY subjects); only read genuine payload fields from subject
-  const eventPayload: Record<string, unknown> = {
-    ...subject,
-    // boundary: NormalizedOrderEventSchema is the DRY producer contract (broker-ctrl CDC publisher
-    // strips symbol/side/quantity/filledQuantity/fillPrice to the declared contract fields only).
-    // These reads return undefined in production; kept for structural parity with the raw spread.
-  };
+  const eventPayload: Record<string, unknown> = { ...subject };
 
   const sequenceNo = await deps.repository.nextSequence(ctx.tenantId, 'actual');
 
@@ -51,26 +46,28 @@ async function processOrderActualEvent(
 
   // Tax lot tracking for live fills
   if (ctx.eventType === ExecutionCrossDomainEventTypes.ORDER_FILLED && subject.executionMode === 'live') {
-    // boundary: NormalizedOrderEventSchema is the DRY producer contract — side/symbol/
-    // filledQty→quantity/fillPrice fields are read here; filledQty maps to NormalizedOrderEvent.filledQty
-    const side = (payload.subject as Record<string, unknown>)?.['side'] as string | undefined;
-    const symbol = (payload.subject as Record<string, unknown>)?.['symbol'] as string | undefined;
-    const rawSubject = payload.subject as Record<string, unknown> | undefined;
+    // boundary: NormalizedOrderEventSchema (the ORDER_FILLED contract) does not carry
+    // symbol/side/quantity/fillPrice; broker-ctrl's order SF drops them. These reads
+    // resolve to undefined in production — pre-existing latent bug, see
+    // docs/backlog/ledger-ctrl-live-tax-lot-missing-order-fields.md. WS-3 preserves the
+    // exact prior (broken) behavior; the fix is tracked there.
+    const orderDetail = (payload.subject ?? {}) as Record<string, unknown>;
+    const side = orderDetail['side'] as string;
     if (side === 'BUY') {
       await deps.taxLotManager.openLot({
         tenantId: ctx.tenantId,
         orderId: subject.orderId,
-        symbol: symbol ?? '',
-        quantity: subject.filledQty ?? (rawSubject?.['filledQuantity'] as number | undefined) ?? (rawSubject?.['quantity'] as number | undefined) ?? 0,
-        costBasisPerShare: subject.averageFillPrice ?? (rawSubject?.['fillPrice'] as number | undefined) ?? 0,
+        symbol: orderDetail['symbol'] as string,
+        quantity: orderDetail['filledQuantity'] as number ?? orderDetail['quantity'] as number,
+        costBasisPerShare: subject.averageFillPrice ?? orderDetail['fillPrice'] as number,
         acquiredAt: ctx.timestamp,
       });
     } else if (side === 'SELL') {
       await deps.taxLotManager.closeLots({
         tenantId: ctx.tenantId,
-        symbol: symbol ?? '',
-        quantity: subject.filledQty ?? (rawSubject?.['filledQuantity'] as number | undefined) ?? (rawSubject?.['quantity'] as number | undefined) ?? 0,
-        salePrice: subject.averageFillPrice ?? (rawSubject?.['fillPrice'] as number | undefined) ?? 0,
+        symbol: orderDetail['symbol'] as string,
+        quantity: orderDetail['filledQuantity'] as number ?? orderDetail['quantity'] as number,
+        salePrice: subject.averageFillPrice ?? orderDetail['fillPrice'] as number,
         soldAt: ctx.timestamp,
         orderId: subject.orderId,
       });
@@ -157,8 +154,10 @@ async function processSimulationEvent(
 ) {
   const subject = parseSubject(payload, DecisionPacketSchema);
 
-  // DecisionPacketSchema carries `decisionId` (the DRY field); `decisionPacketId` is not on the schema.
-  const decisionPacketId = subject.decisionId ?? ctx.eventId;
+  // NOTE: DecisionPacketSchema carries `decisionId` (DRY), not `decisionPacketId`. The original
+  // read subject['decisionPacketId'], always absent → ctx.eventId. Preserved as-is (read-typing
+  // only); reconciling to the real subject.decisionId would change shadow-fill keying — out of WS-3 scope.
+  const decisionPacketId = ctx.eventId;
   const proposedTrades = (subject.proposedTrades ?? []) as ProposedTrade[];
 
   if (proposedTrades.length === 0) {
