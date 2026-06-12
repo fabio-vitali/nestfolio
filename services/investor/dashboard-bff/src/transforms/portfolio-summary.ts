@@ -1,6 +1,6 @@
 import { projectVersioned, parseSubject, type WriteIntent } from '@nestfolio/event-processor';
 import type { UnitOfWork, BusEvent } from '@nestfolio/event-processor';
-import { LedgerSnapshotSchema } from '@nestfolio/ledger-ctrl/contracts';
+import { LedgerSnapshotSchema } from '@nestfolio/ledger-adpt/domain';
 import { z } from 'zod';
 
 // Of the three event types the event-listener routes here, only these two carry a

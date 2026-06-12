@@ -1,6 +1,6 @@
 import { projectVersioned, parseSubject, type WriteIntent } from '@nestfolio/event-processor';
 import type { UnitOfWork, BusEvent } from '@nestfolio/event-processor';
-import { LedgerEntryRecordedSchema } from '@nestfolio/ledger-ctrl/contracts';
+import { LedgerEntryRecordedSchema } from '@nestfolio/ledger-adpt/domain';
 
 /**
  * Versioned P1 projection of TimeTravelAvailability from LEDGER_ENTRY_RECORDED.

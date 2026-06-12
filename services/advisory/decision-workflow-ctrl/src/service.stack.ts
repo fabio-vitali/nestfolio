@@ -15,7 +15,7 @@ import {
 } from './domain/events';
 import { InvestorProfileEventTypes } from '@nestfolio/investor-profile-ctrl/events';
 import { MarketIntelligenceEventTypes } from '@nestfolio/market-intelligence-ctrl/events';
-import { LedgerCtrlEventTypes } from '@nestfolio/ledger-ctrl/events';
+import { LedgerCrossDomainEventTypes } from '@nestfolio/ledger-adpt/domain';
 import { defaultLambdaProps, NamingService } from '@nestfolio/cdk-constructs/utils';
 import { DecisionWorkflowDefinition } from './constructs/decision-state-machine';
 
@@ -207,7 +207,7 @@ export class DecisionWorkflowCtrlStack extends ServiceStack {
         InvestorProfileEventTypes.INVESTOR_PROFILE_SNAPSHOT_CREATED,
         InvestorProfileEventTypes.INVESTOR_PROFILE_SNAPSHOT_UPDATED,
         MarketIntelligenceEventTypes.MARKET_SNAPSHOT_UPDATED,
-        LedgerCtrlEventTypes.PORTFOLIO_UPDATED,
+        LedgerCrossDomainEventTypes.PORTFOLIO_UPDATED,
       ],
       entry: join(__dirname, 'handlers', 'snapshot-projector.ts'),
     });

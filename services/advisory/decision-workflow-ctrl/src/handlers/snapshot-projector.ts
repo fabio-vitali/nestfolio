@@ -11,8 +11,7 @@ import { InvestorProfileEventTypes } from '@nestfolio/investor-profile-ctrl/even
 import { InvestorProfileSnapshotSchema } from '@nestfolio/investor-profile-ctrl/contracts';
 import { MarketIntelligenceEventTypes } from '@nestfolio/market-intelligence-ctrl/events';
 import { MarketSnapshotSchema } from '@nestfolio/market-intelligence-ctrl/contracts';
-import { LedgerCtrlEventTypes } from '@nestfolio/ledger-ctrl/events';
-import { PortfolioUpdatedSchema } from '@nestfolio/ledger-ctrl/contracts';
+import { LedgerCrossDomainEventTypes, PortfolioUpdatedSchema } from '@nestfolio/ledger-adpt/domain';
 import {
   PROJECTED_IP_SNAPSHOT_SK,
   PROJECTED_MARKET_SNAPSHOT_SK,
@@ -129,7 +128,7 @@ export const createHandlers = () => ({
     p: EventPayload,
     c: EventContext,
   ) => projectMarketSnapshot(p, c),
-  [LedgerCtrlEventTypes.PORTFOLIO_UPDATED]: async (
+  [LedgerCrossDomainEventTypes.PORTFOLIO_UPDATED]: async (
     p: EventPayload,
     c: EventContext,
   ) => projectLedgerSnapshot(p, c),

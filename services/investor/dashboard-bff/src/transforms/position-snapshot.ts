@@ -1,7 +1,7 @@
 import { projectVersioned, parseSubject, type WriteIntent } from '@nestfolio/event-processor';
 import type { UnitOfWork, BusEvent } from '@nestfolio/event-processor';
 import { z } from 'zod';
-import { LedgerSnapshotSchema } from '@nestfolio/ledger-ctrl/contracts';
+import { LedgerSnapshotSchema } from '@nestfolio/ledger-adpt/domain';
 
 const PositionSnapshotSchema = z.object({ snapshot: LedgerSnapshotSchema });
 

@@ -1,6 +1,6 @@
 import { projectVersioned, parseSubject, type WriteIntent } from '@nestfolio/event-processor';
 import type { UnitOfWork, BusEvent } from '@nestfolio/event-processor';
-import { BalanceUpdatedSchema } from '@nestfolio/ledger-ctrl/contracts';
+import { BalanceUpdatedSchema } from '@nestfolio/ledger-adpt/domain';
 
 export const balanceUpdated = (
   uow: UnitOfWork<BusEvent<Record<string, unknown>>>,
