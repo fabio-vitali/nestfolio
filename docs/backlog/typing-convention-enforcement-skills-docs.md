@@ -16,7 +16,7 @@ out_of_scope:
   - "The CLAUDE.md service-card-drift gate — split to its own backlog item (decided 2026-06-12); not built here."
   - "Boundary adapters' own pull-subscription cross-domain event-name imports, if any surface — exception class (test override / targeted allow), not a forced reroute."
 spec: "docs/superpowers/specs/2026-06-12-typed-subject-enforcement-design.md"
-plan: null
+plan: "docs/superpowers/plans/2026-06-12-typed-subject-enforcement.md"
 topic_memory: ["project_event_subject_contracts.md"]
 validation_gate: null
 ---
