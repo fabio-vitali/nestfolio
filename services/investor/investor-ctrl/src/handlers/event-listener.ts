@@ -4,6 +4,7 @@ import {
   type TableEntry,
   getTime,
   materializeToTable,
+  parseSubject,
   record,
   requireEnv,
   type WriteIntent,
@@ -11,10 +12,18 @@ import {
 import type { NotificationCreated } from '../domain/contracts';
 import '../read-model-ownership';
 import { InvestorBffEventTypes } from '@nestfolio/investor-bff/events';
-import { AdvisoryCrossDomainEventTypes } from '@nestfolio/advisory-adpt/domain';
-import { ExecutionCrossDomainEventTypes } from '@nestfolio/execution-adpt/domain';
-import { LedgerCrossDomainEventTypes } from '@nestfolio/ledger-adpt/domain';
-import { InvestorIngestEventTypes } from '@nestfolio/investor-adpt/domain';
+import { AdvisoryCrossDomainEventTypes, ComplianceCheckSchema } from '@nestfolio/advisory-adpt/domain';
+import {
+  ExecutionCrossDomainEventTypes,
+  FundingSnapshotSchema,
+  NormalizedOrderEventSchema,
+} from '@nestfolio/execution-adpt/domain';
+import { LedgerCrossDomainEventTypes, BalanceUpdatedSchema } from '@nestfolio/ledger-adpt/domain';
+import {
+  InvestorIngestEventTypes,
+  DepositInitiatedSchema,
+  MandateSchema,
+} from '@nestfolio/investor-adpt/domain';
 
 // eslint-disable-next-line @typescript-eslint/no-empty-object-type
 export interface EventListenerDeps {}
@@ -113,75 +122,20 @@ function getCurrentPeriod(): string {
   return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
 }
 
-// Direct-subscription event types — each produces exactly one Notification.
-// OPERATING_MODE_CHANGED and GOAL_UPDATED are now emitted directly by investor-bff
-// CDC (Phase 1 diff-emit), making the old INVESTOR_PROFILE_UPDATED diff handler obsolete.
-const EVENT_TYPES = [
-  InvestorBffEventTypes.ONBOARDING_COMPLETED,
-  InvestorBffEventTypes.MANDATE_ISSUED,
-  InvestorBffEventTypes.MANDATE_REVOKED,
-  InvestorBffEventTypes.DEPOSIT_INITIATED,
-  InvestorBffEventTypes.OPERATING_MODE_CHANGED,
-  InvestorBffEventTypes.GOAL_UPDATED,
-  AdvisoryCrossDomainEventTypes.DECISION_APPROVED,
-  ExecutionCrossDomainEventTypes.ORDER_FILLED,
-  LedgerCrossDomainEventTypes.BALANCE_UPDATED,
-  ExecutionCrossDomainEventTypes.ORDER_REJECTED,
-  ExecutionCrossDomainEventTypes.WITHDRAWAL_SETTLED,
-  AdvisoryCrossDomainEventTypes.DECISION_BLOCKED,
-] as const;
-
-const SYSTEM_EVENT_TYPES = [
-  InvestorIngestEventTypes.BROKER_CIRCUIT_OPEN,
-  InvestorIngestEventTypes.BROKER_CIRCUIT_CLOSED,
-  InvestorIngestEventTypes.BROKER_HEAL_ESCALATED,
-] as const;
-
 /**
- * Maps each triggering event type to the related entity type and the subject
- * field that carries its id. Where a subject lacks a natural entity id,
- * `idField` is omitted and the `ctx.eventId` fallback applies.
+ * Builds a Notification WriteIntent from already-resolved entity fields.
+ * Identity (tenantId) and metadata come from ctx; entity context is
+ * passed in directly — callers derive it via parseSubject or from ctx.
  */
-const NOTIFICATION_ENTITY_MAP: Record<string, { type: string; idField?: string }> = {
-  // Advisory decisions — subject.decisionId (compliance-ctrl/schemas.ts)
-  DECISION_APPROVED: { type: 'DECISION', idField: 'decisionId' },
-  DECISION_BLOCKED: { type: 'DECISION', idField: 'decisionId' },
-  // Execution orders — subject.orderId (NormalizedEventSchema)
-  ORDER_FILLED: { type: 'ORDER', idField: 'orderId' },
-  ORDER_REJECTED: { type: 'ORDER', idField: 'orderId' },
-  // Deposits — subject.depositId (DepositInitiatedSchema / DepositIntent CDC)
-  DEPOSIT_INITIATED: { type: 'DEPOSIT', idField: 'depositId' },
-  // Withdrawals — subject.transferId (FundingSnapshotSchema; investor-bff maps this to withdrawalId)
-  WITHDRAWAL_SETTLED: { type: 'WITHDRAWAL', idField: 'transferId' },
-  // Mandates — subject.mandateId (Mandate CDC row)
-  MANDATE_ISSUED: { type: 'MANDATE', idField: 'mandateId' },
-  MANDATE_REVOKED: { type: 'MANDATE', idField: 'mandateId' },
-  // Profile-level events — subject.userId (request-context stamped)
-  OPERATING_MODE_CHANGED: { type: 'PROFILE', idField: 'userId' },
-  GOAL_UPDATED: { type: 'PROFILE', idField: 'userId' },
-  ONBOARDING_COMPLETED: { type: 'PROFILE', idField: 'userId' },
-  // Balance — no natural entity id
-  BALANCE_UPDATED: { type: 'BALANCE' },
-  // System / circuit-breaker events — no natural entity id
-  BROKER_CIRCUIT_OPEN: { type: 'SYSTEM' },
-  BROKER_CIRCUIT_CLOSED: { type: 'SYSTEM' },
-  BROKER_HEAL_ESCALATED: { type: 'SYSTEM' },
-};
-
 function buildNotificationRecord(
   tenantId: string,
   ctx: EventContext,
-  subject: Record<string, unknown>,
+  relatedEntityType: string,
+  relatedEntityId: string,
 ): WriteIntent {
   const notificationId = ctx.eventId;
   const now = getTime();
   const template = getNotificationTemplate(ctx.eventType);
-  const entityEntry = NOTIFICATION_ENTITY_MAP[ctx.eventType] ?? { type: 'UNKNOWN' };
-  const relatedEntityType = entityEntry.type;
-  const relatedEntityId = entityEntry.idField
-    ? (subject[entityEntry.idField] as string | undefined) ?? ctx.eventId
-    : ctx.eventId;
-
   return record(
     'Notification',
     {
@@ -206,51 +160,166 @@ function buildNotificationRecord(
 
 // eslint-disable-next-line @typescript-eslint/no-unused-vars
 export const createHandlers = (_deps: EventListenerDeps) => ({
-  ...Object.fromEntries(
-    EVENT_TYPES.map((type) => [
-      type,
-      async (payload: EventPayload, ctx: EventContext): Promise<WriteIntent | WriteIntent[]> => {
-        const tenantId = ctx.tenantId;
-        const subject = (payload.subject ?? {}) as Record<string, unknown>;
-        const notification = buildNotificationRecord(tenantId, ctx, subject);
 
-        if (ctx.eventType === ExecutionCrossDomainEventTypes.ORDER_FILLED) {
-          const now = getTime();
-          const reportId = `${ctx.eventId}-report`;
+  // ── Advisory decisions ───────────────────────────────────────────────────
+  // Schema: ComplianceCheckSchema (@nestfolio/advisory-adpt/domain → compliance-ctrl/contracts)
+  // relatedEntityId: subject.decisionId
+  [AdvisoryCrossDomainEventTypes.DECISION_APPROVED]: async (
+    payload: EventPayload,
+    ctx: EventContext,
+  ): Promise<WriteIntent> => {
+    const subject = parseSubject(payload, ComplianceCheckSchema);
+    return buildNotificationRecord(ctx.tenantId, ctx, 'DECISION', subject.decisionId);
+  },
 
-          const monthlyReport = record(
-            'MonthlyReport',
-            {
-              __typename: 'MonthlyReport',
-              tenantId,
-              reportId,
-              period: getCurrentPeriod(),
-              orderDetails: subject,
-              sourceEventId: ctx.eventId,
-              status: 'GENERATED',
-              timestamp: now,
-              createdAt: now,
-              updatedAt: now,
-            },
-            { pk: `MonthlyReport#${tenantId}#${reportId}`, sk: 'MonthlyReport' },
-          );
+  [AdvisoryCrossDomainEventTypes.DECISION_BLOCKED]: async (
+    payload: EventPayload,
+    ctx: EventContext,
+  ): Promise<WriteIntent> => {
+    const subject = parseSubject(payload, ComplianceCheckSchema);
+    return buildNotificationRecord(ctx.tenantId, ctx, 'DECISION', subject.decisionId);
+  },
 
-          return [notification, monthlyReport];
-        }
+  // ── Execution orders ─────────────────────────────────────────────────────
+  // Schema: NormalizedOrderEventSchema (@nestfolio/execution-adpt/domain → broker-ctrl/contracts)
+  // relatedEntityId: subject.orderId
+  // ORDER_FILLED also builds a MonthlyReport — orderDetails carries the typed subject
+  [ExecutionCrossDomainEventTypes.ORDER_FILLED]: async (
+    payload: EventPayload,
+    ctx: EventContext,
+  ): Promise<WriteIntent | WriteIntent[]> => {
+    const subject = parseSubject(payload, NormalizedOrderEventSchema);
+    const notification = buildNotificationRecord(ctx.tenantId, ctx, 'ORDER', subject.orderId);
 
-        return notification;
+    const now = getTime();
+    const reportId = `${ctx.eventId}-report`;
+    const monthlyReport = record(
+      'MonthlyReport',
+      {
+        __typename: 'MonthlyReport',
+        tenantId: ctx.tenantId,
+        reportId,
+        period: getCurrentPeriod(),
+        orderDetails: subject,
+        sourceEventId: ctx.eventId,
+        status: 'GENERATED',
+        timestamp: now,
+        createdAt: now,
+        updatedAt: now,
       },
-    ]),
-  ),
-  ...Object.fromEntries(
-    SYSTEM_EVENT_TYPES.map((type) => [
-      type,
-      async (payload: EventPayload, ctx: EventContext): Promise<WriteIntent> => {
-        const subject = (payload.subject ?? {}) as Record<string, unknown>;
-        return buildNotificationRecord('SYSTEM', ctx, subject);
-      },
-    ]),
-  ),
+      { pk: `MonthlyReport#${ctx.tenantId}#${reportId}`, sk: 'MonthlyReport' },
+    );
+
+    return [notification, monthlyReport];
+  },
+
+  [ExecutionCrossDomainEventTypes.ORDER_REJECTED]: async (
+    payload: EventPayload,
+    ctx: EventContext,
+  ): Promise<WriteIntent> => {
+    const subject = parseSubject(payload, NormalizedOrderEventSchema);
+    return buildNotificationRecord(ctx.tenantId, ctx, 'ORDER', subject.orderId);
+  },
+
+  // ── Execution funding ────────────────────────────────────────────────────
+  // Schema: FundingSnapshotSchema (@nestfolio/execution-adpt/domain)
+  // relatedEntityId: subject.transferId
+  [ExecutionCrossDomainEventTypes.WITHDRAWAL_SETTLED]: async (
+    payload: EventPayload,
+    ctx: EventContext,
+  ): Promise<WriteIntent> => {
+    const subject = parseSubject(payload, FundingSnapshotSchema);
+    return buildNotificationRecord(ctx.tenantId, ctx, 'WITHDRAWAL', subject.transferId);
+  },
+
+  // ── Investor deposits ────────────────────────────────────────────────────
+  // Schema: DepositInitiatedSchema (@nestfolio/investor-adpt/domain)
+  // relatedEntityId: subject.depositId
+  [InvestorBffEventTypes.DEPOSIT_INITIATED]: async (
+    payload: EventPayload,
+    ctx: EventContext,
+  ): Promise<WriteIntent> => {
+    const subject = parseSubject(payload, DepositInitiatedSchema);
+    return buildNotificationRecord(ctx.tenantId, ctx, 'DEPOSIT', subject.depositId);
+  },
+
+  // ── Investor mandates ────────────────────────────────────────────────────
+  // Schema: MandateSchema (@nestfolio/investor-adpt/domain)
+  // relatedEntityId: subject.mandateId
+  [InvestorBffEventTypes.MANDATE_ISSUED]: async (
+    payload: EventPayload,
+    ctx: EventContext,
+  ): Promise<WriteIntent> => {
+    const subject = parseSubject(payload, MandateSchema);
+    return buildNotificationRecord(ctx.tenantId, ctx, 'MANDATE', subject.mandateId);
+  },
+
+  [InvestorBffEventTypes.MANDATE_REVOKED]: async (
+    payload: EventPayload,
+    ctx: EventContext,
+  ): Promise<WriteIntent> => {
+    const subject = parseSubject(payload, MandateSchema);
+    return buildNotificationRecord(ctx.tenantId, ctx, 'MANDATE', subject.mandateId);
+  },
+
+  // ── Profile events ───────────────────────────────────────────────────────
+  // No subject read — relatedEntityId is ctx.userId (identity from context, not subject).
+  // These events carry no schema-contracted entity id on the subject.
+  [InvestorBffEventTypes.OPERATING_MODE_CHANGED]: async (
+    _payload: EventPayload,
+    ctx: EventContext,
+  ): Promise<WriteIntent> => {
+    return buildNotificationRecord(ctx.tenantId, ctx, 'PROFILE', ctx.userId);
+  },
+
+  [InvestorBffEventTypes.GOAL_UPDATED]: async (
+    _payload: EventPayload,
+    ctx: EventContext,
+  ): Promise<WriteIntent> => {
+    return buildNotificationRecord(ctx.tenantId, ctx, 'PROFILE', ctx.userId);
+  },
+
+  [InvestorBffEventTypes.ONBOARDING_COMPLETED]: async (
+    _payload: EventPayload,
+    ctx: EventContext,
+  ): Promise<WriteIntent> => {
+    return buildNotificationRecord(ctx.tenantId, ctx, 'PROFILE', ctx.userId);
+  },
+
+  // ── Balance ──────────────────────────────────────────────────────────────
+  // Schema: BalanceUpdatedSchema (@nestfolio/ledger-adpt/domain → ledger-ctrl/contracts)
+  // No natural entity id — parseSubject validates the contract, relatedEntityId falls back to ctx.eventId.
+  [LedgerCrossDomainEventTypes.BALANCE_UPDATED]: async (
+    payload: EventPayload,
+    ctx: EventContext,
+  ): Promise<WriteIntent> => {
+    parseSubject(payload, BalanceUpdatedSchema); // validate contract; no id field on this schema
+    return buildNotificationRecord(ctx.tenantId, ctx, 'BALANCE', ctx.eventId);
+  },
+
+  // ── Circuit-breaker system events ────────────────────────────────────────
+  // boundary: BROKER_CIRCUIT_OPEN/CLOSED/BROKER_HEAL_ESCALATED carry no subject payload.
+  // These originate in broker-alpaca-adpt and traverse multiple buses with no structured subject.
+  [InvestorIngestEventTypes.BROKER_CIRCUIT_OPEN]: async (
+    _payload: EventPayload,
+    ctx: EventContext,
+  ): Promise<WriteIntent> => {
+    return buildNotificationRecord('SYSTEM', ctx, 'SYSTEM', ctx.eventId);
+  },
+
+  [InvestorIngestEventTypes.BROKER_CIRCUIT_CLOSED]: async (
+    _payload: EventPayload,
+    ctx: EventContext,
+  ): Promise<WriteIntent> => {
+    return buildNotificationRecord('SYSTEM', ctx, 'SYSTEM', ctx.eventId);
+  },
+
+  [InvestorIngestEventTypes.BROKER_HEAL_ESCALATED]: async (
+    _payload: EventPayload,
+    ctx: EventContext,
+  ): Promise<WriteIntent> => {
+    return buildNotificationRecord('SYSTEM', ctx, 'SYSTEM', ctx.eventId);
+  },
 });
 
 // Production wiring

@@ -43,6 +43,88 @@ import {
   getNotificationTemplate,
   type EventListenerDeps,
 } from '../../src/handlers/event-listener';
+import { ZodError } from 'zod';
+
+// ── Valid fixture builders ───────────────────────────────────────────────────
+// Each helper returns a minimal-valid subject conforming to the producer's schema.
+
+/** ComplianceCheckSchema — required by DECISION_APPROVED / DECISION_BLOCKED */
+function complianceCheckSubject(overrides: { decisionId?: string } = {}) {
+  return {
+    ccId: 'cc-001',
+    decisionPacketId: 'dp-001',
+    decisionId: overrides.decisionId ?? 'dec-001',
+    taskToken: 'token-001',
+    mandateSnapshot: {
+      level: 'ADVISORY' as const,
+      status: 'ACTIVE' as const,
+      operatingMode: 'BALANCED' as const,
+      effectiveDate: '2026-01-01',
+    },
+    status: 'COMPLETED' as const,
+    result: 'APPROVED' as const,
+    violations: [],
+    authorityLevel: 'L1' as const,
+    sourceEventId: 'src-evt-001',
+  };
+}
+
+/** NormalizedOrderEventSchema — required by ORDER_FILLED / ORDER_REJECTED */
+function normalizedOrderSubject(overrides: { orderId?: string } = {}) {
+  return {
+    orderId: overrides.orderId ?? 'ord-001',
+    executionMode: 'simulation' as const,
+    timestamp: '2026-01-01T00:00:00.000Z',
+  };
+}
+
+/** FundingSnapshotSchema — required by WITHDRAWAL_SETTLED */
+function fundingSnapshotSubject(overrides: { transferId?: string } = {}) {
+  return {
+    sk: 'WITHDRAWAL_SETTLED',
+    direction: 'WITHDRAWAL' as const,
+    status: 'settled' as const,
+    transferId: overrides.transferId ?? 'xfr-001',
+    amountCents: 10000,
+    currency: 'USD',
+    executionMode: 'simulation' as const,
+    initiatedAt: '2026-01-01T00:00:00.000Z',
+    timestamp: '2026-01-01T00:00:00.000Z',
+  };
+}
+
+/** DepositInitiatedSchema — required by DEPOSIT_INITIATED */
+function depositInitiatedSubject(overrides: { depositId?: string } = {}) {
+  return {
+    depositId: overrides.depositId ?? 'dep-001',
+    amountCents: 5000,
+    currency: 'USD',
+    timestamp: '2026-01-01T00:00:00.000Z',
+  };
+}
+
+/** MandateSchema — required by MANDATE_ISSUED / MANDATE_REVOKED */
+function mandateSubject(overrides: { mandateId?: string } = {}) {
+  return {
+    mandateId: overrides.mandateId ?? 'mnd-001',
+    level: 'ADVISORY' as const,
+    status: 'ACTIVE' as const,
+    operatingMode: 'BALANCED' as const,
+    effectiveDate: '2026-01-01',
+  };
+}
+
+/** BalanceUpdatedSchema — required by BALANCE_UPDATED */
+function balanceUpdatedSubject() {
+  return {
+    cashBalanceCents: 100000,
+    snapshot: {
+      positions: {},
+      cashBalanceCents: 100000,
+      lastEventSequence: 1,
+    },
+  };
+}
 
 
 describe('investor-ctrl event-listener', () => {
@@ -110,19 +192,21 @@ describe('investor-ctrl event-listener', () => {
   });
 
   describe('WriteIntents — non-ORDER_FILLED events', () => {
-    const testCases = [
-      { type: 'ONBOARDING_COMPLETED', expectedChannel: 'email' },
-      { type: 'MANDATE_ISSUED', expectedChannel: 'push' },
-      { type: 'MANDATE_REVOKED', expectedChannel: 'push' },
-      { type: 'DEPOSIT_INITIATED', expectedChannel: 'push' },
-      { type: 'DECISION_APPROVED', expectedChannel: 'push' },
-      { type: 'BALANCE_UPDATED', expectedChannel: 'push' },
+    // Each test case pairs the event type with its required subject fixture and expected channel.
+    // Fixtures conform to the producer schema for each event type.
+    const testCases: Array<{ type: string; subject: Record<string, unknown>; expectedChannel: string }> = [
+      { type: 'ONBOARDING_COMPLETED', subject: {}, expectedChannel: 'email' },
+      { type: 'MANDATE_ISSUED', subject: mandateSubject(), expectedChannel: 'push' },
+      { type: 'MANDATE_REVOKED', subject: mandateSubject({ mandateId: 'mnd-rev' }), expectedChannel: 'push' },
+      { type: 'DEPOSIT_INITIATED', subject: depositInitiatedSubject(), expectedChannel: 'push' },
+      { type: 'DECISION_APPROVED', subject: complianceCheckSubject(), expectedChannel: 'push' },
+      { type: 'BALANCE_UPDATED', subject: balanceUpdatedSubject(), expectedChannel: 'push' },
     ];
 
-    for (const { type, expectedChannel } of testCases) {
+    for (const { type, subject, expectedChannel } of testCases) {
       it(`returns record('Notification') for ${type}`, async () => {
         const result = await harness.process([
-          fakeSqsRecord(type, { userId: 'u1' }, { tenantId: 't1' }),
+          fakeSqsRecord(type, subject, { tenantId: 't1' }),
         ]);
         expect(result.errors).toHaveLength(0);
         expect(result.intents).toHaveLength(1);
@@ -143,7 +227,7 @@ describe('investor-ctrl event-listener', () => {
   describe('WriteIntents — relatedEntity derivation', () => {
     it('DECISION_APPROVED carries relatedEntityType=DECISION and decisionId from subject', async () => {
       const result = await harness.process([
-        fakeSqsRecord('DECISION_APPROVED', { decisionId: 'dec-abc' }, { tenantId: 't1', eventId: 'evt-1' }),
+        fakeSqsRecord('DECISION_APPROVED', complianceCheckSubject({ decisionId: 'dec-abc' }), { tenantId: 't1', eventId: 'evt-1' }),
       ]);
       expect(result.errors).toHaveLength(0);
       expect(result.intents[0]).toMatchObject({
@@ -156,22 +240,9 @@ describe('investor-ctrl event-listener', () => {
       });
     });
 
-    it('DECISION_APPROVED falls back to eventId when decisionId absent', async () => {
-      const result = await harness.process([
-        fakeSqsRecord('DECISION_APPROVED', {}, { tenantId: 't1', eventId: 'fallback-evt' }),
-      ]);
-      expect(result.errors).toHaveLength(0);
-      expect(result.intents[0]).toMatchObject({
-        fields: expect.objectContaining({
-          relatedEntityType: 'DECISION',
-          relatedEntityId: 'fallback-evt',
-        }),
-      });
-    });
-
     it('DECISION_BLOCKED carries relatedEntityType=DECISION', async () => {
       const result = await harness.process([
-        fakeSqsRecord('DECISION_BLOCKED', { decisionId: 'dec-xyz' }, { tenantId: 't1', eventId: 'evt-2' }),
+        fakeSqsRecord('DECISION_BLOCKED', complianceCheckSubject({ decisionId: 'dec-xyz' }), { tenantId: 't1', eventId: 'evt-2' }),
       ]);
       expect(result.intents[0]).toMatchObject({
         fields: expect.objectContaining({
@@ -183,7 +254,7 @@ describe('investor-ctrl event-listener', () => {
 
     it('ORDER_FILLED carries relatedEntityType=ORDER and orderId from subject', async () => {
       const result = await harness.process([
-        fakeSqsRecord('ORDER_FILLED', { orderId: 'ord-001' }, { tenantId: 't1', eventId: 'evt-3' }),
+        fakeSqsRecord('ORDER_FILLED', normalizedOrderSubject({ orderId: 'ord-001' }), { tenantId: 't1', eventId: 'evt-3' }),
       ]);
       // ORDER_FILLED returns [Notification, MonthlyReport]; index 0 is Notification
       expect(result.intents[0]).toMatchObject({
@@ -197,7 +268,7 @@ describe('investor-ctrl event-listener', () => {
 
     it('DEPOSIT_INITIATED carries relatedEntityType=DEPOSIT and depositId from subject', async () => {
       const result = await harness.process([
-        fakeSqsRecord('DEPOSIT_INITIATED', { depositId: 'dep-001' }, { tenantId: 't1', eventId: 'evt-4' }),
+        fakeSqsRecord('DEPOSIT_INITIATED', depositInitiatedSubject({ depositId: 'dep-001' }), { tenantId: 't1', eventId: 'evt-4' }),
       ]);
       expect(result.intents[0]).toMatchObject({
         fields: expect.objectContaining({
@@ -209,7 +280,7 @@ describe('investor-ctrl event-listener', () => {
 
     it('WITHDRAWAL_SETTLED carries relatedEntityType=WITHDRAWAL and transferId from subject', async () => {
       const result = await harness.process([
-        fakeSqsRecord('WITHDRAWAL_SETTLED', { transferId: 'xfr-001' }, { tenantId: 't1', eventId: 'evt-5' }),
+        fakeSqsRecord('WITHDRAWAL_SETTLED', fundingSnapshotSubject({ transferId: 'xfr-001' }), { tenantId: 't1', eventId: 'evt-5' }),
       ]);
       expect(result.intents[0]).toMatchObject({
         fields: expect.objectContaining({
@@ -221,7 +292,7 @@ describe('investor-ctrl event-listener', () => {
 
     it('MANDATE_ISSUED carries relatedEntityType=MANDATE and mandateId from subject', async () => {
       const result = await harness.process([
-        fakeSqsRecord('MANDATE_ISSUED', { mandateId: 'mnd-001' }, { tenantId: 't1', eventId: 'evt-6' }),
+        fakeSqsRecord('MANDATE_ISSUED', mandateSubject({ mandateId: 'mnd-001' }), { tenantId: 't1', eventId: 'evt-6' }),
       ]);
       expect(result.intents[0]).toMatchObject({
         fields: expect.objectContaining({
@@ -233,7 +304,7 @@ describe('investor-ctrl event-listener', () => {
 
     it('BALANCE_UPDATED carries relatedEntityType=BALANCE and falls back to eventId', async () => {
       const result = await harness.process([
-        fakeSqsRecord('BALANCE_UPDATED', {}, { tenantId: 't1', eventId: 'evt-bal' }),
+        fakeSqsRecord('BALANCE_UPDATED', balanceUpdatedSubject(), { tenantId: 't1', eventId: 'evt-bal' }),
       ]);
       expect(result.intents[0]).toMatchObject({
         fields: expect.objectContaining({
@@ -255,9 +326,9 @@ describe('investor-ctrl event-listener', () => {
       });
     });
 
-    it('ONBOARDING_COMPLETED carries relatedEntityType=PROFILE and userId from subject', async () => {
+    it('ONBOARDING_COMPLETED carries relatedEntityType=PROFILE and userId from context (not subject)', async () => {
       const result = await harness.process([
-        fakeSqsRecord('ONBOARDING_COMPLETED', { userId: 'user-abc' }, { tenantId: 't1', eventId: 'evt-7' }),
+        fakeSqsRecord('ONBOARDING_COMPLETED', {}, { tenantId: 't1', eventId: 'evt-7', userId: 'user-abc' }),
       ]);
       expect(result.intents[0]).toMatchObject({
         fields: expect.objectContaining({
@@ -271,7 +342,7 @@ describe('investor-ctrl event-listener', () => {
   describe('WriteIntents — ORDER_FILLED', () => {
     it('returns [record(Notification), record(MonthlyReport)] for ORDER_FILLED', async () => {
       const result = await harness.process([
-        fakeSqsRecord('ORDER_FILLED', { orderId: 'o1', symbol: 'AAPL' }, { tenantId: 't2' }),
+        fakeSqsRecord('ORDER_FILLED', normalizedOrderSubject({ orderId: 'o1' }), { tenantId: 't2' }),
       ]);
       expect(result.errors).toHaveLength(0);
       expect(result.intents).toHaveLength(2);
@@ -281,7 +352,7 @@ describe('investor-ctrl event-listener', () => {
 
     it('Notification for ORDER_FILLED has status DELIVERED and channel email', async () => {
       const result = await harness.process([
-        fakeSqsRecord('ORDER_FILLED', { orderId: 'o1' }, { tenantId: 't2' }),
+        fakeSqsRecord('ORDER_FILLED', normalizedOrderSubject({ orderId: 'o1' }), { tenantId: 't2' }),
       ]);
       expect(result.intents[0]).toMatchObject({
         _tag: 'record',
@@ -296,7 +367,7 @@ describe('investor-ctrl event-listener', () => {
 
     it('MonthlyReport has correct fields for ORDER_FILLED', async () => {
       const result = await harness.process([
-        fakeSqsRecord('ORDER_FILLED', { orderId: 'o2' }, { tenantId: 't3', eventId: 'evt-3' }),
+        fakeSqsRecord('ORDER_FILLED', normalizedOrderSubject({ orderId: 'o2' }), { tenantId: 't3', eventId: 'evt-3' }),
       ]);
       expect(result.intents[1]).toMatchObject({
         _tag: 'record',
@@ -311,12 +382,22 @@ describe('investor-ctrl event-listener', () => {
       expect(typeof reportFields['period']).toBe('string');
       expect((reportFields['period'] as string)).toMatch(/^\d{4}-\d{2}$/);
     });
+
+    it('MonthlyReport orderDetails is the typed NormalizedOrderEvent (no untyped cast)', async () => {
+      const subject = normalizedOrderSubject({ orderId: 'o-typed' });
+      const result = await harness.process([
+        fakeSqsRecord('ORDER_FILLED', subject, { tenantId: 't4', eventId: 'evt-typed' }),
+      ]);
+      const reportFields = (result.intents[1] as { fields: Record<string, unknown> }).fields;
+      // orderDetails is the typed parsed subject — orderId is present
+      expect((reportFields['orderDetails'] as Record<string, unknown>)['orderId']).toBe('o-typed');
+    });
   });
 
   describe('key layout', () => {
     it('Notification overrides pk to Notification#tenantId#notificationId', async () => {
       const result = await harness.process([
-        fakeSqsRecord('MANDATE_ISSUED', {}, { tenantId: 'tenant-x', eventId: 'evt-x' }),
+        fakeSqsRecord('MANDATE_ISSUED', mandateSubject(), { tenantId: 'tenant-x', eventId: 'evt-x' }),
       ]);
       expect(result.intents[0]).toMatchObject({
         overrides: expect.objectContaining({
@@ -328,7 +409,7 @@ describe('investor-ctrl event-listener', () => {
 
     it('MonthlyReport overrides pk to MonthlyReport#tenantId#reportId', async () => {
       const result = await harness.process([
-        fakeSqsRecord('ORDER_FILLED', {}, { tenantId: 'tenant-y', eventId: 'evt-y' }),
+        fakeSqsRecord('ORDER_FILLED', normalizedOrderSubject(), { tenantId: 'tenant-y', eventId: 'evt-y' }),
       ]);
       expect(result.intents[1]).toMatchObject({
         overrides: expect.objectContaining({
@@ -341,10 +422,8 @@ describe('investor-ctrl event-listener', () => {
 
   describe('WriteIntents — ORDER_REJECTED, DECISION_BLOCKED, WITHDRAWAL_SETTLED', () => {
     it('should create notification for ORDER_REJECTED', async () => {
-      const record = fakeSqsRecord('ORDER_REJECTED', {
-        orderId: 'o1', reason: 'Safety check failed',
-      }, { tenantId: 'tenant-1' });
-      const result = await harness.process([record]);
+      const sqsRecord = fakeSqsRecord('ORDER_REJECTED', normalizedOrderSubject({ orderId: 'o1' }), { tenantId: 'tenant-1' });
+      const result = await harness.process([sqsRecord]);
       expect(result.intents[0]).toMatchObject({
         typename: 'Notification',
         fields: expect.objectContaining({
@@ -355,10 +434,8 @@ describe('investor-ctrl event-listener', () => {
     });
 
     it('should create notification for DECISION_BLOCKED', async () => {
-      const record = fakeSqsRecord('DECISION_BLOCKED', {
-        decisionId: 'd1', reason: 'Guardrail violation',
-      }, { tenantId: 'tenant-1' });
-      const result = await harness.process([record]);
+      const sqsRecord = fakeSqsRecord('DECISION_BLOCKED', complianceCheckSubject({ decisionId: 'd1' }), { tenantId: 'tenant-1' });
+      const result = await harness.process([sqsRecord]);
       expect(result.intents[0]).toMatchObject({
         typename: 'Notification',
         fields: expect.objectContaining({
@@ -369,10 +446,8 @@ describe('investor-ctrl event-listener', () => {
     });
 
     it('should create notification for WITHDRAWAL_SETTLED', async () => {
-      const record = fakeSqsRecord('WITHDRAWAL_SETTLED', {
-        withdrawalId: 'w1', amount: 500,
-      }, { tenantId: 'tenant-1' });
-      const result = await harness.process([record]);
+      const sqsRecord = fakeSqsRecord('WITHDRAWAL_SETTLED', fundingSnapshotSubject({ transferId: 'xfr-w1' }), { tenantId: 'tenant-1' });
+      const result = await harness.process([sqsRecord]);
       expect(result.intents[0]).toMatchObject({
         typename: 'Notification',
         fields: expect.objectContaining({
@@ -455,9 +530,9 @@ describe('investor-ctrl event-listener', () => {
   describe('batch processing', () => {
     it('processes multiple records in a batch', async () => {
       const result = await harness.process([
-        fakeSqsRecord('ONBOARDING_COMPLETED', { userId: 'u1' }, { tenantId: 't1' }),
-        fakeSqsRecord('MANDATE_ISSUED', { userId: 'u2' }, { tenantId: 't2' }),
-        fakeSqsRecord('ORDER_FILLED', { orderId: 'o1' }, { tenantId: 't3' }),
+        fakeSqsRecord('ONBOARDING_COMPLETED', {}, { tenantId: 't1' }),
+        fakeSqsRecord('MANDATE_ISSUED', mandateSubject(), { tenantId: 't2' }),
+        fakeSqsRecord('ORDER_FILLED', normalizedOrderSubject({ orderId: 'o1' }), { tenantId: 't3' }),
       ]);
       expect(result.metrics.EventProcessed).toBe(3);
       expect(result.errors).toHaveLength(0);
@@ -514,6 +589,26 @@ describe('investor-ctrl event-listener', () => {
           tenantId: 'tenant-gu',
         }),
       });
+    });
+  });
+
+  describe('parseSubject contract enforcement', () => {
+    it('ORDER_FILLED with empty subject throws ZodError (contract violation becomes poison-pill)', async () => {
+      // The event-processor harness surfaces handler throws as result.errors entries.
+      // An empty {} subject violates NormalizedOrderEventSchema (orderId, executionMode required).
+      const result = await harness.process([
+        fakeSqsRecord('ORDER_FILLED', {}, { tenantId: 't-zod', eventId: 'evt-zod' }),
+      ]);
+      expect(result.errors).toHaveLength(1);
+      expect(result.errors[0].error).toBeInstanceOf(ZodError);
+    });
+
+    it('DECISION_APPROVED with empty subject throws ZodError', async () => {
+      const result = await harness.process([
+        fakeSqsRecord('DECISION_APPROVED', {}, { tenantId: 't-zod', eventId: 'evt-zod2' }),
+      ]);
+      expect(result.errors).toHaveLength(1);
+      expect(result.errors[0].error).toBeInstanceOf(ZodError);
     });
   });
 });
