@@ -85,6 +85,31 @@ description: Add a new event type — TypeScript schema, producer registration, 
   `tools/read-model-exclusions.json` instead of registering it — the gate errors on any
   unclassified intent-factory write.)
 
+### Typed-subject conventions (enforced)
+
+When a service produces an event, it owns ONE zod contract that types both the persisted
+row and the emitted subject:
+
+- Name it for the clean domain/event concept — `<Name>Schema` + `type <Name>` — **no
+  `Subject` suffix** (event-aligned name on clash, e.g. `LedgerEntryRecorded`,
+  `InvestorProfileUpdated`).
+- Type the row as `TableEntry<Name, RequestContext>` and the event as
+  `BusEvent<Name, RequestContext>` — never a hand-rolled `pk`/`sk`/`__typename` interface,
+  and never drop the context generic.
+- **Import channel:** intra-domain consumers import the producer's
+  `@nestfolio/<svc>/contracts` (payloads) and `@nestfolio/<svc>/events` (names) directly;
+  cross-domain consumers import BOTH from the producer-domain's
+  `@nestfolio/<domain>-adpt/domain` re-export. Add the re-export to that adapter's `/domain`
+  index (schemas) and its `*CrossDomainEventTypes` map (names). Never reach into another
+  domain's `/contracts` or `/events`.
+- Consumers read the subject via `parseSubject(carrier, <ProducerSchema>)` — never
+  `event.subject as <Type>` / `as Record<string,unknown>`.
+
+Enforced by `tools/check-typed-subjects.mjs` (nx target
+`event-processor:typed-subject-drift`, also pre-commit). A genuinely-polymorphic reader
+(KB-stringify, agent fan-in) gets a registered entry in
+`tools/typed-subject-exclusions.json` with a reason.
+
 - [ ] 7. **Write tests** — producer and consumer
 
 - [ ] 8. **Update flow specs** if part of a tracked flow
