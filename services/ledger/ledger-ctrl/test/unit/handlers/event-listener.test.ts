@@ -89,6 +89,65 @@ import { LedgerRepository } from '../../../src/repositories/ledger.repository';
 import { ShadowFillService } from '../../../src/services/shadow-fill.service';
 import { TaxLotManager } from '../../../src/services/tax-lot-manager';
 
+// ---------------------------------------------------------------------------
+// Fixture helpers — real producer shapes (read from producer contracts, not invented)
+// ---------------------------------------------------------------------------
+
+/** Minimal valid NormalizedOrderEvent subject (matches NormalizedOrderEventSchema required fields). */
+function makeOrderSubject(overrides: Partial<{
+  orderId: string; executionMode: 'simulation' | 'live'; filledQty: number;
+  averageFillPrice: number; failureReason: string; timestamp: string;
+}> = {}) {
+  return {
+    orderId: 'order-1',
+    executionMode: 'simulation' as const,
+    timestamp: '2025-01-01T00:00:00.000Z',
+    ...overrides,
+  };
+}
+
+/** Minimal valid DecisionPacketSchema subject (all required fields per producer contract). */
+function makeDecisionPacketSubject(overrides: Partial<{
+  decisionId: string;
+  trigger: string;
+  triggerEventId: string;
+  executionArn: string | null;
+  explanation: string;
+  proposedTrades: unknown[];
+  confirmationRequired: boolean;
+  status: string;
+  __version: number;
+  complianceResult: string | null;
+  authorityLevel: string | null;
+  userDecision: string | null;
+  blockReason: string | null;
+  rejectionReason: string | null;
+  timestamp: string;
+  createdAt: string;
+  updatedAt: string;
+}> = {}) {
+  return {
+    decisionId: 'dp-1',
+    trigger: 'MANDATE_SNAPSHOT_CREATED',
+    triggerEventId: 'trigger-evt-1',
+    executionArn: null,
+    explanation: 'Rebalance portfolio',
+    proposedTrades: [],
+    confirmationRequired: false,
+    status: 'PENDING',
+    __version: 1,
+    complianceResult: null,
+    authorityLevel: null,
+    userDecision: null,
+    blockReason: null,
+    rejectionReason: null,
+    timestamp: '2025-01-01T00:00:00.000Z',
+    createdAt: '2025-01-01T00:00:00.000Z',
+    updatedAt: '2025-01-01T00:00:00.000Z',
+    ...overrides,
+  };
+}
+
 describe('ledger-ctrl event-listener handler', () => {
   const repository = new LedgerRepository('test-table');
   const shadowFill = new ShadowFillService();
@@ -114,12 +173,40 @@ describe('ledger-ctrl event-listener handler', () => {
     mockSend.mockResolvedValue({ Items: [], Attributes: { lastSequence: 1 } });
   });
 
-  it('should process DEPOSIT_DETECTED as actual event', async () => {
+  // -------------------------------------------------------------------------
+  // Contract enforcement (ZodError / DLQ path)
+  // -------------------------------------------------------------------------
+
+  it('rejects an ORDER_FILLED subject missing required fields (contract enforcement)', async () => {
+    // Pre-conversion: untyped read tolerates {}. Post-conversion: parseSubject throws ZodError.
+    const result = await harness.process([
+      fakeSqsRecord('ORDER_FILLED', {}, { tenantId: 't1' }),
+    ]);
+    expect(result.batchItemFailures).toHaveLength(1);
+  });
+
+  it('rejects a DECISION_PACKET_CREATED subject missing required fields (contract enforcement)', async () => {
+    // Post-conversion: parseSubject(DecisionPacketSchema) throws ZodError on minimal/invalid subject.
+    // The old code read decisionPacketId (not in schema) and fell back to ctx.eventId; the schema now
+    // requires decisionId + all other required fields.
+    const result = await harness.process([
+      fakeSqsRecord('DECISION_PACKET_CREATED', { decisionPacketId: 'dp-bad' }, { tenantId: 't1' }),
+    ]);
+    expect(result.batchItemFailures).toHaveLength(1);
+  });
+
+  // -------------------------------------------------------------------------
+  // DEPOSIT_DETECTED — unknown/unhandled event (skipped)
+  // -------------------------------------------------------------------------
+
+  it('should skip DEPOSIT_DETECTED (not in handler map — pre-existing test naming gap)', async () => {
+    // ledger-ctrl subscribes to DEPOSIT_SETTLED, not DEPOSIT_DETECTED; this event is skipped.
     const result = await harness.process([
       fakeSqsRecord('DEPOSIT_DETECTED', {
         tenantId: 't1', depositId: 'd1', amountCents: 500000, depositedAt: '2025-01-01T00:00:00.000Z',
       }, { tenantId: 't1' }),
     ]);
+    expect(result.skipped).toBe(1);
     expect(result.batchItemFailures).toHaveLength(0);
   });
 
@@ -135,14 +222,15 @@ describe('ledger-ctrl event-listener handler', () => {
 
   it('should process DECISION_PACKET_CREATED as simulation event', async () => {
     const result = await harness.process([
-      fakeSqsRecord('DECISION_PACKET_CREATED', {
-        tenantId: 't1',
-        decisionPacketId: 'dp-1',
-        proposedTrades: [
-          { symbol: 'VTI', side: 'BUY', quantityOrAmountCents: 1_000_000 },
-          { symbol: 'SPY', side: 'BUY', quantityOrAmountCents:   500_000 },
-        ],
-      }, { tenantId: 't1' }),
+      fakeSqsRecord('DECISION_PACKET_CREATED',
+        makeDecisionPacketSubject({
+          decisionId: 'dp-1',
+          proposedTrades: [
+            { symbol: 'VTI', side: 'BUY', quantityOrAmountCents: 1_000_000 },
+            { symbol: 'SPY', side: 'BUY', quantityOrAmountCents: 500_000 },
+          ],
+        }),
+        { tenantId: 't1' }),
     ]);
     expect(result.batchItemFailures).toHaveLength(0);
   });
@@ -154,9 +242,7 @@ describe('ledger-ctrl event-listener handler', () => {
       .mockRejectedValueOnce(Object.assign(new Error('Conditional'), { name: 'ConditionalCheckFailedException' })); // putIfNotExists
 
     const result = await harness.process([
-      fakeSqsRecord('ORDER_FILLED', {
-        tenantId: 't1', orderId: 'order-dup',
-      }, { tenantId: 't1' }),
+      fakeSqsRecord('ORDER_FILLED', makeOrderSubject({ orderId: 'order-dup' }), { tenantId: 't1' }),
     ]);
     expect(result.batchItemFailures).toHaveLength(0);
   });
@@ -170,14 +256,15 @@ describe('ledger-ctrl event-listener handler', () => {
       .mockRejectedValueOnce(Object.assign(new Error('Conditional'), { name: 'ConditionalCheckFailedException' })); // putIfNotExists for trade 2 — duplicate
 
     const result = await harness.process([
-      fakeSqsRecord('DECISION_PACKET_CREATED', {
-        tenantId: 't1',
-        decisionPacketId: 'dp-dup',
-        proposedTrades: [
-          { symbol: 'VTI', side: 'BUY', quantityOrAmountCents: 1_000_000 },
-          { symbol: 'SPY', side: 'BUY', quantityOrAmountCents:   500_000 },
-        ],
-      }, { tenantId: 't1' }),
+      fakeSqsRecord('DECISION_PACKET_CREATED',
+        makeDecisionPacketSubject({
+          decisionId: 'dp-dup',
+          proposedTrades: [
+            { symbol: 'VTI', side: 'BUY', quantityOrAmountCents: 1_000_000 },
+            { symbol: 'SPY', side: 'BUY', quantityOrAmountCents: 500_000 },
+          ],
+        }),
+        { tenantId: 't1' }),
     ]);
     expect(result.batchItemFailures).toHaveLength(0);
   });
@@ -186,15 +273,16 @@ describe('ledger-ctrl event-listener handler', () => {
     mockSend.mockResolvedValue({ Items: [], Attributes: { lastSequence: 1 } });
 
     await harness.process([
-      fakeSqsRecord('DECISION_PACKET_CREATED', {
-        tenantId: 't1',
-        decisionPacketId: 'dp-det',
-        proposedTrades: [
-          // Unknown symbol → fallback price 100.0 → clean derivedQuantity math:
-          // 100_000 cents / $100/share = 10 shares.
-          { symbol: 'TEST-FAKE-SYM', side: 'BUY', quantityOrAmountCents: 100_000 },
-        ],
-      }, { tenantId: 't1', eventId: 'evt-det-1' }),
+      fakeSqsRecord('DECISION_PACKET_CREATED',
+        makeDecisionPacketSubject({
+          decisionId: 'dp-det',
+          proposedTrades: [
+            // Unknown symbol → fallback price 100.0 → clean derivedQuantity math:
+            // 100_000 cents / $100/share = 10 shares.
+            { symbol: 'TEST-FAKE-SYM', side: 'BUY', quantityOrAmountCents: 100_000 },
+          ],
+        }),
+        { tenantId: 't1', eventId: 'evt-det-1' }),
     ]);
 
     const { PutCommand } = jest.requireMock('@aws-sdk/lib-dynamodb') as { PutCommand: jest.Mock };
@@ -224,9 +312,7 @@ describe('ledger-ctrl event-listener handler', () => {
     mockSend.mockRejectedValueOnce(new Error('DDB error'));
 
     const result = await harness.process([
-      fakeSqsRecord('ORDER_FILLED', {
-        tenantId: 't1', orderId: 'o1',
-      }, { tenantId: 't1' }),
+      fakeSqsRecord('ORDER_FILLED', makeOrderSubject({ orderId: 'o1' }), { tenantId: 't1' }),
     ]);
     expect(result.batchItemFailures).toHaveLength(1);
   });
@@ -235,13 +321,15 @@ describe('ledger-ctrl event-listener handler', () => {
     it('should call openLot for live BUY ORDER_FILLED', async () => {
       const result = await harness.process([
         fakeSqsRecord('ORDER_FILLED', {
-          tenantId: 't1',
+          // NormalizedOrderEventSchema fields (required: orderId, executionMode, timestamp)
           orderId: 'ord-buy-1',
+          executionMode: 'live',
+          averageFillPrice: 250.00,
+          filledQty: 50,
+          timestamp: '2025-01-01T00:00:00.000Z',
+          // boundary fields (not in schema, read via raw payload.subject in tax lot path):
           symbol: 'VTI',
           side: 'BUY',
-          filledQuantity: 50,
-          averageFillPrice: 250.00,
-          executionMode: 'live',
         }, { tenantId: 't1' }),
       ]);
 
@@ -251,7 +339,7 @@ describe('ledger-ctrl event-listener handler', () => {
           tenantId: 't1',
           orderId: 'ord-buy-1',
           symbol: 'VTI',
-          quantity: 50,
+          quantity: 50, // from filledQty (schema field)
           costBasisPerShare: 250.00,
         }),
       );
@@ -260,13 +348,14 @@ describe('ledger-ctrl event-listener handler', () => {
     it('should call closeLots for live SELL ORDER_FILLED', async () => {
       const result = await harness.process([
         fakeSqsRecord('ORDER_FILLED', {
-          tenantId: 't1',
           orderId: 'ord-sell-1',
+          executionMode: 'live',
+          averageFillPrice: 260.00,
+          filledQty: 30,
+          timestamp: '2025-01-01T00:00:00.000Z',
+          // boundary fields:
           symbol: 'VTI',
           side: 'SELL',
-          filledQuantity: 30,
-          averageFillPrice: 260.00,
-          executionMode: 'live',
         }, { tenantId: 't1' }),
       ]);
 
@@ -275,7 +364,7 @@ describe('ledger-ctrl event-listener handler', () => {
         expect.objectContaining({
           tenantId: 't1',
           symbol: 'VTI',
-          quantity: 30,
+          quantity: 30, // from filledQty (schema field)
           salePrice: 260.00,
           orderId: 'ord-sell-1',
         }),
@@ -285,13 +374,14 @@ describe('ledger-ctrl event-listener handler', () => {
     it('should NOT call TaxLotManager for simulation ORDER_FILLED', async () => {
       const result = await harness.process([
         fakeSqsRecord('ORDER_FILLED', {
-          tenantId: 't1',
           orderId: 'ord-sim-1',
+          executionMode: 'simulation',
+          filledQty: 50,
+          averageFillPrice: 250.00,
+          timestamp: '2025-01-01T00:00:00.000Z',
+          // boundary fields:
           symbol: 'VTI',
           side: 'BUY',
-          filledQuantity: 50,
-          averageFillPrice: 250.00,
-          executionMode: 'simulation',
         }, { tenantId: 't1' }),
       ]);
 
@@ -300,21 +390,17 @@ describe('ledger-ctrl event-listener handler', () => {
       expect(closeLotsSpy).not.toHaveBeenCalled();
     });
 
-    it('should NOT call TaxLotManager when executionMode is not present', async () => {
+    it('should reject ORDER_FILLED missing required executionMode (ZodError → DLQ)', async () => {
+      // executionMode is required by NormalizedOrderEventSchema — omitting it is a ZodError.
+      // The old untyped code did not enforce this (tax lot path only checked the value).
       const result = await harness.process([
         fakeSqsRecord('ORDER_FILLED', {
-          tenantId: 't1',
           orderId: 'ord-no-mode',
-          symbol: 'VTI',
-          side: 'BUY',
-          filledQuantity: 50,
-          averageFillPrice: 250.00,
+          timestamp: '2025-01-01T00:00:00.000Z',
+          // executionMode intentionally missing — now a ZodError
         }, { tenantId: 't1' }),
       ]);
-
-      expect(result.batchItemFailures).toHaveLength(0);
-      expect(openLotSpy).not.toHaveBeenCalled();
-      expect(closeLotsSpy).not.toHaveBeenCalled();
+      expect(result.batchItemFailures).toHaveLength(1);
     });
   });
 });
