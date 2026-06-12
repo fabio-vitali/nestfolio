@@ -2,7 +2,7 @@ import { Construct } from 'constructs';
 import { ServiceStack, ServiceStackProps, State, Ingress, Egress } from '@nestfolio/cdk-constructs/core';
 import { ComplianceEventTypes } from './domain/events';
 import { DecisionWorkflowEventTypes } from '@nestfolio/decision-workflow-ctrl/events';
-import { InvestorBffEventTypes } from '@nestfolio/investor-bff/events';
+import { InvestorCrossDomainEventTypes } from '@nestfolio/investor-adpt/domain';
 
 export class ComplianceCtrlStack extends ServiceStack {
   constructor(scope: Construct, id: string, props: ServiceStackProps) {
@@ -14,9 +14,9 @@ export class ComplianceCtrlStack extends ServiceStack {
       state,
       eventTypes: [
         DecisionWorkflowEventTypes.RECOMMENDATION_PROPOSED,
-        InvestorBffEventTypes.MANDATE_ISSUED,
-        InvestorBffEventTypes.OPERATING_MODE_CHANGED,
-        InvestorBffEventTypes.MANDATE_REVOKED,
+        InvestorCrossDomainEventTypes.MANDATE_ISSUED,
+        InvestorCrossDomainEventTypes.OPERATING_MODE_CHANGED,
+        InvestorCrossDomainEventTypes.MANDATE_REVOKED,
       ],
     });
 

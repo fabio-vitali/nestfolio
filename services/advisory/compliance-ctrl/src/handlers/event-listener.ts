@@ -5,7 +5,7 @@ import { logger } from '@nestfolio/event-processor';
 import '../read-model-ownership';
 import { DecisionWorkflowEventTypes } from '@nestfolio/decision-workflow-ctrl/events';
 import { RecommendationProposedSchema } from '@nestfolio/decision-workflow-ctrl/contracts';
-import { InvestorBffEventTypes } from '@nestfolio/investor-bff/events';
+import { InvestorCrossDomainEventTypes } from '@nestfolio/investor-adpt/domain';
 import type { ComplianceCheck } from '../domain/contracts';
 import { ComplianceRepository } from '../repositories/compliance.repository';
 import { RuleEngine, type ComplianceInput, type MandateSnapshot } from '../rules/rule-engine';
@@ -197,11 +197,11 @@ export const createHandlers = (deps: EventListenerDeps) => {
   // REVOKED) now carries the full Mandate image + __version. projectMandateSnapshot
   // writes a version-guarded upsert; the __version guard subsumes the old
   // REVOKED-skip conditional idempotency.
-  handlers[InvestorBffEventTypes.MANDATE_ISSUED] = (payload, ctx) =>
+  handlers[InvestorCrossDomainEventTypes.MANDATE_ISSUED] = (payload, ctx) =>
     projectMandateSnapshot(payload, ctx);
-  handlers[InvestorBffEventTypes.OPERATING_MODE_CHANGED] = (payload, ctx) =>
+  handlers[InvestorCrossDomainEventTypes.OPERATING_MODE_CHANGED] = (payload, ctx) =>
     projectMandateSnapshot(payload, ctx);
-  handlers[InvestorBffEventTypes.MANDATE_REVOKED] = (payload, ctx) =>
+  handlers[InvestorCrossDomainEventTypes.MANDATE_REVOKED] = (payload, ctx) =>
     projectMandateSnapshot(payload, ctx);
 
   return handlers;

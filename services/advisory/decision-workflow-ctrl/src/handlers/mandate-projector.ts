@@ -8,7 +8,7 @@ import {
   type EventContext,
   type WriteIntent,
 } from '@nestfolio/event-processor';
-import { InvestorBffEventTypes } from '@nestfolio/investor-bff/events';
+import { InvestorCrossDomainEventTypes } from '@nestfolio/investor-adpt/domain';
 import { MandateSnapshotSchema } from '../domain/contracts';
 import { mandateSnapshotPk, MANDATE_SNAPSHOT_SK } from '../repositories/mandate-snapshot.repository';
 
@@ -50,8 +50,8 @@ function projectMandateSnapshot(payload: EventPayload, ctx: EventContext): Write
 }
 
 export const createHandlers = () => ({
-  [InvestorBffEventTypes.MANDATE_ISSUED]: async (p: EventPayload, c: EventContext) => projectMandateSnapshot(p, c),
-  [InvestorBffEventTypes.OPERATING_MODE_CHANGED]: async (p: EventPayload, c: EventContext) => projectMandateSnapshot(p, c),
+  [InvestorCrossDomainEventTypes.MANDATE_ISSUED]: async (p: EventPayload, c: EventContext) => projectMandateSnapshot(p, c),
+  [InvestorCrossDomainEventTypes.OPERATING_MODE_CHANGED]: async (p: EventPayload, c: EventContext) => projectMandateSnapshot(p, c),
 });
 
 export const handler = materializeToTable({

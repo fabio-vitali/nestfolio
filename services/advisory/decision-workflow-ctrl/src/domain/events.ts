@@ -1,5 +1,5 @@
 import { eventName } from '@nestfolio/event-types';
-import { InvestorBffEventTypes } from '@nestfolio/investor-bff/events';
+import { InvestorCrossDomainEventTypes } from '@nestfolio/investor-adpt/domain';
 
 export const DecisionWorkflowEventTypes = {
   DECISION_PACKET_CREATED: eventName('DECISION_PACKET_CREATED'),
@@ -35,8 +35,8 @@ export const TRIGGER_EVENT_TYPES = [
 ] as const;
 
 export const MANDATE_LIFECYCLE_EVENT_TYPES = [
-  InvestorBffEventTypes.MANDATE_ISSUED,
-  InvestorBffEventTypes.OPERATING_MODE_CHANGED,
+  InvestorCrossDomainEventTypes.MANDATE_ISSUED,
+  InvestorCrossDomainEventTypes.OPERATING_MODE_CHANGED,
 ] as const;
 
 // Post-precomputation rewire: IP + MI are now precomputed projections (no per-cycle

@@ -7,7 +7,7 @@ import { join } from 'path';
 import { ServiceStack, ServiceStackProps, State, Ingress, Egress } from '@nestfolio/cdk-constructs/core';
 import { InvestorProfileEventTypes } from './domain/events';
 import { ComplianceEventTypes } from '@nestfolio/compliance-ctrl/events';
-import { InvestorBffEventTypes } from '@nestfolio/investor-bff/events';
+import { InvestorCrossDomainEventTypes } from '@nestfolio/investor-adpt/domain';
 import {
   AgentRuntime, KnowledgeBase,
   BedrockUsageAlarms, importCostAlertTopic,
@@ -38,8 +38,8 @@ export class InvestorProfileCtrlStack extends ServiceStack {
     const ingress = new Ingress(this, 'Ingress', {
       state,
       eventTypes: [
-        InvestorBffEventTypes.INVESTOR_PROFILE_UPDATED,
-        InvestorBffEventTypes.MANDATE_ISSUED,
+        InvestorCrossDomainEventTypes.INVESTOR_PROFILE_UPDATED,
+        InvestorCrossDomainEventTypes.MANDATE_ISSUED,
         ComplianceEventTypes.DECISION_BLOCKED,
         ComplianceEventTypes.DECISION_APPROVED,
       ],
