@@ -78,6 +78,12 @@ if [ "$AFFECTED" -gt 5 ]; then
   WARNINGS=$((WARNINGS + 1))
 fi
 
+# Check 8: typed-subject convention gate (blocking, daemon-free pure-node scan)
+if ! node tools/check-typed-subjects.mjs > /tmp/typed-subject-check.out 2>&1; then
+  cat /tmp/typed-subject-check.out
+  ERRORS=$((ERRORS + 1))
+fi
+
 echo ""
 if [ $ERRORS -gt 0 ]; then
   echo -e "${RED}FAILED: $ERRORS error(s), $WARNINGS warning(s)${NC}"
