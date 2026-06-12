@@ -1,9 +1,10 @@
 import { DynamoDBClient } from '@aws-sdk/client-dynamodb';
-import { materializeToTable, record, projectVersioned, skip, type WriteIntent, type EventPayload, type EventContext } from '@nestfolio/event-processor';
+import { materializeToTable, record, projectVersioned, skip, parseSubject, type WriteIntent, type EventPayload, type EventContext } from '@nestfolio/event-processor';
 import { requireEnv, NotRetryableError } from '@nestfolio/event-processor';
 import { logger } from '@nestfolio/event-processor';
 import '../read-model-ownership';
 import { DecisionWorkflowEventTypes } from '@nestfolio/decision-workflow-ctrl/events';
+import { RecommendationProposedSchema } from '@nestfolio/decision-workflow-ctrl/contracts';
 import { InvestorBffEventTypes } from '@nestfolio/investor-bff/events';
 import type { ComplianceCheck } from '../domain/contracts';
 import { ComplianceRepository } from '../repositories/compliance.repository';
@@ -33,24 +34,15 @@ async function processDecisionPacket(
   payload: EventPayload,
   ctx: EventContext,
 ): Promise<WriteIntent | WriteIntent[]> {
-  const subject = payload.subject;
-  const tenantId = (subject.tenantId as string) ?? ctx.tenantId;
-  const userId = (subject.userId as string) ?? tenantId;
-  const decisionPacketId = subject.decisionId as string;
-  const taskToken = subject.taskToken as string | undefined;
-
-  // Validate required fields
-  // riskCategory + isInitialBuild have sane defaults and are NOT required;
-  // portfolioValueCents replaces the old portfolioValue field.
-  const requiredFields = ['proposedTrades', 'portfolioValueCents', 'currentPositions'];
-  const missingFields = requiredFields.filter((f) => !(f in subject));
-  if (missingFields.length) {
-    throw new NotRetryableError(`Missing fields: ${missingFields.join(', ')}`);
-  }
-
-  if (!taskToken) {
-    throw new NotRetryableError('Missing taskToken on RECOMMENDATION_PROPOSED subject — SF callback cannot resume');
-  }
+  // parseSubject validates the RECOMMENDATION_PROPOSED event against the producer's own
+  // zod contract. A ZodError here means the producer emitted a shape mismatch — the
+  // event-processor's poison-pill path catches it and routes to the DLQ.
+  // tenantId + userId are identity (RequestContext) and are NOT on the schema; read from ctx.
+  const subject = parseSubject(payload, RecommendationProposedSchema);
+  const tenantId = ctx.tenantId;
+  const userId = ctx.userId ?? tenantId;
+  const decisionPacketId = subject.decisionId;
+  const taskToken = subject.taskToken;
 
   const ccId = ctx.eventId;
 
@@ -67,7 +59,7 @@ async function processDecisionPacket(
       // `decisionPacketId` field stays for execution-ctrl / ledger-ctrl
       // consumers that already key on that name.
       decisionId: decisionPacketId,
-      taskToken: taskToken!,
+      taskToken,
       mandateSnapshot: {
         level: 'ADVISORY',
         status: 'ACTIVE',
@@ -90,12 +82,11 @@ async function processDecisionPacket(
     effectiveDate: mandateRecord.effectiveDate as string,
   };
 
-  const proposedTrades = (subject.proposedTrades as ComplianceInput['proposedTrades']) ?? [];
-  const portfolioValueCents = (subject.portfolioValueCents as number) ?? 0;
-  const riskCategory =
-    (subject.riskCategory as ComplianceInput['riskCategory']) ?? 'MODERATE';
-  const isInitialBuild = (subject.isInitialBuild as boolean) ?? false;
-  const currentPositions = (subject.currentPositions as ComplianceInput['currentPositions']) ?? [];
+  const proposedTrades = subject.proposedTrades as ComplianceInput['proposedTrades'];
+  const portfolioValueCents = subject.portfolioValueCents;
+  const riskCategory = (subject.riskCategory as ComplianceInput['riskCategory']) ?? 'MODERATE';
+  const isInitialBuild = subject.isInitialBuild ?? false;
+  const currentPositions = subject.currentPositions as ComplianceInput['currentPositions'];
 
   const complianceInput: ComplianceInput = {
     decisionPacketId,

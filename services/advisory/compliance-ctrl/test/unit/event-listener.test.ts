@@ -136,6 +136,10 @@ describe('event-listener handler', () => {
 
   const decisionPayload = {
     decisionId: 'dp-1',
+    // tenantId + userId travel in the event context (RequestContext), NOT the schema.
+    // Keeping them here as extra fields is harmless — zod's .parse() strips unknown keys
+    // by default when using .strict() but RecommendationProposedSchema uses z.object()
+    // (not .strict()), so extras pass through silently and are ignored post-parseSubject.
     tenantId: 't-1',
     userId: 'u-1',
     taskToken: 'integ-task-token',
@@ -287,6 +291,27 @@ describe('event-listener handler', () => {
       expect(mockSend).not.toHaveBeenCalled();
     });
 
+    it('parseSubject: ZodError when RECOMMENDATION_PROPOSED subject is missing taskToken and proposedTrades', async () => {
+      // After the parseSubject migration, a subject missing required schema fields
+      // must throw a ZodError (poison-pill → batch item failure). This test verifies
+      // the runtime contract gate fires — not just the old hand-rolled required-field check.
+      const harness = makeHarness();
+      const result = await harness.process([
+        fakeSqsRecord('RECOMMENDATION_PROPOSED', {
+          decisionId: 'dp-zod',
+          // taskToken intentionally missing
+          awaitingCompliance: true,
+          // proposedTrades intentionally missing
+          portfolioValueCents: 5_000_000,
+          isInitialBuild: false,
+          riskCategory: 'CONSERVATIVE',
+          currentPositions: [],
+        }, { tenantId: 't-1' }),
+      ]);
+      expect(result.batchItemFailures).toHaveLength(1);
+      expect(getMandateSnapshot).not.toHaveBeenCalled();
+    });
+
     it('builds ComplianceInput with isInitialBuild + riskCategory + portfolioValueCents from RECOMMENDATION_PROPOSED subject', async () => {
       getMandateSnapshot.mockResolvedValue(mandate);
       const captured: unknown[] = [];
@@ -299,8 +324,7 @@ describe('event-listener handler', () => {
       await harness.process([
         fakeSqsRecord('RECOMMENDATION_PROPOSED', {
           decisionId: 'dec-1',
-          tenantId: 't-1',
-          userId: 'u-1',
+          awaitingCompliance: true,
           taskToken: 'tt-1',
           proposedTrades: [
             { symbol: 'VTI', assetClass: 'EQUITY', side: 'BUY', quantityOrAmountCents: 14_000, targetWeightPercent: 14, rationale: 'x' },
@@ -321,56 +345,46 @@ describe('event-listener handler', () => {
       expect(captured[0]).not.toHaveProperty('riskScore');
     });
 
-    it('defaults riskCategory to MODERATE when subject is missing the field', async () => {
-      getMandateSnapshot.mockResolvedValue(mandate);
-      const captured: unknown[] = [];
-      evaluateSpy.mockImplementation((input: unknown) => {
-        captured.push(input);
-        return { result: 'APPROVED' as const, authorityLevel: 'L2' as const, violations: [], checks: [] };
-      });
-
+    it('parseSubject: ZodError when riskCategory is missing (schema requires it; old default was unreachable post-contract)', async () => {
+      // RecommendationProposedSchema declares riskCategory: z.string() (required).
+      // Omitting it is a producer contract violation → ZodError → batch item failure.
+      // The old `?? 'MODERATE'` fallback in the handler is now unreachable by design.
       const harness = makeHarness();
-      await harness.process([
+      const result = await harness.process([
         fakeSqsRecord('RECOMMENDATION_PROPOSED', {
           decisionId: 'dec-2',
-          tenantId: 't-1',
-          userId: 'u-1',
+          awaitingCompliance: true,
           taskToken: 'tt-2',
           proposedTrades: [],
           portfolioValueCents: 50_000,
-          // riskCategory intentionally omitted
+          // riskCategory intentionally omitted — must trigger ZodError
           isInitialBuild: false,
           currentPositions: [],
         }, { tenantId: 't-1' }),
       ]);
-
-      expect((captured[0] as Record<string, unknown>).riskCategory).toBe('MODERATE');
+      expect(result.batchItemFailures).toHaveLength(1);
+      expect(getMandateSnapshot).not.toHaveBeenCalled();
     });
 
-    it('defaults isInitialBuild to false when subject is missing the field', async () => {
-      getMandateSnapshot.mockResolvedValue(mandate);
-      const captured: unknown[] = [];
-      evaluateSpy.mockImplementation((input: unknown) => {
-        captured.push(input);
-        return { result: 'APPROVED' as const, authorityLevel: 'L2' as const, violations: [], checks: [] };
-      });
-
+    it('parseSubject: ZodError when isInitialBuild is missing (schema requires it; old default was unreachable post-contract)', async () => {
+      // RecommendationProposedSchema declares isInitialBuild: z.boolean() (required).
+      // Omitting it is a producer contract violation → ZodError → batch item failure.
+      // The old `?? false` fallback in the handler is now unreachable by design.
       const harness = makeHarness();
-      await harness.process([
+      const result = await harness.process([
         fakeSqsRecord('RECOMMENDATION_PROPOSED', {
           decisionId: 'dec-3',
-          tenantId: 't-1',
-          userId: 'u-1',
+          awaitingCompliance: true,
           taskToken: 'tt-3',
           proposedTrades: [],
           portfolioValueCents: 50_000,
           riskCategory: 'CONSERVATIVE',
-          // isInitialBuild intentionally omitted
+          // isInitialBuild intentionally omitted — must trigger ZodError
           currentPositions: [],
         }, { tenantId: 't-1' }),
       ]);
-
-      expect((captured[0] as Record<string, unknown>).isInitialBuild).toBe(false);
+      expect(result.batchItemFailures).toHaveLength(1);
+      expect(getMandateSnapshot).not.toHaveBeenCalled();
     });
 
     it('should skip unknown event types gracefully', async () => {
