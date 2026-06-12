@@ -694,3 +694,5 @@ this.naming.ssmServicePath('api/endpoint') // "/nestfolio/dev-investor-bff/api/e
 - **Do not** manually add `TABLE_NAME`/`BUS_NAME` env vars — Ingress/Egress inject them automatically
 - **Do not** use `stateProps` on ServiceStack — State is consumer-instantiated (stateProps has been removed)
 - **Do not** reference `this.state` on ServiceStack — it does not exist. State is a local variable passed to constructs via their `state` prop
+
+**Cross-domain contract/name sharing.** When a producer service's event schema or event-name constants are consumed by another domain, the sharing channel is the producer-domain's `*-adpt/domain` re-export index — never a direct import from another service's `/contracts` or `/events`. The cross-domain adapter's `/domain` barrel re-exports both the zod schema (for `parseSubject`) and the `*CrossDomainEventTypes` name map. This convention is enforced by `tools/check-typed-subjects.mjs` (nx target `event-processor:typed-subject-drift`).

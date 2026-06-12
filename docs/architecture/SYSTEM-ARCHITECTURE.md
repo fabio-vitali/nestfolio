@@ -218,6 +218,32 @@ The Control Plane category was inherited from the originally-planned `operations
 
 ---
 
+## Typed-subject contracts (enforced)
+
+Every producer aggregate owns one zod contract typing BOTH its persisted row
+(`TableEntry<Subject, RequestContext>`) and its emitted event
+(`BusEvent<Subject, RequestContext>`). The five conventions:
+
+1. Consumers read subjects via `parseSubject(carrier, <ProducerSchema>)` — no
+   `event.subject as <Type>` / `as Record<string,unknown>`.
+2. **Import channel:** intra-domain → producer `@nestfolio/<svc>/contracts` + `/events`
+   directly; cross-domain → the producer-domain `@nestfolio/<domain>-adpt/domain` re-export
+   (both payloads and names). Never reach into another domain's `/contracts` or `/events`.
+3. Rows are `TableEntry<Subject>`, not hand-rolled `pk`/`sk`/`__typename` interfaces.
+4. Contracts are named for the clean concept — `<Name>Schema` + `<Name>`, no `Subject` suffix.
+5. The context generic `S` (`RequestContext` or a domain extension) is carried on both
+   `BusEvent<T,S>` and `TableEntry<T,S>`.
+
+**Enforcement:** `tools/check-typed-subjects.mjs` (nx target
+`event-processor:typed-subject-drift`, also pre-commit) enforces conventions 1–4 + the
+`opaqueSubject` guard, with documented-polymorphic readers registered in
+`tools/typed-subject-exclusions.json`. (nx `enforce-module-boundaries` cannot enforce the
+import channel — services are Nx apps, so its apps-forbidden rule blocks intra-domain
+imports too.) Source-of-truth detail: project-memory dossier
+`project_event_subject_contracts`.
+
+---
+
 ## 10. Decision Packet
 
 The **Decision Packet** is the canonical immutable record of every advisory decision. It is the audit-trail anchor — once created, fields are appended (via UPDATE events) but never mutated in place.

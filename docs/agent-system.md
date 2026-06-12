@@ -203,6 +203,15 @@ the result. You can manually regenerate any card with:
 audit. If the card content is wrong, the source of the problem is the code — fix that, then
 regenerate.
 
+**Agent completion rows and typed subjects.** Agent services (`investor-profile-ctrl`,
+`market-intelligence-ctrl`, `portfolio-engine-ctrl`, `advisory-narrative-ctrl`) persist their
+outputs using the shared `TableEntry`-based `AgentCompletionRow<A, O>` generic. Subject reads
+from those rows go through `parseSubject(carrier, <ProducerSchema>)` exactly like any other
+producer row; a genuinely-polymorphic reader (e.g. the `assemble-packet` fan-in that reads
+all 4 agent outputs uniformly) is registered in `tools/typed-subject-exclusions.json`.
+Cross-reference: `docs/architecture/SYSTEM-ARCHITECTURE.md` § "Typed-subject contracts
+(enforced)" for the full five-convention summary and enforcement details.
+
 ---
 
 ## Flow Specs
