@@ -1,9 +1,9 @@
-import { logger, getTime } from '@nestfolio/event-processor';
+import { logger, getTime, parseSubject } from '@nestfolio/event-processor';
 import { requireEnv } from '@nestfolio/event-processor';
 import { DynamoDBClient } from '@aws-sdk/client-dynamodb';
 import { materializeToTable, record, skip, type WriteIntent, type EventPayload, type EventContext } from '@nestfolio/event-processor';
 import '../read-model-ownership';
-import { AdvisoryCrossDomainEventTypes } from '@nestfolio/advisory-adpt/domain';
+import { AdvisoryCrossDomainEventTypes, ComplianceCheckSchema, UserConfirmationSchema } from '@nestfolio/advisory-adpt/domain';
 import { InvestorCrossDomainEventTypes } from '@nestfolio/investor-adpt/domain';
 import type { ProposedTrade } from '@nestfolio/advisory-adpt/domain';
 import type { Order, StagedOrder } from '../domain/contracts';
@@ -16,26 +16,33 @@ export interface EventListenerDeps {
   readonly marketHours: MarketHoursService;
 }
 
-function extractFromPayload(payload: EventPayload, ctx: EventContext): {
+interface ApprovedDecision {
   tenantId: string;
   orderId: string;
   decisionPacketId: string;
   proposedTrades: ProposedTrade[];
-} {
-  const context = (payload.context ?? {}) as Record<string, unknown>;
-  const subject = (payload.subject ?? {}) as Record<string, unknown>;
-  const tenantId = (context['tenantId'] ?? ctx.tenantId ?? '') as string;
-  const decisionPacketId = (subject['decisionPacketId'] ?? context['decisionPacketId'] ?? '') as string;
-  const proposedTrades = ((subject['proposedTrades'] ?? []) as ProposedTrade[]);
-  return { tenantId, orderId: ctx.eventId, decisionPacketId, proposedTrades };
+}
+
+// DECISION_APPROVED = ComplianceCheck. No proposedTrades on this event (they ride
+// RECOMMENDATION_PROPOSED) — preserved as [] (behaviour-identical to the prior undefined→[]).
+// Empty-trades order path tracked by broker-ctrl-order-sf-input-contract-gap, out of WS-3 scope.
+function fromDecisionApproved(payload: EventPayload, ctx: EventContext): ApprovedDecision {
+  const subject = parseSubject(payload, ComplianceCheckSchema);
+  return { tenantId: ctx.tenantId ?? '', orderId: ctx.eventId, decisionPacketId: subject.decisionPacketId, proposedTrades: [] };
+}
+
+// USER_CONFIRMED = UserConfirmation. Carries decisionId, NOT decisionPacketId — the captured id-fallback.
+function fromUserConfirmed(payload: EventPayload, ctx: EventContext): ApprovedDecision {
+  const subject = parseSubject(payload, UserConfirmationSchema);
+  return { tenantId: ctx.tenantId ?? '', orderId: ctx.eventId, decisionPacketId: subject.decisionId, proposedTrades: [] };
 }
 
 async function processApprovedDecision(
   deps: EventListenerDeps,
-  payload: EventPayload,
+  approved: ApprovedDecision,
   ctx: EventContext,
 ): Promise<WriteIntent | WriteIntent[]> {
-  const { tenantId, orderId, decisionPacketId, proposedTrades } = extractFromPayload(payload, ctx);
+  const { tenantId, orderId, decisionPacketId, proposedTrades } = approved;
   const now = getTime();
 
   logger.info('Processing approved decision', { tenantId, decisionPacketId, orderId, tradeCount: proposedTrades.length });
@@ -88,10 +95,10 @@ async function processApprovedDecision(
 export function createHandlers(deps: EventListenerDeps): Record<string, (payload: EventPayload, ctx: EventContext) => Promise<WriteIntent | WriteIntent[]>> {
   return {
     [AdvisoryCrossDomainEventTypes.DECISION_APPROVED]: (payload, ctx) =>
-      processApprovedDecision(deps, payload, ctx),
+      processApprovedDecision(deps, fromDecisionApproved(payload, ctx), ctx),
 
     [AdvisoryCrossDomainEventTypes.USER_CONFIRMED]: (payload, ctx) =>
-      processApprovedDecision(deps, payload, ctx),
+      processApprovedDecision(deps, fromUserConfirmed(payload, ctx), ctx),
 
     [InvestorCrossDomainEventTypes.ACCOUNT_CLOSURE_REQUESTED]: async (_payload, ctx) => {
       logger.info('Account closure requested', { eventId: ctx.eventId });

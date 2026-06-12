@@ -78,6 +78,38 @@ import { OrderRepository } from '../../src/repositories/order.repository';
 import { SafetyChecksService } from '../../src/services/safety-checks.service';
 import { MarketHoursService } from '../../src/services/market-hours.service';
 
+// Valid ComplianceCheck subject fixture (matches ComplianceCheckSchema exactly).
+// proposedTrades ride RECOMMENDATION_PROPOSED, not this event — the order is created with [].
+function complianceCheckSubject(decisionPacketId: string): Record<string, unknown> {
+  return {
+    ccId: 'cc-test',
+    decisionPacketId,
+    decisionId: decisionPacketId,
+    taskToken: 'tok',
+    mandateSnapshot: {
+      level: 'DISCRETIONARY',
+      status: 'ACTIVE',
+      operatingMode: 'BALANCED',
+      effectiveDate: '2025-01-01',
+    },
+    status: 'COMPLETED',
+    result: 'APPROVED',
+    violations: [],
+    authorityLevel: 'L1',
+    sourceEventId: 'src-evt',
+  };
+}
+
+// Valid UserConfirmation subject fixture (matches UserConfirmationSchema exactly).
+function userConfirmationSubject(decisionId: string): Record<string, unknown> {
+  return {
+    decisionId,
+    confirmedAt: '2025-01-01T00:00:00.000Z',
+    confirmedBy: 'user-1',
+    timestamp: '2025-01-01T00:00:00.000Z',
+  };
+}
+
 describe('event-listener handler', () => {
   const ORIGINAL_ENV = process.env;
 
@@ -107,13 +139,7 @@ describe('event-listener handler', () => {
     });
     jest.spyOn(marketHours, 'isMarketOpen').mockResolvedValueOnce(true);
 
-    const sqsRecord = fakeSqsRecord('DECISION_APPROVED', {
-      tenantId: 't1',
-      decisionPacketId: 'dp-1',
-      proposedTrades: [
-        { symbol: 'VTI', assetClass: 'EQUITY', side: 'BUY', quantityOrAmountCents: 10, targetWeightPercent: 50, rationale: 'Buy' },
-      ],
-    }, { eventId: 'evt-1', tenantId: 't1' });
+    const sqsRecord = fakeSqsRecord('DECISION_APPROVED', complianceCheckSubject('dp-1'), { eventId: 'evt-1', tenantId: 't1' });
 
     const result = await harness.process([sqsRecord]);
     expect(result.batchItemFailures).toHaveLength(0);
@@ -128,13 +154,7 @@ describe('event-listener handler', () => {
       checks: { reconciliationLock: false, conflictingStagedOrders: false, coolDown: true },
     });
 
-    const sqsRecord = fakeSqsRecord('DECISION_APPROVED', {
-      tenantId: 't1',
-      decisionPacketId: 'dp-2',
-      proposedTrades: [
-        { symbol: 'VTI', assetClass: 'EQUITY', side: 'BUY', quantityOrAmountCents: 10, targetWeightPercent: 50, rationale: 'Buy' },
-      ],
-    }, { eventId: 'evt-2', tenantId: 't1' });
+    const sqsRecord = fakeSqsRecord('DECISION_APPROVED', complianceCheckSubject('dp-2'), { eventId: 'evt-2', tenantId: 't1' });
 
     const result = await harness.process([sqsRecord]);
     expect(result.batchItemFailures).toHaveLength(0);
@@ -149,13 +169,7 @@ describe('event-listener handler', () => {
     });
     jest.spyOn(marketHours, 'isMarketOpen').mockResolvedValueOnce(false);
 
-    const sqsRecord = fakeSqsRecord('DECISION_APPROVED', {
-      tenantId: 't1',
-      decisionPacketId: 'dp-3',
-      proposedTrades: [
-        { symbol: 'VTI', assetClass: 'EQUITY', side: 'BUY', quantityOrAmountCents: 10, targetWeightPercent: 50, rationale: 'Buy' },
-      ],
-    }, { eventId: 'evt-3', tenantId: 't1' });
+    const sqsRecord = fakeSqsRecord('DECISION_APPROVED', complianceCheckSubject('dp-3'), { eventId: 'evt-3', tenantId: 't1' });
 
     const result = await harness.process([sqsRecord]);
     expect(result.batchItemFailures).toHaveLength(0);
@@ -171,13 +185,7 @@ describe('event-listener handler', () => {
     });
     jest.spyOn(marketHours, 'isMarketOpen').mockResolvedValueOnce(true);
 
-    const sqsRecord = fakeSqsRecord('USER_CONFIRMED', {
-      tenantId: 't1',
-      decisionPacketId: 'dp-4',
-      proposedTrades: [
-        { symbol: 'VTI', assetClass: 'EQUITY', side: 'BUY', quantityOrAmountCents: 10, targetWeightPercent: 50, rationale: 'Buy' },
-      ],
-    }, { eventId: 'evt-4', tenantId: 't1' });
+    const sqsRecord = fakeSqsRecord('USER_CONFIRMED', userConfirmationSubject('dec-id-4'), { eventId: 'evt-4', tenantId: 't1' });
 
     const result = await harness.process([sqsRecord]);
     expect(result.batchItemFailures).toHaveLength(0);
@@ -194,6 +202,27 @@ describe('event-listener handler', () => {
     expect(result.intents[0]).toMatchObject({ _tag: 'skip' });
   });
 
+  it('USER_CONFIRMED uses subject.decisionId as the packet id (no decisionPacketId on the event)', async () => {
+    jest.spyOn(safetyChecks, 'runAllChecks').mockResolvedValueOnce({
+      passed: true,
+      checks: { reconciliationLock: false, conflictingStagedOrders: false, coolDown: false },
+    });
+    jest.spyOn(marketHours, 'isMarketOpen').mockResolvedValueOnce(true);
+
+    const sqsRecord = fakeSqsRecord('USER_CONFIRMED', {
+      decisionId: 'dec-123',
+      confirmedAt: 't',
+      confirmedBy: 'u',
+      timestamp: 't',
+    }, { eventId: 'ord-1', tenantId: 'T' });
+
+    const result = await harness.process([sqsRecord]);
+    expect(result.batchItemFailures).toHaveLength(0);
+    const intent = result.intents[0];
+    const order = (Array.isArray(intent) ? intent[0] : intent);
+    expect(order.fields.decisionPacketId).toBe('dec-123');
+  });
+
   it('should skip unknown event types gracefully', async () => {
     const sqsRecord = fakeSqsRecord('UNKNOWN_EVENT', {}, { eventId: 'evt-unk', tenantId: 't1' });
 
@@ -205,13 +234,7 @@ describe('event-listener handler', () => {
   it('should report batch item failures for processing errors', async () => {
     jest.spyOn(safetyChecks, 'runAllChecks').mockRejectedValueOnce(new Error('Safety check error'));
 
-    const sqsRecord = fakeSqsRecord('DECISION_APPROVED', {
-      tenantId: 't1',
-      decisionPacketId: 'dp-fail',
-      proposedTrades: [
-        { symbol: 'VTI', assetClass: 'EQUITY', side: 'BUY', quantityOrAmountCents: 10, targetWeightPercent: 50, rationale: 'Buy' },
-      ],
-    }, { eventId: 'evt-fail', tenantId: 't1' });
+    const sqsRecord = fakeSqsRecord('DECISION_APPROVED', complianceCheckSubject('dp-fail'), { eventId: 'evt-fail', tenantId: 't1' });
 
     const result = await harness.process([sqsRecord]);
     expect(result.batchItemFailures).toHaveLength(1);
@@ -225,11 +248,7 @@ describe('event-listener handler', () => {
     });
     jest.spyOn(marketHours, 'isMarketOpen').mockResolvedValueOnce(true);
 
-    const sqsRecord = fakeSqsRecord('DECISION_APPROVED', {
-      tenantId: 'tenant-x',
-      decisionPacketId: 'dp-pk',
-      proposedTrades: [],
-    }, { eventId: 'order-id-99', tenantId: 'tenant-x' });
+    const sqsRecord = fakeSqsRecord('DECISION_APPROVED', complianceCheckSubject('dp-pk'), { eventId: 'order-id-99', tenantId: 'tenant-x' });
 
     const result = await harness.process([sqsRecord]);
     expect(result.intents[0]).toMatchObject({
