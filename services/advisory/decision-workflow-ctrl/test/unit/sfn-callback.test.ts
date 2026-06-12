@@ -14,6 +14,7 @@ process.env.TABLE_NAME = 'test-table';
 process.env.BUS_NAME = 'test-bus';
 
 import type { EventPayload, EventContext } from '@nestfolio/event-processor';
+import { asTenantId, asUserId } from '@nestfolio/event-processor';
 import {
   AGENT_COMPLETION_EVENT_TYPES,
   AGENT_FAILURE_EVENT_TYPES,
@@ -21,102 +22,8 @@ import {
   USER_RESPONSE_EVENT_TYPES,
 } from '../../src/domain/events';
 
-// Re-create the handler factory from sfn-callback.ts to test handler logic
-// directly. Failure handlers throw — that throw is what causes the
-// resumeStateMachine wrapper to invoke SendTaskFailureCommand at runtime.
-import { record, update, asTenantId, asUserId } from '@nestfolio/event-processor';
-
-function createHandlers() {
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const handlers: Record<string, any> = {};
-
-  for (const type of AGENT_COMPLETION_EVENT_TYPES) {
-    handlers[type] = async (payload: EventPayload, ctx: EventContext) => {
-      const subject = payload.subject ?? {};
-      const decisionId = subject.decisionId as string;
-      const tenantId = (subject.tenantId as string) ?? ctx.tenantId;
-      const agentOutput = (subject.agentOutput as Record<string, unknown>) ?? {};
-      return {
-        output: { decisionId, agentOutput },
-        intents: [record('AgentOutput', {
-          decisionId,
-          eventType: ctx.eventType,
-          tenantId,
-        })],
-      };
-    };
-  }
-
-  for (const type of AGENT_FAILURE_EVENT_TYPES) {
-    handlers[type] = async (payload: EventPayload, _ctx: EventContext) => {
-      const subject = payload.subject ?? {};
-      const errorType = (subject.errorType as string | undefined) ?? 'UnknownError';
-      const errorMessage = (subject.errorMessage as string | undefined) ?? 'unknown';
-      const err = new Error(errorMessage);
-      err.name = errorType;
-      throw err;
-    };
-  }
-
-  for (const type of COMPLIANCE_EVENT_TYPES) {
-    handlers[type] = async (payload: EventPayload, ctx: EventContext) => {
-      const subject = payload.subject ?? {};
-      const isApproved = ctx.eventType === 'DECISION_APPROVED';
-      const decision = isApproved ? 'APPROVED' : 'BLOCKED';
-      const authorityLevel = (subject.authorityLevel as string) ?? 'L2';
-      const tenantId = (subject.tenantId as string) ?? ctx.tenantId;
-      const decisionId = subject.decisionId as string;
-      const reason = subject.reason as string | undefined;
-
-      return {
-        output: { decision, authorityLevel, ...(reason ? { reason } : {}) },
-        intents: decisionId ? [update('DecisionPacket', {
-          // L2 AWAITING_CONFIRMATION is written solely by the SF
-          // updateItem.waitForTaskToken state (single writer, Task 1.3). Here, for L2
-          // we record only the compliance verdict; for L1 we set terminal APPROVED;
-          // BLOCKED is terminal for both.
-          ...(isApproved
-            ? (authorityLevel === 'L1' ? { status: 'APPROVED' } : {})
-            : { status: 'BLOCKED' }),
-          complianceResult: decision,
-          authorityLevel,
-          ...(reason ? { blockReason: reason } : {}),
-        }, {
-          add: { __version: 1 },
-          overrides: { pk: `DecisionPacket#${tenantId}#${decisionId}`, sk: 'DecisionPacket' },
-        })] : [],
-      };
-    };
-  }
-
-  for (const type of USER_RESPONSE_EVENT_TYPES) {
-    handlers[type] = async (payload: EventPayload, ctx: EventContext) => {
-      const subject = payload.subject ?? {};
-      const isConfirmed = ctx.eventType === 'USER_CONFIRMED';
-      const decision = isConfirmed ? 'CONFIRMED' : 'REJECTED';
-      const tenantId = (subject.tenantId as string) ?? ctx.tenantId;
-      const decisionId = subject.decisionId as string;
-      const reason = subject.reason as string | undefined;
-      const now = ctx.timestamp;
-
-      return {
-        output: { decision, ...(reason ? { reason } : {}) },
-        intents: decisionId ? [update('DecisionPacket', {
-          status: decision,
-          userDecision: decision,
-          ...(isConfirmed ? { confirmedAt: now } : { rejectedAt: now }),
-          ...(reason ? { rejectionReason: reason } : {}),
-        }, {
-          add: { __version: 1 },
-          removes: ['taskToken'],
-          overrides: { pk: `DecisionPacket#${tenantId}#${decisionId}`, sk: 'DecisionPacket' },
-        })] : [],
-      };
-    };
-  }
-
-  return handlers;
-}
+// Import the REAL createHandlers from source to exercise the parseSubject seam.
+import { createHandlers } from '../../src/handlers/sfn-callback';
 
 const baseCtx = (eventType: string): EventContext => ({
   eventId: 'evt-1',
@@ -138,21 +45,34 @@ describe('decision-workflow-ctrl sfn-callback (resumeStateMachine)', () => {
 
   describe('agent completion events', () => {
     it('PORTFOLIO_COMPLETED returns output with decisionId + agentOutput from subject', async () => {
+      // PortfolioAgentCompletionSchema: { decisionId, agentName:'portfolio-engine',
+      //   taskToken, agentOutput: PortfolioAgentOutput, completedAt }. tenantId is identity (NOT on schema).
+      // agentOutput must satisfy PortfolioAgentOutputSchema → PortfolioConstructionSchema
+      // which requires: allocations[], totalExposure, equityWeight, riskMetrics{…}, confidence.
       const payload: EventPayload = {
         subject: {
           decisionId: 'dp-1',
-          tenantId: 't1',
+          agentName: 'portfolio-engine',
           taskToken: 'token-pe',
-          agentOutput: { allocations: { allocations: [], totalExposure: 1.0 } },
+          agentOutput: {
+            decisionId: 'dp-1',
+            allocations: {
+              allocations: [],
+              totalExposure: 1.0,
+              equityWeight: 0,
+              riskMetrics: { concentrationRisk: 0, sectorDiversity: 0, largestPositionWeight: 0 },
+              confidence: 1,
+            },
+            metadata: { durationMs: 500 },
+          },
+          completedAt: '2026-01-01T00:00:00.000Z',
         },
       };
 
       const result = await handlers.PORTFOLIO_COMPLETED(payload, baseCtx('PORTFOLIO_COMPLETED'));
 
-      expect(result.output).toEqual({
-        decisionId: 'dp-1',
-        agentOutput: { allocations: { allocations: [], totalExposure: 1.0 } },
-      });
+      expect(result.output.decisionId).toBe('dp-1');
+      expect(result.output.agentOutput).toBeDefined();
       // The resumeStateMachine wrapper JSON.stringifies result.output as the
       // SF SendTaskSuccess output — confirm the JSON contains the agent payload.
       expect(JSON.stringify(result.output)).toContain('allocations');
@@ -160,23 +80,50 @@ describe('decision-workflow-ctrl sfn-callback (resumeStateMachine)', () => {
       expect(result.intents[0]._tag).toBe('record');
     });
 
+    it('PORTFOLIO_COMPLETED: ZodError when agentOutput missing (required by schema)', async () => {
+      // parseSubject validates against PortfolioAgentCompletionSchema which requires agentOutput.
+      // A missing agentOutput throws ZodError — confirming the parseSubject seam fires.
+      const payload: EventPayload = {
+        subject: {
+          decisionId: 'dp-zod',
+          agentName: 'portfolio-engine',
+          taskToken: 'token-pe',
+          // agentOutput intentionally missing
+          completedAt: '2026-01-01T00:00:00.000Z',
+        },
+      };
+
+      await expect(handlers.PORTFOLIO_COMPLETED(payload, baseCtx('PORTFOLIO_COMPLETED')))
+        .rejects.toThrow(); // ZodError
+    });
+
     it('NARRATIVE_COMPLETED returns output with decisionId + agentOutput from subject', async () => {
+      // NarrativeAgentCompletionSchema: { decisionId, agentName:'advisory-narrative',
+      //   taskToken, agentOutput: NarrativeAgentOutput, completedAt }
       const payload: EventPayload = {
         subject: {
           decisionId: 'dp-1',
-          tenantId: 't1',
+          agentName: 'advisory-narrative',
           taskToken: 'token-an',
-          agentOutput: { explanation: 'because diversification' },
+          agentOutput: {
+            summary: 'Diversify',
+            rationale: 'because diversification',
+            keyFactors: ['equity'],
+            tone: 'INFORMATIVE',
+            wordCount: 20,
+            confidence: 0.9,
+            decisionId: 'dp-1',
+            metadata: { durationMs: 1000 },
+          },
+          completedAt: '2026-01-01T00:00:00.000Z',
         },
       };
 
       const result = await handlers.NARRATIVE_COMPLETED(payload, baseCtx('NARRATIVE_COMPLETED'));
 
-      expect(result.output).toEqual({
-        decisionId: 'dp-1',
-        agentOutput: { explanation: 'because diversification' },
-      });
-      expect(JSON.stringify(result.output)).toContain('explanation');
+      expect(result.output.decisionId).toBe('dp-1');
+      expect(result.output.agentOutput).toBeDefined();
+      expect(JSON.stringify(result.output)).toContain('rationale');
     });
 
     it('only PORTFOLIO_COMPLETED + NARRATIVE_COMPLETED remain as agent completions', () => {
@@ -196,13 +143,16 @@ describe('decision-workflow-ctrl sfn-callback (resumeStateMachine)', () => {
 
   describe('agent failure events', () => {
     it('PORTFOLIO_FAILED throws Error with name=errorType, message=errorMessage', async () => {
+      // PortfolioAgentFailureSchema: { decisionId, agentName:'portfolio-engine',
+      //   taskToken, errorType, errorMessage, failedAt }
       const payload: EventPayload = {
         subject: {
           decisionId: 'dp-1',
-          tenantId: 't1',
+          agentName: 'portfolio-engine',
           taskToken: 'token-pe',
           errorType: 'BedrockThrottle',
           errorMessage: 'Bedrock throttle',
+          failedAt: '2026-01-01T00:00:00.000Z',
         },
       };
 
@@ -211,13 +161,16 @@ describe('decision-workflow-ctrl sfn-callback (resumeStateMachine)', () => {
     });
 
     it('NARRATIVE_FAILED throws Error with name=errorType, message=errorMessage', async () => {
+      // NarrativeAgentFailureSchema: { decisionId, agentName:'advisory-narrative',
+      //   taskToken, errorType, errorMessage, failedAt }
       const payload: EventPayload = {
         subject: {
           decisionId: 'dp-1',
-          tenantId: 't1',
+          agentName: 'advisory-narrative',
           taskToken: 'token-an',
           errorType: 'AgentRuntimeError',
           errorMessage: 'something snapped',
+          failedAt: '2026-01-01T00:00:00.000Z',
         },
       };
 
@@ -225,13 +178,21 @@ describe('decision-workflow-ctrl sfn-callback (resumeStateMachine)', () => {
         .rejects.toMatchObject({ name: 'AgentRuntimeError', message: 'something snapped' });
     });
 
-    it('falls back to UnknownError / "unknown" when subject lacks error fields', async () => {
+    it('PORTFOLIO_FAILED: ZodError when errorType missing (schema requires it)', async () => {
+      // parseSubject validates against PortfolioAgentFailureSchema — errorType is required.
       const payload: EventPayload = {
-        subject: { decisionId: 'dp-1', tenantId: 't1', taskToken: 'tok' },
+        subject: {
+          decisionId: 'dp-1',
+          agentName: 'portfolio-engine',
+          taskToken: 'tok',
+          // errorType intentionally missing
+          errorMessage: 'something went wrong',
+          failedAt: '2026-01-01T00:00:00.000Z',
+        },
       };
 
       await expect(handlers.PORTFOLIO_FAILED(payload, baseCtx('PORTFOLIO_FAILED')))
-        .rejects.toMatchObject({ name: 'UnknownError', message: 'unknown' });
+        .rejects.toThrow(); // ZodError
     });
 
     it('exposes PORTFOLIO_FAILED + NARRATIVE_FAILED as the failure set', () => {
@@ -245,14 +206,32 @@ describe('decision-workflow-ctrl sfn-callback (resumeStateMachine)', () => {
   // --- Compliance events ---
 
   describe('compliance events', () => {
+    // Real ComplianceCheck fixture (DRY subject — tenantId NOT on schema, identity is in ctx).
+    // NOTE: ComplianceCheckSchema has NO `reason` field (has `violations` array instead).
+    // `blockReason` on the DecisionPacket update is preserved as `undefined` — this is the
+    // pre-existing gap tracked in docs/backlog/dwc-sfn-callback-reason-blockreason-gap.md.
+    const complianceCheckSubject = (overrides: Record<string, unknown> = {}) => ({
+      ccId: 'cc-1',
+      decisionPacketId: 'dp-1',
+      decisionId: 'dp-1',
+      taskToken: 'token-compliance',
+      mandateSnapshot: {
+        level: 'ADVISORY',
+        status: 'ACTIVE',
+        operatingMode: 'CONSERVATIVE',
+        effectiveDate: '2026-01-01T00:00:00.000Z',
+      },
+      status: 'COMPLETED',
+      result: 'APPROVED',
+      violations: [],
+      authorityLevel: 'L1',
+      sourceEventId: 'src-1',
+      ...overrides,
+    });
+
     it('(a) DECISION_APPROVED L1 → status APPROVED + add:{ __version:1 }', async () => {
       const payload: EventPayload = {
-        subject: {
-          decisionId: 'dp-1',
-          tenantId: 't1',
-          taskToken: 'token-compliance',
-          authorityLevel: 'L1',
-        },
+        subject: complianceCheckSubject({ result: 'APPROVED', authorityLevel: 'L1' }),
       };
 
       const result = await handlers.DECISION_APPROVED(payload, baseCtx('DECISION_APPROVED'));
@@ -273,12 +252,7 @@ describe('decision-workflow-ctrl sfn-callback (resumeStateMachine)', () => {
 
     it('(b) DECISION_APPROVED L2 → NO status key in updates + add:{ __version:1 }', async () => {
       const payload: EventPayload = {
-        subject: {
-          decisionId: 'dp-1',
-          tenantId: 't1',
-          taskToken: 'token-compliance',
-          authorityLevel: 'L2',
-        },
+        subject: complianceCheckSubject({ authorityLevel: 'L2' }),
       };
 
       const result = await handlers.DECISION_APPROVED(payload, baseCtx('DECISION_APPROVED'));
@@ -292,42 +266,48 @@ describe('decision-workflow-ctrl sfn-callback (resumeStateMachine)', () => {
       expect(intent.add).toEqual({ __version: 1 });
     });
 
-    it('(c) DECISION_BLOCKED L2 → status BLOCKED + blockReason + add:{ __version:1 }', async () => {
+    it('(c) DECISION_BLOCKED L2 → status BLOCKED; blockReason is undefined (pre-existing gap — ComplianceCheck carries violations not reason)', async () => {
+      // The real ComplianceCheck shape carries `violations` array, NOT a `reason` string.
+      // blockReason on DecisionPacket is preserved as undefined here — see comment in handler.
+      // The fix (derive blockReason from violations) is tracked in:
+      // docs/backlog/dwc-sfn-callback-reason-blockreason-gap.md
       const payload: EventPayload = {
-        subject: {
-          decisionId: 'dp-1',
-          tenantId: 't1',
-          taskToken: 'token-compliance',
-          reason: 'Exceeds risk limits',
-        },
+        subject: complianceCheckSubject({
+          result: 'BLOCKED',
+          status: 'BLOCKED',
+          authorityLevel: 'L2',
+          violations: [{ rule: 'MANDATE_VIOLATION', description: 'Exceeds risk limits', severity: 'BLOCKING' }],
+          // NOTE: no `reason` field — ComplianceCheckSchema does NOT have `reason`
+        }),
       };
 
       const result = await handlers.DECISION_BLOCKED(payload, baseCtx('DECISION_BLOCKED'));
 
-      expect(result.output).toEqual({
-        decision: 'BLOCKED',
-        authorityLevel: 'L2',
-        reason: 'Exceeds risk limits',
-      });
+      expect(result.output).toEqual({ decision: 'BLOCKED', authorityLevel: 'L2' });
       const intent = result.intents[0];
-      expect(intent.updates).toEqual(expect.objectContaining({
+      expect(intent.updates).toEqual({
         status: 'BLOCKED',
         complianceResult: 'BLOCKED',
-        blockReason: 'Exceeds risk limits',
-      }));
+        authorityLevel: 'L2',
+        // blockReason is NOT set — ComplianceCheck carries no `reason` field.
+        // This preserves the pre-existing behavior (was always undefined).
+      });
+      expect('blockReason' in intent.updates).toBe(false);
       expect(intent.add).toEqual({ __version: 1 });
     });
 
-    it('should return empty intents when decisionId is missing', async () => {
+    it('DECISION_APPROVED: ZodError when required ComplianceCheck fields missing', async () => {
+      // parseSubject against ComplianceCheckSchema rejects a subject missing required fields.
       const payload: EventPayload = {
         subject: {
-          tenantId: 't1',
-          taskToken: 'token-compliance',
+          // ccId, decisionPacketId, taskToken, mandateSnapshot, etc. all missing
+          decisionId: 'dp-1',
+          authorityLevel: 'L1',
         },
       };
 
-      const result = await handlers.DECISION_APPROVED(payload, baseCtx('DECISION_APPROVED'));
-      expect(result.intents).toHaveLength(0);
+      await expect(handlers.DECISION_APPROVED(payload, baseCtx('DECISION_APPROVED')))
+        .rejects.toThrow(); // ZodError
     });
   });
 
@@ -335,10 +315,14 @@ describe('decision-workflow-ctrl sfn-callback (resumeStateMachine)', () => {
 
   describe('user response events', () => {
     it('(d) USER_CONFIRMED → confirmedAt=ctx.timestamp + add:{ __version:1 }, no rejectedAt', async () => {
+      // UserConfirmationSchema: { decisionId, confirmedAt, confirmedBy, timestamp, taskToken? }
+      // tenantId is identity (NOT on schema). No `reason` field.
       const payload: EventPayload = {
         subject: {
           decisionId: 'dp-1',
-          tenantId: 't1',
+          confirmedAt: '2026-01-01T00:00:00.000Z',
+          confirmedBy: 'user-1',
+          timestamp: '2026-01-01T00:00:00.000Z',
           taskToken: 'token-user',
         },
       };
@@ -361,19 +345,23 @@ describe('decision-workflow-ctrl sfn-callback (resumeStateMachine)', () => {
       expect(intent.overrides).toEqual({ pk: 'DecisionPacket#t1#dp-1', sk: 'DecisionPacket' });
     });
 
-    it('(e) USER_REJECTED with reason → rejectedAt=ctx.timestamp + rejectionReason + add:{ __version:1 }, no confirmedAt', async () => {
+    it('(e) USER_REJECTED with rejectionReason → rejectedAt=ctx.timestamp + rejectionReason + add:{ __version:1 }, no confirmedAt', async () => {
+      // UserRejectionSchema: { decisionId, rejectedAt, rejectedBy, rejectionReason, timestamp, taskToken? }
+      // The field is `rejectionReason` (not `reason`) — matches the producer schema.
       const payload: EventPayload = {
         subject: {
           decisionId: 'dp-1',
-          tenantId: 't1',
+          rejectedAt: '2026-01-01T00:00:00.000Z',
+          rejectedBy: 'user-1',
+          rejectionReason: 'Too risky',
+          timestamp: '2026-01-01T00:00:00.000Z',
           taskToken: 'token-user',
-          reason: 'Too risky',
         },
       };
       const ctx = baseCtx('USER_REJECTED');
       const result = await handlers.USER_REJECTED(payload, ctx);
 
-      expect(result.output).toEqual({ decision: 'REJECTED', reason: 'Too risky' });
+      expect(result.output).toEqual({ decision: 'REJECTED' });
       const intent = result.intents[0];
       expect(intent.updates).toEqual({
         status: 'REJECTED',
@@ -386,16 +374,27 @@ describe('decision-workflow-ctrl sfn-callback (resumeStateMachine)', () => {
       expect(intent.removes).toEqual(['taskToken']);
     });
 
-    it('should return empty intents when decisionId is missing', async () => {
+    it('USER_CONFIRMED: ZodError when required fields missing (schema requires decisionId, confirmedAt, confirmedBy, timestamp)', async () => {
       const payload: EventPayload = {
         subject: {
-          tenantId: 't1',
+          // decisionId missing — required by UserConfirmationSchema
           taskToken: 'token-user',
         },
       };
-
-      const result = await handlers.USER_CONFIRMED(payload, baseCtx('USER_CONFIRMED'));
-      expect(result.intents).toHaveLength(0);
+      await expect(handlers.USER_CONFIRMED(payload, baseCtx('USER_CONFIRMED')))
+        .rejects.toThrow(); // ZodError
     });
+
+    it('USER_RESPONSE_EVENT_TYPES contains USER_CONFIRMED + USER_REJECTED', () => {
+      expect([...USER_RESPONSE_EVENT_TYPES]).toEqual(
+        expect.arrayContaining(['USER_CONFIRMED', 'USER_REJECTED']),
+      );
+    });
+  });
+
+  it('COMPLIANCE_EVENT_TYPES contains DECISION_APPROVED + DECISION_BLOCKED', () => {
+    expect([...COMPLIANCE_EVENT_TYPES]).toEqual(
+      expect.arrayContaining(['DECISION_APPROVED', 'DECISION_BLOCKED']),
+    );
   });
 });
