@@ -3,10 +3,7 @@ import {
   type EventPayload, type EventContext,
 } from '@nestfolio/event-processor';
 import '../read-model-ownership';
-import {
-  COMPLIANCE_EVENT_TYPES,
-  USER_RESPONSE_EVENT_TYPES,
-} from '../domain/events';
+import { COMPLIANCE_EVENT_TYPES } from '../domain/events';
 import { ComplianceEventTypes } from '@nestfolio/compliance-ctrl/events';
 import { ComplianceCheckSchema } from '@nestfolio/compliance-ctrl/contracts';
 import { AdvisoryBffEventTypes } from '@nestfolio/advisory-bff/events';
