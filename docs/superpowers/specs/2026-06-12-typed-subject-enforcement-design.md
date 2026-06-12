@@ -6,6 +6,31 @@
 - **Strategy:** `docs/superpowers/specs/2026-06-09-typed-subject-program-strategy.md` (this is the **capstone**, runs after WS-1/2/3, all shipped)
 - **Source-of-truth dossier:** project memory `project_event_subject_contracts.md`
 
+## Amendment (2026-06-12, during execution): convention 2 → check-script, NOT nx
+
+**The nx `enforce-module-boundaries` mechanism below (§Architecture row C2 + §1) does NOT
+work for this repo and is abandoned.** Empirically (proven during Phase A5 execution):
+services are Nx **applications**, so `enforce-module-boundaries` fires *"imports of apps are
+forbidden"* on **every** service→service `/contracts`+`/events` import — including the **29+
+intra-domain** ones, which are legitimate. The global `allow: ['@nestfolio/.+/contracts',
+'@nestfolio/.+/events']` was a blanket escape hatch suppressing that hard rule for ALL such
+imports; `allow` patterns are not scope-aware and the apps-forbidden rule pre-empts the
+scope-tag `depConstraints`. So nx cannot express "cross-domain forbidden, intra-domain
+allowed" here.
+
+**Revised mechanism (user-confirmed 2026-06-12):** convention 2 is enforced by the bespoke
+`tools/check-typed-subjects.mjs` instead — it builds a service→domain map from the
+`services/<domain>/<svc>/` layout and flags only **cross-domain** `@nestfolio/<svc>/{contracts,
+events}` imports in `services/**/src` (intra-domain and `*-adpt/domain` imports are not
+flagged; `libs/**` have no domain so are not subject to it; test files excluded as for the
+other rules). This consolidates ALL conventions (1/2/3/4 + opaqueSubject) into the single
+deterministic gate, doesn't fight nx's app model, and the 11 Phase-A re-route fixes stand.
+`eslint.config.js` is left UNTOUCHED. Wherever §Architecture / §1 / §6 / §Testing below say
+"nx" for convention 2, read "`tools/check-typed-subjects.mjs` cross-domain-import rule." The
+implementation plan was updated to match (Task A5 removed; the rule folded into Phase B).
+Lesson: measure before proposing — the nx mechanism was designed from the config structure
+without running the tighten.
+
 ## Problem
 
 The typed-subject program (WS-1 producer contracts → WS-2 publishers → WS-3 consumers,

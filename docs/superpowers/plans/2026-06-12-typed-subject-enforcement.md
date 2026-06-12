@@ -26,9 +26,12 @@ can't run) and you must verify each commit landed (`git log --oneline -1`).
 - Modify: `services/ledger/ledger-adpt/src/domain/index.ts` (add 3 schema re-exports)
 - Modify: `services/investor/investor-adpt/src/domain/events.ts` (add 4 names to `InvestorCrossDomainEventTypes`)
 - Modify: 11 consumer files (repoint imports) — listed in Tasks A3/A4
-- Modify: `eslint.config.js` (tighten `allow`, add DRY test override)
+- ~~`eslint.config.js`~~ — **REMOVED.** nx `enforce-module-boundaries` cannot enforce
+  convention 2 (services are Nx apps → "imports of apps forbidden" fires on all 29+
+  intra-domain service→service imports; `allow` is not scope-aware). Convention 2 moved to
+  the Phase-B gate. `eslint.config.js` is left untouched. See the spec amendment (2026-06-12).
 
-**Syntactic gate (Phase B):**
+**Syntactic + cross-domain gate (Phase B) — now also enforces convention 2:**
 - Create: `tools/check-typed-subjects.mjs`
 - Create: `tools/check-typed-subjects.test.mjs`
 - Create: `tools/typed-subject-exclusions.json`
@@ -247,7 +250,18 @@ git commit --no-verify -m "refactor: route investor cross-domain names through i
 git log --oneline -1
 ```
 
-### Task A5: Tighten the nx `allow` list + add the DRY test-code override
+### Task A5: ~~Tighten the nx `allow` list~~ — REMOVED (do NOT execute)
+
+> **SUPERSEDED 2026-06-12 (during execution).** The nx mechanism does not work: services
+> are Nx **applications**, so `enforce-module-boundaries` fires *"imports of apps are
+> forbidden"* on ALL 29+ intra-domain service→service `/contracts`+`/events` imports, not
+> just cross-domain ones (the global `allow` was a blanket escape hatch; `allow` is not
+> scope-aware). **`eslint.config.js` is left untouched.** Convention 2 is enforced by the
+> Phase-B gate instead (`tools/check-typed-subjects.mjs` cross-domain-import rule — see the
+> updated Task B2). The steps below are retained for history only; **skip them.** See the
+> spec amendment.
+
+<details><summary>Original (dead) A5 steps — do not run</summary>
 
 **Files:**
 - Modify: `eslint.config.js`
@@ -346,9 +360,19 @@ git commit --no-verify -m "feat(lint): enforce typed-subject convention 2 — cr
 git log --oneline -1
 ```
 
+</details>
+
 ---
 
-## Phase B — The syntactic gate `tools/check-typed-subjects.mjs`
+## Phase B — The syntactic + cross-domain gate `tools/check-typed-subjects.mjs`
+
+**This gate now enforces convention 2** (cross-domain import channel) in addition to the
+syntactic rules, since nx cannot (see Task A5 / spec amendment). The convention-2 rule:
+build a service→domain map from the `services/<domain>/<svc>/` layout; in any
+`services/**/src` non-test file, flag each `@nestfolio/<svc>/{contracts,events}` import whose
+`<svc>` resolves to a DIFFERENT domain than the importing file (intra-domain imports and
+`*-adpt/domain` imports are NOT flagged; `libs/**` and `apps/**` have no domain so are
+exempt). After Phase A's 11 re-route fixes, this finds zero cross-domain violations.
 
 ### Task B1: Write the failing test
 
@@ -1008,7 +1032,8 @@ git log --oneline -1
 - [ ] `node --test tools/check-typed-subjects.test.mjs` → all pass.
 - [ ] `node tools/check-typed-subjects.mjs` → `typed-subject: OK (…, 0 violation(s))`.
 - [ ] `pnpm nx run event-processor:typed-subject-drift` → PASS.
-- [ ] `pnpm nx run-many -t build,lint -p decision-workflow-ctrl compliance-ctrl investor-profile-ctrl dashboard-bff investor-bff ledger-adpt investor-adpt` → PASS (convention 2 green; the negative check in A5/Step 5 proved the rule bites).
+- [ ] `pnpm nx run-many -t lint -p decision-workflow-ctrl compliance-ctrl investor-profile-ctrl dashboard-bff investor-bff ledger-adpt investor-adpt` → PASS (the 11 re-route fixes lint clean; `eslint.config.js` unchanged).
+- [ ] `node tools/check-typed-subjects.mjs` reports **0 cross-domain-import violations** (convention 2 — proves the 11 fixes are complete and the rule is wired). A negative check (temporarily revert one repointed import to its `ledger-ctrl/contracts` form → gate FAILs → revert) proves the rule bites.
 - [ ] `grep -rn "InvestorBffEventTypes\|LedgerCtrlEventTypes" services/advisory/*/src services/investor/{dashboard-bff,investor-bff}/src` → no cross-domain matches remain.
 - [ ] No functional/behaviour change shipped (the 11 repointings are type-only re-exports; same event-name values, same schemas, same CDK rules) → no e2e behaviour to assert.
 
@@ -1025,7 +1050,8 @@ git log --oneline -1
 ## Spec ↔ plan coverage check
 
 - Conventions 1/4/opaqueSubject/3-heuristic → Tasks B1–B3 (gate). ✓
-- Convention 2 (import channel) → Tasks A1–A5 (nx) + the 11 fixes. ✓
+- Convention 2 (import channel) → Tasks A1–A4 (the 11 adapter re-route fixes) + the Phase-B
+  gate's cross-domain-import rule (nx mechanism abandoned — see Task A5 / spec amendment). ✓
 - Convention 5 → skills/docs only (C1, D1). ✓
 - nx target + pre-commit → B4, B5. ✓
 - Skills (create-*/audit-*) → C1, C2. ✓
