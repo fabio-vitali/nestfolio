@@ -4,6 +4,7 @@ import {
   materializeToTable,
   record,
   update,
+  parseSubject,
   type EventPayload,
   type EventContext,
   type WriteIntent,
@@ -15,8 +16,13 @@ import {
   createMemoryClient,
   createNoOpMemoryClient,
   type MemoryClient,
-  UnknownOperatingModeError,
 } from '@nestfolio/agent-orchestrator';
+import {
+  InvestorProfileUpdatedSchema,
+  type InvestorProfileUpdated,
+  MandateSchema,
+  type Mandate,
+} from '@nestfolio/investor-adpt/domain';
 import { createAgentService, DuplicateInvocationError } from '../agent-service';
 import {
   investorProfileSnapshotPk,
@@ -32,6 +38,14 @@ type SourceEventType =
   | 'INVESTOR_PROFILE_UPDATED'
   | 'MANDATE_ISSUED';
 
+// Both trigger subjects are contract-backed (WS-3): INVESTOR_PROFILE_UPDATED →
+// InvestorProfileUpdatedSchema, MANDATE_ISSUED → MandateSchema (both re-exported
+// cross-domain via @nestfolio/investor-adpt/domain). Both schemas carry
+// operatingMode top-level as a required enum, so a missing/invalid value
+// poison-pills via ZodError at the parseSubject seam (intended WS-3 behavior) —
+// the old UnknownOperatingModeError block is dead and was removed.
+type SnapshotSubject = InvestorProfileUpdated | Mandate;
+
 // The event-processor ingestion engine's normalize-handler expects a
 // `WriteIntent | WriteIntent[]` (libs/event-processor/src/engine/normalize-handler.ts).
 // Returning a wrapper object like `{ output, intents }` made toArray() treat the
@@ -39,34 +53,20 @@ type SourceEventType =
 // surfaced by Task 19's MarketSnapshot bootstrap on first deploy.
 async function runSnapshotAgent(
   deps: IngressDeps,
-  payload: EventPayload,
+  subject: SnapshotSubject,
   ctx: EventContext,
   sourceEventType: SourceEventType,
 ): Promise<WriteIntent[]> {
-  // boundary: INVESTOR_PROFILE_UPDATED and MANDATE_ISSUED both route here. Neither
-  // has a single producer zod contract that covers all fields used (operatingMode
-  // fallback across subject.operatingMode + subject.mandate.operatingMode, userId,
-  // tenantId). The whole subject is forwarded to the agent as investorProfile —
-  // a typed parse would restrict the shape. Cross-domain adapter home rule: if a
-  // single-event parseSubject is introduced, split handlers first.
-  const subject = (payload.subject ?? {}) as Record<string, unknown>;
-  const tenantId = (subject.tenantId as string | undefined) ?? (ctx.tenantId as unknown as string);
-  // userId defaults to tenantId in the precomputation model: an investor
-  // profile is owned by the tenant principal, so the snapshot's natural key is
-  // (tenantId, userId) with userId === tenantId when the upstream event does
-  // not carry an explicit userId field.
-  const userId = (subject.userId as string | undefined) ?? tenantId;
+  // DRY domain subjects carry no tenantId/userId — identity travels in the event
+  // context (RequestContext). The snapshot is owned by the tenant principal, so its
+  // natural key is (tenantId, userId) with both resolving to ctx.tenantId (preserves
+  // the prior `subject.tenantId ?? ctx.tenantId` / `subject.userId ?? tenantId`
+  // behavior, where the subject never carried either field).
+  const tenantId = ctx.tenantId as unknown as string;
+  const userId = tenantId;
 
-  const operatingMode = (subject.operatingMode as string | undefined)
-    ?? ((subject.mandate as Record<string, unknown> | undefined)?.operatingMode as string | undefined);
-
-  if (!operatingMode) {
-    throw new UnknownOperatingModeError({
-      decisionId: `snapshot:${sourceEventType}:${tenantId}:${userId}`,
-      resolutionPath: 'subject.operatingMode || subject.mandate.operatingMode',
-      availableKeys: Object.keys(subject),
-    });
-  }
+  // Both schemas guarantee operatingMode as a required enum — typed read, no fallback.
+  const operatingMode = subject.operatingMode;
 
   logger.info(`Processing ${sourceEventType} for snapshot rebuild`, { tenantId, userId, eventId: ctx.eventId });
 
@@ -114,9 +114,9 @@ async function runSnapshotAgent(
 
 export const createHandlers = (deps: IngressDeps) => ({
   INVESTOR_PROFILE_UPDATED: (p: EventPayload, c: EventContext) =>
-    runSnapshotAgent(deps, p, c, 'INVESTOR_PROFILE_UPDATED'),
+    runSnapshotAgent(deps, parseSubject(p, InvestorProfileUpdatedSchema), c, 'INVESTOR_PROFILE_UPDATED'),
   MANDATE_ISSUED: (p: EventPayload, c: EventContext) =>
-    runSnapshotAgent(deps, p, c, 'MANDATE_ISSUED'),
+    runSnapshotAgent(deps, parseSubject(p, MandateSchema), c, 'MANDATE_ISSUED'),
 });
 
 // --- Production wiring ---
