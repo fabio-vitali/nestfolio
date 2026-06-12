@@ -532,7 +532,9 @@ describe('Mode Listener Integration', () => {
   it('should materialize ExecutionMode record on EXECUTION_MODE_CHANGED (live)', async () => {
     const event: SQSEvent = {
       Records: [
-        fakeSqsRecord('EXECUTION_MODE_CHANGED', { mode: 'live' }, { tenantId: 't-1' }),
+        fakeSqsRecord('EXECUTION_MODE_CHANGED', {
+          changeId: 'chg-live', fromMode: 'simulation', toMode: 'live', changedAt: '2025-01-01T00:00:00.000Z',
+        }, { tenantId: 't-1' }),
       ],
     };
 
@@ -554,7 +556,9 @@ describe('Mode Listener Integration', () => {
   it('should materialize ExecutionMode record on EXECUTION_MODE_CHANGED (simulation)', async () => {
     const event: SQSEvent = {
       Records: [
-        fakeSqsRecord('EXECUTION_MODE_CHANGED', { mode: 'simulation' }, { tenantId: 't-2' }),
+        fakeSqsRecord('EXECUTION_MODE_CHANGED', {
+          changeId: 'chg-sim', fromMode: 'live', toMode: 'simulation', changedAt: '2025-01-01T00:00:00.000Z',
+        }, { tenantId: 't-2' }),
       ],
     };
 

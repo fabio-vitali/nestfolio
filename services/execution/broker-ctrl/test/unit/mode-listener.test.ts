@@ -1,20 +1,52 @@
 jest.mock('@nestfolio/event-processor', () => ({
   ...jest.requireActual('@nestfolio/event-processor'),
-  // No need to mock TableRepository here - materializeToTable is tested via test harness
+  requireEnv: (name: string) => process.env[name] ?? name,
 }));
 
-import { createTestHarness, fakeSqsRecord, record } from '@nestfolio/event-processor';
+jest.mock('@aws-sdk/client-dynamodb', () => ({
+  DynamoDBClient: jest.fn().mockImplementation(() => ({ send: jest.fn() })),
+}));
+
+jest.mock('@aws-sdk/lib-dynamodb', () => {
+  const actual = jest.requireActual('@aws-sdk/lib-dynamodb');
+  return {
+    ...actual,
+    DynamoDBDocumentClient: {
+      from: jest.fn().mockImplementation(() => ({ send: jest.fn() })),
+    },
+    PutCommand: jest.fn().mockImplementation((input) => ({ _type: 'Put', input })),
+  };
+});
+
+import { createTestHarness, fakeSqsRecord, parseSubject, record } from '@nestfolio/event-processor';
+import { ExecutionModeChangedSchema } from '@nestfolio/investor-adpt/domain';
 import { BrokerCtrlInboundEventTypes } from '../../src/domain/events';
+import type { ExecutionMode } from '../../src/domain/contracts';
+import type { EventPayload, EventContext } from '@nestfolio/event-processor';
+
+// Valid ExecutionModeChangedSchema subject fixture — schema has toMode, NOT mode.
+function executionModeChangedSubject(toMode: 'live' | 'simulation'): Record<string, unknown> {
+  return {
+    changeId: 'chg-1',
+    fromMode: toMode === 'live' ? 'simulation' : 'live',
+    toMode,
+    changedAt: '2025-01-01T00:00:00.000Z',
+  };
+}
 
 describe('mode-listener handler', () => {
+  // Inline handler that mirrors mode-listener.ts production logic — tests the parseSubject seam.
   const handlers = {
-    [BrokerCtrlInboundEventTypes.EXECUTION_MODE_CHANGED]: (payload, ctx) => {
-      const mode = payload.subject.mode;
+    [BrokerCtrlInboundEventTypes.EXECUTION_MODE_CHANGED]: (payload: EventPayload, ctx: EventContext) => {
+      const subject = parseSubject(payload, ExecutionModeChangedSchema);
+      const executionMode: ExecutionMode = {
+        mode: subject.toMode,
+        updatedAt: ctx.timestamp,
+      };
       return record('ExecutionMode', {
         __typename: 'ExecutionMode',
         tenantId: ctx.tenantId,
-        mode,
-        updatedAt: ctx.timestamp,
+        ...executionMode,
       }, {
         pk: `ExecutionMode#${ctx.tenantId}`,
         sk: 'ExecutionMode',
@@ -24,10 +56,23 @@ describe('mode-listener handler', () => {
 
   const harness = createTestHarness({ serviceName: 'broker-ctrl', handlers });
 
-  it('should write ExecutionMode record on EXECUTION_MODE_CHANGED', async () => {
+  // --- TDD regression: ZodError thrown when subject is missing required toMode field ---
+  // Ensures the parseSubject seam rejects the OLD shape (mode: 'live') that lacks toMode.
+  it('EXECUTION_MODE_CHANGED with old subject shape (mode field only) → ZodError → batchItemFailure', async () => {
     const sqsRecord = fakeSqsRecord('EXECUTION_MODE_CHANGED', {
-      mode: 'live',
-    }, { eventId: 'evt-mode', tenantId: 't-1' });
+      mode: 'live', // OLD shape — not on ExecutionModeChangedSchema
+    }, { eventId: 'evt-old-shape', tenantId: 't-1' });
+
+    const result = await harness.process([sqsRecord]);
+    // parseSubject(ExecutionModeChangedSchema) rejects this — ZodError → batch failure
+    expect(result.batchItemFailures).toHaveLength(1);
+  });
+
+  it('should write ExecutionMode record on EXECUTION_MODE_CHANGED with live mode', async () => {
+    const sqsRecord = fakeSqsRecord('EXECUTION_MODE_CHANGED',
+      executionModeChangedSubject('live'),
+      { eventId: 'evt-mode', tenantId: 't-1' },
+    );
 
     const result = await harness.process([sqsRecord]);
 
@@ -49,9 +94,10 @@ describe('mode-listener handler', () => {
   });
 
   it('should handle simulation mode', async () => {
-    const sqsRecord = fakeSqsRecord('EXECUTION_MODE_CHANGED', {
-      mode: 'simulation',
-    }, { eventId: 'evt-mode-sim', tenantId: 't-2' });
+    const sqsRecord = fakeSqsRecord('EXECUTION_MODE_CHANGED',
+      executionModeChangedSubject('simulation'),
+      { eventId: 'evt-mode-sim', tenantId: 't-2' },
+    );
 
     const result = await harness.process([sqsRecord]);
 
