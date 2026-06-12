@@ -40,6 +40,9 @@ export interface IngressDeps {
 // surfaced by Task 19's MarketSnapshot bootstrap on first deploy.
 export const createHandlers = (deps: IngressDeps) => ({
   GENERATE_NARRATIVE: async (payload: EventPayload, ctx: EventContext): Promise<WriteIntent[]> => {
+    // boundary: SF-direct orchestration event — GENERATE_NARRATIVE is a Step Functions
+    // PutEvents call with no CDC producer contract. Payload assembled by
+    // decision-workflow-ctrl decision-state-machine.ts from SF execution state.
     const subject = payload.subject ?? {};
     const tenantId = (subject.tenantId as string) ?? (ctx.tenantId as unknown as string);
     const decisionId = subject.decisionId as string;
@@ -173,6 +176,8 @@ export const createHandlers = (deps: IngressDeps) => ({
   },
 
   DECISION_FEEDBACK: async (payload: EventPayload, ctx: EventContext): Promise<WriteIntent[]> => {
+    // boundary: AppSync mutation event — DECISION_FEEDBACK is sourced from an
+    // AppSync mutation, not a CDC producer. No zod contract exists for this payload.
     logger.info('Processing DECISION_FEEDBACK', { eventType: ctx.eventType });
     await deps.feedbackCorrelator.process({
       type: ctx.eventType,

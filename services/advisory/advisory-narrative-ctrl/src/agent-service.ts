@@ -30,6 +30,9 @@ export const createAgentService = (deps: AgentServiceDeps) => {
   return {
     runPipeline: async (eventId: string, event: Record<string, unknown>): Promise<Record<string, unknown>> => {
       const startedAt = new Date().toISOString();
+      // boundary: SF-direct agent invocation payload — no CDC producer contract
+      // (assembled by decision-workflow-ctrl SF). The event.subject ?? event
+      // fallback is the canonical tell for this pattern.
       const subject = (event.subject ?? event) as Record<string, unknown>;
       const ctx = (event.context ?? subject) as RequestContext;
       const decisionId = subject.decisionId as string;

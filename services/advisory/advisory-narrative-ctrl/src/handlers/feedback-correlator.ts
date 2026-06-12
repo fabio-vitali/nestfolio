@@ -16,6 +16,8 @@ export interface FeedbackCorrelatorDeps {
 
 export const createFeedbackCorrelator = (deps: FeedbackCorrelatorDeps) => ({
   process: async (event: Record<string, unknown>): Promise<void> => {
+    // boundary: AppSync mutation event — DECISION_FEEDBACK is sourced from an
+    // AppSync mutation, not a CDC producer. No zod contract exists for this payload.
     const subject = (event.subject ?? event) as Record<string, unknown>;
     const decisionId = subject.decisionId as string;
     const outcome = subject.outcome as 'ACCEPTED' | 'REJECTED';
