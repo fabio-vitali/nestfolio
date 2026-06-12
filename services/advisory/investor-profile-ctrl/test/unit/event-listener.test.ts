@@ -142,9 +142,10 @@ describe('investor-profile-ctrl event-listener', () => {
         subject: { goal: { objective: 'retirement' } },
       };
 
-      await expect(
-        handlers.INVESTOR_PROFILE_UPDATED(payload, makeCtx()),
-      ).rejects.toThrow(ZodError);
+      // parseSubject runs eagerly in the dispatch arrow (before the async
+      // runSnapshotAgent), so a contract violation throws SYNCHRONOUSLY. The
+      // event-processor pipeline catches sync throws → DLQ, same as a rejection.
+      expect(() => handlers.INVESTOR_PROFILE_UPDATED(payload, makeCtx())).toThrow(ZodError);
       expect(mockRunPipeline).not.toHaveBeenCalled();
     });
 
@@ -212,9 +213,11 @@ describe('investor-profile-ctrl event-listener', () => {
         subject: { operatingMode: 'CONSERVATIVE' },
       };
 
-      await expect(
+      // parseSubject throws synchronously in the dispatch arrow (see the
+      // INVESTOR_PROFILE_UPDATED case above) — assert a sync throw, not a rejection.
+      expect(() =>
         handlers.MANDATE_ISSUED(payload, makeCtx({ eventType: 'MANDATE_ISSUED' })),
-      ).rejects.toThrow(ZodError);
+      ).toThrow(ZodError);
       expect(mockRunPipeline).not.toHaveBeenCalled();
     });
   });
