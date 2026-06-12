@@ -1,8 +1,8 @@
 ---
 id: service-card-funding-event-type-drift
-status: parking
+status: dropped
 type: bug
-notes: "Several service cards list stale funding-lifecycle event-type names (pre-existing doc drift)"
+notes: "[SUPERSEDED -> service-card-drift-gate] 2026-06-12. The class fix (deterministic card-drift gate) was split out of the typed-subject capstone into its own item service-card-drift-gate, which subsumes this concrete 3-card symptom (the stale cards are listed there as the gate's first regression target). Originally: several service cards list stale funding-lifecycle event-type names (pre-existing doc drift)."
 references: []
 out_of_scope: []
 spec: null
