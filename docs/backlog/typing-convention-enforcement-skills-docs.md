@@ -1,12 +1,17 @@
 ---
 id: typing-convention-enforcement-skills-docs
-status: queued
+status: active
 rank: 9
 type: tooling
 notes: "Prevent regressions of the kind event-subject-payload-build-tripwire fixed by CODIFYING + ENFORCING the typing conventions in the create-*/audit-* skills + architecture docs + (optionally) a check-script. Five conventions to enforce: (1) EVENT SUBJECTS — read-model transforms type the subject via parseSubject + an imported producer-owned zod contract; NEVER `event.subject as <LocalType>`/`as Record<string,unknown>` + a locally re-declared payload type. (2) CONTRACT-HOME / IMPORT RULE — intra-domain: consumer imports the producer's `<svc>/contracts` directly (service→service OK); cross-domain: the contract lives in the PRODUCER's domain adapter `/domain` (the ProposedTrade precedent) and the consumer imports from the adapter — NEVER two services importing each other's `/contracts` directly (that created the broker-ctrl↔investor-bff project cycle this workstream had to fix). (3) ROW + EVENT SHARE ONE SUBJECT TYPE — BusEvent<T> (platform/bus.ts) and TableEntry<T> (platform/table.ts) are generic over the SAME T by design; the producer Subject contract types BOTH the event (BusEvent<T>) AND the persisted row (TableEntry<T>) — rows should be TableEntry<Subject>, not a hand-rolled interface; 2026-06-08 audit found 8 row types re-declaring pk/sk/__typename inline instead (TaxLot, SnapshotRecord, SecFiling, decision-workflow InvestorProfileSnapshotProjectionRow + MarketSnapshotProjectionRow, investor-profile-ctrl InvestorProfileSnapshotRow, market-intelligence-ctrl MarketSnapshotRow, portfolio-engine + advisory-narrative AgentCompletionRow/AgentFailureRow). (4) CLEAN MODEL NAMES — contracts named after the clean domain/event concept, NO `Subject` suffix (`<Name>Schema` + `<Name>` type); on clash prefer the event-aligned name (LedgerEntryRecorded not LedgerEntry; InvestorProfileUpdated not InvestorProfile). (5) CONTEXT GENERIC S — parameterize the second generic `S` of BOTH BusEvent<T,S> and TableEntry<T,S> with `RequestContext` (or a domain extension), for event AND row consistently; never drop it. create-* skills should scaffold all five correctly; audit-* skills should FLAG violations; arch docs (SYSTEM-ARCHITECTURE, agent-system, cdk-patterns, create-service/create-event SKILL.md) document the rules; consider a tools/ check-script (like check-read-model-drift.mjs) wired into pre-commit/CI. Filed 2026-06-08 at user request after the typing workstream. May warrant a brief design pass on enforcement mechanism (skill-prose vs lint-rule vs both)."
 references:
   - "docs/superpowers/specs/2026-06-07-event-subject-payload-build-tripwire-design.md"
-out_of_scope: []
+out_of_scope:
+  - "Re-converting the 8 TableEntry-bypass row types — already done by WS-1/2/3 (typed-subject-producer-contracts and its domain slices); verified 2026-06-12."
+  - "Removing the documented exception subject-casts: broker-ctrl funding normalizer x4 (owned by broker-funding-completed-normalization-drift), KB-stringify fan-in, ledger ORDER_FILLED boundary, polymorphic agent fan-in (upstreamOutputs). These are legitimate documented exceptions to be REGISTERED in the exclusion list, not rewritten here."
+  - "Platform-internal generic seams in libs/event-processor (to-uow.ts, sqs-parser.ts, ingestion-engine.ts) — the parseSubject carrier itself is Record<string,unknown> by design; the checker must not flag these."
+  - "Any runtime service src behavior change or deploy — this is a tooling + skills + arch-docs workstream; no Lambda code changes, no e2e validation gate."
+  - "The CLAUDE.md card-drift gate decision is DEFERRED to the brainstorm (fold-in vs split) — not pre-excluded here."
 spec: null
 plan: null
 topic_memory: []
