@@ -30,6 +30,9 @@ function buildFeedContent(eventType: string, subject: Record<string, unknown>): 
 
 export const createKbIngestionHandlers = (deps: KbIngestionDeps) => {
   const handleIngestion = async (payload: EventPayload, ctx: EventContext) => {
+    // boundary: external market feed events (YAHOO_FINANCE_UPDATED, MARKETWATCH_UPDATED,
+    // SEC_8K_FILED, FRED_INDICATORS_UPDATED, ALPHA_VANTAGE_NEWS_UPDATED) have no
+    // producer CDC zod contracts — these are third-party ingestion events.
     const subject = payload.subject ?? {};
     const prefix = SOURCE_PREFIX_MAP[ctx.eventType];
     if (!prefix) {
