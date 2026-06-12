@@ -8,7 +8,7 @@ import {
   projectedLedgerSnapshotPk,
 } from '../../src/repositories/projected-snapshot.repository';
 import type { EventContext, EventPayload } from '@nestfolio/event-processor';
-import { LedgerCtrlEventTypes } from '@nestfolio/ledger-ctrl/events';
+import { LedgerCrossDomainEventTypes } from '@nestfolio/ledger-adpt/domain';
 
 // Identity now travels in the event context (RequestContext), not the dry subject.
 // overrides is loosely typed so fixtures can vary plain-string test identities
@@ -219,7 +219,7 @@ describe('snapshot-projector — LedgerSnapshot', () => {
   const handlers = createHandlers();
 
   it('projects PORTFOLIO_UPDATED into a LedgerSnapshot projectVersioned keyed on lastEventSequence', async () => {
-    const result = await handlers[LedgerCtrlEventTypes.PORTFOLIO_UPDATED](
+    const result = await handlers[LedgerCrossDomainEventTypes.PORTFOLIO_UPDATED](
       // Dry PORTFOLIO_UPDATED subject — tenantId is supplied by the event context.
       payload({
         positions: { VTI: { symbol: 'VTI', quantity: 10, averageCostBasis: 200, totalCostBasis: 2000, lastFillPrice: 200 } },
@@ -255,7 +255,7 @@ describe('snapshot-projector — LedgerSnapshot', () => {
     // A subject missing it is a producer contract violation caught at parse time (ZodError),
     // routed to the event-processor DLQ/poison-pill path.
     await expect(
-      handlers[LedgerCtrlEventTypes.PORTFOLIO_UPDATED](
+      handlers[LedgerCrossDomainEventTypes.PORTFOLIO_UPDATED](
         payload({
           positions: {},
           snapshot: { positions: {}, cashBalanceCents: 0 }, // missing lastEventSequence
@@ -267,7 +267,7 @@ describe('snapshot-projector — LedgerSnapshot', () => {
 
   it('raises NotRetryableError when subject.snapshot is missing', async () => {
     await expect(
-      handlers[LedgerCtrlEventTypes.PORTFOLIO_UPDATED](
+      handlers[LedgerCrossDomainEventTypes.PORTFOLIO_UPDATED](
         payload({ positions: {} }),
         ctx('PORTFOLIO_UPDATED', { tenantId: 'tenant-abc', eventId: 'evt-2' }),
       ),

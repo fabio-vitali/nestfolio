@@ -84,7 +84,8 @@ Note (row type, 2026-06-10): `InvestorProfileSnapshotRow` (domain/models.ts) is 
 ## Dependencies
 - libs: cdk-constructs (core, extensions, utils), event-processor, agent-orchestrator, event-types
 - npm: zod (payload contract schema in domain/contracts.ts + agent schemas)
-- Cross-service event-type imports: investor-bff (INVESTOR_PROFILE_UPDATED, MANDATE_ISSUED), compliance-ctrl (DECISION_BLOCKED, DECISION_APPROVED)
+- Cross-domain event-type imports (producer-domain adapter `/domain`): investor-adpt/domain (InvestorCrossDomainEventTypes.INVESTOR_PROFILE_UPDATED, MANDATE_ISSUED)
+- Intra-domain event-type imports: compliance-ctrl (DECISION_BLOCKED, DECISION_APPROVED)
 - Cross-service contract consumers: decision-workflow-ctrl imports InvestorProfileSnapshotSchema from `@nestfolio/investor-profile-ctrl/contracts`
 - SSM: advisory-hub (models/opus, models/haiku), decision-workflow-ctrl (memory/id)
 - AgentCore Memory API (CreateEvent, RetrieveMemoryRecords, GetMemoryRecord, ListEvents, ListActors, ListSessions)

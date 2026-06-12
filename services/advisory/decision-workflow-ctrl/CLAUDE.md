@@ -105,8 +105,10 @@ Removed (Task 11): ANALYZE_INVESTOR_PROFILE, ANALYZE_MARKET, INVESTOR_PROFILE_CO
 
 ## Dependencies
 - libs: cdk-constructs (core, utils), event-processor, event-types
-- Cross-service event-type imports (`/events` name-maps): investor-profile-ctrl (INVESTOR_PROFILE_SNAPSHOT_*), market-intelligence-ctrl (MARKET_SNAPSHOT_UPDATED), ledger-ctrl (PORTFOLIO_UPDATED), investor-bff (MANDATE_ISSUED, OPERATING_MODE_CHANGED)
-- Cross-service payload-contract imports (`/contracts` zod schemas, consumed by snapshot-projector.ts via `parseSubject` — `event-subject-payload-build-tripwire`): investor-profile-ctrl (InvestorProfileSnapshotSchema), market-intelligence-ctrl (MarketSnapshotSchema), ledger-ctrl (PortfolioUpdatedSchema)
+- Intra-domain event-type imports (`/events` name-maps): investor-profile-ctrl (INVESTOR_PROFILE_SNAPSHOT_*), market-intelligence-ctrl (MARKET_SNAPSHOT_UPDATED)
+- Cross-domain event-type imports (producer-domain adapter `/domain`): ledger-adpt/domain (LedgerCrossDomainEventTypes.PORTFOLIO_UPDATED), investor-adpt/domain (InvestorCrossDomainEventTypes.MANDATE_ISSUED, OPERATING_MODE_CHANGED)
+- Intra-domain payload-contract imports (`/contracts` zod schemas, consumed by snapshot-projector.ts via `parseSubject` — `event-subject-payload-build-tripwire`): investor-profile-ctrl (InvestorProfileSnapshotSchema), market-intelligence-ctrl (MarketSnapshotSchema)
+- Cross-domain payload-contract imports (producer-domain adapter `/domain`, consumed by snapshot-projector.ts via `parseSubject`): ledger-adpt/domain (PortfolioUpdatedSchema)
 - SSM: advisory-hub (models/haiku)
 - CDK alpha: @aws-cdk/aws-bedrock-agentcore-alpha, @aws-cdk/aws-bedrock-alpha
 

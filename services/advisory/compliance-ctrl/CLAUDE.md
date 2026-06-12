@@ -49,4 +49,4 @@ Producer-owned zod CDC subject contracts, exported via `@nestfolio/compliance-ct
 - test/integration/compliance-ctrl.integration.test.ts
 
 ## Dependencies
-- libs: cdk-constructs (core), event-processor, decision-workflow-ctrl/events, advisory-adpt/domain, investor-bff/events
+- libs: cdk-constructs (core), event-processor, decision-workflow-ctrl/events, advisory-adpt/domain, investor-adpt/domain

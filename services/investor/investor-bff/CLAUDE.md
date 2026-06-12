@@ -82,5 +82,5 @@ InvestorBffEventTypes: USER_REGISTERED, USER_AUTHENTICATED, USER_SESSION_EXPIRED
 ## Dependencies
 - libs: cdk-constructs/core, event-processor
 - event-name imports: investor-ctrl/events (InvestorCtrlEventTypes), investor-adpt/domain (InvestorIngestEventTypes), ledger-adpt/domain (LedgerCrossDomainEventTypes)
-- zod payload-contract imports (event-subject-payload tripwire — consumers `parseSubject(payload, Schema)`, no local types/`as` casts): ledger-ctrl/contracts (BalanceUpdatedSchema), investor-ctrl/contracts (NotificationCreatedSchema), onboarding-bff/contracts (GoLiveConfirmedSchema, OnboardingCompletedRecordSchema), execution-adpt/domain (FundingSnapshotSchema)
+- zod payload-contract imports (event-subject-payload tripwire — consumers `parseSubject(payload, Schema)`, no local types/`as` casts): ledger-adpt/domain (BalanceUpdatedSchema), investor-ctrl/contracts (NotificationCreatedSchema), onboarding-bff/contracts (GoLiveConfirmedSchema, OnboardingCompletedRecordSchema), execution-adpt/domain (FundingSnapshotSchema)
 - runtime deps: @smithy/signature-v4, @aws-crypto/sha256-js (for IAM-signed AppSync calls), zod (payload contracts)

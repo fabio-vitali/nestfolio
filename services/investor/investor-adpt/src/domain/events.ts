@@ -9,7 +9,7 @@ import { eventName } from '@nestfolio/event-types';
 export const InvestorCrossDomainEventTypes = {
   // → Execution (consumed by execution-ctrl/handlers/event-listener.ts)
   ACCOUNT_CLOSURE_REQUESTED: eventName('ACCOUNT_CLOSURE_REQUESTED'),
-  // → Advisory (consumed by compliance-ctrl, decision-workflow-ctrl, investor-profile-ctrl)
+  // → Advisory
   INVESTOR_PROFILE_UPDATED: eventName('INVESTOR_PROFILE_UPDATED'),
   MANDATE_ISSUED: eventName('MANDATE_ISSUED'),
   MANDATE_REVOKED: eventName('MANDATE_REVOKED'),
