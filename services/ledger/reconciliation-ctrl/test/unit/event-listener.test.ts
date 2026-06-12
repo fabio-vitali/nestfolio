@@ -73,6 +73,22 @@ import { createHandlers, type EventListenerDeps } from '../../src/handlers/event
 import { ReconciliationService } from '../../src/services/reconciliation.service';
 import { ReconciliationRepository } from '../../src/repositories/reconciliation.repository';
 
+// ---------------------------------------------------------------------------
+// Fixture helpers — real producer shapes (read from producer contracts)
+// ---------------------------------------------------------------------------
+
+/** Minimal valid PortfolioUpdatedSchema subject (includes required `snapshot` field). */
+function makePortfolioUpdatedSubject(positions: Record<string, { symbol: string; quantity: number; averageCostBasis: number; totalCostBasis: number; lastFillPrice: number }> = {}) {
+  return {
+    positions,
+    snapshot: {
+      positions,
+      cashBalanceCents: 0,
+      lastEventSequence: 1,
+    },
+  };
+}
+
 process.env['TABLE_NAME'] = 'test-table';
 
 describe('reconciliation-ctrl event-listener', () => {
@@ -98,15 +114,25 @@ describe('reconciliation-ctrl event-listener', () => {
     mockSend.mockResolvedValue({});
   });
 
+  describe('contract enforcement', () => {
+    it('rejects a PORTFOLIO_UPDATED subject missing required fields (contract enforcement)', async () => {
+      // Pre-conversion: payload.subject?.positions returns undefined → normalizePositions([]) → skip.
+      // Post-conversion: parseSubject(PortfolioUpdatedSchema) throws ZodError on missing positions/snapshot.
+      const result = await harness.process([
+        fakeSqsRecord('PORTFOLIO_UPDATED', {}, { tenantId: 't1' }),
+      ]);
+      expect(result.batchItemFailures).toHaveLength(1);
+    });
+  });
+
   describe('cache-and-compare — PORTFOLIO_UPDATED (intent side)', () => {
     it('should cache intent positions and skip when no settlement exists', async () => {
       getSnapshotSpy.mockResolvedValueOnce(null); // no settlement cached
 
       const result = await harness.process([
-        fakeSqsRecord('PORTFOLIO_UPDATED', {
-          tenantId: 't1', portfolioId: 'p1',
-          positions: { AAPL: { symbol: 'AAPL', quantity: 100, averageCostBasis: 150, totalCostBasis: 1500, lastFillPrice: 155 } },
-        }, { tenantId: 't1' }),
+        fakeSqsRecord('PORTFOLIO_UPDATED',
+          makePortfolioUpdatedSubject({ AAPL: { symbol: 'AAPL', quantity: 100, averageCostBasis: 150, totalCostBasis: 1500, lastFillPrice: 155 } }),
+          { tenantId: 't1' }),
       ]);
 
       expect(putSnapshotSpy).toHaveBeenCalledWith('t1', 'Intent', [{ instrument: 'AAPL', quantity: 100 }], 'PORTFOLIO_UPDATED');
@@ -124,10 +150,9 @@ describe('reconciliation-ctrl event-listener', () => {
       });
 
       const result = await harness.process([
-        fakeSqsRecord('PORTFOLIO_UPDATED', {
-          tenantId: 't1',
-          positions: { AAPL: { symbol: 'AAPL', quantity: 100, averageCostBasis: 150, totalCostBasis: 1500, lastFillPrice: 155 } },
-        }, { tenantId: 't1', eventId: 'evt-1' }),
+        fakeSqsRecord('PORTFOLIO_UPDATED',
+          makePortfolioUpdatedSubject({ AAPL: { symbol: 'AAPL', quantity: 100, averageCostBasis: 150, totalCostBasis: 1500, lastFillPrice: 155 } }),
+          { tenantId: 't1', eventId: 'evt-1' }),
       ]);
 
       // reconciliationId is a content hash, not ctx.eventId.
@@ -152,9 +177,9 @@ describe('reconciliation-ctrl event-listener', () => {
       });
 
       await harness.process([
-        fakeSqsRecord('PORTFOLIO_UPDATED', {
-          tenantId: 't1', positions: [],
-        }, { tenantId: 't1' }),
+        fakeSqsRecord('PORTFOLIO_UPDATED',
+          makePortfolioUpdatedSubject({}),
+          { tenantId: 't1' }),
       ]);
 
       expect(reconcileSpy).not.toHaveBeenCalled();
@@ -210,13 +235,12 @@ describe('reconciliation-ctrl event-listener', () => {
       });
 
       const result = await harness.process([
-        fakeSqsRecord('PORTFOLIO_UPDATED', {
-          tenantId: 't1',
-          positions: {
+        fakeSqsRecord('PORTFOLIO_UPDATED',
+          makePortfolioUpdatedSubject({
             AAPL: { symbol: 'AAPL', quantity: 100, averageCostBasis: 150, totalCostBasis: 1500, lastFillPrice: 155 },
             TSLA: { symbol: 'TSLA', quantity: 50, averageCostBasis: 200, totalCostBasis: 10000, lastFillPrice: 210 },
-          },
-        }, { tenantId: 't1', eventId: 'evt-3' }),
+          }),
+          { tenantId: 't1', eventId: 'evt-3' }),
       ]);
 
       expect(result.intents).toHaveLength(3); // 1 ReconciliationResult + 2 DriftRecords
@@ -243,10 +267,9 @@ describe('reconciliation-ctrl event-listener', () => {
       });
 
       const result = await harness.process([
-        fakeSqsRecord('PORTFOLIO_UPDATED', {
-          tenantId: 't1',
-          positions: { VTI: { symbol: 'VTI', quantity: 100, averageCostBasis: 200, totalCostBasis: 20000, lastFillPrice: 245 } },
-        }, { tenantId: 't1', eventId: 'evt-4' }),
+        fakeSqsRecord('PORTFOLIO_UPDATED',
+          makePortfolioUpdatedSubject({ VTI: { symbol: 'VTI', quantity: 100, averageCostBasis: 200, totalCostBasis: 20000, lastFillPrice: 245 } }),
+          { tenantId: 't1', eventId: 'evt-4' }),
       ]);
 
       expect(result.intents).toHaveLength(1);
@@ -298,9 +321,9 @@ describe('reconciliation-ctrl event-listener', () => {
       reconcileSpy.mockImplementationOnce(() => { throw new Error('Compute failure'); });
 
       const result = await harness.process([
-        fakeSqsRecord('PORTFOLIO_UPDATED', {
-          tenantId: 't1', positions: [],
-        }, { tenantId: 't1' }),
+        fakeSqsRecord('PORTFOLIO_UPDATED',
+          makePortfolioUpdatedSubject({}),
+          { tenantId: 't1' }),
       ]);
       expect(result.errors).toHaveLength(1);
       expect(result.batchItemFailures).toHaveLength(1);

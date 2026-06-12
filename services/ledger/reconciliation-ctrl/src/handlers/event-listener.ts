@@ -1,9 +1,10 @@
 import '../read-model-ownership';
 import { createHash } from 'node:crypto';
 import { DynamoDBClient } from '@aws-sdk/client-dynamodb';
-import { materializeToTable, record, skip, type WriteIntent, type EventPayload, type EventContext } from '@nestfolio/event-processor';
+import { materializeToTable, parseSubject, record, skip, type WriteIntent, type EventPayload, type EventContext } from '@nestfolio/event-processor';
 import { requireEnv, logger } from '@nestfolio/event-processor';
 import { LedgerCtrlEventTypes } from '@nestfolio/ledger-ctrl/events';
+import { PortfolioUpdatedSchema } from '@nestfolio/ledger-ctrl/contracts';
 import { ExecutionCrossDomainEventTypes } from '@nestfolio/execution-adpt/domain';
 import { ReconciliationRepository, type CachedPositionSnapshot } from '../repositories/reconciliation.repository';
 import { ReconciliationService } from '../services/reconciliation.service';
@@ -163,25 +164,44 @@ async function cacheAndReconcile(
 // Handler factory
 // ---------------------------------------------------------------------------
 
-const INTENT_EVENT_TYPES = [
-  LedgerCtrlEventTypes.PORTFOLIO_UPDATED,
-  ExecutionCrossDomainEventTypes.PORTFOLIO_SNAPSHOT_IMPORTED,
-  ExecutionCrossDomainEventTypes.CORPORATE_ACTION_APPLIED,
-] as const;
-
 export const createHandlers = (deps: EventListenerDeps) => {
   const handlers: Record<string, (payload: EventPayload, ctx: EventContext) => Promise<WriteIntent | WriteIntent[]>> = {};
 
-  // Intent-side events (positions from internal ledger)
-  for (const type of INTENT_EVENT_TYPES) {
-    handlers[type] = async (payload, ctx) => {
-      const positions = normalizePositions(payload.subject?.positions, { quantityField: 'quantity' });
-      return cacheAndReconcile(deps, 'Intent', positions, ctx.eventType, ctx);
-    };
-  }
+  // -------------------------------------------------------------------------
+  // PORTFOLIO_UPDATED — intra-domain (ledger-ctrl CDC), contract-backed
+  // -------------------------------------------------------------------------
+  handlers[LedgerCtrlEventTypes.PORTFOLIO_UPDATED] = async (payload, ctx) => {
+    const subject = parseSubject(payload, PortfolioUpdatedSchema);
+    const positions = normalizePositions(subject.positions, { quantityField: 'quantity' });
+    return cacheAndReconcile(deps, 'Intent', positions, ctx.eventType, ctx);
+  };
 
-  // Settlement-side event (positions from broker)
+  // -------------------------------------------------------------------------
+  // PORTFOLIO_SNAPSHOT_IMPORTED — boundary: no producer zod contract in
+  // execution-adpt/domain for this event. Raw subject.positions read retained.
+  // -------------------------------------------------------------------------
+  handlers[ExecutionCrossDomainEventTypes.PORTFOLIO_SNAPSHOT_IMPORTED] = async (payload, ctx) => {
+    // boundary: PORTFOLIO_SNAPSHOT_IMPORTED — no producer CDC contract in execution-adpt/domain.
+    const positions = normalizePositions(payload.subject?.positions, { quantityField: 'quantity' });
+    return cacheAndReconcile(deps, 'Intent', positions, ctx.eventType, ctx);
+  };
+
+  // -------------------------------------------------------------------------
+  // CORPORATE_ACTION_APPLIED — boundary: no producer zod contract in
+  // execution-adpt/domain for this event. Raw subject.positions read retained.
+  // -------------------------------------------------------------------------
+  handlers[ExecutionCrossDomainEventTypes.CORPORATE_ACTION_APPLIED] = async (payload, ctx) => {
+    // boundary: CORPORATE_ACTION_APPLIED — no producer CDC contract in execution-adpt/domain.
+    const positions = normalizePositions(payload.subject?.positions, { quantityField: 'quantity' });
+    return cacheAndReconcile(deps, 'Intent', positions, ctx.eventType, ctx);
+  };
+
+  // -------------------------------------------------------------------------
+  // ALPACA_ACCOUNT_SNAPSHOT — boundary: internal Alpaca broker result relayed
+  // via broker-alpaca-adpt; no nestfolio CDC contract for this event shape.
+  // -------------------------------------------------------------------------
   handlers[ExecutionCrossDomainEventTypes.ALPACA_ACCOUNT_SNAPSHOT] = async (payload, ctx) => {
+    // boundary: ALPACA_ACCOUNT_SNAPSHOT — internal Alpaca result, no nestfolio CDC contract.
     const positions = normalizePositions(payload.subject?.positions, { quantityField: 'qty' });
     return cacheAndReconcile(deps, 'Settlement', positions, ctx.eventType, ctx);
   };
