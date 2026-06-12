@@ -44,6 +44,17 @@
       "options": {
         "command": "node tools/check-read-model-drift.mjs"
       }
+    },
+    "typed-subject-drift": {
+      "executor": "nx:run-commands",
+      "cache": true,
+      "inputs": [
+        "{workspaceRoot}/services/**/src/**/*.ts",
+        "{workspaceRoot}/libs/**/src/**/*.ts",
+        "{workspaceRoot}/tools/check-typed-subjects.mjs",
+        "{workspaceRoot}/tools/typed-subject-exclusions.json"
+      ],
+      "options": { "command": "node tools/check-typed-subjects.mjs" }
     }
   },
   "tags": ["scope:platform", "type:lib"]
