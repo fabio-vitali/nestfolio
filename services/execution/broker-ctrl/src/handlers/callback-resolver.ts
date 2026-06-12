@@ -9,6 +9,7 @@ const sfn = new SFNClient({});
 
 type FailureClass = 'none' | 'deterministic' | 'transient' | 'ambiguous';
 
+// boundary: subject is an internal adapter result shape (see resolveCallback boundary comment above).
 function classifyFailure(eventType: string, subject: Record<string, unknown>): FailureClass {
   if ([BrokerCtrlInboundEventTypes.SIM_ORDER_FILLED, BrokerCtrlInboundEventTypes.ALPACA_ORDER_FILLED].includes(eventType)) return 'none';
   if ([BrokerCtrlInboundEventTypes.SIM_ORDER_REJECTED, BrokerCtrlInboundEventTypes.ALPACA_ORDER_REJECTED].includes(eventType)) {
@@ -39,6 +40,9 @@ function mapEventToStatus(eventType: string): string {
 }
 
 async function resolveCallback(payload: EventPayload, ctx: EventContext) {
+  // boundary: SIM_ORDER_* / ALPACA_ORDER_* are internal adapter results (broker-ctrl routing +
+  // Alpaca webhook CDC) with no exported nestfolio producer contract. Per locked boundary policy
+  // (WS-3): no contract authored, reads kept as-is.
   const orderId = (payload.subject.orderId as string) ?? ctx.eventId;
 
   const taskToken = await repo.getTaskToken(ctx.tenantId, orderId);
