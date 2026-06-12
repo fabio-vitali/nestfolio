@@ -39,11 +39,15 @@ const PLATFORM_SEAMS = new Set([
   'libs/event-processor/src/internal/sqs-parser.ts',
   'libs/event-processor/src/engine/ingestion-engine.ts',
   'libs/event-processor/src/testing/test-harness.ts',
+  'libs/event-processor/src/pipelines/broadcast-from-queue.ts',
 ]);
 
-// Matches a `subject` token (property `.subject` OR a local `subject`/`subject.field`)
-// cast to Record<string,unknown> or a PascalCase type, before the next `;`/`=`/EOL.
-const SUBJECT_CAST_RE = /(?<![A-Za-z0-9_])subject\b[^\n;=]*?\bas\s+(Record<\s*string\s*,\s*unknown\s*>|[A-Z][A-Za-z0-9_]*)/g;
+// C1 — P1: a carrier `.subject` property read consumed via `as` or a `??` nullish fallback
+// (the untyped carrier-subject read). P2: any `subject`-token cast to Record<string,unknown>.
+// Deliberately NOT matching `typedSubject.field as <SpecificType>` (a typed field narrowing
+// on an already-parseSubject'd value — e.g. `subject.proposedTrades as Foo['bar']`).
+const SUBJECT_CARRIER_RE = /\.subject\b\s*(?:as\b|\?\?)/g;
+const SUBJECT_RECORD_CAST_RE = /(?<![A-Za-z0-9_])subject\b[^\n;=]*?\bas\s+Record<\s*string\s*,\s*unknown\s*>/g;
 const SUBJECT_SUFFIX_RE = /export\s+(?:const\s+([A-Za-z0-9_]+SubjectSchema)\b|type\s+([A-Za-z0-9_]+Subject)\b)/g;
 const OPAQUE_RE = /\bopaqueSubject\b/g;
 const CROSS_DOMAIN_IMPORT_RE = /from\s+['"]@nestfolio\/([a-z0-9-]+)\/(contracts|events)['"]/g;
@@ -133,12 +137,20 @@ function scanInlineRows(rel, text) {
 
 export function scanFile(rel, text) {
   const hits = [];
-  SUBJECT_CAST_RE.lastIndex = 0; let m;
-  while ((m = SUBJECT_CAST_RE.exec(text)) !== null) {
-    if (inComment(text, m.index)) continue;
-    hits.push({ rule: 'subject-cast', file: rel, line: lineOf(text, m.index),
-      msg: `untyped subject read \`${m[0].trim()}\` — parse it with parseSubject(carrier, <ProducerSchema>) instead` });
+  // C1 subject-cast: P1 (carrier .subject read with as/??) OR P2 (subject cast to Record<string,unknown>).
+  const subjectCastSeen = new Set();
+  for (const re of [SUBJECT_CARRIER_RE, SUBJECT_RECORD_CAST_RE]) {
+    re.lastIndex = 0; let m;
+    while ((m = re.exec(text)) !== null) {
+      if (inComment(text, m.index)) continue;
+      const line = lineOf(text, m.index);
+      if (subjectCastSeen.has(line)) continue;
+      subjectCastSeen.add(line);
+      hits.push({ rule: 'subject-cast', file: rel, line,
+        msg: `untyped subject read \`${m[0].trim()}\` — parse it with parseSubject(carrier, <ProducerSchema>) instead` });
+    }
   }
+  let m;
   if (rel.endsWith('/domain/contracts.ts') || rel.endsWith('/domain/events.ts') || rel.endsWith('/contracts.ts')) {
     SUBJECT_SUFFIX_RE.lastIndex = 0;
     while ((m = SUBJECT_SUFFIX_RE.exec(text)) !== null) {

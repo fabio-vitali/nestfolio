@@ -10,6 +10,8 @@
     { "rule": "subject-cast", "file": "services/advisory/advisory-narrative-ctrl/src/handlers/feedback-correlator.ts", "reason": "Polymorphic feedback correlation over multiple event types." },
     { "rule": "subject-cast", "file": "services/advisory/market-intelligence-ctrl/src/agent-service.ts", "reason": "Agent-runtime entry shim — direct-invoke OR EB event subject; genuinely polymorphic." },
     { "rule": "subject-cast", "file": "services/advisory/market-intelligence-ctrl/src/handlers/event-listener.ts", "reason": "Polymorphic fan-in entry — narrows per-branch downstream." },
-    { "rule": "subject-cast", "file": "services/advisory/investor-profile-ctrl/src/agent-service.ts", "reason": "Agent-runtime entry shim — direct-invoke OR EB event subject; genuinely polymorphic." }
+    { "rule": "subject-cast", "file": "services/advisory/investor-profile-ctrl/src/agent-service.ts", "reason": "Agent-runtime entry shim — direct-invoke OR EB event subject; genuinely polymorphic." },
+    { "rule": "subject-cast", "file": "services/advisory/compliance-ctrl/src/handlers/event-listener.ts", "reason": "projectMandateSnapshot reads payload.subject ?? {} raw (WS-3 consumer-conversion residual); tracked for per-event parseSubject conversion.", "backlogRef": "compliance-ctrl-mandate-snapshot-parse-subject" },
+    { "rule": "subject-cast", "file": "services/advisory/portfolio-engine-ctrl/src/handlers/kb-ingestion-handler.ts", "reason": "SEC EDGAR feed boundary (SEC_PROSPECTUS_UPDATED/SEC_10K_UPDATED) — external third-party events with no producer CDC zod contract; documented polymorphic read, mirrors the market-intelligence-ctrl kb-ingestion-handler exclusion." }
   ]
 }

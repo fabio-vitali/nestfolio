@@ -49,6 +49,18 @@ test('C1: does NOT flag parseSubject or a non-subject (.payload) read', () => {
   assert.equal(hits.filter(h => h.rule === 'subject-cast').length, 0);
 });
 
+test('C1: does NOT flag a field re-cast on an already-typed subject', () => {
+  const hits = scanFile('services/x/x-ctrl/src/handlers/h.ts',
+    `const subject = parseSubject(payload, S);\nconst t = subject.proposedTrades as ComplianceInput['proposedTrades'];`);
+  assert.equal(hits.filter(h => h.rule === 'subject-cast').length, 0);
+});
+
+test('C1: flags a raw `payload.subject ?? {}` carrier read (once per read line)', () => {
+  const hits = scanFile('services/x/x-ctrl/src/handlers/h.ts',
+    `const subject = payload.subject ?? {};\nconst m = subject.level as Mandate['level'];`);
+  assert.equal(hits.filter(h => h.rule === 'subject-cast').length, 1);
+});
+
 test('C2: flags cross-domain /contracts; not intra-domain or *-adpt/domain', () => {
   const sd = { 'ledger-ctrl': 'ledger', 'dashboard-bff': 'investor', 'investor-bff': 'investor', 'ledger-adpt': 'ledger' };
   const cross = scanCrossDomainImports('services/investor/dashboard-bff/src/t.ts',
