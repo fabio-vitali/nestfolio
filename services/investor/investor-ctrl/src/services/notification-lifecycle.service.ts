@@ -1,5 +1,6 @@
-import { logger, type BusEvent, type RequestContext } from '@nestfolio/event-processor';
+import { logger, parseSubject, type BusEvent, type EventPayload, type RequestContext } from '@nestfolio/event-processor';
 import { withMethodLogging } from '@nestfolio/event-processor';
+import { NormalizedOrderEventSchema } from '@nestfolio/execution-adpt/domain';
 import { NotificationRepository } from '../repositories/notification.repository';
 import { NotificationDeliveryService, type DeliveryResult } from './notification-delivery.service';
 
@@ -72,10 +73,12 @@ export class NotificationLifecycleService {
       // 4. For ORDER_FILLED events, also create monthly report
       if (context.triggerEvent.type === 'ORDER_FILLED') {
         const reportId = context.triggerEvent.id + '-report';
-        const subject = (context.triggerEvent.subject as Record<string, unknown>) ?? {};
+        // parseSubject validates the NormalizedOrderEventSchema contract at the consumer seam.
+        // BusEvent structurally satisfies EventPayload (both have .subject); cast is safe.
+        const orderSubject = parseSubject(context.triggerEvent as unknown as EventPayload, NormalizedOrderEventSchema);
         const reportCreated = await this.repository.createMonthlyReport(reportId, {
           period: this.getCurrentPeriod(),
-          orderDetails: subject,
+          orderDetails: orderSubject,
           sourceEventId: context.triggerEvent.id,
           status: 'GENERATED',
         }, ctx);

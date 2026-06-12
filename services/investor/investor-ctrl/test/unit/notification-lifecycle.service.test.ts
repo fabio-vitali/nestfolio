@@ -17,7 +17,11 @@ jest.mock('@aws-sdk/lib-dynamodb', () => {
   };
 });
 
+import { ZodError } from 'zod';
+
 jest.mock('@nestfolio/event-processor', () => ({
+  // Pass parseSubject through from the real module — it's a pure function with no side effects.
+  parseSubject: jest.requireActual('@nestfolio/event-processor').parseSubject,
   TableRepository: class {
     protected readonly docClient: { send: jest.Mock };
     protected readonly tableName: string;
@@ -123,7 +127,8 @@ describe('NotificationLifecycleService', () => {
           id: 'evt-2',
           type: 'ORDER_FILLED',
           timestamp: '2025-01-01T00:00:00.000Z',
-          subject: { tenantId: 't1', orderId: 'ord-1', symbol: 'VTI', quantity: 10 },
+          // Fixture matches NormalizedOrderEventSchema: orderId, executionMode, timestamp required
+          subject: { orderId: 'ord-1', executionMode: 'simulation', timestamp: '2025-01-01T00:00:00.000Z' },
           context: { tenantId: 't1' },
         },
       };
@@ -152,19 +157,37 @@ describe('NotificationLifecycleService', () => {
       });
     });
 
+    it('ORDER_FILLED with invalid subject throws ZodError (NormalizedOrderEventSchema contract enforcement)', async () => {
+      // Empty subject violates NormalizedOrderEventSchema (orderId + executionMode required)
+      const context = {
+        requestContext: testCtx,
+        triggerEvent: {
+          id: 'evt-zod',
+          type: 'ORDER_FILLED',
+          timestamp: '2025-01-01T00:00:00.000Z',
+          subject: {},
+          context: { tenantId: 't1' },
+        },
+      };
+      await expect(service.executeNotificationLifecycle(context)).rejects.toBeInstanceOf(ZodError);
+    });
+
     it('should return correct notification content for each event type', async () => {
+      // Subjects must conform to their producer schema where parseSubject is called.
+      // ORDER_FILLED requires NormalizedOrderEventSchema; others don't read subject fields.
+      const orderFilledSubject = { orderId: 'ord-t', executionMode: 'simulation', timestamp: '2025-01-01T00:00:00.000Z' };
       const eventTypes = [
-        { type: 'ONBOARDING_COMPLETED', expectedTitle: 'Welcome to Nestfolio' },
-        { type: 'MANDATE_ISSUED', expectedTitle: 'Investment Mandate Activated' },
-        { type: 'MANDATE_REVOKED', expectedTitle: 'Mandate Revoked' },
-        { type: 'GOAL_UPDATED', expectedTitle: 'Goal Updated' },
-        { type: 'DEPOSIT_INITIATED', expectedTitle: 'Deposit Received' },
-        { type: 'OPERATING_MODE_CHANGED', expectedTitle: 'Operating Mode Changed' },
-        { type: 'DECISION_APPROVED', expectedTitle: 'Investment Decision Approved' },
-        { type: 'ORDER_FILLED', expectedTitle: 'Order Executed' },
+        { type: 'ONBOARDING_COMPLETED', subject: {}, expectedTitle: 'Welcome to Nestfolio' },
+        { type: 'MANDATE_ISSUED', subject: {}, expectedTitle: 'Investment Mandate Activated' },
+        { type: 'MANDATE_REVOKED', subject: {}, expectedTitle: 'Mandate Revoked' },
+        { type: 'GOAL_UPDATED', subject: {}, expectedTitle: 'Goal Updated' },
+        { type: 'DEPOSIT_INITIATED', subject: {}, expectedTitle: 'Deposit Received' },
+        { type: 'OPERATING_MODE_CHANGED', subject: {}, expectedTitle: 'Operating Mode Changed' },
+        { type: 'DECISION_APPROVED', subject: {}, expectedTitle: 'Investment Decision Approved' },
+        { type: 'ORDER_FILLED', subject: orderFilledSubject, expectedTitle: 'Order Executed' },
       ];
 
-      for (const { type, expectedTitle } of eventTypes) {
+      for (const { type, subject, expectedTitle } of eventTypes) {
         jest.clearAllMocks();
         mockSend.mockResolvedValue({});
 
@@ -174,7 +197,7 @@ describe('NotificationLifecycleService', () => {
             id: `evt-${type}`,
             type,
             timestamp: '2025-01-01T00:00:00.000Z',
-            subject: { tenantId: 't1' },
+            subject,
             context: { tenantId: 't1' },
           },
         };
