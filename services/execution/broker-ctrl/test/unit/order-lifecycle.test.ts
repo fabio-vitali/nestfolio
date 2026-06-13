@@ -738,6 +738,8 @@ describe('Deposit/Withdrawal Normalizer Integration', () => {
           depositId: 'dep-1',
           amountCents: 10000,
           currency: 'USD',
+          sourceEventId: 'src-e-1',
+          timestamp: '2025-01-01T00:00:00.000Z',
         }, { tenantId: 't-1' }),
       ],
     };
@@ -773,8 +775,9 @@ describe('Deposit/Withdrawal Normalizer Integration', () => {
       Records: [
         fakeSqsRecord('SIM_WITHDRAWAL_COMPLETED', {
           withdrawalId: 'wdl-1',
-          amountCents: 20000,
-          currency: 'USD',
+          amount: 200,
+          sourceEventId: 'src-e-2',
+          timestamp: '2025-01-01T00:00:00.000Z',
         }, { tenantId: 't-1' }),
       ],
     };
@@ -802,9 +805,11 @@ describe('Deposit/Withdrawal Normalizer Integration', () => {
     const event: SQSEvent = {
       Records: [
         fakeSqsRecord('ALPACA_TRANSFER_COMPLETED', {
-          transferId: 'xfr-1',
-          amountCents: 50000,
+          nestfolioTransferId: 'xfr-1',
+          alpacaTransferId: 'alp-1',
+          amount: 500,
           direction: 'INCOMING',
+          status: 'COMPLETED',
         }, { tenantId: 't-2' }),
       ],
     };
@@ -829,9 +834,11 @@ describe('Deposit/Withdrawal Normalizer Integration', () => {
     const event: SQSEvent = {
       Records: [
         fakeSqsRecord('ALPACA_TRANSFER_COMPLETED', {
-          transferId: 'xfr-2',
-          amountCents: 30000,
+          nestfolioTransferId: 'xfr-2',
+          alpacaTransferId: 'alp-2',
+          amount: 300,
           direction: 'OUTGOING',
+          status: 'COMPLETED',
         }, { tenantId: 't-2' }),
       ],
     };
@@ -858,9 +865,11 @@ describe('Deposit/Withdrawal Normalizer Integration', () => {
     const event: SQSEvent = {
       Records: [
         fakeSqsRecord('ALPACA_TRANSFER_FAILED', {
-          transferId: 'xfr-fail-1',
-          amountCents: 15000,
+          nestfolioTransferId: 'xfr-fail-1',
+          alpacaTransferId: '',
+          amount: 150,
           direction: 'INCOMING',
+          status: 'FAILED',
           failureReason: 'Insufficient funds',
         }, { tenantId: 't-3' }),
       ],
@@ -889,9 +898,11 @@ describe('Deposit/Withdrawal Normalizer Integration', () => {
     const event: SQSEvent = {
       Records: [
         fakeSqsRecord('ALPACA_TRANSFER_FAILED', {
-          transferId: 'xfr-fail-2',
-          amountCents: 10000,
+          nestfolioTransferId: 'xfr-fail-2',
+          alpacaTransferId: '',
+          amount: 100,
           direction: 'OUTGOING',
+          status: 'FAILED',
         }, { tenantId: 't-3' }),
       ],
     };
