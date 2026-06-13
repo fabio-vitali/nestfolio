@@ -1,8 +1,8 @@
 ---
 id: detect-deploy-tools-path-no-deploy
-status: parking
+status: dropped
 type: tooling
-notes: "detect-deploy-needed.mjs has no Tier-0 rule for tools/**, so any tools/*.mjs change defaults to deploy=true (false positive). w6 hit this with tools/check-read-model-drift.mjs. Add /^tools\\//  to TIER0 + a deploy-paths.md row. Blocked from same-session fix by the auto-mode self-modification guard (the script is agent logic)."
+notes: "[SUPERSEDED -> nx-affected-true-affected-resolver] Fixed 2026-06-13: that workstream added /^tools\\// to detect-deploy-needed.mjs TIER0 + the deploy-paths.md row (commit fdc5ef89), since it had to touch detect-deploy anyway and needed tools/ to be no-deploy so its own tooling change wouldn't spuriously deploy. (.github/ Tier-0 added too, same class.) Done in an interactive worktree session, so the auto-mode self-mod guard that blocked the original same-session fix did not apply. ORIGINAL: detect-deploy-needed.mjs had no Tier-0 rule for tools/**, so any tools/*.mjs change defaulted to deploy=true (false positive)."
 references: []
 out_of_scope: []
 spec: null

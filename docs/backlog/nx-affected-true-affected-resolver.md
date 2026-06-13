@@ -1,6 +1,6 @@
 ---
 id: nx-affected-true-affected-resolver
-status: active
+status: shipped
 type: tooling
 notes: "Replace `nx affected` (which over-approximates) with a custom tools/affected-projects.mjs that computes the TRUE affected set via reverse-reachability over the `nx graph --file` JSON — which IS correct. Root cause (investigation 2026-06-07): nx 22.5.4 `affected` returns event-processor's entire dependent closure (28) for ANY backend service change, regardless of that service's real dependents. Proven NOT the cross-service contract design, NOT cycles, NOT deep-subpath imports. Latest nx 22.7.5 does not fix it (known limitation, discussion #5580 / issue #1169); the projectsAffectedByDependencyUpdates config has no effect. The custom resolver gives correct bounded results (dashboard-bff→1, yahoo→10, ui→6, event-processor→28). Wire into /backlog-next 6.2/6.4 + the 5 CI workflows. Split 2026-06-07 from (and supersedes) the disproven nx-affected-overbroad-cyclic-service-graph item."
 references: []
@@ -12,7 +12,37 @@ out_of_scope:
 spec: null
 plan: docs/superpowers/plans/2026-06-13-nx-affected-true-affected-resolver.md
 topic_memory: []
-validation_gate: null
+validation_gate: |
+  Shipped 2026-06-13 (worktree branch worktree-nx-affected-true-affected-resolver).
+  Plan: docs/superpowers/plans/2026-06-13-nx-affected-true-affected-resolver.md (6 tasks, TDD).
+
+  DELIVERED:
+  - tools/affected-projects.mjs — reverse-reachability resolver over `nx graph` JSON
+    (pure: reverseDependents/mapFilesToProjects/affectedProjects; CLI: changedFiles/
+    loadGraph/parseArgs; daemon-free auto-gen via `nx graph --file`).
+  - tools/affected-projects.test.mjs — 14/14 PASS (10 synthetic-graph unit + 4 golden
+    against committed tools/fixtures/nx-graph.sample.json). `node --test` (no node_modules).
+  - Rewired ALL nx-affected call sites: .github/scripts/compute-affected-services.sh;
+    .github/workflows/{pr-deploy(lint/test+test-integration),deploy(lint/test),pr-audit};
+    /backlog-next SKILL 6.2/6.4; detect-deploy-needed.mjs services= (resolver-computed,
+    falls back to path-extraction if nx absent). Only 3 of 5 workflows used affected
+    (nestfolio-e2e/pr-cleanup did not) — corrected scope.
+
+  EVIDENCE (live, current graph):
+  - resolver dashboard-bff(sink) → 1  vs  `nx affected` → 33 (the full event-processor
+    closure). Same 33 for broker-sim-adpt/ledger-ctrl/yahoo — premise reproduced.
+    NOTE: closure is 33 now (was 28 on 2026-06-07); the backlog's 10/11/28 ground-truth
+    column was stale (typed-subject program grew the graph) — tests use stable anchors
+    (dashboard-bff→1, ui→6 members), not magic numbers.
+  - detect-deploy on this branch: deploy=false (all Tier 0) — validates the new
+    tools/ + .github/ Tier-0 rules. detect-doc-derivation: exit 10 (no regen).
+
+  Commits: c29c7261 (core) · 859b9a76 (CLI+fixture) · ea5b9f35 (compute-affected.sh) ·
+  90dfe4fb (workflows+SKILL) · fdc5ef89 (detect-deploy services=) · f9898f06 (.github Tier0).
+
+  FOLDED: detect-deploy-tools-path-no-deploy (tools/ Tier-0 rule) — required so a
+  tooling change doesn't spuriously deploy; marked dropped [SUPERSEDED]. Also added
+  .github/ Tier-0 (same class, no prior backlog item).
 ---
 
 # nx affected over-reports — replace with a true-affected resolver
