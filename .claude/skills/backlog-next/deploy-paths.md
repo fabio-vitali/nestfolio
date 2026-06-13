@@ -28,6 +28,7 @@ Used by `detect-deploy-needed.mjs`. Defines which changed paths trigger a dev-sa
 | `docs/**` | Documentation |
 | `flows/**` | Flow specs (read by audits, not by Lambdas) |
 | `.claude/**` | Skills, agent config |
+| `tools/**` | Repo tooling (check-scripts, resolver) — never a deploy artifact |
 | `MEMORY.md` | Agent memory |
 | `*.md` at root | README, CHANGELOG, etc. |
 | `.gitignore`, `.editorconfig`, IDE config | Tooling |
@@ -36,8 +37,21 @@ Used by `detect-deploy-needed.mjs`. Defines which changed paths trigger a dev-sa
 
 If a changed path matches NO rule above, the script flags it as `deploy=true` with rationale `unknown path — defaulting to conservative deploy`. The agent can override if confident the path doesn't affect deployed artifacts.
 
-## Affected services
+## Affected services (true-affected resolver)
 
-For Tier 1 paths matching `services/<domain>/<svc>/**`, the service name (the second segment, not the domain) is extracted and added to the `services` output list. The agent uses this to scope `deploy.sh --services=<list>`.
+`services=` is computed by `tools/affected-projects.mjs` (reverse-reachability
+over `nx graph`), **not** by path-extraction. The script maps the diff (excluding
+Tier 0 files) to its true dependent app closure, filtered to `services/` apps.
+The Tier 1 `deploy=true/false` decision stays path-based; only the service list
+is resolver-computed.
 
-For shared-lib paths (`libs/**`) and `infrastructure/**`, no specific service is implied — the deploy may need broader scoping or a full deploy. Agent decides.
+Consequence: a **shared-lib** change (`libs/event-processor`, `cdk-constructs`,
+`agent-orchestrator`, `event-types`) now resolves to its true dependent
+**service** closure instead of an empty list — closing the gap where a lib edit
+emitted `deploy=true` with no `services=`. A single-service `src/**` change
+resolves to that service plus any service that imports its `/contracts`
+cross-domain (their bundles include the changed code).
+
+If `nx graph` is unavailable (no `node_modules`), detect-deploy falls back to the
+old path-extracted service names. `tools/**` is Tier 0, so a tooling change never
+widens the deploy set.

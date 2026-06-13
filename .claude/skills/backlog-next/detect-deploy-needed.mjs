@@ -22,6 +22,7 @@
  */
 import { execSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
+import { affectedProjects, loadGraph } from '../../../tools/affected-projects.mjs';
 
 // Tier 1 — deploy required. Order matters: first match wins for service extraction.
 // Service paths are `services/<domain>/<service>/...`; the capture group is the service name (m[1]).
@@ -49,6 +50,8 @@ export const TIER0 = [
   /^docs\//,
   /^flows\//,
   /^\.claude\//,
+  /^tools\//,           // tools/*.mjs = repo tooling, never a deploy artifact
+
   /^MEMORY\.md$/,
   /^README(\.md)?$/,
   /^[^/]+\.md$/,        // any markdown at root
@@ -138,7 +141,22 @@ function main() {
     process.exit(10);
   }
 
-  const { deploy: deployNeeded, services, triggers, skipped, unknownPaths } = classifyChanges(changedFiles);
+  const { deploy: deployNeeded, services: pathServices, triggers, skipped, unknownPaths } = classifyChanges(changedFiles);
+
+  // True-affected resolver: map the diff to its dependent DEPLOYABLE service
+  // closure (covers shared-lib changes, which path-extraction leaves empty).
+  // Exclude no-deploy (Tier 0) files so a tools/ or docs/ edit never widens it.
+  let services = pathServices;
+  if (deployNeeded) {
+    try {
+      const graph = loadGraph();
+      const deployRelevant = changedFiles.filter((f) => !TIER0.some((re) => re.test(f)));
+      services = affectedProjects(graph, { files: deployRelevant, type: 'app' })
+        .filter((n) => graph.nodes[n].data.root.startsWith('services/'));
+    } catch (err) {
+      console.error(`[detect-deploy] resolver unavailable (${err.message}); using path-extracted services`);
+    }
+  }
 
   if (asJson) {
     console.log(JSON.stringify({
