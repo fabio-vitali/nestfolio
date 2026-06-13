@@ -18,6 +18,11 @@ type Mutation {
     activity: ActivityEntryInput!
   ): ActivityBroadcast!
     @aws_iam
+  publishPositionUpdate(
+    tenantId: ID!
+    position: PositionInput!
+  ): PositionBroadcast!
+    @aws_iam
 }
 
 type Subscription {
@@ -25,6 +30,8 @@ type Subscription {
     @aws_subscribe(mutations: ["publishDashboardUpdate"])
   onActivityUpdate(tenantId: ID!): ActivityBroadcast
     @aws_subscribe(mutations: ["publishActivityUpdate"])
+  onPositionUpdate(tenantId: ID!): PositionBroadcast
+    @aws_subscribe(mutations: ["publishPositionUpdate"])
 }
 
 input AdvisoryStatusInput {
@@ -71,7 +78,7 @@ type PositionSnapshot @aws_cognito_user_pools @aws_iam {
   marketValueCents: Int!
   weightPercent: Float!
   unrealizedPnlCents: Int!
-  lastUpdatedAt: String!
+  updatedAt: String!
 }
 
 type ActivityEntry @aws_cognito_user_pools @aws_iam {
@@ -122,9 +129,28 @@ input ActivityEntryInput {
   metadata: String
 }
 
+input PositionInput {
+  symbol: String!
+  assetClass: String
+  quantity: Float!
+  avgCostBasisCents: Int!
+  currentPriceCents: Int!
+  marketValueCents: Int!
+  weightPercent: Float!
+  unrealizedPnlCents: Int!
+  updatedAt: String!
+}
+
 # @aws_subscribe filter pivot — tenantId MUST be in the mutation RESPONSE
 # (not just the input args). Without this the broadcast silently drops.
 type ActivityBroadcast @aws_cognito_user_pools @aws_iam {
   tenantId: ID
   activity: ActivityEntry!
+}
+
+# @aws_subscribe filter pivot — tenantId MUST be in the mutation RESPONSE
+# (not just the input args). Without this the broadcast silently drops.
+type PositionBroadcast @aws_cognito_user_pools @aws_iam {
+  tenantId: ID
+  position: PositionSnapshot!
 }

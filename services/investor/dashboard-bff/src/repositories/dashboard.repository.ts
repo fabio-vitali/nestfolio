@@ -184,44 +184,6 @@ export class DashboardRepository extends TableRepository {
 
   // --- Position Snapshots ---
 
-  readonly upsertPositionSnapshot = this.log('upsertPositionSnapshot',
-    async (
-      data: {
-        symbol: string;
-        assetClass?: string;
-        quantity: number;
-        avgCostBasisCents: number;
-        currentPriceCents: number;
-        marketValueCents: number;
-        weightPercent: number;
-        unrealizedPnlCents: number;
-      },
-      ctx: RequestContext,
-    ): Promise<void> => {
-      const pk = dashboardPk(ctx.tenantId);
-      const now = getTime();
-
-      const item: TableEntry = {
-        pk,
-        sk: `PositionSnapshot#${data.symbol}`,
-        __typename: 'PositionSnapshot',
-        ...ctx,
-        timestamp: now,
-        symbol: data.symbol,
-        assetClass: data.assetClass ?? 'EQUITY',
-        quantity: data.quantity,
-        avgCostBasisCents: data.avgCostBasisCents,
-        currentPriceCents: data.currentPriceCents,
-        marketValueCents: data.marketValueCents,
-        weightPercent: data.weightPercent,
-        unrealizedPnlCents: data.unrealizedPnlCents,
-        lastUpdatedAt: now,
-      };
-
-      await this.put(item);
-    },
-  );
-
   readonly getPositionSnapshots = this.log('getPositionSnapshots',
     async (tenantId: string): Promise<Record<string, unknown>[]> => {
       const pk = dashboardPk(tenantId);

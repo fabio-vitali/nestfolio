@@ -133,30 +133,6 @@ describe('DashboardRepository', () => {
     });
   });
 
-  describe('upsertPositionSnapshot', () => {
-    it('should put a position snapshot item', async () => {
-      mockSend.mockResolvedValueOnce({});
-
-      await repository.upsertPositionSnapshot({
-        symbol: 'AAPL',
-        quantity: 50,
-        avgCostBasisCents: 15000,
-        currentPriceCents: 17500,
-        marketValueCents: 875000,
-        weightPercent: 35.5,
-        unrealizedPnlCents: 125000,
-      }, TEST_CTX);
-
-      expect(mockSend).toHaveBeenCalledTimes(1);
-      const cmd = mockSend.mock.calls[0][0];
-      expect(cmd.input.Item.pk).toBe('T#tenant-1');
-      expect(cmd.input.Item.sk).toBe('PositionSnapshot#AAPL');
-      expect(cmd.input.Item.__typename).toBe('PositionSnapshot');
-      expect(cmd.input.Item.symbol).toBe('AAPL');
-      expect(cmd.input.Item.quantity).toBe(50);
-    });
-  });
-
   describe('getPositionSnapshots', () => {
     it('should query positions by pk prefix', async () => {
       const positions = [
