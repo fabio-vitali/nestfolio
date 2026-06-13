@@ -19,7 +19,7 @@ const POSITION_SNAPSHOT_FIELDS = `
     marketValueCents
     weightPercent
     unrealizedPnlCents
-    lastUpdatedAt
+    updatedAt
   }
 `;
 
@@ -139,4 +139,15 @@ export const ON_ACTIVITY_UPDATE = `
     }
   }
   ${ACTIVITY_ENTRY_FIELDS}
+`;
+
+export const ON_POSITION_UPDATE = `
+  subscription OnPositionUpdate($tenantId: ID!) {
+    onPositionUpdate(tenantId: $tenantId) {
+      position {
+        ...PositionSnapshotFields
+      }
+    }
+  }
+  ${POSITION_SNAPSHOT_FIELDS}
 `;

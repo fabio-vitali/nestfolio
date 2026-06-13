@@ -8,6 +8,7 @@ import {
   GET_SIMULATION_SUMMARY,
   ON_DASHBOARD_UPDATE,
   ON_ACTIVITY_UPDATE,
+  ON_POSITION_UPDATE,
 } from '../graphql/dashboard-bff.queries';
 import { LogoutOrchestrator } from '@nestfolio/shell';
 import type {
@@ -98,5 +99,16 @@ export class DashboardService {
     tenantId: string,
   ): Observable<{ onActivityUpdate: { activity: ActivityEntry } | null }> {
     return this.graphql.subscribe(ON_ACTIVITY_UPDATE, { tenantId });
+  }
+
+  /**
+   * Live holdings: dashboard-bff fires `publishPositionUpdate` IAM-signed after
+   * each PositionSnapshot row mutation (one row per holding; a fully-exited
+   * symbol arrives as a quantity:0 frame). Frame shape: `{ position: PositionSnapshot }`.
+   */
+  subscribeToPositionUpdates(
+    tenantId: string,
+  ): Observable<{ onPositionUpdate: { position: PositionSnapshot } | null }> {
+    return this.graphql.subscribe(ON_POSITION_UPDATE, { tenantId });
   }
 }

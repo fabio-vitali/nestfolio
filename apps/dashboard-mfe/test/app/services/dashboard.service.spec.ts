@@ -136,4 +136,11 @@ describe('DashboardService', () => {
     expect(graphql.subscribe.mock.calls[0][0]).toContain('subscription OnActivityUpdate');
     expect(graphql.subscribe.mock.calls[0][1]).toEqual({ tenantId: 'tenant-42' });
   });
+
+  it('subscribeToPositionUpdates calls graphql.subscribe with ON_POSITION_UPDATE + tenantId', () => {
+    service.subscribeToPositionUpdates('tenant-42');
+    expect(graphql.subscribe).toHaveBeenCalledTimes(1);
+    expect(graphql.subscribe.mock.calls[0][0]).toContain('subscription OnPositionUpdate');
+    expect(graphql.subscribe.mock.calls[0][1]).toEqual({ tenantId: 'tenant-42' });
+  });
 });
