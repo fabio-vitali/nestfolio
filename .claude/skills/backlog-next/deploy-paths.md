@@ -29,6 +29,7 @@ Used by `detect-deploy-needed.mjs`. Defines which changed paths trigger a dev-sa
 | `flows/**` | Flow specs (read by audits, not by Lambdas) |
 | `.claude/**` | Skills, agent config |
 | `tools/**` | Repo tooling (check-scripts, resolver) — never a deploy artifact |
+| `.github/**` | CI workflows + scripts — never a deploy artifact |
 | `MEMORY.md` | Agent memory |
 | `*.md` at root | README, CHANGELOG, etc. |
 | `.gitignore`, `.editorconfig`, IDE config | Tooling |

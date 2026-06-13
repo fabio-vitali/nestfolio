@@ -51,6 +51,7 @@ export const TIER0 = [
   /^flows\//,
   /^\.claude\//,
   /^tools\//,           // tools/*.mjs = repo tooling, never a deploy artifact
+  /^\.github\//,        // CI workflow / scripts config, never a deploy artifact
 
   /^MEMORY\.md$/,
   /^README(\.md)?$/,
