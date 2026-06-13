@@ -12,7 +12,7 @@ out_of_scope:
   - "Extracting a new subscribe-then-reconcile helper — the @nestfolio/ui subscribeThenReconcile helper already exists (2 callers: Activity + PortfolioSummary). This is the trivial 3rd caller; no new helper, only an extension if a keyed-collection-with-derived-weights need surfaces."
   - "Live-delivery e2e scenario asserting the @aws_subscribe broadcast reaches the holdings table — no WSS harness exists (same gap as portfolio-summary, filed dashboard-portfolio-summary-live-push-e2e-scenario / wss-subscription-test-harness-test-support). Out of scope here; validation is unit + scoped integration + deploy-schema smoke."
 spec: docs/superpowers/specs/2026-06-13-dashboard-live-push-position-snapshots-design.md
-plan: null
+plan: docs/superpowers/plans/2026-06-13-dashboard-live-push-position-snapshots.md
 topic_memory: []
 validation_gate: null
 ---
