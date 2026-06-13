@@ -1,11 +1,12 @@
-import { materializeToTable, requireEnv, record, logger, type EventPayload, type EventContext } from '@nestfolio/event-processor';
+import { materializeToTable, requireEnv, record, logger, parseSubject, type EventPayload, type EventContext } from '@nestfolio/event-processor';
 import { AlpacaClient } from '../clients/alpaca.client';
 import { OrderMappingRepository } from '../repositories/order-mapping.repository';
 import { CircuitBreakerRepository } from '../repositories/circuit-breaker.repository';
 import { AlpacaOrdersService } from '../services/alpaca-orders.service';
 import { AlpacaAdptEventTypes } from '../domain/events';
 import type { AlpacaOrderResult, AlpacaAccountSnapshot } from '../domain/contracts';
-import type { AlpacaTransferResult } from '@nestfolio/execution-adpt/domain';
+import { AlpacaTransferRequestSchema } from '@nestfolio/execution-adpt/domain';
+import type { AlpacaTransferResult, AlpacaTransferRequest } from '@nestfolio/execution-adpt/domain';
 
 const TABLE_NAME = requireEnv('TABLE_NAME');
 const orderRepo = new OrderMappingRepository(TABLE_NAME);
@@ -75,14 +76,12 @@ function rejectCancelAsBrokerUnavailable(ctx: EventContext, payload: EventPayloa
   }, { pk: `OrderMapping#${ctx.tenantId}#${s.orderId as string}`, sk: 'CancelResult' });
 }
 
-function rejectTransferAsBrokerUnavailable(ctx: EventContext, payload: EventPayload) {
-  // boundary: subject is broker-ctrl internal routing shape (see processTransferRequested boundary comment).
-  const s = payload.subject;
+function rejectTransferAsBrokerUnavailable(ctx: EventContext, req: AlpacaTransferRequest) {
   const subject: AlpacaTransferResult = {
-    nestfolioTransferId: (s.transferId ?? ctx.eventId) as string,
+    nestfolioTransferId: req.transferId,
     alpacaTransferId: '',
-    direction: s.direction as AlpacaTransferResult['direction'],
-    amount: s.amount as number,
+    direction: req.direction,
+    amount: req.amountCents / 100,
     status: 'FAILED',
     failureReason: 'BROKER_UNAVAILABLE',
   };
@@ -91,7 +90,7 @@ function rejectTransferAsBrokerUnavailable(ctx: EventContext, payload: EventPayl
     tenantId: ctx.tenantId,
     ...subject,
   }, {
-    pk: `TransferMapping#${ctx.tenantId}#${(s.transferId ?? ctx.eventId) as string}`,
+    pk: `TransferMapping#${ctx.tenantId}#${req.transferId}`,
     sk: 'TransferMapping',
   });
 }
@@ -208,28 +207,27 @@ async function processCancelRequested(payload: EventPayload, ctx: EventContext) 
 }
 
 async function processTransferRequested(payload: EventPayload, ctx: EventContext) {
-  // boundary: ALPACA_TRANSFER_REQUESTED is a broker-ctrl internal routing event (compound subject
-  // merging DepositInitiatedSchema/WithdrawalInitiatedSchema + direction; no single exported contract).
+  const req = parseSubject(payload, AlpacaTransferRequestSchema);
   if (await checkBreaker()) {
-    return rejectTransferAsBrokerUnavailable(ctx, payload);
+    return rejectTransferAsBrokerUnavailable(ctx, req);
   }
+  const amount = req.amountCents / 100; // Alpaca ACH amount is dollars
   try {
-    const s = payload.subject;
     const result = await client.initiateTransfer({
       transfer_type: 'ach',
-      direction: s.direction as 'INCOMING' | 'OUTGOING',
-      amount: String(s.amount),
-      relationship_id: (s.relationshipId as string) ?? '',
+      direction: req.direction,
+      amount: String(amount),
+      relationship_id: req.relationshipId,
     });
 
     const alpacaTransferId = result.status < 300 ? result.data.id : '';
     const status = result.status < 300 ? 'INITIATED' : 'FAILED';
 
     const subject: AlpacaTransferResult = {
-      nestfolioTransferId: (s.transferId ?? ctx.eventId) as string,
+      nestfolioTransferId: req.transferId,
       alpacaTransferId,
-      direction: s.direction as AlpacaTransferResult['direction'],
-      amount: s.amount as number,
+      direction: req.direction,
+      amount,
       status,
       failureReason: status === 'FAILED' ? JSON.stringify(result.data) : undefined,
     };
@@ -238,18 +236,17 @@ async function processTransferRequested(payload: EventPayload, ctx: EventContext
       tenantId: ctx.tenantId,
       ...subject,
     }, {
-      pk: `TransferMapping#${ctx.tenantId}#${(s.transferId ?? ctx.eventId) as string}`,
+      pk: `TransferMapping#${ctx.tenantId}#${req.transferId}`,
       sk: 'TransferMapping',
     });
   } catch (error) {
     const brokerDown = await handleApiFailure(error, ctx);
     const reason = brokerDown ? 'BROKER_UNAVAILABLE' : (error as Error).message;
-    const s = payload.subject;
     const subject: AlpacaTransferResult = {
-      nestfolioTransferId: (s.transferId ?? ctx.eventId) as string,
+      nestfolioTransferId: req.transferId,
       alpacaTransferId: '',
-      direction: s.direction as AlpacaTransferResult['direction'],
-      amount: s.amount as number,
+      direction: req.direction,
+      amount,
       status: 'FAILED',
       failureReason: reason,
     };
@@ -258,7 +255,7 @@ async function processTransferRequested(payload: EventPayload, ctx: EventContext
       tenantId: ctx.tenantId,
       ...subject,
     }, {
-      pk: `TransferMapping#${ctx.tenantId}#${(s.transferId ?? ctx.eventId) as string}`,
+      pk: `TransferMapping#${ctx.tenantId}#${req.transferId}`,
       sk: 'TransferMapping',
     });
   }

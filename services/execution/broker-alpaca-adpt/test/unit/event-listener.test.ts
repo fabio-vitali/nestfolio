@@ -97,7 +97,7 @@ jest.mock('../../src/repositories/circuit-breaker.repository', () => ({
 
 process.env.TABLE_NAME = 'test-table';
 
-import { createTestHarness, fakeSqsRecord } from '@nestfolio/event-processor';
+import { createTestHarness, fakeSqsRecord, parseSubject } from '@nestfolio/event-processor';
 import { AlpacaAdptEventTypes } from '../../src/domain/events';
 import { AlpacaOrdersService } from '../../src/services/alpaca-orders.service';
 import { OrderMappingRepository } from '../../src/repositories/order-mapping.repository';
@@ -106,6 +106,7 @@ import { CircuitBreakerRepository } from '../../src/repositories/circuit-breaker
 import { record } from '@nestfolio/event-processor';
 import type { EventPayload, EventContext } from '@nestfolio/event-processor';
 import type { AlpacaAccountApiResponse, AlpacaPositionApiResponse, AlpacaTransferApiResponse } from '../../src/domain/schemas';
+import { AlpacaTransferRequestSchema } from '@nestfolio/execution-adpt/domain';
 
 // Build the same handlers as the event-listener module, but with injectable mocks
 function createHandlers(deps: {
@@ -196,41 +197,40 @@ function createHandlers(deps: {
       }
     },
     [AlpacaAdptEventTypes.ALPACA_TRANSFER_REQUESTED]: async (payload: EventPayload, ctx: EventContext) => {
+      const req = parseSubject(payload, AlpacaTransferRequestSchema);
       if (await checkBreaker()) {
-        const s = payload.subject;
         return record('AlpacaTransferResult', {
           __typename: 'AlpacaTransferResult', tenantId: ctx.tenantId,
-          nestfolioTransferId: s.transferId ?? ctx.eventId,
-          alpacaTransferId: '', direction: s.direction, amount: s.amount,
+          nestfolioTransferId: req.transferId,
+          alpacaTransferId: '', direction: req.direction, amount: req.amountCents / 100,
           status: 'FAILED', failureReason: 'BROKER_UNAVAILABLE',
-        }, { pk: `TransferMapping#${ctx.tenantId}#${(s.transferId ?? ctx.eventId) as string}`, sk: 'TransferMapping' });
+        }, { pk: `TransferMapping#${ctx.tenantId}#${req.transferId}`, sk: 'TransferMapping' });
       }
+      const amount = req.amountCents / 100; // Alpaca ACH amount is dollars
       try {
-        const s = payload.subject;
         const result = await client.initiateTransfer({
           transfer_type: 'ach',
-          direction: s.direction as 'INCOMING' | 'OUTGOING',
-          amount: String(s.amount),
-          relationship_id: (s.relationshipId as string) ?? '',
+          direction: req.direction,
+          amount: String(amount),
+          relationship_id: req.relationshipId,
         });
         const alpacaTransferId = result.status < 300 ? (result.data as AlpacaTransferApiResponse).id : '';
         const status = result.status < 300 ? 'INITIATED' : 'FAILED';
         return record('AlpacaTransferResult', {
           __typename: 'AlpacaTransferResult', tenantId: ctx.tenantId,
-          nestfolioTransferId: s.transferId ?? ctx.eventId,
-          alpacaTransferId, direction: s.direction, amount: s.amount, status,
+          nestfolioTransferId: req.transferId,
+          alpacaTransferId, direction: req.direction, amount, status,
           failureReason: status === 'FAILED' ? JSON.stringify(result.data) : undefined,
-        }, { pk: `TransferMapping#${ctx.tenantId}#${(s.transferId ?? ctx.eventId) as string}`, sk: 'TransferMapping' });
+        }, { pk: `TransferMapping#${ctx.tenantId}#${req.transferId}`, sk: 'TransferMapping' });
       } catch (error) {
         const brokerDown = await handleApiFailure(error, ctx);
         const reason = brokerDown ? 'BROKER_UNAVAILABLE' : (error as Error).message;
-        const s = payload.subject;
         return record('AlpacaTransferResult', {
           __typename: 'AlpacaTransferResult', tenantId: ctx.tenantId,
-          nestfolioTransferId: s.transferId ?? ctx.eventId,
-          alpacaTransferId: '', direction: s.direction, amount: s.amount,
+          nestfolioTransferId: req.transferId,
+          alpacaTransferId: '', direction: req.direction, amount,
           status: 'FAILED', failureReason: reason,
-        }, { pk: `TransferMapping#${ctx.tenantId}#${(s.transferId ?? ctx.eventId) as string}`, sk: 'TransferMapping' });
+        }, { pk: `TransferMapping#${ctx.tenantId}#${req.transferId}`, sk: 'TransferMapping' });
       }
     },
     [AlpacaAdptEventTypes.ALPACA_ACCOUNT_CHECK]: async (payload: EventPayload, ctx: EventContext) => {
@@ -419,14 +419,15 @@ describe('broker-alpaca-adpt event-listener handler', () => {
   });
 
   describe('ALPACA_TRANSFER_REQUESTED', () => {
-    it('returns AlpacaTransferResult with INITIATED status on success', async () => {
+    it('returns AlpacaTransferResult with INITIATED status on success, threading transferId and converting amountCents to dollars', async () => {
       mockInitiateTransfer.mockResolvedValueOnce({ status: 200, data: { id: 'alpaca-transfer-abc' } });
 
       const result = await harness.process([
         fakeSqsRecord(AlpacaAdptEventTypes.ALPACA_TRANSFER_REQUESTED, {
           transferId: 'nf-transfer-1',
+          amountCents: 1000000, // $10,000
+          currency: 'USD',
           direction: 'INCOMING',
-          amount: 10000,
           relationshipId: 'rel-123',
         }, { tenantId: 'tenant-1', eventId: 'evt-transfer-1' }),
       ]);
@@ -443,8 +444,17 @@ describe('broker-alpaca-adpt event-listener handler', () => {
           alpacaTransferId: 'alpaca-transfer-abc',
           status: 'INITIATED',
           direction: 'INCOMING',
+          amount: 10000, // amountCents / 100
         }),
+        overrides: {
+          pk: 'TransferMapping#tenant-1#nf-transfer-1',
+          sk: 'TransferMapping',
+        },
       });
+      expect(mockInitiateTransfer).toHaveBeenCalledWith(expect.objectContaining({
+        amount: '10000',
+        relationship_id: 'rel-123',
+      }));
     });
 
     it('returns AlpacaTransferResult with FAILED status on Alpaca error', async () => {
@@ -453,8 +463,9 @@ describe('broker-alpaca-adpt event-listener handler', () => {
       const result = await harness.process([
         fakeSqsRecord(AlpacaAdptEventTypes.ALPACA_TRANSFER_REQUESTED, {
           transferId: 'nf-transfer-2',
+          amountCents: 50000, // $500
+          currency: 'USD',
           direction: 'OUTGOING',
-          amount: 500,
           relationshipId: 'rel-bad',
         }, { tenantId: 'tenant-1', eventId: 'evt-transfer-2' }),
       ]);
@@ -464,8 +475,17 @@ describe('broker-alpaca-adpt event-listener handler', () => {
       expect(intent).toMatchObject({
         _tag: 'record',
         typename: 'AlpacaTransferResult',
-        fields: expect.objectContaining({ status: 'FAILED', alpacaTransferId: '' }),
+        fields: expect.objectContaining({
+          nestfolioTransferId: 'nf-transfer-2',
+          status: 'FAILED',
+          alpacaTransferId: '',
+          amount: 500, // amountCents / 100
+        }),
       });
+      expect(mockInitiateTransfer).toHaveBeenCalledWith(expect.objectContaining({
+        amount: '500',
+        relationship_id: 'rel-bad',
+      }));
     });
   });
 
@@ -564,7 +584,7 @@ describe('broker-alpaca-adpt event-listener handler', () => {
     it('ALPACA_TRANSFER_REQUESTED → FAILED with BROKER_UNAVAILABLE, no API call', async () => {
       const result = await harness.process([
         fakeSqsRecord(AlpacaAdptEventTypes.ALPACA_TRANSFER_REQUESTED, {
-          transferId: 'nf-transfer-cb-1', direction: 'INCOMING', amount: 1000, relationshipId: 'rel-1',
+          transferId: 'nf-transfer-cb-1', amountCents: 100000, currency: 'USD', direction: 'INCOMING', relationshipId: 'rel-1',
         }, { tenantId: 'tenant-1', eventId: 'evt-cb-3' }),
       ]);
 
@@ -575,6 +595,9 @@ describe('broker-alpaca-adpt event-listener handler', () => {
         fields: expect.objectContaining({
           status: 'FAILED',
           failureReason: 'BROKER_UNAVAILABLE',
+          // reject path independently threads transferId + converts amountCents → dollars
+          nestfolioTransferId: 'nf-transfer-cb-1',
+          amount: 1000, // amountCents (100000) / 100
         }),
       });
       expect(mockInitiateTransfer).not.toHaveBeenCalled();
@@ -635,7 +658,7 @@ describe('broker-alpaca-adpt event-listener handler', () => {
 
       const result = await harness.process([
         fakeSqsRecord(AlpacaAdptEventTypes.ALPACA_TRANSFER_REQUESTED, {
-          transferId: 'nf-transfer-fail-1', direction: 'OUTGOING', amount: 500, relationshipId: 'rel-1',
+          transferId: 'nf-transfer-fail-1', amountCents: 50000, currency: 'USD', direction: 'OUTGOING', relationshipId: 'rel-1',
         }, { tenantId: 'tenant-1', eventId: 'evt-fail-2' }),
       ]);
 
