@@ -27,7 +27,7 @@ jobs:
       - name: Get affected projects
         id: affected
         run: |
-          AFFECTED=$(pnpm nx affected --base=origin/main --head=HEAD --select=projects 2>/dev/null || echo "")
+          AFFECTED=$(node tools/affected-projects.mjs --base=origin/main --head=HEAD 2>/dev/null | paste -sd, - || echo "")
           echo "projects=$AFFECTED" >> $GITHUB_OUTPUT
           if [ -z "$AFFECTED" ]; then
             echo "skip=true" >> $GITHUB_OUTPUT

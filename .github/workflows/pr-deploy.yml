@@ -64,8 +64,15 @@ jobs:
         with: { node-version: 24, cache: pnpm }
       - run: pnpm install --frozen-lockfile
       - run: bash .github/scripts/validate-pipeline-configs.sh
-      - run: pnpm nx affected -t lint --base=origin/main --parallel=3
-      - run: pnpm nx affected -t test --base=origin/main --parallel=3
+      - name: Lint and test affected
+        run: |
+          AFFECTED=$(node tools/affected-projects.mjs --base=origin/main | paste -sd, -)
+          if [ -n "$AFFECTED" ]; then
+            pnpm nx run-many -t lint -p "$AFFECTED" --parallel=3
+            pnpm nx run-many -t test -p "$AFFECTED" --parallel=3
+          else
+            echo "No affected projects — skipping lint/test."
+          fi
 
   sandbox-deploy:
     needs: [detect-affected, build-and-test, security-scan]
@@ -126,5 +133,10 @@ jobs:
           if [ "$IS_FULL" = "true" ]; then
             pnpm nx run-many -t test-integration --parallel=8
           else
-            pnpm nx affected -t test-integration --base=origin/main --parallel=8
+            AFFECTED=$(node tools/affected-projects.mjs --base=origin/main --with-target=test-integration | paste -sd, -)
+            if [ -n "$AFFECTED" ]; then
+              pnpm nx run-many -t test-integration -p "$AFFECTED" --parallel=8
+            else
+              echo "No affected projects with test-integration — skipping."
+            fi
           fi

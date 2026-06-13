@@ -55,8 +55,13 @@ jobs:
       - name: Lint and test affected
         if: steps.affected.outputs.skipped == 'false'
         run: |
-          pnpm nx affected -t lint --base=${{ steps.setSHAs.outputs.base }} --parallel=3
-          pnpm nx affected -t test --base=${{ steps.setSHAs.outputs.base }} --parallel=3
+          AFFECTED=$(node tools/affected-projects.mjs --base=${{ steps.setSHAs.outputs.base }} | paste -sd, -)
+          if [ -n "$AFFECTED" ]; then
+            pnpm nx run-many -t lint -p "$AFFECTED" --parallel=3
+            pnpm nx run-many -t test -p "$AFFECTED" --parallel=3
+          else
+            echo "No affected projects — skipping lint/test."
+          fi
       # - uses: aws-actions/configure-aws-credentials@v4
       #   if: steps.affected.outputs.skipped == 'false'
       #   with:

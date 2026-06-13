@@ -1,6 +1,6 @@
 ---
 name: backlog-next
-description: Workstream router for starting the next backlog item. Picks from docs/BACKLOG.md, classifies complexity (doc-layer / simple / complex), enforces preflight/postflight gates, and routes the closing phase to deploy + nx-affected validation + finishing-a-development-branch.
+description: Workstream router for starting the next backlog item. Picks from docs/BACKLOG.md, classifies complexity (doc-layer / simple / complex), enforces preflight/postflight gates, and routes the closing phase to deploy + true-affected-resolver validation + finishing-a-development-branch.
 disable-model-invocation: true
 ---
 
@@ -94,11 +94,15 @@ node .claude/skills/backlog-next/detect-doc-derivation.mjs
 
 Exit 0 ⇒ derivation needed. The output lists which skills to run (`generate-c4-diagrams`, `audit-service <svc>`, `validate-flow <spec>`, etc.). Run them, resolve any inconsistencies they surface, and commit the regen **in the same workstream**. Source + derived must ship together. See `doc-derivation-paths.md` for the full mapping.
 
-**6.2 Verify with nx affected.**
+**6.2 Verify with the true-affected resolver.**
 
 ```bash
-pnpm nx affected -t test,lint --base=origin/main
+AFFECTED=$(node tools/affected-projects.mjs --base=origin/main | paste -sd, -)
+[ -n "$AFFECTED" ] && pnpm nx run-many -t test,lint -p "$AFFECTED" || echo "no affected projects"
 ```
+
+(`tools/affected-projects.mjs` replaces `nx affected`, which over-reports the
+full event-processor closure for any single-service change.)
 
 Must pass before any deploy fires. Auto-deploying broken code wastes a cycle.
 
@@ -114,7 +118,8 @@ Exit 0 ⇒ deploy needed (script prints the affected services). Exit 10 ⇒ skip
 
 ```bash
 bash infrastructure/scripts/deploy.sh sandbox --prefix=dev --services=<from-detect-output>
-pnpm nx affected -t test-integration --base=origin/main
+AFFECTED=$(node tools/affected-projects.mjs --base=origin/main --with-target=test-integration | paste -sd, -)
+[ -n "$AFFECTED" ] && pnpm nx run-many -t test-integration -p "$AFFECTED" || echo "no affected integration suites"
 ```
 
 Then run only the **involved** `apps/e2e-feature-tests` scenarios — pick from the workstream's context (which flows/services it touched). **NEVER the full e2e suite. NEVER Playwright.** See [[feedback-always-rerun-e2e]]. If any scenario fails-then-passes on a rerun, pull CloudWatch evidence from the failing window before continuing and run a second confirmation pass — flakes are real failures, not noise. See [[feedback-flake-means-broken]]. Dev-account operations need no confirmation — see [[feedback-sole-dev-no-shared-caution]].
