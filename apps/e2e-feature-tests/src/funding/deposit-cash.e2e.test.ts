@@ -51,20 +51,17 @@ describe('scenario — investor deposits cash (real sim funding pipeline)', () =
   let tenant: FreshTenant;
 
   /**
-   * Reset feature flags to enabled before each test — guards against stale
-   * state left by prior test runs (e.g., a circuit-breaker scenario that
-   * disabled initiateDeposit without re-enabling it).
+   * Re-enable the only feature flag this scenario exercises (initiateDeposit) —
+   * guards against stale state from a prior run (e.g. a circuit-breaker scenario
+   * that disabled it without re-enabling it).
    */
   async function resetFeatureFlags() {
     const flagTable = await ctx.ssm.tableName('investor-bff');
     const flagDdb = DynamoDBDocumentClient.from(new DynamoDBClient({ region: ctx.region }));
-    const flags = ['confirmDecision', 'initiateDeposit', 'requestWithdrawal'];
-    await Promise.all(flags.map(name =>
-      flagDdb.send(new PutCommand({
-        TableName: flagTable,
-        Item: { pk: 'FeatureFlag#SYSTEM', sk: `FeatureFlag#${name}`, __typename: 'FeatureFlag', name, enabled: true, reason: null },
-      })),
-    ));
+    await flagDdb.send(new PutCommand({
+      TableName: flagTable,
+      Item: { pk: 'FeatureFlag#SYSTEM', sk: 'FeatureFlag#initiateDeposit', __typename: 'FeatureFlag', name: 'initiateDeposit', enabled: true, reason: null },
+    }));
     flagDdb.destroy();
   }
 
@@ -129,12 +126,15 @@ describe('scenario — investor deposits cash (real sim funding pipeline)', () =
       bff.dashboard,
       `query RecentActivity { getRecentActivity(limit: 20) { activityType description createdAt metadata } }`,
       {},
-      (r) => r.getRecentActivity.some((e) => e.activityType.toUpperCase().includes('DEPOSIT')),
+      // Exact match: dashboard-bff sets activityType = event.type, and DEPOSIT_DETECTED
+      // is the ONLY deposit event it subscribes to (event-listener.ts line 49-50). An
+      // exact === guards against a future mis-wiring that emits some other DEPOSIT_* type.
+      (r) => r.getRecentActivity.some((e) => e.activityType === 'DEPOSIT_DETECTED'),
       { timeoutMs: 240_000 },
     );
 
     expect(
-      dashboard.getRecentActivity.some((e) => e.activityType.toUpperCase().includes('DEPOSIT')),
+      dashboard.getRecentActivity.some((e) => e.activityType === 'DEPOSIT_DETECTED'),
     ).toBe(true);
   });
 });

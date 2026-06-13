@@ -106,9 +106,11 @@ import {
 } from '@nestfolio/broker-sim-adpt/contracts';
 import {
   AlpacaOrderResultSchema,
-  AlpacaTransferResultSchema,
   AlpacaAccountSnapshotSchema,
 } from '@nestfolio/broker-alpaca-adpt/contracts';
+// AlpacaTransferResultSchema moved to execution-adpt/domain in Task 2 (broker-ctrl
+// also consumes it — mutual producer/consumer pair, so it lives in the shared adapter domain).
+import { AlpacaTransferResultSchema } from '@nestfolio/execution-adpt/domain';
 import { expectContractMatch } from '../helpers/contract-assert';
 import { armEventSubjectTrap } from '../helpers/event-subject-trap';
 import { ExecutionCtrlEventTypes } from '@nestfolio/execution-ctrl/events';

@@ -38,6 +38,7 @@ module.exports = {
     '^@nestfolio/broker-ctrl/contracts$': '<rootDir>/../../services/execution/broker-ctrl/src/domain/contracts.ts',
     '^@nestfolio/broker-sim-adpt/contracts$': '<rootDir>/../../services/execution/broker-sim-adpt/src/domain/contracts.ts',
     '^@nestfolio/broker-alpaca-adpt/contracts$': '<rootDir>/../../services/execution/broker-alpaca-adpt/src/domain/contracts.ts',
+    '^@nestfolio/execution-adpt/domain$': '<rootDir>/../../services/execution/execution-adpt/src/domain/index.ts',
     '^@nestfolio/compliance-ctrl/contracts$': '<rootDir>/../../services/advisory/compliance-ctrl/src/domain/contracts.ts',
     '^@nestfolio/decision-workflow-ctrl/contracts$': '<rootDir>/../../services/advisory/decision-workflow-ctrl/src/domain/contracts.ts',
     '^@nestfolio/portfolio-engine-ctrl/contracts$': '<rootDir>/../../services/advisory/portfolio-engine-ctrl/src/domain/contracts.ts',
