@@ -32,3 +32,23 @@ export const FundingSnapshotSchema = z.object({
 });
 
 export type FundingSnapshot = z.infer<typeof FundingSnapshotSchema>;
+
+/**
+ * ALPACA_TRANSFER_REQUESTED subject — produced by broker-ctrl's deposit-withdrawal-router
+ * (live branch), consumed by broker-alpaca-adpt's event-listener.
+ *
+ * Hosted here (NOT in broker-ctrl/contracts) because broker-ctrl and broker-alpaca are a
+ * MUTUAL producer/consumer pair (broker-ctrl also consumes AlpacaTransferResult); mutual
+ * `<svc>/contracts` imports would form a project cycle. Same precedent as FundingSnapshot.
+ * DRY — identity travels in RequestContext. `transferId` IS the nestfolio depositId/withdrawalId,
+ * threaded end-to-end so the completion can re-find the requested funding carrier.
+ */
+export const AlpacaTransferRequestSchema = z.object({
+  transferId: z.string(),
+  amountCents: z.number().int().positive(),
+  currency: z.string(),
+  direction: z.enum(['INCOMING', 'OUTGOING']),
+  relationshipId: z.string(),
+});
+
+export type AlpacaTransferRequest = z.infer<typeof AlpacaTransferRequestSchema>;
