@@ -76,19 +76,21 @@ describe('deposit-withdrawal-router', () => {
       expect(detail.subject.direction).toBe('INCOMING');
     });
 
-    it('routes to ALPACA_TRANSFER_REQUESTED with direction=INCOMING when mode=live', async () => {
+    it('routes to ALPACA_TRANSFER_REQUESTED with the typed compound subject when mode=live', async () => {
       build('live');
       await handlers[BrokerCtrlInboundEventTypes.DEPOSIT_INITIATED](
-        { subject: { depositId: 'dep-live', amountCents: 5000, currency: 'USD', tenantId: 't-2', timestamp: '2026-01-01T00:00:00.000Z' } } as any,
+        { subject: { depositId: 'dep-live', amountCents: 5000, currency: 'USD', timestamp: '2026-01-01T00:00:00.000Z' } } as any,
         ctx({ tenantId: 't-2' }),
       );
-
       expect(mockEbSend).toHaveBeenCalledTimes(1);
       const entry = mockEbSend.mock.calls[0][0].input.Entries[0];
       expect(entry).toMatchObject({ DetailType: 'ALPACA_TRANSFER_REQUESTED' });
       const detail = JSON.parse(entry.Detail);
+      expect(detail.subject).toMatchObject({
+        transferId: 'dep-live', amountCents: 5000, currency: 'USD',
+        direction: 'INCOMING', relationshipId: '',
+      });
       expect(detail.context.tenantId).toBe('t-2');
-      expect(detail.subject.direction).toBe('INCOMING');
     });
 
     it('emits a standard event envelope with id, type, timestamp, subject, context', async () => {
@@ -169,19 +171,18 @@ describe('deposit-withdrawal-router', () => {
       expect(detail.subject.direction).toBe('OUTGOING');
     });
 
-    it('routes to ALPACA_TRANSFER_REQUESTED with direction=OUTGOING when mode=live', async () => {
+    it('routes to ALPACA_TRANSFER_REQUESTED with the typed compound subject (withdrawal) when mode=live', async () => {
       build('live');
       await handlers[BrokerCtrlInboundEventTypes.WITHDRAWAL_INITIATED](
-        { subject: { withdrawalId: 'wd-live', amountCents: 2000, currency: 'USD', tenantId: 't-4', timestamp: '2026-01-01T00:00:00.000Z' } } as any,
+        { subject: { withdrawalId: 'wd-live', amountCents: 2000, currency: 'USD', timestamp: '2026-01-01T00:00:00.000Z' } } as any,
         ctx({ eventType: 'WITHDRAWAL_INITIATED', tenantId: 't-4' }),
       );
-
       expect(mockEbSend).toHaveBeenCalledTimes(1);
-      const entry = mockEbSend.mock.calls[0][0].input.Entries[0];
-      expect(entry).toMatchObject({ DetailType: 'ALPACA_TRANSFER_REQUESTED' });
-      const detail = JSON.parse(entry.Detail);
-      expect(detail.context.tenantId).toBe('t-4');
-      expect(detail.subject.direction).toBe('OUTGOING');
+      const detail = JSON.parse(mockEbSend.mock.calls[0][0].input.Entries[0].Detail);
+      expect(detail.subject).toMatchObject({
+        transferId: 'wd-live', amountCents: 2000, currency: 'USD',
+        direction: 'OUTGOING', relationshipId: '',
+      });
     });
 
     it('returns a WITHDRAWAL_REQUESTED carrier (v1) in addition to routing', async () => {

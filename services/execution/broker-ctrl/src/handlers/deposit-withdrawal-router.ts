@@ -4,6 +4,7 @@ import { ExecutionModeRepository } from '../repositories/execution-mode.reposito
 import { BrokerCtrlRoutedEventTypes, BrokerCtrlInboundEventTypes, BrokerCtrlEventTypes } from '../domain/events';
 import { fundingCarrier } from '../domain/funding';
 import { DepositInitiatedSchema, WithdrawalInitiatedSchema } from '@nestfolio/investor-adpt/domain';
+import { type AlpacaTransferRequest } from '@nestfolio/execution-adpt/domain';
 
 const BUS_NAME = requireEnv('BUS_NAME');
 const SERVICE_NAME = 'broker-ctrl';
@@ -24,13 +25,22 @@ function routeDeposit(deps: ModeDeps) {
     const subject = parseSubject(payload, DepositInitiatedSchema);
     const mode = await deps.getMode(ctx.tenantId);
     const executionMode = mode === 'live' ? 'live' : 'simulation';
-    const detailType = mode === 'live'
+    const transferId = subject.depositId ?? ctx.eventId;
+    const routedTo = mode === 'live'
       ? BrokerCtrlRoutedEventTypes.ALPACA_TRANSFER_REQUESTED
       : BrokerCtrlRoutedEventTypes.SIM_DEPOSIT_INITIATED;
-    await emitToEventBridge(detailType, { ...subject, direction: 'INCOMING' }, ctx);
-    const transferId = subject.depositId ?? ctx.eventId;
+    if (mode === 'live') {
+      const req: AlpacaTransferRequest = {
+        transferId, amountCents: subject.amountCents, currency: subject.currency ?? 'USD',
+        direction: 'INCOMING',
+        relationshipId: '', // ACH bank-link not yet wired (out of scope) — adapter passes through; see backlog
+      };
+      await emitToEventBridge(routedTo, req, ctx);
+    } else {
+      await emitToEventBridge(routedTo, { ...subject, direction: 'INCOMING' }, ctx);
+    }
     const now = ctx.timestamp;
-    logger.info('Deposit routed', { tenantId: ctx.tenantId, mode, detailType });
+    logger.info('Deposit routed', { tenantId: ctx.tenantId, mode, routedTo });
     return fundingCarrier({
       eventName: BrokerCtrlEventTypes.DEPOSIT_REQUESTED,
       direction: 'DEPOSIT',
@@ -53,13 +63,22 @@ function routeWithdrawal(deps: ModeDeps) {
     const subject = parseSubject(payload, WithdrawalInitiatedSchema);
     const mode = await deps.getMode(ctx.tenantId);
     const executionMode = mode === 'live' ? 'live' : 'simulation';
-    const detailType = mode === 'live'
+    const transferId = subject.withdrawalId ?? ctx.eventId;
+    const routedTo = mode === 'live'
       ? BrokerCtrlRoutedEventTypes.ALPACA_TRANSFER_REQUESTED
       : BrokerCtrlRoutedEventTypes.SIM_WITHDRAWAL_REQUESTED;
-    await emitToEventBridge(detailType, { ...subject, direction: 'OUTGOING' }, ctx);
-    const transferId = subject.withdrawalId ?? ctx.eventId;
+    if (mode === 'live') {
+      const req: AlpacaTransferRequest = {
+        transferId, amountCents: subject.amountCents, currency: subject.currency ?? 'USD',
+        direction: 'OUTGOING',
+        relationshipId: '', // ACH bank-link not yet wired (out of scope) — adapter passes through; see backlog
+      };
+      await emitToEventBridge(routedTo, req, ctx);
+    } else {
+      await emitToEventBridge(routedTo, { ...subject, direction: 'OUTGOING' }, ctx);
+    }
     const now = ctx.timestamp;
-    logger.info('Withdrawal routed', { tenantId: ctx.tenantId, mode, detailType });
+    logger.info('Withdrawal routed', { tenantId: ctx.tenantId, mode, routedTo });
     return fundingCarrier({
       eventName: BrokerCtrlEventTypes.WITHDRAWAL_REQUESTED,
       direction: 'WITHDRAWAL',
