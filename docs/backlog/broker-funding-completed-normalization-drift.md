@@ -11,7 +11,7 @@ out_of_scope:
   - "Normalizing the sim deposit/withdrawal completion amount-unit asymmetry at the producer (sim withdrawal emits dollars, deposit cents) — absorbed by carryForward here."
   - "A real LIVE alpaca funding e2e — impossible in dev (paper API + missing relationshipId); live path covered by mocked-Alpaca integration tests."
 spec: docs/superpowers/specs/2026-06-13-broker-funding-completed-normalization-design.md
-plan: null
+plan: docs/superpowers/plans/2026-06-13-broker-funding-completed-normalization.md
 topic_memory: []
 validation_gate: null
 ---
