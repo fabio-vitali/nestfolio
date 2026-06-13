@@ -1,6 +1,5 @@
 import {
   AlpacaOrderResultSchema,
-  AlpacaTransferResultSchema,
   AlpacaAccountSnapshotSchema,
   BrokerCircuitEventSchema,
   CircuitBreakerSchema,
@@ -38,22 +37,6 @@ describe('broker-alpaca-adpt contracts', () => {
     });
     expect(parsed.timestamp).toBeUndefined();
     expect(parsed.alpacaOrderId).toBeUndefined();
-  });
-
-  it('AlpacaTransferResultSchema parses an INITIATED transfer subject (dry)', () => {
-    expect(AlpacaTransferResultSchema.parse({
-      nestfolioTransferId: 'tr1', alpacaTransferId: 'at1', direction: 'INCOMING',
-      amount: 500, status: 'INITIATED', timestamp: '2026-06-10T00:00:00.000Z',
-    }).direction).toBe('INCOMING');
-  });
-
-  it('AlpacaTransferResultSchema parses without timestamp (event-listener emission path)', () => {
-    const parsed = AlpacaTransferResultSchema.parse({
-      nestfolioTransferId: 'tr1', alpacaTransferId: 'at1', direction: 'OUTGOING',
-      amount: 250, status: 'INITIATED',
-    });
-    expect(parsed.timestamp).toBeUndefined();
-    expect(parsed.status).toBe('INITIATED');
   });
 
   it('AlpacaAccountSnapshotSchema parses success + failure shapes', () => {

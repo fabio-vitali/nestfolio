@@ -4,7 +4,8 @@ import { OrderMappingRepository } from '../repositories/order-mapping.repository
 import { CircuitBreakerRepository } from '../repositories/circuit-breaker.repository';
 import { AlpacaOrdersService } from '../services/alpaca-orders.service';
 import { AlpacaAdptEventTypes } from '../domain/events';
-import type { AlpacaOrderResult, AlpacaTransferResult, AlpacaAccountSnapshot } from '../domain/contracts';
+import type { AlpacaOrderResult, AlpacaAccountSnapshot } from '../domain/contracts';
+import type { AlpacaTransferResult } from '@nestfolio/execution-adpt/domain';
 
 const TABLE_NAME = requireEnv('TABLE_NAME');
 const orderRepo = new OrderMappingRepository(TABLE_NAME);

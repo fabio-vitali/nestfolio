@@ -1,4 +1,5 @@
-import { AlpacaOrderResultSchema, AlpacaTransferResultSchema, AlpacaAccountSnapshotSchema, BrokerCircuitEventSchema } from '../domain/contracts';
+import { AlpacaOrderResultSchema, AlpacaAccountSnapshotSchema, BrokerCircuitEventSchema } from '../domain/contracts';
+import { AlpacaTransferResultSchema } from '@nestfolio/execution-adpt/domain';
 
 export const subjectSchemas = {
   AlpacaOrderResult: AlpacaOrderResultSchema,

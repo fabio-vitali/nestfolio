@@ -52,3 +52,22 @@ export const AlpacaTransferRequestSchema = z.object({
 });
 
 export type AlpacaTransferRequest = z.infer<typeof AlpacaTransferRequestSchema>;
+
+/**
+ * ALPACA_TRANSFER_* result subject — the broker-alpaca-adpt `AlpacaTransferResult` row
+ * (sk='TransferMapping'). Produced by broker-alpaca-adpt, consumed by broker-ctrl's
+ * deposit-withdrawal-normalizer. Hosted here for the same mutual-boundary cycle reason as
+ * AlpacaTransferRequest. `nestfolioTransferId` IS the threaded transferId (= depositId/withdrawalId).
+ * `timestamp` optional — absent on event-listener emissions (see backlog broker-alpaca-result-timestamp-drift).
+ */
+export const AlpacaTransferResultSchema = z.object({
+  nestfolioTransferId: z.string(),
+  alpacaTransferId: z.string(),
+  direction: z.enum(['INCOMING', 'OUTGOING']),
+  amount: z.number(),
+  status: z.enum(['INITIATED', 'COMPLETED', 'FAILED']),
+  failureReason: z.string().optional(),
+  timestamp: z.string().optional(),
+});
+
+export type AlpacaTransferResult = z.infer<typeof AlpacaTransferResultSchema>;

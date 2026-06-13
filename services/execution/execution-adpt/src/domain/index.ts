@@ -3,5 +3,7 @@ export { FundingSnapshotSchema } from './contracts';
 export type { FundingSnapshot } from './contracts';
 export { AlpacaTransferRequestSchema } from './contracts';
 export type { AlpacaTransferRequest } from './contracts';
+export { AlpacaTransferResultSchema } from './contracts';
+export type { AlpacaTransferResult } from './contracts';
 export { NormalizedOrderEventSchema } from '@nestfolio/broker-ctrl/contracts';
 export type { NormalizedOrderEvent } from '@nestfolio/broker-ctrl/contracts';
