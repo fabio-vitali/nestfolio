@@ -35,5 +35,6 @@ describe('execution-adpt funding boundary contracts', () => {
       amount: 250, status: 'COMPLETED',
     });
     expect(parsed.timestamp).toBeUndefined();
+    expect(parsed.status).toBe('COMPLETED');
   });
 });

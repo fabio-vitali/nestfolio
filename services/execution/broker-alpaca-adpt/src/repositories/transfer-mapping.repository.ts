@@ -1,7 +1,7 @@
 import { DynamoDBClient } from '@aws-sdk/client-dynamodb';
 import { UpdateCommand } from '@aws-sdk/lib-dynamodb';
 import { TableRepository, getTime, withMethodLogging, type TableEntry } from '@nestfolio/event-processor';
-import type { AlpacaTransferResult } from '../domain/contracts';
+import type { AlpacaTransferResult } from '@nestfolio/execution-adpt/domain';
 
 export class TransferMappingRepository extends TableRepository {
   private readonly log = withMethodLogging('TransferMappingRepository');
