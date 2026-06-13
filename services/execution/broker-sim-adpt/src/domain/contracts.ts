@@ -6,9 +6,9 @@ import { z } from 'zod';
 /**
  * Subject shape for SIM_DEPOSIT_COMPLETED.
  * Emitted from the `DepositDetected` DDB row written by event-listener.ts
- * SIM_DEPOSIT_INITIATED handler (record(...) call).
- * Fields: depositId, amountCents, currency, userId, tenantId, sourceEventId, timestamp.
- * userId is explicitly written to the row (not pickRequestContext — it is spread from subject).
+ * SIM_DEPOSIT_INITIATED handler (record(...) call). DRY — identity (userId/tenantId)
+ * travels in the event context (RequestContext), not on the subject.
+ * Fields: depositId, amountCents, currency, sourceEventId, timestamp.
  */
 export const SimDepositCompletedSchema = z.object({
   depositId: z.string(),

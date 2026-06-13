@@ -80,6 +80,8 @@ describe('broker-ctrl', () => {
           depositId,
           amountCents: 100000,
           currency: 'USD',
+          sourceEventId: 'evt-sim-dep',
+          timestamp: new Date().toISOString(),
         },
       });
 
@@ -142,13 +144,17 @@ describe('broker-ctrl', () => {
         targetService: 'broker-ctrl',
         detailType: 'SIM_WITHDRAWAL_COMPLETED',
         detail: {
+          // SimWithdrawalCompletedSchema carries `amount` (DOLLARS), NOT amountCents/currency.
           withdrawalId,
-          amountCents: 50000,
-          currency: 'EUR',
+          amount: 500, // dollars → carrier amountCents = Math.round(500*100) = 50000
+          sourceEventId: 'evt-sim-wd',
+          timestamp: new Date().toISOString(),
         },
       });
 
-      // Assert: WITHDRAWAL_SETTLED carrier (v3, settledAt present)
+      // Assert: WITHDRAWAL_SETTLED carrier (v3, settledAt present).
+      // No requested carrier is pre-seeded in this block, so carryForward MISSES and
+      // falls back: amountCents = Math.round(amount*100) = 50000, currency = 'USD'.
       const item = await table.waitForItem({
         table: 'broker-ctrl',
         pk: `Funding#${ctx.tenantId}#${withdrawalId}`,
@@ -158,8 +164,8 @@ describe('broker-ctrl', () => {
 
       expect(item['__typename']).toBe('FundingEvent');
       expect(item['tenantId']).toBe(ctx.tenantId);
-      expect(item['amountCents']).toBe(50000);
-      expect(item['currency']).toBe('EUR');
+      expect(item['amountCents']).toBe(50000); // Math.round(500*100), fallback (MISS)
+      expect(item['currency']).toBe('USD'); // fallback default (schema carries no currency)
       expect(item['executionMode']).toBe('simulation');
       expect(item['direction']).toBe('WITHDRAWAL');
       expect(item['status']).toBe('settled');
@@ -186,16 +192,21 @@ describe('broker-ctrl', () => {
         targetService: 'broker-ctrl',
         detailType: 'ALPACA_TRANSFER_FAILED',
         detail: {
-          transferId,
-          amountCents: 25000,
+          // AlpacaTransferResultSchema shape: nestfolioTransferId (NOT transferId),
+          // alpacaTransferId, direction, amount (DOLLARS), status; failureReason optional.
+          nestfolioTransferId: transferId,
+          alpacaTransferId: 'alpaca-fail-xfr',
           direction: 'INCOMING',
+          amount: 250, // dollars → carrier amountCents = Math.round(250*100) = 25000 (fallback)
+          status: 'FAILED',
           failureReason: 'Insufficient funds in bank account',
         },
       });
 
       // Assert: DEPOSIT_FAILED carrier (v3, reason + failedAt). No requested
       // carrier exists for this isolated EB-injected event, so carry-forward
-      // falls back to the injected subject fields.
+      // MISSES and falls back: amountCents = Math.round(amount*100) = 25000,
+      // reason = failureReason. executionMode is hardcoded 'live' by the handler.
       const item = await table.waitForItem({
         table: 'broker-ctrl',
         pk: `Funding#${ctx.tenantId}#${transferId}`,
@@ -205,7 +216,7 @@ describe('broker-ctrl', () => {
 
       expect(item['__typename']).toBe('FundingEvent');
       expect(item['tenantId']).toBe(ctx.tenantId);
-      expect(item['amountCents']).toBe(25000);
+      expect(item['amountCents']).toBe(25000); // Math.round(250*100), fallback (MISS)
       expect(item['executionMode']).toBe('live');
       expect(item['direction']).toBe('DEPOSIT');
       expect(item['status']).toBe('failed');
