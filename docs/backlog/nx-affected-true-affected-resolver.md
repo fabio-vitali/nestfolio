@@ -10,7 +10,7 @@ out_of_scope:
   - "Changing the cross-service contract / event design / breaking cycles: the 2026-06-07 investigation DISPROVED all of these as the cause. The graph is correct; only `nx affected`'s consumption of it over-approximates. No source/architecture changes."
   - "detect-deploy's broader deploy-needed heuristics beyond wiring the reverse-reachability resolver into its shared-lib (event-processor/cdk-constructs/agent-orchestrator/event-types) `services=` resolution."
 spec: null
-plan: null
+plan: docs/superpowers/plans/2026-06-13-nx-affected-true-affected-resolver.md
 topic_memory: []
 validation_gate: null
 ---
