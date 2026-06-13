@@ -113,6 +113,8 @@ describe('broker-ctrl resilience: idempotency', () => {
         depositId,
         amountCents: 100000,
         currency: 'USD',
+        sourceEventId: `src-${randomUUID()}`,
+        timestamp: new Date().toISOString(),
       };
 
       // First publish
@@ -212,6 +214,8 @@ describe('broker-ctrl resilience: order-agnostic pairwise', () => {
           depositId: depositIdA,
           amountCents: 100000,
           currency: 'USD',
+          sourceEventId: `src-${randomUUID()}`,
+          timestamp: new Date().toISOString(),
         },
         eventId: `pair-A-dep-evt-${randomUUID()}`,
       });
@@ -225,9 +229,11 @@ describe('broker-ctrl resilience: order-agnostic pairwise', () => {
         targetService: 'broker-ctrl',
         detailType: 'SIM_WITHDRAWAL_COMPLETED',
         detail: {
+          // SimWithdrawalCompletedSchema carries `amount` (DOLLARS), no amountCents/currency.
           withdrawalId: withdrawalIdA,
-          amountCents: 50000,
-          currency: 'USD',
+          amount: 500,
+          sourceEventId: `src-${randomUUID()}`,
+          timestamp: new Date().toISOString(),
         },
         eventId: `pair-A-wd-evt-${randomUUID()}`,
       });
@@ -272,9 +278,11 @@ describe('broker-ctrl resilience: order-agnostic pairwise', () => {
           targetService: 'broker-ctrl',
           detailType: 'SIM_WITHDRAWAL_COMPLETED',
           detail: {
+            // SimWithdrawalCompletedSchema carries `amount` (DOLLARS), no amountCents/currency.
             withdrawalId: withdrawalIdB,
-            amountCents: 50000,
-            currency: 'USD',
+            amount: 500,
+            sourceEventId: `src-${randomUUID()}`,
+            timestamp: new Date().toISOString(),
           },
           eventId: `pair-B-wd-evt-${randomUUID()}`,
         });
@@ -291,6 +299,8 @@ describe('broker-ctrl resilience: order-agnostic pairwise', () => {
             depositId: depositIdB,
             amountCents: 100000,
             currency: 'USD',
+            sourceEventId: `src-${randomUUID()}`,
+            timestamp: new Date().toISOString(),
           },
           eventId: `pair-B-dep-evt-${randomUUID()}`,
         });

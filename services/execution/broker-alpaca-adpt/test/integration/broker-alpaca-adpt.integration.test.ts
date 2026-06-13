@@ -125,9 +125,11 @@ describe('broker-alpaca-adpt', () => {
       targetService: 'broker-alpaca-adpt',
       detailType: 'ALPACA_TRANSFER_REQUESTED',
       detail: {
+        // AlpacaTransferRequestSchema: amountCents (NOT amount) + currency.
         transferId,
+        amountCents: 1000000, // $10,000
+        currency: 'USD',
         direction: 'INCOMING',
-        amount: 10000,
         relationshipId: 'rel-integ',
       },
     });
@@ -285,9 +287,13 @@ describe('broker-alpaca-adpt', () => {
         targetService: 'broker-alpaca-adpt',
         detailType: 'ALPACA_TRANSFER_REQUESTED',
         detail: {
+          // AlpacaTransferRequestSchema: amountCents (NOT amount) + currency.
+          // The handler parseSubject's this BEFORE the breaker check, so even the
+          // breaker-open path requires a schema-valid subject.
           transferId,
+          amountCents: 1000000, // $10,000
+          currency: 'USD',
           direction: 'INCOMING',
-          amount: 10000,
           relationshipId: 'rel-integ',
         },
       });

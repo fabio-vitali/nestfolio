@@ -35,7 +35,7 @@ import {
 // creates its own TestContext to keep tenant data isolated.
 
 describe('broker-alpaca-adpt resilience: idempotency', () => {
-  let mockCtx: Awaited<ReturnType<typeof createTestContext>>;
+  let mockCtx: Awaited<ReturnType<typeof createIntegrationTestContext>>;
   let mockApi: MockApiFixture;
   let ssmOverride: SsmOverrideFixture;
 
@@ -155,9 +155,11 @@ describe('broker-alpaca-adpt resilience: idempotency', () => {
       const eventId = `idemp-alp-transfer-${randomUUID()}`;
       const transferId = `idemp-alp-transfer-${randomUUID()}`;
       const payload = {
+        // AlpacaTransferRequestSchema: amountCents (NOT amount) + currency.
         transferId,
+        amountCents: 1_000_000, // $10,000
+        currency: 'USD',
         direction: 'INCOMING',
-        amount: 10_000,
         relationshipId: 'rel-integ',
       };
 
