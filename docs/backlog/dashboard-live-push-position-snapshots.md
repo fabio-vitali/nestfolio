@@ -1,6 +1,6 @@
 ---
 id: dashboard-live-push-position-snapshots
-status: active
+status: shipped
 rank: 11
 type: bug
 notes: "TRANSPORT-ONLY, now unblocked (2026-06-05): live-push broadcast for the holdings list. Position-row materialization is DONE — bff-read-model-materialization-redesign shipped, so position-snapshot.ts materializes each holding via projectVersioned. Only transport remains; fully greenfield (no publishPositionUpdate/onPositionUpdate/PositionBroadcast/client-merge yet). Paired with dashboard-live-push-portfolio-summary (rank 1). Adopted ACTIVE 2026-06-13 (Complex lane, worktree): trivial 3rd caller of the @nestfolio/ui subscribeThenReconcile helper shipped by dashboard-live-push-portfolio-summary; new onPositionUpdate channel + publishPositionUpdate mutation + PositionBroadcast type + dedupe-by-symbol client merge (mirrors the Activity keyed-collection channel)."
@@ -14,7 +14,7 @@ out_of_scope:
 spec: docs/superpowers/specs/2026-06-13-dashboard-live-push-position-snapshots-design.md
 plan: docs/superpowers/plans/2026-06-13-dashboard-live-push-position-snapshots.md
 topic_memory: []
-validation_gate: null
+validation_gate: "Shipped 2026-06-13 on worktree-dashboard-live-push-position-snapshots (code commits d9729ce1→7014c736 + card 1ef49562). 6 TDD tasks, subagent-driven with per-task spec+quality review + final holistic review (READY TO MERGE: end-to-end contract coherent row→broadcast→resolver→subscription→store→UI; the lastUpdatedAt→updatedAt rename is complete across all layers; the dead upsertPositionSnapshot writer is excised with no orphan callers). Gates: unit dashboard-bff 58 + dashboard-mfe 100 green, lint clean, read-model-ownership typecheck trip-wire passes; tools/affected-projects.mjs → (dashboard-bff,dashboard-mfe) test,lint green; event-processor read-model-drift 0 + typed-subject-drift 0; deploy.sh sandbox --prefix=dev --services=dashboard-bff SUCCESS 48s — AppSync GraphQLSchema UPDATE_COMPLETE + MutationpublishPositionUpdate Fn+Resolver CREATE_COMPLETE + DashboardBroadcaster Publisher UPDATE_COMPLETE + dashboard-mfe bundle/shell deployed (schema-deploy smoke for PositionInput/PositionBroadcast/new mutation+subscription); dashboard-bff integration 21/21 green against deployed dev. Live-delivery e2e: NONE exists (no WSS @aws_subscribe harness — same gap as portfolio-summary, parked dashboard-portfolio-summary-live-push-e2e-scenario / wss-subscription-test-harness-test-support) and no e2e scenario queries getPositionSnapshots/onPositionUpdate, so none was involved. Reusable deliverables: client-side recompute-relative-field-on-merge (weightPercent from marketValueCents) + 3rd caller of the @nestfolio/ui subscribeThenReconcile helper. Spec docs/superpowers/specs/2026-06-13-dashboard-live-push-position-snapshots-design.md, plan docs/superpowers/plans/2026-06-13-dashboard-live-push-position-snapshots.md."
 ---
 
 # Dashboard PositionSnapshot live-push gap
