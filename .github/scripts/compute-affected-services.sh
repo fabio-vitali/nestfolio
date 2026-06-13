@@ -6,8 +6,10 @@ set -euo pipefail
 
 BASE_SHA=${1:?Usage: compute-affected-services.sh <base-sha>}
 
-# Get NX affected app projects (one per line)
-AFFECTED=$(pnpm nx show projects --affected --base="$BASE_SHA" --type=app 2>/dev/null || true)
+# Get affected app projects (one per line) via the true-affected resolver
+# (replaces over-approximating `nx affected` — see
+# docs/superpowers/plans/2026-06-13-nx-affected-true-affected-resolver.md)
+AFFECTED=$(node tools/affected-projects.mjs --base="$BASE_SHA" --type=app 2>/dev/null || true)
 
 if [ -z "$AFFECTED" ]; then
   echo ""
