@@ -25,7 +25,7 @@ Stack: services/investor/dashboard-bff/src/service.stack.ts
   - P2 (append-only log via `record`): `Activity`
   - P3 (deferred projection of advisory-bff's authoritative aggregate via `projectVersioned`): `AdvisoryStatus` (registered in workstream 3; `accumulate` now fails typecheck)
 - Enforcement: `tsconfig.type-test.json` + nx `typecheck` target compile `test/types/read-model-ownership.type-test.ts` (the `@ts-expect-error` trip-wire); run `pnpm nx run dashboard-bff:typecheck`.
-- Dead `SimulationSummary` / `StreamSnapshot` repository writers removed (no callers). The `getSimulationSummary` GraphQL query/resolver remains (returns null via its own GetItem).
+- Dead `SimulationSummary` / `StreamSnapshot` / `upsertPositionSnapshot` repository writers removed (no callers; the live PositionSnapshot path is the `position-snapshot.ts` transform via `projectVersioned`). The `getSimulationSummary` GraphQL query/resolver remains (returns null via its own GetItem). The `PositionSnapshot` row timestamp is the executor-stamped `updatedAt` (the GraphQL field was renamed `lastUpdatedAt`→`updatedAt` to match; `upsertPositionSnapshot` was the lone writer of the old name).
 - `DashboardRepository.upsertAdvisoryStatus` is now unused dead code (superseded by the P3 projectVersioned path); a follow-up workstream will remove it.
 
 ## Facade
@@ -44,7 +44,7 @@ Stack: services/investor/dashboard-bff/src/service.stack.ts
 
 ## Handlers
 - event-listener.ts — Ingress event handler
-- dashboard-publisher.ts — DDB-stream-driven broadcaster: fires publishDashboardUpdate on **AdvisoryStatus** and **PortfolioSummary** row mutations, and publishActivityUpdate on Activity insert (keyed by __typename, falling back to sk). PortfolioSummary broadcasts on INSERT + on whenChanged ['totalValueCents','cashBalanceCents','positionCount'] (gated on the KPI values, not updatedAt). The shared publishDashboardUpdate mutation now carries both $advisoryStatus and $portfolioSummary (each optional; a broadcast sends only its own surface, the other resolves null and the client ignores it).
+- dashboard-publisher.ts — DDB-stream-driven broadcaster: fires publishDashboardUpdate on **AdvisoryStatus** and **PortfolioSummary** row mutations, publishActivityUpdate on Activity insert, and **publishPositionUpdate on PositionSnapshot row mutations** (all keyed by __typename, falling back to sk). PortfolioSummary broadcasts on INSERT + on whenChanged ['totalValueCents','cashBalanceCents','positionCount'] (gated on the KPI values, not updatedAt). The shared publishDashboardUpdate mutation now carries both $advisoryStatus and $portfolioSummary (each optional; a broadcast sends only its own surface, the other resolves null and the client ignores it). **PositionSnapshot** broadcasts on INSERT + on whenChanged ['quantity','avgCostBasisCents','currentPriceCents','marketValueCents','unrealizedPnlCents'] — the absolute fields only; `weightPercent` is intentionally excluded (relative, recomputed client-side) and the quantity>0→0 exit is caught by `quantity`. One PositionSnapshot row per holding → a per-symbol delta frame on the dedicated `onPositionUpdate` channel (mirrors the Activity keyed-collection channel); the dashboard-mfe merges by `symbol` (LWW by `updatedAt`) and filters quantity>0. publishPositionUpdate / publishActivityUpdate / publishDashboardUpdate are the three NONE-data-source resolvers registered in `discoverJsResolvers`.
 
 ## Tests
 - unit/service.stack.test.ts (Broadcaster wiring: DLQ + bisectBatchOnError on the DDB-stream consumer)
