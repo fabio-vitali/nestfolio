@@ -18,6 +18,7 @@ import { ExecutionModeBadgeComponent } from './execution-mode-badge.component';
 
 const ACTIVITY_RECONNECT_BACKOFF_MS = 2_000;
 const DASHBOARD_RECONNECT_BACKOFF_MS = 2_000;
+const POSITIONS_RECONNECT_BACKOFF_MS = 2_000;
 
 @Component({
   selector: 'app-dashboard-container',
@@ -168,6 +169,7 @@ export class DashboardContainerComponent implements OnInit, OnDestroy {
   readonly store = inject(DashboardStore);
   private updateSubscription: Subscription | null = null;
   private activitySubscription: Subscription | null = null;
+  private positionsSubscription: Subscription | null = null;
   private nowTickHandle: ReturnType<typeof setInterval> | null = null;
 
   async ngOnInit(): Promise<void> {
@@ -182,6 +184,8 @@ export class DashboardContainerComponent implements OnInit, OnDestroy {
     this.updateSubscription = null;
     this.activitySubscription?.unsubscribe();
     this.activitySubscription = null;
+    this.positionsSubscription?.unsubscribe();
+    this.positionsSubscription = null;
     if (this.nowTickHandle !== null) {
       clearInterval(this.nowTickHandle);
       this.nowTickHandle = null;
@@ -216,6 +220,17 @@ export class DashboardContainerComponent implements OnInit, OnDestroy {
       onReconnect: () => this.backfillActivities(),
       reconnectBackoffMs: ACTIVITY_RECONNECT_BACKOFF_MS,
     });
+    this.positionsSubscription = subscribeThenReconcile({
+      source: this.dashboardService.subscribeToPositionUpdates(tenantId),
+      onFrame: (data) => {
+        const position = data?.onPositionUpdate?.position;
+        if (position) {
+          this.store.addPosition(position);
+        }
+      },
+      onReconnect: () => this.backfillPositions(),
+      reconnectBackoffMs: POSITIONS_RECONNECT_BACKOFF_MS,
+    });
   }
 
   private async loadDashboard(): Promise<void> {
@@ -245,6 +260,15 @@ export class DashboardContainerComponent implements OnInit, OnDestroy {
     try {
       const activities = await this.dashboardService.getRecentActivity(20);
       this.store.mergeActivities(activities);
+    } catch {
+      // best-effort; the next reconnect or a manual reload recovers
+    }
+  }
+
+  private async backfillPositions(): Promise<void> {
+    try {
+      const positions = await this.dashboardService.getPositionSnapshots(true); // force refresh
+      this.store.mergePositions(positions); // LWW merge keeps a newer live frame
     } catch {
       // best-effort; the next reconnect or a manual reload recovers
     }

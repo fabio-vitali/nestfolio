@@ -24,6 +24,7 @@ describe('DashboardContainerComponent', () => {
       getSimulationSummary: jest.fn().mockResolvedValue(null),
       subscribeToDashboardUpdates: jest.fn(() => new Subject()),
       subscribeToActivityUpdates: jest.fn(() => new Subject()),
+      subscribeToPositionUpdates: jest.fn(() => new Subject()),
       invalidateCaches: jest.fn(),
     } as unknown as jest.Mocked<DashboardService>;
 
@@ -221,5 +222,59 @@ describe('DashboardContainerComponent', () => {
 
     expect(mockService.getDashboard).toHaveBeenCalledTimes(2); // backfill (force refresh)
     component.ngOnDestroy();                                    // cancel pending retry timer
+  });
+
+  it('subscribes to onPositionUpdate on init and dispatches to store', async () => {
+    const positionFrame$ = new Subject<{
+      onPositionUpdate: { position: import('../../../src/app/stores/dashboard.store').PositionSnapshot } | null;
+    }>();
+    mockService.subscribeToPositionUpdates = jest.fn(() => positionFrame$);
+    const authStore = TestBed.inject(AuthStore);
+    authStore.setAuthenticated({
+      userId: 'user-1', username: 'user-1', email: 'user@example.com',
+      tenantId: 'tenant-1', onboardingCompletedAt: '2026-01-01T00:00:00Z',
+    });
+    const addSpy = jest.spyOn(store, 'addPosition');
+
+    await component.ngOnInit();
+    positionFrame$.next({
+      onPositionUpdate: {
+        position: {
+          symbol: 'AAPL', assetClass: 'EQUITY', quantity: 10,
+          avgCostBasisCents: 15000, currentPriceCents: 16000, marketValueCents: 160000,
+          weightPercent: 100, unrealizedPnlCents: 10000, updatedAt: '2026-06-13T12:00:00Z',
+        },
+      },
+    });
+
+    expect(mockService.subscribeToPositionUpdates).toHaveBeenCalledWith('tenant-1');
+    expect(addSpy).toHaveBeenCalledWith(expect.objectContaining({ symbol: 'AAPL' }));
+    expect(store.positions().map((p) => p.symbol)).toContain('AAPL');
+
+    component.ngOnDestroy(); // cancel any pending retry timer
+  });
+
+  it('backfills via getPositionSnapshots when the position subscription reconnects', async () => {
+    const positionFrame$ = new Subject<{
+      onPositionUpdate: { position: import('../../../src/app/stores/dashboard.store').PositionSnapshot } | null;
+    }>();
+    mockService.subscribeToPositionUpdates = jest.fn(() => positionFrame$);
+    mockService.getPositionSnapshots = jest.fn().mockResolvedValue([]);
+
+    const authStore = TestBed.inject(AuthStore);
+    authStore.setAuthenticated({
+      userId: 'user-1', username: 'user-1', email: 'user@example.com',
+      tenantId: 'tenant-1', onboardingCompletedAt: '2026-01-01T00:00:00Z',
+    });
+
+    await component.ngOnInit();
+    expect(mockService.getPositionSnapshots).toHaveBeenCalledTimes(1); // initial load
+
+    positionFrame$.error(new Error('ws dropped')); // simulate reconnect
+    await Promise.resolve();
+    await Promise.resolve();
+
+    expect(mockService.getPositionSnapshots).toHaveBeenCalledTimes(2); // backfill on reconnect
+    component.ngOnDestroy();
   });
 });
