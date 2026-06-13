@@ -1,6 +1,6 @@
 ---
 id: typing-convention-enforcement-skills-docs
-status: active
+status: shipped
 rank: 9
 type: tooling
 notes: "Prevent regressions of the kind event-subject-payload-build-tripwire fixed by CODIFYING + ENFORCING the typing conventions in the create-*/audit-* skills + architecture docs + (optionally) a check-script. Five conventions to enforce: (1) EVENT SUBJECTS — read-model transforms type the subject via parseSubject + an imported producer-owned zod contract; NEVER `event.subject as <LocalType>`/`as Record<string,unknown>` + a locally re-declared payload type. (2) CONTRACT-HOME / IMPORT RULE — intra-domain: consumer imports the producer's `<svc>/contracts` directly (service→service OK); cross-domain: the contract lives in the PRODUCER's domain adapter `/domain` (the ProposedTrade precedent) and the consumer imports from the adapter — NEVER two services importing each other's `/contracts` directly (that created the broker-ctrl↔investor-bff project cycle this workstream had to fix). (3) ROW + EVENT SHARE ONE SUBJECT TYPE — BusEvent<T> (platform/bus.ts) and TableEntry<T> (platform/table.ts) are generic over the SAME T by design; the producer Subject contract types BOTH the event (BusEvent<T>) AND the persisted row (TableEntry<T>) — rows should be TableEntry<Subject>, not a hand-rolled interface; 2026-06-08 audit found 8 row types re-declaring pk/sk/__typename inline instead (TaxLot, SnapshotRecord, SecFiling, decision-workflow InvestorProfileSnapshotProjectionRow + MarketSnapshotProjectionRow, investor-profile-ctrl InvestorProfileSnapshotRow, market-intelligence-ctrl MarketSnapshotRow, portfolio-engine + advisory-narrative AgentCompletionRow/AgentFailureRow). (4) CLEAN MODEL NAMES — contracts named after the clean domain/event concept, NO `Subject` suffix (`<Name>Schema` + `<Name>` type); on clash prefer the event-aligned name (LedgerEntryRecorded not LedgerEntry; InvestorProfileUpdated not InvestorProfile). (5) CONTEXT GENERIC S — parameterize the second generic `S` of BOTH BusEvent<T,S> and TableEntry<T,S> with `RequestContext` (or a domain extension), for event AND row consistently; never drop it. create-* skills should scaffold all five correctly; audit-* skills should FLAG violations; arch docs (SYSTEM-ARCHITECTURE, agent-system, cdk-patterns, create-service/create-event SKILL.md) document the rules; consider a tools/ check-script (like check-read-model-drift.mjs) wired into pre-commit/CI. Filed 2026-06-08 at user request after the typing workstream. May warrant a brief design pass on enforcement mechanism (skill-prose vs lint-rule vs both)."
@@ -18,7 +18,7 @@ out_of_scope:
 spec: "docs/superpowers/specs/2026-06-12-typed-subject-enforcement-design.md"
 plan: "docs/superpowers/plans/2026-06-12-typed-subject-enforcement.md"
 topic_memory: ["project_event_subject_contracts.md"]
-validation_gate: null
+validation_gate: "Shipped 2026-06-12 (worktree, commits 271e61bd..140f25cc, 19 commits). GATE: tools/check-typed-subjects.mjs (pure-Node, mirrors check-read-model-drift.mjs) enforces C1 (no untyped subject reads), C2 (cross-domain import channel), C4 (no Subject-suffix names), opaqueSubject-guard, C3-heuristic (inline pk/sk/__typename rows). `node tools/check-typed-subjects.mjs` → 'OK (30 raw hit(s), 13 excluded, 0 violation(s))'; nx target event-processor:typed-subject-drift PASS; node:test 15/15; exclusion registry = 13 audited documented-polymorphic readers (2 carry backlogRefs). Wired: nx target + daemon-free pre-commit Check 8 in verify-structure.sh. KEY DEVIATION (spec amendment 2026-06-12): convention 2 enforced by the CHECK-SCRIPT, NOT nx enforce-module-boundaries — empirically nx can't (services are Nx apps → 'imports of apps forbidden' fires on all 29+ intra-domain service→service imports; allow is not scope-aware). The check-script's cross-domain rule is scope-aware (service→domain map from layout); negative check FAIL→OK confirmed it bites. CODEBASE MADE COMPLIANT: 11 live cross-domain imports re-routed through ledger-adpt/domain + investor-adpt/domain (type-only, behaviour-identical); nx lint 8 affected projects 0 errors; 231 service unit tests green. DOCS: create-*/audit-* skills + SYSTEM-ARCHITECTURE.md + agent-system.md + cdk-patterns SKILL.md document conventions 1-5 + enforcement. SPLIT OUT: deterministic CLAUDE.md card-drift gate → service-card-drift-gate (queued, subsumes service-card-funding-event-type-drift). SIDE-FINDINGS FILED (parking): adapter-event-name-redeclare-vs-reexport; compliance-ctrl-mandate-snapshot-parse-subject (a genuine WS-3 consumer-conversion residual the new gate CAUGHT). NO DEPLOY (type-only/behaviour-identical, user-confirmed skip; detect-deploy false-positive per detect-deploy-tools-path-no-deploy). Conventions 3-full + 5 are skills/docs-only (not mechanically gated)."
 ---
 
 > **Re-scoped 2026-06-09 (rank 3 → 4).** Now the ENFORCEMENT CAPSTONE of the typed-subject
@@ -29,6 +29,18 @@ validation_gate: null
 > below are what it enforces. Strategy: `docs/superpowers/specs/2026-06-09-typed-subject-program-strategy.md`.
 
 # Enforce typing + contract-import conventions in skills + arch docs
+
+> **SHIPPED 2026-06-12.** See `validation_gate` for evidence. As-built deviations from the
+> plan below: (1) **convention 2 is enforced by `tools/check-typed-subjects.mjs`, NOT nx
+> `enforce-module-boundaries`** — nx can't (services are Nx apps → apps-forbidden blocks
+> intra-domain imports too); see the spec amendment in
+> `docs/superpowers/specs/2026-06-12-typed-subject-enforcement-design.md`. (2) The 11 live
+> cross-domain imports were re-routed through `*-adpt/domain` to make the codebase compliant
+> (type-only). (3) The CLAUDE.md card-drift gate was **split out** to `service-card-drift-gate`
+> (queued). (4) The gate caught a genuine WS-3 residual (`compliance-ctrl` mandate-snapshot
+> raw read) → filed `compliance-ctrl-mandate-snapshot-parse-subject`; plus side-finding
+> `adapter-event-name-redeclare-vs-reexport`. Full design+plan:
+> `docs/superpowers/{specs,plans}/2026-06-12-typed-subject-enforcement*.md`.
 
 ## Why
 
