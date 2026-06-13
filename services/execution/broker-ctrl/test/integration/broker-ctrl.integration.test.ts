@@ -407,18 +407,25 @@ describe('broker-ctrl', () => {
         expect(settled['__typename']).toBe('FundingEvent');
         expect(settled['amountCents']).toBe(7000); // HIT — fallback would be 6900
         expect(settled['initiatedAt']).toBe(SEEDED_INITIATED_AT); // HIT — fallback = ctx.timestamp
+        expect(settled['userId']).toBe(SEEDED_USER_ID); // HIT — fallback = ctx.userId
         expect(settled['status']).toBe('settled');
         expect(settled['__version']).toBe(3);
         expect(settled['settledAt']).toBeDefined();
         expect(settled['executionMode']).toBe('simulation');
         expect(settled['direction']).toBe('DEPOSIT');
 
-        // CDC event confirms carried-forward amountCents flows through
-        const cdcEvent = await trap.waitForEvent({
+        // CDC event confirms carried-forward amountCents flows through.
+        // Filter the wait on this case's unique transferId (the DEPOSIT_SETTLED subject
+        // is a FundingSnapshot carrying transferId) so the shared trap cannot hand us
+        // the OTHER carryForward case's DEPOSIT_SETTLED event — both assert the same
+        // amountCents/initiatedAt, so a cross-case mix-up would be a false positive.
+        const cdcEvent = await trap.waitForEvent<{ subject: { transferId: string } }>({
           detailType: 'DEPOSIT_SETTLED',
+          match: (d) => d.subject?.transferId === depositId,
           timeoutMs: 30_000,
         });
         const subject = cdcEvent.detail['subject'] as Record<string, unknown>;
+        expect(subject['transferId']).toBe(depositId); // this case's event, not the other's
         expect(subject['amountCents']).toBe(7000);
         expect(subject['initiatedAt']).toBe(SEEDED_INITIATED_AT);
         expect(subject['settledAt']).toBeDefined();
@@ -465,18 +472,25 @@ describe('broker-ctrl', () => {
         expect(settled['__typename']).toBe('FundingEvent');
         expect(settled['amountCents']).toBe(7000); // HIT — fallback would be 6900
         expect(settled['initiatedAt']).toBe(SEEDED_INITIATED_AT); // HIT — fallback = ctx.timestamp
+        expect(settled['userId']).toBe(SEEDED_USER_ID); // HIT — fallback = ctx.userId
         expect(settled['executionMode']).toBe('live');
         expect(settled['status']).toBe('settled');
         expect(settled['__version']).toBe(3);
         expect(settled['settledAt']).toBeDefined();
         expect(settled['direction']).toBe('DEPOSIT');
 
-        // CDC event confirms carried-forward amountCents flows through the live path
-        const cdcEvent = await trap.waitForEvent({
+        // CDC event confirms carried-forward amountCents flows through the live path.
+        // Filter the wait on this case's unique transferId (the DEPOSIT_SETTLED subject
+        // is a FundingSnapshot carrying transferId) so the shared trap cannot hand us
+        // the OTHER carryForward case's DEPOSIT_SETTLED event — both assert the same
+        // amountCents/initiatedAt, so a cross-case mix-up would be a false positive.
+        const cdcEvent = await trap.waitForEvent<{ subject: { transferId: string } }>({
           detailType: 'DEPOSIT_SETTLED',
+          match: (d) => d.subject?.transferId === depositId,
           timeoutMs: 30_000,
         });
         const subject = cdcEvent.detail['subject'] as Record<string, unknown>;
+        expect(subject['transferId']).toBe(depositId); // this case's event, not the other's
         expect(subject['amountCents']).toBe(7000);
         expect(subject['initiatedAt']).toBe(SEEDED_INITIATED_AT);
       } finally {
