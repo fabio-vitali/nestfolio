@@ -171,15 +171,15 @@ describe('event-listener handler', () => {
 
     const record = fakeSqsRecord('SIM_WITHDRAWAL_REQUESTED', {
       withdrawalId: 'w-1',
-      tenantId: 't-1',
-      userId: 'u-1',
-      amount: 5000,
+      amountCents: 5000,
+      currency: 'USD',
+      timestamp: '2025-01-01T00:00:00.000Z',
     }, { eventId: 'evt-2', tenantId: 't-1', userId: 'u-1' });
 
     const result = await harness.process([record]);
     expect(result.batchItemFailures).toHaveLength(0);
 
-    // guardedWrite should have been called with negative amount
+    // guardedWrite should have been called with negative amount ($50 = 5000 cents / 100)
     expect(mockGuardedWrite).toHaveBeenCalledWith(
       expect.anything(),
       'test-table',
@@ -187,7 +187,7 @@ describe('event-listener handler', () => {
       expect.arrayContaining([
         expect.objectContaining({
           Update: expect.objectContaining({
-            ExpressionAttributeValues: expect.objectContaining({ ':amount': -5000 }),
+            ExpressionAttributeValues: expect.objectContaining({ ':amount': -50 }),
           }),
         }),
       ]),
@@ -268,9 +268,9 @@ describe('event-listener handler', () => {
 
     const record = fakeSqsRecord('SIM_WITHDRAWAL_REQUESTED', {
       withdrawalId: 'w-dup',
-      tenantId: 't-1',
-      userId: 'u-1',
-      amount: 5000,
+      amountCents: 5000,
+      currency: 'USD',
+      timestamp: '2025-01-01T00:00:00.000Z',
     }, { eventId: 'evt-dup-withdraw', tenantId: 't-1', userId: 'u-1' });
 
     const result = await harness.process([record]);
@@ -297,12 +297,10 @@ describe('event-listener handler', () => {
     expect(result.errors[0].error.message).toContain('Missing subject in ORDER_SUBMITTED event');
   });
 
-  it('should throw descriptive error when WITHDRAWAL_REQUESTED has null subject', async () => {
-    const record = fakeSqsRecord('SIM_WITHDRAWAL_REQUESTED', null as any, { eventId: 'evt-null-subject-w', tenantId: 't-1', userId: 'u-1' });
-
+  it('SIM_WITHDRAWAL_REQUESTED with empty subject → ZodError → batchItemFailure', async () => {
+    const record = fakeSqsRecord('SIM_WITHDRAWAL_REQUESTED', {}, { eventId: 'evt-w-zod', tenantId: 't-1', userId: 'u-1' });
     const result = await harness.process([record]);
     expect(result.batchItemFailures).toHaveLength(1);
-    expect(result.errors[0].error.message).toContain('Missing subject in WITHDRAWAL_REQUESTED event');
   });
 
   it('should process DEPOSIT_INITIATED using guardedAddToCashBalance', async () => {
@@ -389,8 +387,9 @@ describe('event-listener handler', () => {
 
       const sqsRecord = fakeSqsRecord('SIM_WITHDRAWAL_REQUESTED', {
         withdrawalId: 'wth-1',
-        amount: 50,
-        userId: 'user-1',
+        amountCents: 5000,
+        currency: 'USD',
+        timestamp: '2025-01-01T00:00:00.000Z',
       }, { eventId: 'evt-withdrawal-record', tenantId: 'tenant-1', userId: 'user-1' });
 
       const result = await harness.process([sqsRecord]);
@@ -412,13 +411,15 @@ describe('event-listener handler', () => {
     });
 
     it('should emit no record intent when balance is insufficient', async () => {
-      // getCashBalance (balance check) -> found with low balance
+      // getCashBalance (balance check) -> found with low balance ($0.10)
+      // amountCents: 999900 → $9999 > $0.10 balance → insufficient
       mockSend.mockResolvedValueOnce({ Item: { balance: 10 } });
 
       const sqsRecord = fakeSqsRecord('SIM_WITHDRAWAL_REQUESTED', {
         withdrawalId: 'wth-2',
-        amount: 99999,
-        userId: 'user-1',
+        amountCents: 999900,
+        currency: 'USD',
+        timestamp: '2025-01-01T00:00:00.000Z',
       }, { eventId: 'evt-withdrawal-insufficient', tenantId: 'tenant-1', userId: 'user-1' });
 
       const result = await harness.process([sqsRecord]);
@@ -435,8 +436,9 @@ describe('event-listener handler', () => {
 
       const sqsRecord = fakeSqsRecord('SIM_WITHDRAWAL_REQUESTED', {
         withdrawalId: 'wth-dup',
-        amount: 100,
-        userId: 'user-1',
+        amountCents: 10000,
+        currency: 'USD',
+        timestamp: '2025-01-01T00:00:00.000Z',
       }, { eventId: 'evt-withdrawal-dup', tenantId: 'tenant-1', userId: 'user-1' });
 
       const result = await harness.process([sqsRecord]);

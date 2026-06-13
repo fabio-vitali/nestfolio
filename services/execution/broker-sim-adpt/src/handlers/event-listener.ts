@@ -2,7 +2,7 @@ import { DynamoDBClient } from '@aws-sdk/client-dynamodb';
 import { logger, NotRetryableError, parseSubject } from '@nestfolio/event-processor';
 import { requireEnv } from '@nestfolio/event-processor';
 import { createIngestionHandler, skip, record, getTime, pickRequestContext, type EventPayload, type EventContext } from '@nestfolio/event-processor';
-import { DepositInitiatedSchema } from '@nestfolio/investor-adpt/domain';
+import { DepositInitiatedSchema, WithdrawalInitiatedSchema } from '@nestfolio/investor-adpt/domain';
 import { BrokerSimEventTypes } from '../domain/events';
 import type { SimDepositCompleted, SimWithdrawalCompleted } from '../domain/contracts';
 import { VirtualLedgerRepository } from '../repositories/virtual-ledger.repository';
@@ -70,24 +70,17 @@ export function createHandlers(deps: EventListenerDeps) {
     },
 
     [BrokerSimEventTypes.SIM_WITHDRAWAL_REQUESTED]: async (payload: EventPayload, ctx: EventContext) => {
-      // boundary: SIM_WITHDRAWAL_REQUESTED is a broker-ctrl internal routing event (no exported nestfolio contract).
-      const subject = payload.subject;
-      if (!subject) {
-        throw new NotRetryableError(`Missing subject in WITHDRAWAL_REQUESTED event ${ctx.eventId}`);
-      }
+      // Contract: WithdrawalInitiatedSchema (investor-adpt/domain — the investor-domain producer contract).
+      // Identity (userId) is NOT on the subject — it travels in ctx per the DRY rule.
+      const subject = parseSubject(payload, WithdrawalInitiatedSchema);
       const tenantId = ctx.tenantId;
-      const userId = (subject.userId as string) ?? tenantId;
-      const withdrawalId = subject.withdrawalId as string;
-      const amount = subject.amount as number;
-
-      if (!withdrawalId || amount === undefined) {
-        throw new NotRetryableError(
-          `Missing required WITHDRAWAL_REQUESTED fields: withdrawalId=${withdrawalId}, amount=${amount}`,
-        );
-      }
+      const userId = ctx.userId ?? tenantId;
+      const withdrawalId = subject.withdrawalId;
+      const currency = subject.currency ?? 'USD';
+      const amount = subject.amountCents / 100; // dollars for the virtual ledger
 
       // Check sufficient balance before guarded write
-      const cashBalance = await deps.repository.getCashBalance(tenantId, userId, 'USD');
+      const cashBalance = await deps.repository.getCashBalance(tenantId, userId, currency);
       const balance = (cashBalance?.balance as number) ?? 0;
 
       if (balance < amount) {
@@ -97,7 +90,7 @@ export function createHandlers(deps: EventListenerDeps) {
 
       // Guarded atomic debit — idempotent via event-keyed guard marker
       const processed = await deps.repository.guardedAddToCashBalance(
-        tenantId, userId, 'USD', -amount, ctx.eventId,
+        tenantId, userId, currency, -amount, ctx.eventId,
       );
       if (!processed) {
         logger.info('Withdrawal already processed, skipping', { eventId: ctx.eventId });
