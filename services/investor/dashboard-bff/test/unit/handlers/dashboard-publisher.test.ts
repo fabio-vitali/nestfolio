@@ -191,4 +191,104 @@ describe('dashboard-publisher', () => {
     const call = (postAppSyncMutation as jest.Mock).mock.calls[0][0];
     expect(call.variables.activity.metadata).toBeNull();
   });
+
+  it('broadcasts publishPositionUpdate on a PositionSnapshot INSERT', async () => {
+    await handler(streamEvent({
+      eventName: 'INSERT',
+      newImage: {
+        pk: 'T#tenant1', sk: 'PositionSnapshot#AAPL', __typename: 'PositionSnapshot',
+        symbol: 'AAPL', assetClass: 'EQUITY', quantity: 10,
+        avgCostBasisCents: 15000, currentPriceCents: 16000, marketValueCents: 160000,
+        weightPercent: 100, unrealizedPnlCents: 10000,
+        __version: 42, updatedAt: '2026-06-13T12:00:00Z',
+      },
+    }), {} as never, () => {});
+    expect(postAppSyncMutation).toHaveBeenCalledTimes(1);
+    const call = (postAppSyncMutation as jest.Mock).mock.calls[0][0];
+    expect(call.variables).toMatchObject({
+      tenantId: 'tenant1',
+      position: {
+        symbol: 'AAPL', assetClass: 'EQUITY', quantity: 10,
+        avgCostBasisCents: 15000, currentPriceCents: 16000, marketValueCents: 160000,
+        weightPercent: 100, unrealizedPnlCents: 10000, updatedAt: '2026-06-13T12:00:00Z',
+      },
+    });
+  });
+
+  it('broadcasts a PositionSnapshot MODIFY when marketValueCents changes', async () => {
+    await handler(streamEvent({
+      eventName: 'MODIFY',
+      oldImage: {
+        pk: 'T#tenant1', sk: 'PositionSnapshot#AAPL', __typename: 'PositionSnapshot',
+        symbol: 'AAPL', quantity: 10, marketValueCents: 160000, currentPriceCents: 16000,
+        avgCostBasisCents: 15000, unrealizedPnlCents: 10000, weightPercent: 100,
+        __version: 42, updatedAt: '2026-06-13T12:00:00Z',
+      },
+      newImage: {
+        pk: 'T#tenant1', sk: 'PositionSnapshot#AAPL', __typename: 'PositionSnapshot',
+        symbol: 'AAPL', quantity: 10, marketValueCents: 175000, currentPriceCents: 17500,
+        avgCostBasisCents: 15000, unrealizedPnlCents: 25000, weightPercent: 100,
+        __version: 43, updatedAt: '2026-06-13T13:00:00Z',
+      },
+    }), {} as never, () => {});
+    expect(postAppSyncMutation).toHaveBeenCalledTimes(1);
+    const call = (postAppSyncMutation as jest.Mock).mock.calls[0][0];
+    expect(call.variables.position).toMatchObject({ marketValueCents: 175000, updatedAt: '2026-06-13T13:00:00Z' });
+  });
+
+  it('broadcasts the quantity:0 exit transition (fully-sold holding)', async () => {
+    await handler(streamEvent({
+      eventName: 'MODIFY',
+      oldImage: {
+        pk: 'T#tenant1', sk: 'PositionSnapshot#AAPL', __typename: 'PositionSnapshot',
+        symbol: 'AAPL', quantity: 10, marketValueCents: 160000, currentPriceCents: 16000,
+        avgCostBasisCents: 15000, unrealizedPnlCents: 10000, weightPercent: 100,
+        __version: 43, updatedAt: '2026-06-13T13:00:00Z',
+      },
+      newImage: {
+        pk: 'T#tenant1', sk: 'PositionSnapshot#AAPL', __typename: 'PositionSnapshot',
+        symbol: 'AAPL', quantity: 0, marketValueCents: 0, currentPriceCents: 16000,
+        avgCostBasisCents: 15000, unrealizedPnlCents: 0, weightPercent: 0,
+        __version: 44, updatedAt: '2026-06-13T14:00:00Z',
+      },
+    }), {} as never, () => {});
+    expect(postAppSyncMutation).toHaveBeenCalledTimes(1);
+    const call = (postAppSyncMutation as jest.Mock).mock.calls[0][0];
+    expect(call.variables.position).toMatchObject({ symbol: 'AAPL', quantity: 0 });
+  });
+
+  it('skips a PositionSnapshot MODIFY when no absolute field changed (sibling-only weight shift)', async () => {
+    await handler(streamEvent({
+      eventName: 'MODIFY',
+      oldImage: {
+        pk: 'T#tenant1', sk: 'PositionSnapshot#AAPL', __typename: 'PositionSnapshot',
+        symbol: 'AAPL', quantity: 10, marketValueCents: 160000, currentPriceCents: 16000,
+        avgCostBasisCents: 15000, unrealizedPnlCents: 10000, weightPercent: 100,
+        __version: 42, updatedAt: '2026-06-13T12:00:00Z',
+      },
+      newImage: {
+        pk: 'T#tenant1', sk: 'PositionSnapshot#AAPL', __typename: 'PositionSnapshot',
+        symbol: 'AAPL', quantity: 10, marketValueCents: 160000, currentPriceCents: 16000,
+        avgCostBasisCents: 15000, unrealizedPnlCents: 10000, weightPercent: 40,
+        __version: 43, updatedAt: '2026-06-13T13:00:00Z',
+      },
+    }), {} as never, () => {});
+    expect(postAppSyncMutation).not.toHaveBeenCalled();
+  });
+
+  it('PositionSnapshot broadcast maps a missing assetClass to null', async () => {
+    await handler(streamEvent({
+      eventName: 'INSERT',
+      newImage: {
+        pk: 'T#tenant1', sk: 'PositionSnapshot#AAPL', __typename: 'PositionSnapshot',
+        symbol: 'AAPL', quantity: 10,
+        avgCostBasisCents: 15000, currentPriceCents: 16000, marketValueCents: 160000,
+        weightPercent: 100, unrealizedPnlCents: 10000,
+        __version: 42, updatedAt: '2026-06-13T12:00:00Z',
+      },
+    }), {} as never, () => {});
+    expect(postAppSyncMutation).toHaveBeenCalledTimes(1);
+    const call = (postAppSyncMutation as jest.Mock).mock.calls[0][0];
+    expect(call.variables.position.assetClass).toBeNull();
+  });
 });

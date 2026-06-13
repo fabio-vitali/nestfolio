@@ -40,6 +40,25 @@ const PUBLISH_ACTIVITY_UPDATE = `
   }
 `;
 
+const PUBLISH_POSITION_UPDATE = `
+  mutation PublishPositionUpdate($tenantId: ID!, $position: PositionInput!) {
+    publishPositionUpdate(tenantId: $tenantId, position: $position) {
+      tenantId
+      position {
+        symbol
+        assetClass
+        quantity
+        avgCostBasisCents
+        currentPriceCents
+        marketValueCents
+        weightPercent
+        unrealizedPnlCents
+        updatedAt
+      }
+    }
+  }
+`;
+
 const APPSYNC_URL = process.env['APPSYNC_URL'];
 if (!APPSYNC_URL) {
   throw new Error('dashboard-publisher: APPSYNC_URL is required');
@@ -103,6 +122,36 @@ export const handler = broadcastFromStream({
             description: String(item['description']),
             createdAt: String(item['createdAt']),
             metadata: item['metadata'] != null ? String(item['metadata']) : null,
+          },
+        };
+      },
+    },
+    PositionSnapshot: {
+      mutation: PUBLISH_POSITION_UPDATE,
+      // One PositionSnapshot row per holding; a fully-exited symbol persists as a
+      // quantity:0 ghost row (the read resolver filters quantity>0, and the client
+      // mirrors that, so the quantity:0 frame IS the removal signal). Gate MODIFY
+      // on the ABSOLUTE fields only — weightPercent is RELATIVE and recomputed
+      // client-side, so it changes on every snapshot even for an untouched holding;
+      // gating on it would broadcast every row on every event. marketValueCents is
+      // in the gate, so every holding whose value actually moves (incl. the
+      // quantity>0→0 exit) broadcasts; a sibling-only weight shift does not (the
+      // client recomputes that holding's weight locally when the total changes).
+      whenChanged: ['quantity', 'avgCostBasisCents', 'currentPriceCents', 'marketValueCents', 'unrealizedPnlCents'],
+      mapImage: (item) => {
+        const tenantId = String(item['pk'] ?? '').slice(2); // 'T#<tenantId>' → '<tenantId>'
+        return {
+          tenantId,
+          position: {
+            symbol: String(item['symbol']),
+            assetClass: item['assetClass'] != null ? String(item['assetClass']) : null,
+            quantity: Number(item['quantity'] ?? 0),
+            avgCostBasisCents: Number(item['avgCostBasisCents'] ?? 0),
+            currentPriceCents: Number(item['currentPriceCents'] ?? 0),
+            marketValueCents: Number(item['marketValueCents'] ?? 0),
+            weightPercent: Number(item['weightPercent'] ?? 0),
+            unrealizedPnlCents: Number(item['unrealizedPnlCents'] ?? 0),
+            updatedAt: String(item['updatedAt'] ?? new Date().toISOString()),
           },
         };
       },
