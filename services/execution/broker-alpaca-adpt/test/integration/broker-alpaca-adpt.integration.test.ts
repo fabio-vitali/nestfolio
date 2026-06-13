@@ -143,6 +143,50 @@ describe('broker-alpaca-adpt', () => {
     expect(initiatedEvent.detail.subject.nestfolioTransferId).toBe(transferId);
   }, 60_000);
 
+  it('should initiate transfer with typed AlpacaTransferRequest subject (amountCents→dollars conversion)', async () => {
+    // Task 7, Step 1: typed AlpacaTransferRequest — the NEW producer-owned subject shape
+    // (amountCents replaces the old `amount` field; handler divides by 100 before calling Alpaca).
+    // The mock-alpaca Lambda (POST /v2/ach/transfers) always returns 200 + { id: 'mock-...' }
+    // for any transfer, so we only need a non-scenario-triggering prefix.
+    const transferId = `dep-int-1`;
+
+    await eb.putEvent({
+      bus: 'execution',
+      targetService: 'broker-alpaca-adpt',
+      detailType: 'ALPACA_TRANSFER_REQUESTED',
+      detail: {
+        transferId,
+        amountCents: 5000,
+        currency: 'USD',
+        direction: 'INCOMING',
+        relationshipId: '',
+      },
+    });
+
+    // Assert: AlpacaTransferResult row written with the correct fields.
+    // `amount` is stored as dollars (amountCents / 100 = 50) — proving the cents→dollars
+    // conversion fired; `nestfolioTransferId` threads the original transferId end-to-end.
+    const item = await table.waitForItem({
+      table: 'broker-alpaca-adpt',
+      pk: `TransferMapping#${ctx.tenantId}#${transferId}`,
+      sk: 'TransferMapping',
+    });
+    expect(item['nestfolioTransferId']).toBe(transferId);
+    expect(item['amount']).toBe(50); // amountCents 5000 → dollars 50
+    expect(item['status']).toBe('INITIATED');
+    // alpacaTransferId is set by the mock (non-empty string from mock-alpaca)
+    expect(item['alpacaTransferId']).toBeTruthy();
+
+    // Assert: CDC emits ALPACA_TRANSFER_INITIATED with the correct nestfolioTransferId.
+    const initiatedEvent = await trap.waitForEvent<BusEventPayload>({
+      detailType: 'ALPACA_TRANSFER_INITIATED',
+      timeoutMs: 30_000,
+    });
+    expect(initiatedEvent.detail.subject.nestfolioTransferId).toBe(transferId);
+    // amount on the CDC subject is also in dollars (the AlpacaTransferResult row fields)
+    expect(initiatedEvent.detail.subject.amount).toBe(50);
+  }, 60_000);
+
   // ── Account Check ──────────────────────────────────────────────────
 
   it('should create account snapshot and emit ALPACA_ACCOUNT_SNAPSHOT', async () => {
