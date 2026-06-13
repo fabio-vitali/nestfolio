@@ -50,8 +50,8 @@ Stack: services/execution/broker-ctrl/src/service.stack.ts
 
 ## Handlers
 - callback-resolver.ts — resolves SF task token callbacks from adapter results (createIngestionHandler)
-- deposit-withdrawal-normalizer.ts — normalizes deposit/withdrawal results to NormalizedEvent for CDC (materializeToTable)
-- deposit-withdrawal-router.ts — routes deposit/withdrawal to correct adapter; validates inbound subjects via `parseSubject` against producer contracts `DepositInitiatedSchema`/`WithdrawalInitiatedSchema` from `@nestfolio/investor-adpt/domain` (materializeToTable)
+- deposit-withdrawal-normalizer.ts — normalizes deposit/withdrawal results to NormalizedEvent for CDC (materializeToTable); parseSubject per producer: SimDepositCompletedSchema/SimWithdrawalCompletedSchema from `@nestfolio/broker-sim-adpt/contracts`, AlpacaTransferResultSchema from `@nestfolio/execution-adpt/domain`; keys carryForward on the threaded nestfolioTransferId; zero `as Record<string,unknown>` casts
+- deposit-withdrawal-router.ts — routes deposit/withdrawal to correct adapter; validates inbound subjects via `parseSubject` against producer contracts `DepositInitiatedSchema`/`WithdrawalInitiatedSchema` from `@nestfolio/investor-adpt/domain`; live branch emits typed `AlpacaTransferRequest` (from `@nestfolio/execution-adpt/domain`) threading transferId=depositId/withdrawalId (materializeToTable)
 - event-publisher.ts — CDC Egress handler (changeDataCapture, typed-subject mode)
 - publisher-schemas.ts — typed-subject registry: maps each emitted __typename → its producer zod contract (subjectSchemas) + exemptTypenames; the publisher emits schema.parse(row) (the DRY subject) for covered types, the fat row for exempt.
 - mode-listener.ts — caches execution mode changes to DynamoDB (materializeToTable)
@@ -86,6 +86,7 @@ Producer-owned zod CDC subject contracts, exported via `@nestfolio/broker-ctrl/c
 - @nestfolio/event-processor
 - @nestfolio/event-types
 - @nestfolio/investor-adpt/domain — consumes producer contracts `DepositInitiatedSchema`, `WithdrawalInitiatedSchema` (router `parseSubject` seam)
-- @nestfolio/execution-adpt/domain — consumes producer contract type `FundingSnapshot` (funding carrier shape; `fundingCarrier` writes `satisfies Omit<FundingSnapshot, '__version'>`)
+- @nestfolio/execution-adpt/domain — consumes `FundingSnapshot` (funding carrier shape; `fundingCarrier` writes `satisfies Omit<FundingSnapshot, '__version'>`); `AlpacaTransferRequest` (router emits typed transfer request); `AlpacaTransferResultSchema` (normalizer `parseSubject` seam for ALPACA_TRANSFER_* events)
+- @nestfolio/broker-sim-adpt/contracts — consumes `SimDepositCompletedSchema`, `SimWithdrawalCompletedSchema` (normalizer `parseSubject` seam for SIM_DEPOSIT_COMPLETED / SIM_WITHDRAWAL_COMPLETED)
 - @nestfolio/test-support (test only)
 - @nestfolio/integration-testing (test only)

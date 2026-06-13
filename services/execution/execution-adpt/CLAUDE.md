@@ -37,6 +37,8 @@ None (no Lambda handlers — pure EB Rule forwarding)
 ## Payload Contracts (`src/domain/contracts.ts`, re-exported via `src/domain/index.ts`)
 DRY domain subjects — identity travels in the event context (RequestContext), not on the subject.
 - FundingSnapshotSchema / FundingSnapshot (zod): producer-owned CDC subject shape for every broker-ctrl funding lifecycle transition (DEPOSIT_REQUESTED/DETECTED/SETTLED/FAILED, WITHDRAWAL_REQUESTED/SETTLED/FAILED). Owned here in the producer's cross-domain adapter (`@nestfolio/execution-adpt/domain`); forwarded to InvestorBus by investor-adpt and projected by investor-bff. Breaks the broker-ctrl ↔ investor-bff circular dependency.
+- AlpacaTransferRequestSchema / AlpacaTransferRequest (zod): broker-ctrl → broker-alpaca-adpt funding boundary contract. Emitted by broker-ctrl's deposit-withdrawal-router (ALPACA_TRANSFER_REQUESTED subject) and parsed by broker-alpaca-adpt's event-listener. Fields: transferId (the nestfolioTransferId — depositId or withdrawalId), direction (INCOMING|OUTGOING), amountCents. Hosted here (not in broker-ctrl or broker-alpaca-adpt /contracts) to avoid the mutual intra-execution project cycle.
+- AlpacaTransferResultSchema / AlpacaTransferResult (zod): broker-alpaca-adpt → broker-ctrl funding boundary contract. Emitted by broker-alpaca-adpt CDC (ALPACA_TRANSFER_* subjects) and parsed by broker-ctrl's deposit-withdrawal-normalizer. Fields: nestfolioTransferId, alpacaTransferId, direction (INCOMING|OUTGOING), amount, status (INITIATED/COMPLETED/FAILED), failureReason?, timestamp?. Moved here from broker-alpaca-adpt/contracts to avoid the mutual intra-execution project cycle.
 
 ## Tests
 - `test/service.stack.test.ts` — CDK assertions (2 rules, DLQs, tags)

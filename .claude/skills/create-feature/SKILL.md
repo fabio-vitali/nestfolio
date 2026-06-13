@@ -56,6 +56,9 @@ row and the emitted subject:
   `@nestfolio/<domain>-adpt/domain` re-export. Add the re-export to that adapter's `/domain`
   index (schemas) and its `*CrossDomainEventTypes` map (names). Never reach into another
   domain's `/contracts` or `/events`.
+  **Mutual intra-domain exception** (A↔B cycle): boundary contracts live in the
+  domain adapter `/domain`, NOT in either service's `/contracts`. See
+  `docs/architecture/SYSTEM-ARCHITECTURE.md` §"Typed-subject contracts" rule 2.
 - Consumers read the subject via `parseSubject(carrier, <ProducerSchema>)` — never
   `event.subject as <Type>` / `as Record<string,unknown>`.
 

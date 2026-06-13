@@ -19,7 +19,7 @@ Stack: services/execution/broker-sim-adpt/src/service.stack.ts
   - WithdrawalCompleted (insert): SIM_WITHDRAWAL_COMPLETED
 
 ## Handlers
-- event-listener.ts — SQS Ingress handler (event-processor pipeline)
+- event-listener.ts — SQS Ingress handler (event-processor pipeline); SIM_DEPOSIT_INITIATED parses `DepositInitiatedSchema` (investor-adpt/domain) via `parseSubject` + threads `amountCents`; SIM_WITHDRAWAL_REQUESTED parses `WithdrawalInitiatedSchema` (investor-adpt/domain) via `parseSubject` + converts `amountCents` to dollars for the virtual ledger (mirrors the deposit handler)
 - event-publisher.ts — CDC Egress handler (event-processor pipeline, typed-subject mode)
 - publisher-schemas.ts — typed-subject registry: maps each emitted __typename → its producer zod contract (subjectSchemas) + exemptTypenames; the publisher emits schema.parse(row) (the DRY subject) for covered types, the fat row for exempt.
 
@@ -46,4 +46,5 @@ Inbound-event schemas live separately in domain/schemas.ts. SIM_* completions ar
 
 ## Dependencies
 - libs: cdk-constructs/core, cdk-constructs/utils, event-processor, event-types
+- @nestfolio/investor-adpt/domain — consumes `DepositInitiatedSchema`, `WithdrawalInitiatedSchema` (event-listener `parseSubject` seam for SIM_DEPOSIT_INITIATED / SIM_WITHDRAWAL_REQUESTED)
 - npm: zod (payload contract schemas in domain/contracts.ts + domain/schemas.ts)

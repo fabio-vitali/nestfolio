@@ -229,6 +229,13 @@ Every producer aggregate owns one zod contract typing BOTH its persisted row
 2. **Import channel:** intra-domain → producer `@nestfolio/<svc>/contracts` + `/events`
    directly; cross-domain → the producer-domain `@nestfolio/<domain>-adpt/domain` re-export
    (both payloads and names). Never reach into another domain's `/contracts` or `/events`.
+   **Mutual intra-domain boundary exception:** when two services in the same domain each
+   produce an event the other consumes (A↔B cycle), boundary contracts live in the
+   domain adapter's `/domain` (authored there, imported by both A and B), NOT in either
+   service's `/contracts` — mirrors the cross-domain adapter-`/domain` rule and avoids
+   the A↔B project cycle that mutual `/contracts` imports create. Precedent:
+   `execution-adpt/domain` hosts `AlpacaTransferRequest` (broker-ctrl→broker-alpaca-adpt)
+   and `AlpacaTransferResult` (broker-alpaca-adpt→broker-ctrl).
 3. Rows are `TableEntry<Subject>`, not hand-rolled `pk`/`sk`/`__typename` interfaces.
 4. Contracts are named for the clean concept — `<Name>Schema` + `<Name>`, no `Subject` suffix.
 5. The context generic `S` (`RequestContext` or a domain extension) is carried on both
