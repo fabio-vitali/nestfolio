@@ -324,12 +324,17 @@ describe('broker-ctrl', () => {
       ctrlTableName = await ctx.ssm.tableName('broker-ctrl');
     });
 
+    // Seeds a DEPOSIT_REQUESTED carrier with a DISTINCTIVE initiatedAt/userId so a
+    // carryForward HIT is provable: only a row read can yield the seeded initiatedAt
+    // (the fallback uses ctx.timestamp = "now", never 2020-01-01).
+    const SEEDED_INITIATED_AT = '2020-01-01T00:00:00.000Z';
+    const SEEDED_USER_ID = 'u-seeded';
+
     async function seedDepositRequested(
       transferId: string,
       amountCents: number,
       executionMode: 'simulation' | 'live',
     ): Promise<void> {
-      const now = new Date().toISOString();
       await ddb.send(
         new PutCommand({
           TableName: ctrlTableName,
@@ -341,13 +346,13 @@ describe('broker-ctrl', () => {
             status: 'requested',
             transferId,
             tenantId: ctx.tenantId,
-            userId: ctx.userId,
+            userId: SEEDED_USER_ID,
             region: ctx.region,
             amountCents,
             currency: 'USD',
             executionMode,
-            initiatedAt: now,
-            timestamp: now,
+            initiatedAt: SEEDED_INITIATED_AT,
+            timestamp: SEEDED_INITIATED_AT,
             __version: 1,
           },
         }),
@@ -367,10 +372,13 @@ describe('broker-ctrl', () => {
       }
     }
 
-    it('should carry amountCents forward from DEPOSIT_REQUESTED into DEPOSIT_SETTLED on SIM_DEPOSIT_COMPLETED', async () => {
-      // Task 7 Step 2 (sim path): proves carryForward hits the pre-seeded row and
-      // threads amountCents=7000 into the DEPOSIT_SETTLED carrier (__version 3).
-      const depositId = `dep-int-2`;
+    it('should carry amountCents forward from DEPOSIT_REQUESTED into DEPOSIT_SETTLED on SIM_DEPOSIT_COMPLETED (proves HIT not fallback)', async () => {
+      // Task 7 Step 2 (sim path): proves carryForward HITS the pre-seeded row.
+      // Seeded amountCents=7000; completion sends amountCents=6900 → the fallback
+      // (s.amountCents) would yield 6900. Asserting 7000 can ONLY be satisfied by a
+      // row read. Asserting the seeded initiatedAt (2020-01-01, vs fallback ctx.timestamp)
+      // is the belt-and-suspenders proof that the requested row was the source.
+      const depositId = `dep-int-2-${Date.now()}`;
       await seedDepositRequested(depositId, 7000, 'simulation');
 
       try {
@@ -380,14 +388,15 @@ describe('broker-ctrl', () => {
           detailType: 'SIM_DEPOSIT_COMPLETED',
           detail: {
             depositId,
-            amountCents: 7000,
+            amountCents: 6900, // ≠ seeded 7000 → fallback would yield 6900
             currency: 'USD',
-            sourceEventId: 'test-src-1',
-            timestamp: new Date().toISOString(),
+            sourceEventId: 'x',
+            timestamp: 't',
           },
         });
 
-        // Assert DEPOSIT_SETTLED carrier with carried-forward amountCents and __version 3
+        // Assert DEPOSIT_SETTLED carrier: amountCents=7000 (HIT, not the 6900 fallback)
+        // + initiatedAt=seeded value (only the requested row supplies this).
         const settled = await table.waitForItem({
           table: 'broker-ctrl',
           pk: `Funding#${ctx.tenantId}#${depositId}`,
@@ -396,36 +405,37 @@ describe('broker-ctrl', () => {
         });
 
         expect(settled['__typename']).toBe('FundingEvent');
-        expect(settled['amountCents']).toBe(7000);
+        expect(settled['amountCents']).toBe(7000); // HIT — fallback would be 6900
+        expect(settled['initiatedAt']).toBe(SEEDED_INITIATED_AT); // HIT — fallback = ctx.timestamp
         expect(settled['status']).toBe('settled');
         expect(settled['__version']).toBe(3);
         expect(settled['settledAt']).toBeDefined();
         expect(settled['executionMode']).toBe('simulation');
         expect(settled['direction']).toBe('DEPOSIT');
 
-        // CDC event confirms amountCents flows through
+        // CDC event confirms carried-forward amountCents flows through
         const cdcEvent = await trap.waitForEvent({
           detailType: 'DEPOSIT_SETTLED',
           timeoutMs: 30_000,
         });
         const subject = cdcEvent.detail['subject'] as Record<string, unknown>;
         expect(subject['amountCents']).toBe(7000);
+        expect(subject['initiatedAt']).toBe(SEEDED_INITIATED_AT);
         expect(subject['settledAt']).toBeDefined();
       } finally {
         await deleteCarrierRows(depositId, ['DEPOSIT_REQUESTED', 'DEPOSIT_DETECTED', 'DEPOSIT_SETTLED']);
       }
     }, 120_000);
 
-    it('should carry amountCents forward from DEPOSIT_REQUESTED into DEPOSIT_SETTLED on ALPACA_TRANSFER_COMPLETED (live path — core carryForward regression)', async () => {
-      // Task 7 Step 2 (alpaca/live path): the core regression gate —
-      // proves carryForward HITS on the live path where the amount arrives as dollars
-      // from broker-alpaca-adpt's AlpacaTransferResult (amount=70 → amountCents=7000).
-      // The pre-seeded DEPOSIT_REQUESTED row has amountCents=7000; carryForward must
-      // return 7000 (not fall back to Math.round(70*100)=7000, which happens to be the
-      // same — but the TEST proves the row was READ, via executionMode='live' which
-      // only the pre-seeded row carries — the fallback defaults to 'USD' currency and
-      // the carried-forward initiatedAt proves the row read).
-      const depositId = `dep-int-3`;
+    it('should carry amountCents forward from DEPOSIT_REQUESTED into DEPOSIT_SETTLED on ALPACA_TRANSFER_COMPLETED (live path — core carryForward regression, proves HIT not fallback)', async () => {
+      // Task 7 Step 2 (alpaca/live path): the CORE regression gate. The completion's
+      // amount is 69 dollars → the fallback yields Math.round(69*100)=6900. The seeded
+      // DEPOSIT_REQUESTED row carries amountCents=7000. Asserting 7000 can ONLY pass on
+      // a carryForward HIT (a miss yields 6900). The seeded initiatedAt (2020-01-01)
+      // is the belt-and-suspenders proof: only the requested row supplies it; the
+      // fallback uses ctx.timestamp. (executionMode='live' alone is NOT a HIT proof —
+      // the alpaca handler hardcodes 'live' regardless of the read.)
+      const depositId = `dep-int-3-${Date.now()}`;
       await seedDepositRequested(depositId, 7000, 'live');
 
       try {
@@ -436,14 +446,15 @@ describe('broker-ctrl', () => {
           detail: {
             nestfolioTransferId: depositId,
             alpacaTransferId: 'a',
-            amount: 70,
+            amount: 69, // dollars → fallback would be Math.round(69*100)=6900, NOT 7000
             direction: 'INCOMING',
             status: 'COMPLETED',
           },
         });
 
-        // Assert DEPOSIT_SETTLED carrier: amountCents=7000 (carried from requested row),
-        // executionMode='live' (carried from requested row — proves row was read).
+        // Assert DEPOSIT_SETTLED carrier — the two HIT-proving assertions:
+        //   amountCents=7000  (seeded; fallback would be 6900)
+        //   initiatedAt=seeded (only the requested row supplies it; fallback=ctx.timestamp)
         const settled = await table.waitForItem({
           table: 'broker-ctrl',
           pk: `Funding#${ctx.tenantId}#${depositId}`,
@@ -452,20 +463,22 @@ describe('broker-ctrl', () => {
         });
 
         expect(settled['__typename']).toBe('FundingEvent');
-        expect(settled['amountCents']).toBe(7000); // carried from DEPOSIT_REQUESTED
-        expect(settled['executionMode']).toBe('live'); // carried from DEPOSIT_REQUESTED
+        expect(settled['amountCents']).toBe(7000); // HIT — fallback would be 6900
+        expect(settled['initiatedAt']).toBe(SEEDED_INITIATED_AT); // HIT — fallback = ctx.timestamp
+        expect(settled['executionMode']).toBe('live');
         expect(settled['status']).toBe('settled');
         expect(settled['__version']).toBe(3);
         expect(settled['settledAt']).toBeDefined();
         expect(settled['direction']).toBe('DEPOSIT');
 
-        // CDC event confirms amountCents flows through the live path
+        // CDC event confirms carried-forward amountCents flows through the live path
         const cdcEvent = await trap.waitForEvent({
           detailType: 'DEPOSIT_SETTLED',
           timeoutMs: 30_000,
         });
         const subject = cdcEvent.detail['subject'] as Record<string, unknown>;
         expect(subject['amountCents']).toBe(7000);
+        expect(subject['initiatedAt']).toBe(SEEDED_INITIATED_AT);
       } finally {
         await deleteCarrierRows(depositId, ['DEPOSIT_REQUESTED', 'DEPOSIT_DETECTED', 'DEPOSIT_SETTLED']);
       }

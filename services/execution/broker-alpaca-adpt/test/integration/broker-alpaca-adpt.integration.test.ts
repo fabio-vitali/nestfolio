@@ -147,8 +147,9 @@ describe('broker-alpaca-adpt', () => {
     // Task 7, Step 1: typed AlpacaTransferRequest — the NEW producer-owned subject shape
     // (amountCents replaces the old `amount` field; handler divides by 100 before calling Alpaca).
     // The mock-alpaca Lambda (POST /v2/ach/transfers) always returns 200 + { id: 'mock-...' }
-    // for any transfer, so we only need a non-scenario-triggering prefix.
-    const transferId = `dep-int-1`;
+    // for any transfer, so we only need a non-scenario-triggering prefix. Unique-suffix the
+    // id (matches the suite convention) so cross-run cleanup gaps can't collide.
+    const transferId = `dep-int-1-${Date.now()}`;
 
     await eb.putEvent({
       bus: 'execution',
