@@ -33,7 +33,7 @@ describe('PositionsTableComponent', () => {
         marketValueCents: 175000,
         weightPercent: 40,
         unrealizedPnlCents: 25000,
-        lastUpdatedAt: '2026-03-01T00:00:00Z',
+        updatedAt: '2026-03-01T00:00:00Z',
       },
     ];
     expect(component.positions.length).toBe(1);

@@ -25,7 +25,7 @@ export interface PositionSnapshot {
   marketValueCents: number;
   weightPercent: number;
   unrealizedPnlCents: number;
-  lastUpdatedAt: string;
+  updatedAt: string;
 }
 
 export interface ActivityEntry {
@@ -84,7 +84,7 @@ interface DashboardState {
   portfolioSummary: PortfolioSummary | null;
   advisoryStatus: AdvisoryStatus | null;
   investorSnapshot: InvestorSnapshot | null;
-  positions: PositionSnapshot[];
+  positionRows: PositionSnapshot[];
   activities: ActivityEntry[];
   simulationSummary: SimulationSummary | null;
   now: number;
@@ -94,7 +94,7 @@ const initialState: DashboardState = {
   portfolioSummary: null,
   advisoryStatus: null,
   investorSnapshot: null,
-  positions: [],
+  positionRows: [],
   activities: [],
   simulationSummary: null,
   now: Date.now(),
@@ -104,6 +104,20 @@ export const DashboardStore = signalStore(
   { providedIn: 'root' },
   withState(initialState),
   withCallState(),
+  withComputed((store) => ({
+    // Holdings for display: drop quantity:0 ghost rows (mirrors the
+    // get-position-snapshots resolver) and DERIVE weightPercent from
+    // marketValueCents so the column + allocation chart stay self-consistent
+    // (Σ = 100%) regardless of which per-symbol live frames have arrived.
+    positions: computed(() => {
+      const held = store.positionRows().filter((p) => p.quantity > 0);
+      const total = held.reduce((sum, p) => sum + p.marketValueCents, 0);
+      return held.map((p) => ({
+        ...p,
+        weightPercent: total > 0 ? (p.marketValueCents / total) * 100 : 0,
+      }));
+    }),
+  })),
   withComputed((store) => ({
     totalPnl: computed(() => {
       const positions = store.positions();
@@ -163,8 +177,31 @@ export const DashboardStore = signalStore(
     setNow(now: number): void {
       patchState(store, { now });
     },
+    // Keyed-collection live merge: upsert by `symbol`, last-write-wins by
+    // `updatedAt` (drop a strictly-older frame; equal timestamps apply,
+    // idempotent — matching setPortfolioSummary). Keeps quantity:0 ghost rows so
+    // an out-of-order older frame is still ordered correctly; positions() filters
+    // them for display. positionRows preserves insertion order (Map semantics).
+    mergePositions(incoming: PositionSnapshot[]): void {
+      if (incoming.length === 0) return;
+      const bySymbol = new Map<string, PositionSnapshot>();
+      for (const p of store.positionRows()) bySymbol.set(p.symbol, p);
+      let changed = false;
+      for (const p of incoming) {
+        const current = bySymbol.get(p.symbol);
+        if (current && p.updatedAt < current.updatedAt) continue; // drop strictly-older
+        bySymbol.set(p.symbol, p);
+        changed = true;
+      }
+      if (changed) patchState(store, { positionRows: [...bySymbol.values()] });
+    },
+    addPosition(position: PositionSnapshot): void {
+      this.mergePositions([position]);
+    },
+    // Intentionally MERGES (not replaces) so a query/backfill snapshot can't
+    // clobber a newer live frame; use reset() for a hard clear (e.g. logout).
     setPositions(positions: PositionSnapshot[]): void {
-      patchState(store, { positions });
+      this.mergePositions(positions);
     },
     mergeActivities(incoming: ActivityEntry[]): void {
       const existing = store.activities();

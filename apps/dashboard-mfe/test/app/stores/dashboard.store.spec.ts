@@ -42,22 +42,22 @@ describe('DashboardStore', () => {
       assetClass: 'EQUITY',
       quantity: 10,
       avgCostBasisCents: 15000,
-      currentPriceCents: 17500,
-      marketValueCents: 175000,
-      weightPercent: 40,
+      currentPriceCents: 16000,
+      marketValueCents: 160000,
+      weightPercent: 40,            // 160000 / 400000 — already equals the derived value
       unrealizedPnlCents: 25000,
-      lastUpdatedAt: '2026-03-01T00:00:00Z',
+      updatedAt: '2026-03-01T00:00:00Z',
     },
     {
       symbol: 'BND',
       assetClass: 'BOND',
       quantity: 20,
       avgCostBasisCents: 10000,
-      currentPriceCents: 9500,
-      marketValueCents: 190000,
-      weightPercent: 45,
+      currentPriceCents: 12000,
+      marketValueCents: 240000,
+      weightPercent: 60,            // 240000 / 400000 — already equals the derived value
       unrealizedPnlCents: -10000,
-      lastUpdatedAt: '2026-03-01T00:00:00Z',
+      updatedAt: '2026-03-01T00:00:00Z',
     },
   ];
 
@@ -132,12 +132,12 @@ describe('DashboardStore', () => {
     store.setPositions(mockPositions);
     const allocation = store.allocationByAssetClass();
     expect(allocation['EQUITY']).toBe(40);
-    expect(allocation['BOND']).toBe(45);
+    expect(allocation['BOND']).toBe(60);
   });
 
   it('should group positions with null assetClass as OTHER', () => {
     store.setPositions([{ ...mockPositions[0], assetClass: null, weightPercent: 10 }]);
-    expect(store.allocationByAssetClass()['OTHER']).toBe(10);
+    expect(store.allocationByAssetClass()['OTHER']).toBe(100); // sole holding ⇒ derived weight 100
   });
 
   it('should compute hasAdvisoryAlerts', () => {
@@ -385,5 +385,71 @@ describe('DashboardStore.addActivity', () => {
     expect(store.activities()).toHaveLength(50);
     expect(store.activities()[0].activityId).toBe('new');
     expect(store.activities().at(-1)?.activityId).toBe('a48'); // a49 dropped
+  });
+});
+
+describe('DashboardStore.mergePositions / derived weights', () => {
+  let store: InstanceType<typeof DashboardStore>;
+  beforeEach(() => {
+    TestBed.configureTestingModule({});
+    store = TestBed.inject(DashboardStore);
+    store.reset();
+  });
+
+  const pos = (over: Partial<PositionSnapshot>): PositionSnapshot => ({
+    symbol: 'AAPL', assetClass: 'EQUITY', quantity: 10,
+    avgCostBasisCents: 15000, currentPriceCents: 16000, marketValueCents: 160000,
+    weightPercent: 0, unrealizedPnlCents: 10000, updatedAt: '2026-06-13T12:00:00Z', ...over,
+  });
+
+  it('upserts by symbol (a second symbol is added, not replaced)', () => {
+    store.mergePositions([pos({ symbol: 'AAPL', marketValueCents: 160000 })]);
+    store.mergePositions([pos({ symbol: 'MSFT', marketValueCents: 240000 })]);
+    expect(store.positions().map((p) => p.symbol).sort()).toEqual(['AAPL', 'MSFT']);
+  });
+
+  it('keeps the newer updatedAt and drops a strictly-older frame for the same symbol', () => {
+    store.mergePositions([pos({ symbol: 'AAPL', marketValueCents: 200000, updatedAt: '2026-06-13T13:00:00Z' })]);
+    store.mergePositions([pos({ symbol: 'AAPL', marketValueCents: 100000, updatedAt: '2026-06-13T12:00:00Z' })]); // older
+    expect(store.positions()[0].marketValueCents).toBe(200000);
+  });
+
+  it('filters quantity:0 rows out of positions() (mirrors the read resolver)', () => {
+    store.mergePositions([pos({ symbol: 'AAPL', quantity: 10 }), pos({ symbol: 'OLD', quantity: 0, marketValueCents: 0 })]);
+    expect(store.positions().map((p) => p.symbol)).toEqual(['AAPL']);
+  });
+
+  it('derives weightPercent from marketValueCents so the held set sums to 100', () => {
+    store.mergePositions([
+      pos({ symbol: 'AAPL', marketValueCents: 160000, weightPercent: 999 }),
+      pos({ symbol: 'BND', marketValueCents: 240000, weightPercent: 999 }),
+    ]);
+    const bySymbol = Object.fromEntries(store.positions().map((p) => [p.symbol, p.weightPercent]));
+    expect(bySymbol['AAPL']).toBeCloseTo(40);
+    expect(bySymbol['BND']).toBeCloseTo(60);
+    const sum = store.positions().reduce((s, p) => s + p.weightPercent, 0);
+    expect(sum).toBeCloseTo(100);
+  });
+
+  it('weights stay self-consistent after a single-symbol live frame updates one value', () => {
+    store.setPositions([
+      pos({ symbol: 'AAPL', marketValueCents: 160000, updatedAt: '2026-06-13T12:00:00Z' }),
+      pos({ symbol: 'BND', marketValueCents: 240000, updatedAt: '2026-06-13T12:00:00Z' }),
+    ]);
+    // AAPL doubles in value via a later live frame; BND frame has NOT arrived.
+    store.addPosition(pos({ symbol: 'AAPL', marketValueCents: 320000, updatedAt: '2026-06-13T13:00:00Z' }));
+    const sum = store.positions().reduce((s, p) => s + p.weightPercent, 0);
+    expect(sum).toBeCloseTo(100); // 320000 + 240000 → AAPL 57.14, BND 42.86
+    const bySymbol = Object.fromEntries(store.positions().map((p) => [p.symbol, p.weightPercent]));
+    expect(bySymbol['AAPL']).toBeCloseTo((320000 / 560000) * 100);
+    expect(bySymbol['BND']).toBeCloseTo((240000 / 560000) * 100);
+  });
+
+  it('is a no-op when given an empty array or only strictly-older frames', () => {
+    store.setPositions([pos({ symbol: 'AAPL', marketValueCents: 200000, updatedAt: '2026-06-13T13:00:00Z' })]);
+    store.mergePositions([]); // empty
+    store.mergePositions([pos({ symbol: 'AAPL', marketValueCents: 100000, updatedAt: '2026-06-13T12:00:00Z' })]); // older
+    expect(store.positions()).toHaveLength(1);
+    expect(store.positions()[0].marketValueCents).toBe(200000);
   });
 });
