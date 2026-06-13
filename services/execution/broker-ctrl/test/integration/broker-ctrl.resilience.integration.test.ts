@@ -42,7 +42,16 @@ describe('broker-ctrl resilience: idempotency', () => {
       table.registerCleanup();
 
       const eventId = `idemp-mode-${randomUUID()}`;
-      const payload = { mode: 'live' };
+      // ExecutionModeChangedSchema: {changeId, fromMode, toMode, changedAt}.
+      // mode-listener caches mode = toMode. Single shared const → both the first
+      // publish and the duplicate carry the identical subject (same changeId) so the
+      // dedup is exercised on a byte-identical event (dedup is eventId-keyed).
+      const payload = {
+        changeId: randomUUID(),
+        fromMode: 'simulation',
+        toMode: 'live',
+        changedAt: new Date().toISOString(),
+      };
 
       // First publish
       await eb.putEvent({

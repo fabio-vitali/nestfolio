@@ -1,3 +1,4 @@
+import { randomUUID } from 'node:crypto';
 import { DynamoDBClient } from '@aws-sdk/client-dynamodb';
 import { DynamoDBDocumentClient, PutCommand, DeleteCommand } from '@aws-sdk/lib-dynamodb';
 import {
@@ -48,7 +49,14 @@ describe('broker-ctrl', () => {
       bus: 'execution',
       targetService: 'broker-ctrl',
       detailType: 'EXECUTION_MODE_CHANGED',
-      detail: { mode: 'live' },
+      // ExecutionModeChangedSchema: {changeId, fromMode, toMode, changedAt}.
+      // The mode-listener caches mode = toMode, so toMode:'live' → cached mode:'live'.
+      detail: {
+        changeId: randomUUID(),
+        fromMode: 'simulation',
+        toMode: 'live',
+        changedAt: new Date().toISOString(),
+      },
     });
 
     const item = await table.waitForItem({
