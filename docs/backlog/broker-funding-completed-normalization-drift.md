@@ -5,11 +5,12 @@ type: bug
 notes: "LIVE-MONEY-PATH BUG surfaced 2026-06-08 by event-subject-payload-build-tripwire Task 5b. broker-ctrl deposit-withdrawal-normalizer reads `s.transferId`/`s.amountCents`/`s.currency`/`s.userId` off the inbound funding-completed subjects, but the producers emit DIFFERENT field names: broker-alpaca-adpt `AlpacaTransferResultSchema` emits `nestfolioTransferId` (not transferId), `amount` (not amountCents), NO `currency`, NO `userId`; broker-sim-adpt `WithdrawalCompleted` emits `amount` (not amountCents) + no `currency`. So on the LIVE alpaca settle/fail path: amountCents=undefined, currency silently defaults to 'USD', and transferId falls back to ctx.eventId → the carryForward lookup keys on the WRONG id, misses the requested carrier, and the settle/fail row uses subject fallbacks instead of the stored request values. Structural issue too: normalizer depositCompletion/withdrawalCompletion are SHARED by both the sim and alpaca code paths, so they can't be typed against a single subject schema. Fix needs a design: define a canonical funding-completed event shape (transferId, amountCents, currency, userId, direction, status) emitted consistently by BOTH broker-sim-adpt and broker-alpaca-adpt, then restructure the normalizer's 4 handlers to parse per-event via parseSubject. This unblocks removing the LAST 4 `as Record<string,unknown>` casts in the repo (deposit-withdrawal-normalizer.ts lines 26/58/88/96), which event-subject-payload-build-tripwire left as a documented exception. Re-ranked LAST (rank 6, 2026-06-08 user direction): do this AFTER the typings refactoring (residual-casts cleanup + skills/docs enforcement) and the nx-affected resolver."
 references: []
 out_of_scope:
-  - "Preliminary (pending brainstorm — scope boundary to be confirmed in the design session per 2026-06-13 user direction 'brainstorm scope first')."
-  - "broker-ctrl order-execution SF input contract (broker-ctrl-order-sf-input-contract-gap) — separate workstream unless the design naturally subsumes it."
-  - "ledger-ctrl live-fill tax-lot missing order fields (ledger-ctrl-live-tax-lot-missing-order-fields) — order-path, not funding-path."
-  - "broker-ctrl/alpaca funding carrier PK divergence (broker-ctrl-alpaca-funding-carrier-pk-divergence) unless the canonical contract resolves the carryForward key mismatch as a side effect."
-spec: null
+  - "relationshipId / real ACH bank-linking — stays '' ; a live ACH transfer still cannot succeed without it. This workstream makes the contract/id chain correct-by-construction, not the bank link (funding-onboarding feature, separate)."
+  - "Rewriting the funded() / withdraw-cash synthetic-event e2e fixtures (funded-fixture-balance-updated-missing-snapshot territory)."
+  - "broker-ctrl-order-sf-input-contract-gap, ledger-ctrl-live-tax-lot-missing-order-fields, broker-ctrl-alpaca-funding-carrier-pk-divergence — separate parked items (order path / carrier-PK)."
+  - "Normalizing the sim deposit/withdrawal completion amount-unit asymmetry at the producer (sim withdrawal emits dollars, deposit cents) — absorbed by carryForward here."
+  - "A real LIVE alpaca funding e2e — impossible in dev (paper API + missing relationshipId); live path covered by mocked-Alpaca integration tests."
+spec: docs/superpowers/specs/2026-06-13-broker-funding-completed-normalization-design.md
 plan: null
 topic_memory: []
 validation_gate: null
