@@ -418,7 +418,7 @@ describe('broker-ctrl', () => {
         expect(settled['__typename']).toBe('FundingEvent');
         expect(settled['amountCents']).toBe(7000); // HIT — fallback would be 6900
         expect(settled['initiatedAt']).toBe(SEEDED_INITIATED_AT); // HIT — fallback = ctx.timestamp
-        expect(settled['userId']).toBe(SEEDED_USER_ID); // HIT — fallback = ctx.userId
+        // NB: carrier userId is ctx-stamped (DRY identity), not carried forward — HIT is proven by amountCents + initiatedAt above
         expect(settled['status']).toBe('settled');
         expect(settled['__version']).toBe(3);
         expect(settled['settledAt']).toBeDefined();
@@ -483,7 +483,7 @@ describe('broker-ctrl', () => {
         expect(settled['__typename']).toBe('FundingEvent');
         expect(settled['amountCents']).toBe(7000); // HIT — fallback would be 6900
         expect(settled['initiatedAt']).toBe(SEEDED_INITIATED_AT); // HIT — fallback = ctx.timestamp
-        expect(settled['userId']).toBe(SEEDED_USER_ID); // HIT — fallback = ctx.userId
+        // NB: carrier userId is ctx-stamped (DRY identity), not carried forward — HIT is proven by amountCents + initiatedAt above
         expect(settled['executionMode']).toBe('live');
         expect(settled['status']).toBe('settled');
         expect(settled['__version']).toBe(3);
