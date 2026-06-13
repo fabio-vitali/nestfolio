@@ -91,3 +91,36 @@ test('exact-root match (no trailing slash needed) maps to the project', () => {
   const out = mapFilesToProjects(G, ['services/x/d']);
   assert.deepEqual([...out], ['d']);
 });
+
+// --- Golden CLI tests against a committed real-graph fixture ---
+import { spawnSync } from 'node:child_process';
+
+const SCRIPT = 'tools/affected-projects.mjs';
+const FIXTURE = 'tools/fixtures/nx-graph.sample.json';
+
+function runCli(extraArgs) {
+  const r = spawnSync('node', [SCRIPT, `--graph=${FIXTURE}`, ...extraArgs], { encoding: 'utf8' });
+  assert.equal(r.status, 0, r.stderr);
+  return r.stdout.trim().split('\n').filter(Boolean);
+}
+
+test('golden: dashboard-bff sink → only itself (nx affected reports the full 33-closure)', () => {
+  const out = runCli(['--files=services/investor/dashboard-bff/src/main.ts']);
+  assert.deepEqual(out, ['dashboard-bff']);
+});
+
+test('golden: ui lib → ui + the 5 frontends', () => {
+  const out = runCli(['--files=libs/ui/src/index.ts']);
+  assert.deepEqual(out, ['advisory-mfe', 'dashboard-mfe', 'investor-mfe', 'ledger-mfe', 'nestfolio-host', 'ui']);
+});
+
+test('golden: --type=app drops the ui lib, keeps the frontend apps', () => {
+  const out = runCli(['--files=libs/ui/src/index.ts', '--type=app']);
+  assert.deepEqual(out, ['advisory-mfe', 'dashboard-mfe', 'investor-mfe', 'ledger-mfe', 'nestfolio-host']);
+});
+
+test('golden: empty --files → empty output, exit 0', () => {
+  const r = spawnSync('node', [SCRIPT, `--graph=${FIXTURE}`, '--files='], { encoding: 'utf8' });
+  assert.equal(r.status, 0);
+  assert.equal(r.stdout.trim(), '');
+});

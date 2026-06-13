@@ -84,3 +84,56 @@ export function affectedProjects(graph, { files, withTarget, type, globals } = {
   if (withTarget) out = out.filter((n) => graph.nodes[n]?.data?.targets?.[withTarget] != null);
   return out.sort();
 }
+
+// --- impure: git + nx graph ---
+
+/** Resolve changed files: explicit --files, else git (range + working tree + untracked). */
+export function changedFiles({ base, head, files }) {
+  if (files) return files; // explicit list (incl. empty []) wins; undefined → git
+  const sh = (cmd) => { try { return execSync(cmd, { encoding: 'utf8' }).trim(); } catch { return ''; } };
+  const set = new Set();
+  const add = (out) => out.split('\n').filter(Boolean).forEach((f) => set.add(f));
+  add(sh(`git diff --name-only ${base}...${head}`)); // committed range
+  add(sh('git diff --name-only'));                    // unstaged
+  add(sh('git diff --name-only --cached'));           // staged
+  add(sh('git ls-files --others --exclude-standard')); // untracked
+  return [...set];
+}
+
+/** Load the nx graph: from --graph path, else generate daemon-free into a temp file. */
+export function loadGraph(graphPath) {
+  let p = graphPath;
+  if (!p) {
+    p = join(tmpdir(), `nf-nxgraph-${process.pid}.json`);
+    execSync(`pnpm exec nx graph --file=${p}`, {
+      stdio: ['ignore', 'ignore', 'inherit'],
+      env: { ...process.env, NX_DAEMON: 'false' },
+    });
+  }
+  const raw = JSON.parse(readFileSync(p, 'utf8'));
+  return raw.graph || raw; // tolerate { graph: {…} } and bare {…}
+}
+
+export function parseArgs(argv) {
+  const args = { base: 'origin/main', head: 'HEAD' };
+  for (let i = 0; i < argv.length; i++) {
+    const a = argv[i];
+    const eq = a.match(/^--([^=]+)=(.*)$/);
+    if (eq) { args[eq[1]] = eq[2]; continue; }
+    if (a === '--with-target') { args['with-target'] = argv[++i]; continue; }
+    args[a.replace(/^--/, '')] = true;
+  }
+  if (typeof args.files === 'string') args.files = args.files.split(',').filter(Boolean);
+  args.withTarget = args['with-target'];
+  return args;
+}
+
+function main() {
+  const args = parseArgs(process.argv.slice(2));
+  const graph = loadGraph(args.graph);
+  const files = changedFiles({ base: args.base, head: args.head, files: args.files });
+  const out = affectedProjects(graph, { files, withTarget: args.withTarget, type: args.type });
+  if (out.length) console.log(out.join('\n'));
+}
+
+if (fileURLToPath(import.meta.url) === process.argv[1]) main();
