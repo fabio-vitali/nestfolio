@@ -56,6 +56,29 @@ CLAUDE.md § Hard Constraints). Cost: ~one reduce+map in the store; the
 over-the-wire `weightPercent` is still carried (it backs the initial query) but is
 recomputed for display.
 
+## Decision taken this round (AskUserQuestion, 2026-06-13) — LWW timestamp = `updatedAt`
+
+The client merge needs a reliable per-row LWW timestamp. Live `PositionSnapshot`
+rows are written by the `projectVersioned` transform, so the event-processor
+executor stamps **`updatedAt`** on every row (same as the shipped
+`PortfolioSummary`). The GraphQL type / MFE fragment / store interface, however,
+named the field **`lastUpdatedAt`**, which was only ever written by the
+**now-dead** `upsertPositionSnapshot` repository method (no production caller —
+the live path is the transform). So `PositionSnapshot.lastUpdatedAt: String!` was
+sourced from a row attribute live rows don't carry — a pre-existing latent
+inconsistency. (`__version`, the row's authoritative monotonic version, can't be
+the GraphQL LWW key: names starting with `__` are reserved/illegal in GraphQL.)
+
+**Standardize on `updatedAt`** (matches `PortfolioSummary`, executor-guaranteed):
+rename the field `lastUpdatedAt` → `updatedAt` across `PositionSnapshot` (type),
+`PositionInput`, the MFE `POSITION_SNAPSHOT_FIELDS` fragment, and the store
+`PositionSnapshot` interface; **delete the dead `upsertPositionSnapshot` writer +
+its unit test** (the lone, misleading `lastUpdatedAt` source). LWW key:
+`updatedAt`. This is slightly beyond pure transport (one schema-field rename +
+dead-code removal) but fixes the latent null and makes the surface consistent and
+verifiable; blast radius is contained to dashboard-bff + dashboard-mfe (both
+already touched).
+
 ## Removal handled by the existing read boundary (no tombstone)
 
 Fully-exited symbols persist as **version-correct `quantity:0` `PositionSnapshot`
@@ -76,14 +99,15 @@ PositionSnapshot DDB row mutates (1 row/holding per PORTFOLIO_UPDATED|BALANCE_UP
   → AppSync @aws_subscribe fan-out
   → onPositionUpdate(tenantId)
   → dashboard-mfe subscribeThenReconcile → addPosition → mergePositions
-       (upsert by symbol, LWW by lastUpdatedAt)
+       (upsert by symbol, LWW by updatedAt)
   → UI: positions() computed = filter quantity>0 + derive weightPercent from marketValueCents
 ```
 
 ## Backend changes — `services/investor/dashboard-bff`
 
 ### `src/schema.graphql`
-- `input PositionInput { symbol, assetClass, quantity, avgCostBasisCents, currentPriceCents, marketValueCents, weightPercent, unrealizedPnlCents, lastUpdatedAt }` — mirrors the existing `PositionSnapshot` type fields (non-null matching the type: `symbol`, `quantity`, `avgCostBasisCents`, `currentPriceCents`, `marketValueCents`, `weightPercent`, `unrealizedPnlCents`, `lastUpdatedAt` required; `assetClass` optional).
+- Rename `PositionSnapshot.lastUpdatedAt` → `updatedAt` (see the LWW-timestamp decision above).
+- `input PositionInput { symbol, assetClass, quantity, avgCostBasisCents, currentPriceCents, marketValueCents, weightPercent, unrealizedPnlCents, updatedAt }` — mirrors the `PositionSnapshot` type fields (non-null matching the type: `symbol`, `quantity`, `avgCostBasisCents`, `currentPriceCents`, `marketValueCents`, `weightPercent`, `unrealizedPnlCents`, `updatedAt` required; `assetClass` optional).
 - `type PositionBroadcast @aws_cognito_user_pools @aws_iam { tenantId: ID, position: PositionSnapshot! }` — `tenantId` in the response is the `@aws_subscribe` filter pivot (mirrors `ActivityBroadcast`).
 - `publishPositionUpdate(tenantId: ID!, position: PositionInput!): PositionBroadcast! @aws_iam` on `Mutation`.
 - `onPositionUpdate(tenantId: ID!): PositionBroadcast @aws_subscribe(mutations: ["publishPositionUpdate"])` on `Subscription`.
@@ -110,13 +134,21 @@ Add a `PositionSnapshot` entry to the `broadcasts` map:
   actually changes does broadcast → the client's running total stays accurate.
 - `mapImage`: `tenantId` from `String(item['pk']).slice(2)`; `position` = the row's
   position fields (`Number(...)` coercions matching `position-snapshot.ts`,
-  `assetClass` passthrough, `lastUpdatedAt` from the row).
+  `assetClass` passthrough, `updatedAt` from the row's executor-stamped `updatedAt`).
 
 ### `src/service.stack.ts`
-The new resolver is auto-discovered by `discoverJsResolvers` (same path as
-`publish-activity-update.fn.js`); the `Broadcaster` construct already covers the
-DDB stream. Confirm during planning that no manual wiring is required (expected:
-none beyond the schema + `.fn.js`).
+The new resolver is auto-discovered by `discoverJsResolvers`, but it must be added
+to the `noneDataSource` list (alongside `publishDashboardUpdate` /
+`publishActivityUpdate`) so the `publishPositionUpdate` field uses the NONE data
+source. The `Broadcaster` construct already covers the DDB stream — no other stack
+change.
+
+### `src/repositories/dashboard.repository.ts` (dead-code removal)
+Delete the dead `upsertPositionSnapshot` method (no production caller; the live
+path is the `position-snapshot.ts` transform) and its unit test in
+`test/unit/repositories/dashboard.repository.test.ts`. It is the lone writer of the
+old `lastUpdatedAt` attribute; removing it eliminates the source of the
+type-vs-row naming inconsistency resolved by the `updatedAt` standardization.
 
 ## Frontend changes — `apps/dashboard-mfe`
 
@@ -133,9 +165,9 @@ delegating to `graphql.subscribe(ON_POSITION_UPDATE, { tenantId })`.
   LWW-deduped set across ALL symbols (including `quantity:0`), needed so an
   out-of-order older frame can be dropped correctly.
 - `mergePositions(incoming)`: upsert by `symbol` into the keyed set; for a symbol
-  already present, keep the row with the newer `lastUpdatedAt` (drop a
-  strictly-older incoming frame; equal timestamps apply, idempotent LWW — matching
-  the PortfolioSummary setter's convention).
+  already present, keep the row with the newer `updatedAt` (drop a strictly-older
+  incoming frame; equal timestamps apply, idempotent LWW — matching the
+  PortfolioSummary setter's convention).
 - `addPosition(p)` = `mergePositions([p])`.
 - `setPositions(rows)` = `mergePositions(rows)` — merges (mirrors
   `setActivities`→`mergeActivities`) so the initial query / reconnect backfill
