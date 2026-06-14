@@ -409,3 +409,20 @@ test('CLI: exit 1 on drift, exit 0 after --fix', () => {
     assert.match(card, /- NormalizedEvent: ORDER_FILLED/);
   });
 });
+
+test('evaluate: service with stack but no card → no-card error', () => {
+  withTree({
+    'services/d/foo-ctrl/src/service.stack.ts': 'export class S {}',
+  }, (root) => {
+    const { errors } = evaluate(root, new Set());
+    assert.ok(errors.some(e => e.service === 'foo-ctrl' && e.kind === 'no-card' && e.section === '*'));
+  });
+});
+
+test('parseExclusions: malformed JSON throws', () => {
+  withTree({
+    'tools/service-card-exclusions.json': '{ not valid json',
+  }, (root) => {
+    assert.throws(() => parseExclusions(root), /invalid JSON/);
+  });
+});
