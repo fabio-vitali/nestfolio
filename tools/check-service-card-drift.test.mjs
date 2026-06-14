@@ -387,3 +387,25 @@ test('evaluate: hub with no event constructs → no errors', () => {
     assert.deepEqual(errors, []);
   });
 });
+
+test('CLI: exit 1 on drift, exit 0 after --fix', () => {
+  withTree({
+    'services/d/foo-ctrl/src/domain/events.ts': EVENTS_FOR_STACK,
+    'services/d/foo-ctrl/src/service.stack.ts': STACK_EGRESS,
+    'services/d/foo-ctrl/CLAUDE.md': '## Egress\n' + wrapBlock('egress', '- NormalizedEvent: WRONG') + '\n',
+    'tools/service-card-exclusions.json': JSON.stringify({ exclusions: [] }),
+  }, (root) => {
+    const check = spawnSync('node', [SCRIPT, '--root', root], { encoding: 'utf8' });
+    assert.equal(check.status, 1);
+    assert.match(check.stderr + check.stdout, /egress/);
+
+    const fix = spawnSync('node', [SCRIPT, '--root', root, '--fix'], { encoding: 'utf8' });
+    assert.equal(fix.status, 0);
+
+    const recheck = spawnSync('node', [SCRIPT, '--root', root], { encoding: 'utf8' });
+    assert.equal(recheck.status, 0);
+
+    const card = readFileSync(join(root, 'services/d/foo-ctrl/CLAUDE.md'), 'utf8');
+    assert.match(card, /- NormalizedEvent: ORDER_FILLED/);
+  });
+});

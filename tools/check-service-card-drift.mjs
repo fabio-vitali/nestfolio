@@ -488,3 +488,32 @@ export function evaluate(root, exclusions) {
   }
   return { errors, fixes };
 }
+
+function main() {
+  const { root, fix } = parseArgs(process.argv);
+  const { exclusions, entries } = parseExclusions(root);
+  const { errors, fixes } = evaluate(root, exclusions);
+
+  if (fix) {
+    for (const f of fixes) writeFileSync(f.cardPath, f.newText, 'utf8');
+    console.log(`card-drift: --fix wrote ${fixes.length} card(s).`);
+    process.exit(0);
+  }
+
+  if (errors.length === 0) {
+    console.log(`card-drift: OK (${entries.length} excluded, 0 drift)`);
+    process.exit(0);
+  }
+
+  console.error('card-drift: FAIL');
+  console.error(`Found ${errors.length} card-drift issue(s). Run \`node tools/check-service-card-drift.mjs --fix\` (or \`nx run event-processor:card-drift -- --fix\`) and review.\n`);
+  for (const e of errors) {
+    console.error(`  [${e.kind}] ${e.service} :: ${e.section}`);
+    console.error(`    ${e.detail}`);
+  }
+  process.exit(1);
+}
+
+if (process.argv[1] && process.argv[1] === fileURLToPath(import.meta.url)) {
+  main();
+}
