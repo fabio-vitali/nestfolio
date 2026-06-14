@@ -101,6 +101,10 @@ function collectEventRefs(node, resolve) {
         /EventTypes$/.test(n.expression.text)) {
       const k = `${n.expression.text}.${n.name.text}`;
       out.add(resolve.get(k) ?? n.name.text);
+    } else if (ts.isIdentifier(n) &&
+        !(n.parent && ts.isPropertyAccessExpression(n.parent)) &&
+        resolve.has(n.text)) {
+      out.add(resolve.get(n.text));
     }
     ts.forEachChild(n, visit);
   };
@@ -158,6 +162,7 @@ export function extractEgress(sf, resolve) {
 export function parseEvents(eventsTsPath) {
   const groups = [];
   const resolve = new Map();
+  const bareEntries = [];
   const sf = sourceFileOf(eventsTsPath);
   if (!sf) return { groups, resolve };
   for (const stmt of sf.statements) {
@@ -168,6 +173,13 @@ export function parseEvents(eventsTsPath) {
       if (!ts.isIdentifier(decl.name) || !decl.initializer) continue;
       const constName = decl.name.text;
       const obj = unwrapAs(decl.initializer);
+      // Bare top-level event const: `export const X = eventName('Y')`.
+      const bareWire = eventNameArg(obj);
+      if (bareWire) {
+        bareEntries.push({ key: constName, wire: bareWire });
+        resolve.set(constName, bareWire);
+        continue;
+      }
       if (!ts.isObjectLiteralExpression(obj)) continue;
       const entries = [];
       for (const prop of obj.properties) {
@@ -181,6 +193,10 @@ export function parseEvents(eventsTsPath) {
       }
       if (entries.length) groups.push({ constName, entries });
     }
+  }
+  if (bareEntries.length) {
+    bareEntries.sort((a, b) => a.key.localeCompare(b.key));
+    groups.push({ constName: '(top-level exports)', entries: bareEntries });
   }
   return { groups, resolve };
 }

@@ -129,3 +129,36 @@ test('extractEgress: entity → emitted wire set (incl. insert: shorthand)', () 
     ]);
   });
 });
+
+test('parseEvents: bare top-level export const X = eventName(Y)', () => {
+  const BARE = `
+import { eventName } from '@nestfolio/event-types';
+export const ONBOARDING_COMPLETED = eventName('ONBOARDING_COMPLETED');
+export const GO_LIVE_CONFIRMED = eventName('GO_LIVE_CONFIRMED');
+export const FooEventTypes = { X: eventName('X') } as const;
+`;
+  withTree({ 'svc/src/domain/events.ts': BARE }, (root) => {
+    const { groups, resolve } = parseEvents(join(root, 'svc/src/domain/events.ts'));
+    assert.equal(resolve.get('ONBOARDING_COMPLETED'), 'ONBOARDING_COMPLETED');
+    const bare = groups.find(g => g.constName === '(top-level exports)');
+    assert.deepEqual(bare.entries.map(e => e.key), ['GO_LIVE_CONFIRMED', 'ONBOARDING_COMPLETED']);
+  });
+});
+
+test('extractEgress: bare-identifier insert ref resolves', () => {
+  const EV = `
+import { eventName } from '@nestfolio/event-types';
+export const ONBOARDING_COMPLETED = eventName('ONBOARDING_COMPLETED');
+`;
+  const STACK = `
+new Egress(this, 'Egress', {
+  state,
+  eventTypes: { 'OnboardingCompleted': { insert: ONBOARDING_COMPLETED } },
+});
+`;
+  withTree({ 'svc/src/domain/events.ts': EV, 'svc/src/service.stack.ts': STACK }, (root) => {
+    const { resolve } = _pe(join(root, 'svc/src/domain/events.ts'));
+    const sf = sourceFileForTest(join(root, 'svc/src/service.stack.ts'));
+    assert.deepEqual(extractEgress(sf, resolve), [{ entity: 'OnboardingCompleted', events: ['ONBOARDING_COMPLETED'] }]);
+  });
+});
