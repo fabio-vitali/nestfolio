@@ -4,7 +4,7 @@ import { util } from '@aws-appsync/utils';
 // with a write-once ExecutionModeChange audit row (CDC → EXECUTION_MODE_CHANGED → broker-ctrl).
 // A later phase adds a third transactItem re-affirming the Mandate row.
 export function request(ctx) {
-  const { tenantId, userId, tableName } = ctx.stash;
+  const { tenantId, userId, region, tableName } = ctx.stash;
   const now = util.time.nowISO8601();
   const pk = `InvestorProfile#${tenantId}#${userId}`;
   const changeId = `${tenantId}#${userId}#${now}`;
@@ -18,7 +18,10 @@ export function request(ctx) {
         key: util.dynamodb.toMapValues({ pk, sk: `ExecutionModeChange#${changeId}` }),
         attributeValues: util.dynamodb.toMapValues({
           __typename: 'ExecutionModeChange',
-          tenantId, userId,
+          // Full RequestContext (tenantId, userId, region) MUST be on the row: the CDC
+          // publisher builds the emitted event's context from these, and consumers
+          // (broker-ctrl mode-listener) reject events missing context.region.
+          tenantId, userId, region,
           changeId, fromMode: 'simulation', toMode: 'live',
           changedAt: now, timestamp: now,
         }),

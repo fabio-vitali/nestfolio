@@ -1,7 +1,7 @@
 import { request, response } from '../../../src/graphql/js-function/confirm-go-live.fn.js';
 
 const baseCtx = {
-  stash: { tenantId: 't1', userId: 'u1', tableName: 'investor-bff-table' },
+  stash: { tenantId: 't1', userId: 'u1', region: 'us-east-1', tableName: 'investor-bff-table' },
   arguments: {},
   result: {},
 };
@@ -22,6 +22,11 @@ describe('confirmGoLive resolver (sim→live switch)', () => {
     expect(put.key.sk.S).toMatch(/^ExecutionModeChange#/);
     // write-once: the audit row may not already exist
     expect(put.condition.expression).toContain('attribute_not_exists(pk)');
+    // full RequestContext MUST be on the row — the CDC publisher builds the emitted
+    // event's context from these; consumers reject events missing context.region.
+    expect(put.attributeValues.tenantId.S).toBe('t1');
+    expect(put.attributeValues.userId.S).toBe('u1');
+    expect(put.attributeValues.region.S).toBe('us-east-1');
 
     const upd = req.transactItems.find((i: any) => i.operation === 'UpdateItem');
     expect(upd.key.pk.S).toBe('InvestorProfile#t1#u1');
