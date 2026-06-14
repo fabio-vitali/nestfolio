@@ -92,6 +92,22 @@ RULES:
 Write the result to: services/{domain}/{service}/CLAUDE.md
 ```
 
+## Generated blocks are machine-owned (do NOT hand-write)
+
+The mechanically-derivable card sections are owned by the deterministic gate
+`tools/check-service-card-drift.mjs`, not by this skill. They live between
+`<!-- card-drift:<section> -->` … `<!-- /card-drift:<section> -->` markers
+(`event-types`, `ingress`, `egress`, `handlers`, `ddb-entities`).
+
+When regenerating a card:
+1. Run `node tools/check-service-card-drift.mjs --fix` (or
+   `nx run event-processor:card-drift -- --fix`) to refresh the generated blocks
+   deterministically from `service.stack.ts` / `domain/events.ts`.
+2. LLM-regenerate ONLY the prose/intent sections (Why, Read model ownership,
+   IAM trace, handler descriptions, Event Payload Contracts, narrative).
+3. Never write event names, subscription lists, entity names, or handler
+   filenames by hand between the `card-drift:*` markers — they will fail the gate.
+
 ### Verification Checks
 
 | # | Check | Severity | How to Check |
