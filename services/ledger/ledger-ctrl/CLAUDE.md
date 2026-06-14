@@ -7,10 +7,18 @@ Stack: services/ledger/ledger-ctrl/src/service.stack.ts
 - DynamoDB table (streams enabled)
 
 ## Ingress
+<!-- card-drift:ingress (generated — `nx run event-processor:card-drift -- --fix`) -->
+- Ingress: CORPORATE_ACTION_APPLIED, DECISION_PACKET_CREATED, DEPOSIT_SETTLED, ORDER_CANCELLED, ORDER_FILLED, ORDER_PARTIALLY_FILLED, ORDER_REJECTED, WITHDRAWAL_SETTLED
+<!-- /card-drift:ingress -->
 - ledgerBus → ledger-ctrl-ingress (SQS → Lambda)
   Subscriptions: ORDER_FILLED, ORDER_PARTIALLY_FILLED, ORDER_REJECTED, ORDER_CANCELLED, DEPOSIT_DETECTED, WITHDRAWAL_COMPLETED, CORPORATE_ACTION_APPLIED, DECISION_PACKET_CREATED
 
 ## Egress
+<!-- card-drift:egress (generated — `nx run event-processor:card-drift -- --fix`) -->
+- BalanceEvent: BALANCE_EVENT_UPDATED, BALANCE_UPDATED
+- LedgerEntryEvent: LEDGER_ENTRY_EVENT_UPDATED, LEDGER_ENTRY_RECORDED
+- PortfolioEvent: PORTFOLIO_EVENT_UPDATED, PORTFOLIO_UPDATED
+<!-- /card-drift:egress -->
 - CDC: DynamoDB Streams → ledger-ctrl-egress (Lambda)
   Emits:
   - BalanceEvent → insert: BALANCE_UPDATED, modify: BALANCE_EVENT_UPDATED
@@ -23,6 +31,10 @@ Stack: services/ledger/ledger-ctrl/src/service.stack.ts
   Batch: 100 records, 5s window, bisect on error, 3 retries
 
 ## Handlers
+<!-- card-drift:handlers (generated — `nx run event-processor:card-drift -- --fix`) -->
+- reducer.ts
+- snapshot-publisher.ts
+<!-- /card-drift:handlers -->
 - event-listener.ts — Ingress event handler
 - event-publisher.ts — Egress CDC publisher (changeDataCapture pipeline, typed-subject mode)
 - publisher-schemas.ts — typed-subject registry: maps each emitted __typename → its producer zod contract (subjectSchemas) + exemptTypenames; the publisher emits schema.parse(row) (the DRY subject) for covered types, the fat row for exempt.
@@ -30,6 +42,9 @@ Stack: services/ledger/ledger-ctrl/src/service.stack.ts
 - snapshot-publisher.ts — deriveFromStream pipeline; filters AccountSnapshot records, transforms to domain events via snapshotToEvents (transforms/snapshot-to-events.ts — emits BalanceEvent/PortfolioEvent/LedgerEntryEvent[+snapshotAt]/SnapshotHistory; errorEventType LEDGER_SNAPSHOT_PUBLISHER_FAILED)
 
 ## Event Types (domain/events.ts)
+<!-- card-drift:event-types (generated — `nx run event-processor:card-drift -- --fix`) -->
+- LedgerCtrlEventTypes: BALANCE_EVENT_UPDATED, BALANCE_UPDATED, LEDGER_ENTRY_EVENT_UPDATED, LEDGER_ENTRY_RECORDED, LEDGER_PROCESSING_FAILED, LEDGER_SIMULATION_FAILED, PORTFOLIO_EVENT_UPDATED, PORTFOLIO_UPDATED
+<!-- /card-drift:event-types -->
 - LedgerCtrlEventTypes: BALANCE_UPDATED, BALANCE_EVENT_UPDATED, PORTFOLIO_UPDATED, PORTFOLIO_EVENT_UPDATED, LEDGER_ENTRY_RECORDED, LEDGER_ENTRY_EVENT_UPDATED, LEDGER_PROCESSING_FAILED, LEDGER_SIMULATION_FAILED
 
 ## Contracts (domain/contracts.ts → @nestfolio/ledger-ctrl/contracts)
@@ -68,3 +83,11 @@ Producer-owned zod payload contracts for the CDC-published subjects (imports ONL
 
 ## Dependencies
 - libs: cdk-constructs (core, extensions, utils), event-processor, event-processor/sourcing
+
+## DDB Entities
+<!-- card-drift:ddb-entities (generated — `nx run event-processor:card-drift -- --fix`) -->
+- BalanceEvent
+- LedgerEntryEvent
+- PortfolioEvent
+- SnapshotHistory
+<!-- /card-drift:ddb-entities -->

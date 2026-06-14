@@ -110,6 +110,10 @@ Synchronous 5s timeout; must return to Cognito to complete auth flow. 3-tier ing
   bare `/graphql` (already-rewritten) is not matched.
 
 ## Handlers
+<!-- card-drift:handlers (generated — `nx run event-processor:card-drift -- --fix`) -->
+- post-authentication.ts
+- post-confirmation.ts
+<!-- /card-drift:handlers -->
 
 - `post-confirmation.ts` — Cognito PostConfirmation trigger; generates tenantId; sets
   `custom:tenant_id`; emits `USER_REGISTERED`

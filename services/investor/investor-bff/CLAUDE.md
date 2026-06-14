@@ -15,6 +15,10 @@ Stack: services/investor/investor-bff/src/service.stack.ts
 - Enforcement: `tsconfig.type-test.json` + nx `typecheck` target compile `test/types/read-model-ownership.type-test.ts` (the `@ts-expect-error` trip-wire). Run `pnpm nx run investor-bff:typecheck`. Note: a full-project `tsc` gate is blocked by `investor-bff-13-latent-tsc-errors`, so the narrow type-test config is used.
 
 ## Ingress
+<!-- card-drift:ingress (generated — `nx run event-processor:card-drift -- --fix`) -->
+- BroadcastIngress (broadcast-listener.ts): BROKER_CIRCUIT_CLOSED, BROKER_CIRCUIT_OPEN
+- Ingress: BALANCE_UPDATED, DEPOSIT_DETECTED, DEPOSIT_FAILED, DEPOSIT_REQUESTED, DEPOSIT_SETTLED, GO_LIVE_CONFIRMED, NOTIFICATION_CREATED, ONBOARDING_COMPLETED, USER_REGISTERED, WITHDRAWAL_FAILED, WITHDRAWAL_REQUESTED, WITHDRAWAL_SETTLED
+<!-- /card-drift:ingress -->
 - InvestorBus → investor-bff-Ingress (SQS → Lambda, event-listener.ts)
   Subscriptions: USER_REGISTERED, NOTIFICATION_CREATED, BALANCE_UPDATED, ONBOARDING_COMPLETED, GO_LIVE_CONFIRMED
 - InvestorBus → investor-bff-BroadcastIngress (SQS → Lambda, broadcast-listener.ts)
@@ -27,6 +31,14 @@ Stack: services/investor/investor-bff/src/service.stack.ts
 - DEPOSIT_INITIATED/WITHDRAWAL_INITIATED subjects are cross-domain (consumed by broker-ctrl); their schemas live in `@nestfolio/investor-adpt/domain`, not here.
 
 ## Egress (CDC, 6 entity types — 3-tier topology on InvestorProfile)
+<!-- card-drift:egress (generated — `nx run event-processor:card-drift -- --fix`) -->
+- DepositIntent: DEPOSIT_INITIATED
+- ExecutionModeChange: EXECUTION_MODE_CHANGED, EXECUTION_MODE_CHANGE_UPDATED
+- InvestorProfile: GOAL_UPDATED, INVESTOR_PROFILE_CREATED, INVESTOR_PROFILE_UPDATED
+- Mandate: MANDATE_ISSUED, MANDATE_REVOKED, OPERATING_MODE_CHANGED
+- Notification: NOTIFICATION_READ
+- WithdrawalIntent: WITHDRAWAL_INITIATED
+<!-- /card-drift:egress -->
 - DynamoDB Streams → investor-bff-egress (Lambda)
 - Declarative `eventTypes` map:
   - InvestorProfile (composite row) → INVESTOR_PROFILE_CREATED (insert); on modify: INVESTOR_PROFILE_UPDATED (carrier, always) + GOAL_UPDATED (semantic, onFieldChange:goal)
@@ -50,6 +62,9 @@ Note: legacy per-entity rows (Goal, RiskProfile, OperatingModeRecord, AccountMod
 - updateOperatingMode resolver issues an atomic `TransactWriteItems` writing BOTH the InvestorProfile composite row (bumps its own `__version`, keeps INVESTOR_PROFILE_UPDATED firing for dashboard-bff's InvestorSnapshot) AND the Mandate sibling row (bumps the Mandate `__version`, re-sources OPERATING_MODE_CHANGED from the Mandate row's CDC). TransactWriteItems returns no attributes; a `get-profile.fn.js` readback step (pipeline extraSteps) fetches and returns the InvestorProfile.
 
 ## Handlers
+<!-- card-drift:handlers (generated — `nx run event-processor:card-drift -- --fix`) -->
+- broadcast-listener.ts
+<!-- /card-drift:handlers -->
 - event-listener.ts — materializes USER_REGISTERED, NOTIFICATION_CREATED, BALANCE_UPDATED, ONBOARDING_COMPLETED (transactWrite: composite InvestorProfile + Mandate sibling row + conditional Deposit), GO_LIVE_CONFIRMED (`parseSubject(payload, GoLiveConfirmedSchema)` then sets executionMode='live' on the composite row); also routes broker funding lifecycle (DEPOSIT_*/WITHDRAWAL_*) to the deposit-/withdrawal-lifecycle transforms. Each transform validates its inbound subject at runtime via `parseSubject(payload, <producer Schema>)` rather than local types/`as` casts.
 - broadcast-listener.ts — BROKER_CIRCUIT_OPEN disables 3 feature flags (confirmDecision, initiateDeposit, requestWithdrawal) via IAM-signed AppSync mutation; BROKER_CIRCUIT_CLOSED re-enables them; DEPOSIT_DETECTED published to investor-facing notification flow
 - event-publisher.ts — CDC (changeDataCapture) using the declarative eventTypes map (typed-subject mode)
@@ -62,6 +77,9 @@ Note: legacy per-entity rows (Goal, RiskProfile, OperatingModeRecord, AccountMod
 - AppSync mutations signed via @smithy/signature-v4 + @aws-crypto/sha256-js
 
 ## Event Types (domain/events.ts)
+<!-- card-drift:event-types (generated — `nx run event-processor:card-drift -- --fix`) -->
+- InvestorBffEventTypes: ACCOUNT_CLOSED, ACCOUNT_CLOSURE_REQUESTED, BROKER_AUTHORIZATION_REVOKED, BROKER_CIRCUIT_CLOSED, BROKER_CIRCUIT_OPEN, DEPOSIT_DETECTED, DEPOSIT_FAILED, DEPOSIT_INITIATED, DEPOSIT_REQUESTED, DEPOSIT_SETTLED, EXECUTION_MODE_CHANGE_UPDATED, EXECUTION_MODE_CHANGED, GO_LIVE_CONFIRMED, GOAL_UPDATED, INVESTOR_PROFILE_CREATED, INVESTOR_PROFILE_UPDATED, MANDATE_ISSUED, MANDATE_REVOKED, NOTIFICATION_READ, ONBOARDING_ANSWER_RECORDED, ONBOARDING_COMPLETED, OPERATING_MODE_CHANGED, PII_REMOVED, TENANT_ANONYMIZED, USER_AUTHENTICATED, USER_DELETION_REQUESTED, USER_REGISTERED, USER_SESSION_EXPIRED, WITHDRAWAL_FAILED, WITHDRAWAL_INITIATED, WITHDRAWAL_REQUESTED, WITHDRAWAL_SETTLED
+<!-- /card-drift:event-types -->
 InvestorBffEventTypes: USER_REGISTERED, USER_AUTHENTICATED, USER_SESSION_EXPIRED, USER_DELETION_REQUESTED, PII_REMOVED, TENANT_ANONYMIZED, ONBOARDING_ANSWER_RECORDED, ONBOARDING_COMPLETED, INVESTOR_PROFILE_CREATED, INVESTOR_PROFILE_UPDATED, OPERATING_MODE_CHANGED, GOAL_UPDATED, MANDATE_ISSUED, MANDATE_REVOKED, DEPOSIT_INITIATED, DEPOSIT_UPDATED, WITHDRAWAL_REQUESTED, WITHDRAWAL_UPDATED, ACCOUNT_CLOSURE_REQUESTED, ACCOUNT_CLOSED, BROKER_AUTHORIZATION_REVOKED, NOTIFICATION_READ, EXECUTION_MODE_CHANGED, EXECUTION_MODE_CHANGE_UPDATED, GO_LIVE_CONFIRMED, BROKER_CIRCUIT_OPEN, BROKER_CIRCUIT_CLOSED
 
 ## MFE Hosting
@@ -84,3 +102,16 @@ InvestorBffEventTypes: USER_REGISTERED, USER_AUTHENTICATED, USER_SESSION_EXPIRED
 - event-name imports: investor-ctrl/events (InvestorCtrlEventTypes), investor-adpt/domain (InvestorIngestEventTypes), ledger-adpt/domain (LedgerCrossDomainEventTypes)
 - zod payload-contract imports (event-subject-payload tripwire — consumers `parseSubject(payload, Schema)`, no local types/`as` casts): ledger-adpt/domain (BalanceUpdatedSchema), investor-ctrl/contracts (NotificationCreatedSchema), onboarding-bff/contracts (GoLiveConfirmedSchema, OnboardingCompletedRecordSchema), execution-adpt/domain (FundingSnapshotSchema)
 - runtime deps: @smithy/signature-v4, @aws-crypto/sha256-js (for IAM-signed AppSync calls), zod (payload contracts)
+
+## DDB Entities
+<!-- card-drift:ddb-entities (generated — `nx run event-processor:card-drift -- --fix`) -->
+- CashBalance
+- Deposit
+- DepositIntent
+- ExecutionModeChange
+- InvestorProfile
+- Mandate
+- Notification
+- WithdrawalIntent
+- WithdrawalRequest
+<!-- /card-drift:ddb-entities -->

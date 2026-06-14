@@ -7,6 +7,9 @@ Stack: services/investor/dashboard-bff/src/service.stack.ts
 - DynamoDB table (streams enabled)
 
 ## Ingress
+<!-- card-drift:ingress (generated — `nx run event-processor:card-drift -- --fix`) -->
+- Ingress: ADVISORY_STATUS_UPDATED, BALANCE_UPDATED, DECISION_APPROVED, DECISION_BLOCKED, DECISION_PACKET_CREATED, DEPOSIT_DETECTED, INVESTOR_PROFILE_CREATED, INVESTOR_PROFILE_UPDATED, LEDGER_ENTRY_RECORDED, PORTFOLIO_UPDATED, RECONCILIATION_COMPLETED, USER_CONFIRMATION_REQUESTED, WITHDRAWAL_SETTLED
+<!-- /card-drift:ingress -->
 - investorBus → dashboard-bff-ingress (SQS → Lambda)
   Subscriptions: BALANCE_UPDATED, PORTFOLIO_UPDATED, RECONCILIATION_COMPLETED, DECISION_PACKET_CREATED, USER_CONFIRMATION_REQUESTED, DECISION_APPROVED, DECISION_BLOCKED, LEDGER_ENTRY_RECORDED, INVESTOR_PROFILE_CREATED, INVESTOR_PROFILE_UPDATED, DEPOSIT_DETECTED, WITHDRAWAL_SETTLED, ADVISORY_STATUS_UPDATED
   (Workstream 3: removed ORDER_FILLED, ORDER_REJECTED, ORDER_CANCELLED, PORTFOLIO_DRIFT_DETECTED, and MANDATE_ISSUED — these were the accumulate-based trigger events; replaced by ADVISORY_STATUS_UPDATED which receives advisory-bff's authoritative P3 announcement forwarded via investor-adpt.)
@@ -67,3 +70,13 @@ Stack: services/investor/dashboard-bff/src/service.stack.ts
   - `@nestfolio/ledger-adpt/domain` — `LedgerSnapshotSchema` (portfolio-summary.ts, position-snapshot.ts), `LedgerEntryRecordedSchema` (time-travel-availability.ts)
   - `@nestfolio/advisory-bff/contracts` — `AdvisoryStatusSchema` available (advisory-status.ts currently reads subject via inline type; full parseSubject migration is a WS-3/consumer-parse-subject follow-up)
 - producer events/domain (event-name constants + adapter routing): `@nestfolio/investor-bff/events`, `@nestfolio/advisory-adpt/domain`, `@nestfolio/investor-adpt/domain`, `@nestfolio/ledger-adpt/domain`
+
+## DDB Entities
+<!-- card-drift:ddb-entities (generated — `nx run event-processor:card-drift -- --fix`) -->
+- Activity
+- AdvisoryStatus
+- InvestorSnapshot
+- PortfolioSummary
+- PositionSnapshot
+- TimeTravelAvailability
+<!-- /card-drift:ddb-entities -->

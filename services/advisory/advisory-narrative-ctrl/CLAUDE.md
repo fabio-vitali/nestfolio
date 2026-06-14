@@ -13,6 +13,9 @@ Stack: services/advisory/advisory-narrative-ctrl/src/service.stack.ts
   Data source: S3 bucket (versioned)
 
 ## Ingress
+<!-- card-drift:ingress (generated — `nx run event-processor:card-drift -- --fix`) -->
+- Ingress: DECISION_FEEDBACK, GENERATE_NARRATIVE
+<!-- /card-drift:ingress -->
 - advisoryBus -> advisory-narrative-ctrl-ingress (SQS -> Lambda)
   Subscriptions: GENERATE_NARRATIVE, DECISION_FEEDBACK
   Profile: agentProfile({ p90=35_000ms, burst=40, ux=AGENT_BUDGETS.ADVISORY_NARRATIVE_UX_SEC=120s }) → 1024 MB / 58s timeout / batchSize 1 / concurrency 12 / visibility 232s. P90 raised from observed 29.7s to 35s so the Lambda timeout covers p99=53.7s.
@@ -22,6 +25,11 @@ Stack: services/advisory/advisory-narrative-ctrl/src/service.stack.ts
   errorEventType: ADVISORY_NARRATIVE_CTRL_FAILED
 
 ## Egress
+<!-- card-drift:egress (generated — `nx run event-processor:card-drift -- --fix`) -->
+- AgentCompletion: NARRATIVE_COMPLETED
+- AgentFailure: NARRATIVE_FAILED
+- ReasoningOutput: EXPLANATION_GENERATED
+<!-- /card-drift:egress -->
 - CDC: DynamoDB Streams -> advisory-narrative-ctrl-egress (Lambda)
   Emits:
   - ReasoningOutput -> EXPLANATION_GENERATED (insert only)
@@ -47,6 +55,9 @@ Agent folder: agents/advisory-narrative/
 - feedback-correlator.ts -- Processes DECISION_FEEDBACK events, annotates decisions, writes to KB S3 bucket, triggers KB ingestion
 
 ## Event Types (domain/events.ts)
+<!-- card-drift:event-types (generated — `nx run event-processor:card-drift -- --fix`) -->
+- NarrativeEventTypes: ADVISORY_NARRATIVE_AGENT_INVOCATION_TRACED, EXPLANATION_GENERATED, NARRATIVE_COMPLETED, NARRATIVE_FAILED
+<!-- /card-drift:event-types -->
 - NarrativeEventTypes (outbound): NARRATIVE_COMPLETED, NARRATIVE_FAILED, EXPLANATION_GENERATED, ADVISORY_NARRATIVE_AGENT_INVOCATION_TRACED
 - HANDLED_EVENT_TYPES (inbound): GENERATE_NARRATIVE, DECISION_FEEDBACK
 - FEEDBACK_EVENT_TYPES (routed): DECISION_FEEDBACK
@@ -89,3 +100,11 @@ The key helpers are imported from `@nestfolio/agent-orchestrator` and re-exporte
 - SSM: advisory-hub (models/haiku), decision-workflow-ctrl (memory/id), advisory-narrative-ctrl (agent/runtimeUrl)
 - AgentCore Memory API (CreateEvent, RetrieveMemoryRecords, GetMemoryRecord, ListEvents, ListActors, ListSessions)
 - AgentCore Runtime (InvokeAgentRuntime)
+
+## DDB Entities
+<!-- card-drift:ddb-entities (generated — `nx run event-processor:card-drift -- --fix`) -->
+- AgentCompletion
+- AgentFailure
+- AgentInvocation
+- ReasoningOutput
+<!-- /card-drift:ddb-entities -->

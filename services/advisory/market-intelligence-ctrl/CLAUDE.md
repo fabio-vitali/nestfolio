@@ -13,6 +13,9 @@ Stack: services/advisory/market-intelligence-ctrl/src/service.stack.ts
   Data source: S3 bucket (versioned)
 
 ## Ingress
+<!-- card-drift:ingress (generated — `nx run event-processor:card-drift -- --fix`) -->
+- Ingress: ALPHA_VANTAGE_NEWS_UPDATED, FRED_INDICATORS_UPDATED, MARKETWATCH_UPDATED, MARKET_SNAPSHOT_REFRESH_TICK, SEC_8K_FILED, YAHOO_FINANCE_UPDATED
+<!-- /card-drift:ingress -->
 - advisoryBus -> market-intelligence-ctrl-ingress (SQS -> Lambda)
   Subscriptions (fast tier): YAHOO_FINANCE_UPDATED, MARKETWATCH_UPDATED, SEC_8K_FILED, FRED_INDICATORS_UPDATED, ALPHA_VANTAGE_NEWS_UPDATED
   Subscriptions (slow tier): MARKET_SNAPSHOT_REFRESH_TICK
@@ -26,6 +29,9 @@ Stack: services/advisory/market-intelligence-ctrl/src/service.stack.ts
 - Fault-tolerance contract: a fresh deploy can leave the MarketSnapshot row absent for up to 15 minutes (and a scheduler-disabled / Bedrock-outage / row-eviction scenario can produce the same state at any time). DWC's SF tolerates this — `LookupMarketSnapshot` Catches the missing-Item failure and routes to `HandleMissingMarketSnapshot` (empty agentOutput default). PE+AN read `subject.marketAnalysis ?? {}` so absent market context degrades the decision rather than aborting the cycle.
 
 ## Egress
+<!-- card-drift:egress (generated — `nx run event-processor:card-drift -- --fix`) -->
+- MarketSnapshot: MARKET_SNAPSHOT_UPDATED
+<!-- /card-drift:egress -->
 - CDC: DynamoDB Streams -> market-intelligence-ctrl-egress (Lambda)
   Emits:
   - MarketSnapshot -> MARKET_SNAPSHOT_UPDATED (insert AND modify — every fast-tier write or slow-tier rebuild emits one notification) [typed: MarketSnapshotSchema]
@@ -47,6 +53,10 @@ Agent folder: agents/market-intelligence/
 - ScheduledEmitter: 15-minute tick emitter Lambda (above)
 
 ## Handlers
+<!-- card-drift:handlers (generated — `nx run event-processor:card-drift -- --fix`) -->
+- kb-ingestion-handler.ts
+- scheduled-emitter.ts
+<!-- /card-drift:handlers -->
 - event-listener.ts -- Ingress snapshot writer (materializeToTable). Each feed event or tick runs the agent and records both an AgentInvocation row and the MarketSnapshot row keyed by region.
 - event-publisher.ts -- Egress CDC publisher (changeDataCapture pipeline, typed-subject mode)
 - publisher-schemas.ts — typed-subject registry: maps each emitted __typename → its producer zod contract (subjectSchemas) + exemptTypenames; the publisher emits schema.parse(row) (the DRY subject) for covered types, the fat row for exempt. Exempt: none (every emitted __typename now has a row-level contract — MarketSnapshot → MarketSnapshotSchema).
@@ -69,6 +79,9 @@ Producer-owned zod payload contracts, exported via `@nestfolio/market-intelligen
 Note (row type, 2026-06-10): `MarketSnapshotRow` (domain/models.ts) is now `TableEntry<MarketSnapshot, RegionContext> & { __typename: 'MarketSnapshot'; sk: 'MarketSnapshot'; fastComponentsAt: string; slowComponentsAt?: string; sourceEventIds: ReadonlyArray<string> }`. Identity (region) comes from RegionContext; the dry subject (agentOutput/__version) comes from the producer contract type. Row-only operational fields (fastComponentsAt, slowComponentsAt, sourceEventIds) are projection metadata and are NOT part of the emitted CDC subject.
 
 ## Event Types (domain/events.ts)
+<!-- card-drift:event-types (generated — `nx run event-processor:card-drift -- --fix`) -->
+- MarketIntelligenceEventTypes: MARKET_INTELLIGENCE_AGENT_INVOCATION_TRACED, MARKET_SIGNAL_DETECTED, MARKET_SNAPSHOT_REFRESH_TICK, MARKET_SNAPSHOT_UPDATED
+<!-- /card-drift:event-types -->
 - MarketIntelligenceEventTypes (outbound): MARKET_SIGNAL_DETECTED, MARKET_INTELLIGENCE_AGENT_INVOCATION_TRACED, MARKET_SNAPSHOT_UPDATED, MARKET_SNAPSHOT_REFRESH_TICK
 - HANDLED_EVENT_TYPES (inbound): YAHOO_FINANCE_UPDATED, MARKETWATCH_UPDATED, SEC_8K_FILED, FRED_INDICATORS_UPDATED, ALPHA_VANTAGE_NEWS_UPDATED, MARKET_SNAPSHOT_REFRESH_TICK
 - FEED_INGESTION_EVENT_TYPES (KB-routed): YAHOO_FINANCE_UPDATED, MARKETWATCH_UPDATED, SEC_8K_FILED, FRED_INDICATORS_UPDATED, ALPHA_VANTAGE_NEWS_UPDATED
@@ -98,3 +111,9 @@ Note (row type, 2026-06-10): `MarketSnapshotRow` (domain/models.ts) is now `Tabl
 - SSM: advisory-hub (models/sonnet), decision-workflow-ctrl (memory/id), market-intelligence-ctrl (agent/runtimeUrl)
 - AgentCore Memory API (CreateEvent, RetrieveMemoryRecords, GetMemoryRecord, ListEvents, ListActors, ListSessions)
 - AgentCore Runtime (InvokeAgentRuntime)
+
+## DDB Entities
+<!-- card-drift:ddb-entities (generated — `nx run event-processor:card-drift -- --fix`) -->
+- AgentInvocation
+- MarketSnapshot
+<!-- /card-drift:ddb-entities -->

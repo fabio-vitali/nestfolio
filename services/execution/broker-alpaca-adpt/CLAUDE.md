@@ -7,10 +7,19 @@ Stack: services/execution/broker-alpaca-adpt/src/service.stack.ts
 - Table (DynamoDB, streams enabled)
 
 ## Ingress
+<!-- card-drift:ingress (generated — `nx run event-processor:card-drift -- --fix`) -->
+- Ingress: ALPACA_ACCOUNT_CHECK, ALPACA_ORDER_CANCEL_REQUESTED, ALPACA_ORDER_REQUESTED, ALPACA_TRANSFER_REQUESTED
+<!-- /card-drift:ingress -->
 - ExecutionBus → broker-alpaca-adpt-ingress (SQS → Lambda)
   Subscriptions: ALPACA_ORDER_REQUESTED, ALPACA_ORDER_CANCEL_REQUESTED, ALPACA_TRANSFER_REQUESTED, ALPACA_ACCOUNT_CHECK
 
 ## Egress
+<!-- card-drift:egress (generated — `nx run event-processor:card-drift -- --fix`) -->
+- AlpacaAccountSnapshot: ALPACA_ACCOUNT_SNAPSHOT
+- AlpacaOrderResult: ALPACA_ORDER_CANCELLED, ALPACA_ORDER_CANCEL_FAILED, ALPACA_ORDER_FILLED, ALPACA_ORDER_PARTIALLY_FILLED, ALPACA_ORDER_PLACED, ALPACA_ORDER_REJECTED
+- AlpacaTransferResult: ALPACA_TRANSFER_COMPLETED, ALPACA_TRANSFER_FAILED, ALPACA_TRANSFER_INITIATED
+- NormalizedEvent: BROKER_CIRCUIT_CLOSED, BROKER_CIRCUIT_OPEN, BROKER_HEAL_ESCALATED
+<!-- /card-drift:egress -->
 - CDC: DynamoDB Streams → broker-alpaca-adpt-egress (Lambda)
   Emits:
   - AlpacaOrderResult (insert): ALPACA_ORDER_PLACED, ALPACA_ORDER_FILLED, ALPACA_ORDER_PARTIALLY_FILLED, ALPACA_ORDER_REJECTED, ALPACA_ORDER_CANCELLED, ALPACA_ORDER_CANCEL_FAILED
@@ -53,6 +62,10 @@ Stack: services/execution/broker-alpaca-adpt/src/service.stack.ts
 - TransferPollFn: polls Alpaca transfer status (invoked by TransferPollingStateMachine, not via Ingress)
 
 ## Handlers
+<!-- card-drift:handlers (generated — `nx run event-processor:card-drift -- --fix`) -->
+- order-poll-handler.ts
+- transfer-poll-handler.ts
+<!-- /card-drift:handlers -->
 - event-listener.ts — SQS Ingress handler (event-processor pipeline); parses ALPACA_TRANSFER_REQUESTED via `parseSubject(carrier, AlpacaTransferRequestSchema)` (from `@nestfolio/execution-adpt/domain`) and threads `nestfolioTransferId` into the AlpacaTransferResult row; includes circuit breaker check + failure detection
 - event-publisher.ts — CDC Egress handler (event-processor pipeline, typed-subject mode)
 - publisher-schemas.ts — typed-subject registry: maps each emitted __typename → its producer zod contract (subjectSchemas) + exemptTypenames; the publisher emits schema.parse(row) (the DRY subject) for covered types, the fat row for exempt.
@@ -64,6 +77,9 @@ Stack: services/execution/broker-alpaca-adpt/src/service.stack.ts
 - src/constructs/transfer-polling-definition.ts — SF state machine definition for transfer polling
 
 ## Event Types (domain/events.ts)
+<!-- card-drift:event-types (generated — `nx run event-processor:card-drift -- --fix`) -->
+- AlpacaAdptEventTypes: ALPACA_ACCOUNT_CHECK, ALPACA_ACCOUNT_SNAPSHOT, ALPACA_ORDER_CANCEL_FAILED, ALPACA_ORDER_CANCEL_REQUESTED, ALPACA_ORDER_CANCELLED, ALPACA_ORDER_FILLED, ALPACA_ORDER_PARTIALLY_FILLED, ALPACA_ORDER_PLACED, ALPACA_ORDER_REJECTED, ALPACA_ORDER_REQUESTED, ALPACA_TRANSFER_COMPLETED, ALPACA_TRANSFER_FAILED, ALPACA_TRANSFER_INITIATED, ALPACA_TRANSFER_REQUESTED, BROKER_CIRCUIT_CLOSED, BROKER_CIRCUIT_OPEN, BROKER_HEAL_ESCALATED
+<!-- /card-drift:event-types -->
 - AlpacaAdptEventTypes (inbound): ALPACA_ORDER_REQUESTED, ALPACA_ORDER_CANCEL_REQUESTED, ALPACA_TRANSFER_REQUESTED, ALPACA_ACCOUNT_CHECK
 - AlpacaAdptEventTypes (outbound/CDC): ALPACA_ORDER_PLACED, ALPACA_ORDER_FILLED, ALPACA_ORDER_PARTIALLY_FILLED, ALPACA_ORDER_REJECTED, ALPACA_ORDER_CANCELLED, ALPACA_ORDER_CANCEL_FAILED, ALPACA_TRANSFER_INITIATED, ALPACA_TRANSFER_COMPLETED, ALPACA_TRANSFER_FAILED, ALPACA_ACCOUNT_SNAPSHOT, BROKER_CIRCUIT_OPEN, BROKER_CIRCUIT_CLOSED, BROKER_HEAL_ESCALATED
 
@@ -93,3 +109,11 @@ The Alpaca REST `*ApiResponse` interfaces (AlpacaOrderApiResponse, AlpacaTransfe
 ## Dependencies
 - libs: cdk-constructs/core, cdk-constructs/utils, event-processor, event-types
 - @nestfolio/execution-adpt/domain — AlpacaTransferRequestSchema (parsed on ALPACA_TRANSFER_REQUESTED), AlpacaTransferResultSchema (typed-subject CDC emission; moved here from /contracts to break mutual intra-execution cycle)
+
+## DDB Entities
+<!-- card-drift:ddb-entities (generated — `nx run event-processor:card-drift -- --fix`) -->
+- AlpacaAccountSnapshot
+- AlpacaOrderResult
+- AlpacaTransferResult
+- NormalizedEvent
+<!-- /card-drift:ddb-entities -->

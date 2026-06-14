@@ -13,6 +13,9 @@ Stack: services/advisory/investor-profile-ctrl/src/service.stack.ts
   Data source: S3 bucket (versioned)
 
 ## Ingress
+<!-- card-drift:ingress (generated — `nx run event-processor:card-drift -- --fix`) -->
+- Ingress: DECISION_APPROVED, DECISION_BLOCKED, INVESTOR_PROFILE_UPDATED, MANDATE_ISSUED
+<!-- /card-drift:ingress -->
 - advisoryBus -> investor-profile-ctrl-ingress (SQS -> Lambda)
   Subscriptions: INVESTOR_PROFILE_UPDATED, MANDATE_ISSUED, DECISION_BLOCKED, DECISION_APPROVED
   Note: OPERATING_MODE_CHANGED was dropped (2026-06-03) — investor-bff re-sourced it from the Mandate CDC row, so the event subject now carries Mandate fields (mandateId/level/status/operatingMode/effectiveDate) rather than the full InvestorProfile. Feeding a Mandate row to the snapshot agent would produce degraded output. operatingMode changes still rebuild the snapshot via INVESTOR_PROFILE_UPDATED, which investor-bff's dual-write co-fires on every operatingMode change (touching the InvestorProfile row → its `always` carrier).
@@ -22,6 +25,9 @@ Stack: services/advisory/investor-profile-ctrl/src/service.stack.ts
   errorEventType: INVESTOR_PROFILE_CTRL_FAILED
 
 ## Egress
+<!-- card-drift:egress (generated — `nx run event-processor:card-drift -- --fix`) -->
+- InvestorProfileSnapshot: INVESTOR_PROFILE_SNAPSHOT_CREATED, INVESTOR_PROFILE_SNAPSHOT_UPDATED
+<!-- /card-drift:egress -->
 - CDC: DynamoDB Streams -> investor-profile-ctrl-egress (Lambda)
   Emits:
   - InvestorProfileSnapshot -> INVESTOR_PROFILE_SNAPSHOT_CREATED (insert), INVESTOR_PROFILE_SNAPSHOT_UPDATED (modify) [typed: InvestorProfileSnapshotSchema]
@@ -40,6 +46,9 @@ Agent folder: agents/investor-profile/
 - KBIngestion: Ingests compliance precedents into RegulatoryKB (triggered by DECISION_BLOCKED, DECISION_APPROVED)
 
 ## Handlers
+<!-- card-drift:handlers (generated — `nx run event-processor:card-drift -- --fix`) -->
+- kb-ingestion-handler.ts
+<!-- /card-drift:handlers -->
 - event-listener.ts -- Ingress snapshot writer (materializeToTable). The handler map parses each trigger per event type at the consumer seam: INVESTOR_PROFILE_UPDATED via `parseSubject(payload, InvestorProfileUpdatedSchema)`, MANDATE_ISSUED via `parseSubject(payload, MandateSchema)` (both imported from `@nestfolio/investor-adpt/domain`; consumer-parse-subject / WS-3). Each resolves `subject.operatingMode` (a required enum on both schemas) + runs the agent + records both an AgentInvocation row and an InvestorProfileSnapshot row keyed by (tenantId, userId). DuplicateInvocationError → deduplicated short-circuit. A contract violation (incl. a missing/invalid operatingMode) poison-pills via ZodError at the parseSubject seam — the former UnknownOperatingModeError guard + the `subject.mandate.operatingMode` fallback were removed (operatingMode is now schema-required).
 - event-publisher.ts -- Egress CDC publisher (changeDataCapture pipeline, typed-subject mode)
 - publisher-schemas.ts — typed-subject registry: maps each emitted __typename → its producer zod contract (subjectSchemas) + exemptTypenames; the publisher emits schema.parse(row) (the DRY subject) for covered types, the fat row for exempt. Exempt: none (every emitted __typename now has a row-level contract — InvestorProfileSnapshot → InvestorProfileSnapshotSchema).
@@ -52,6 +61,9 @@ Agent folder: agents/investor-profile/
 - Enforced by `nx run investor-profile-ctrl:typecheck` (test/types/read-model-ownership.type-test.ts)
 
 ## Event Types (domain/events.ts)
+<!-- card-drift:event-types (generated — `nx run event-processor:card-drift -- --fix`) -->
+- InvestorProfileEventTypes: GOAL_INTERPRETATION_PRODUCED, INVESTOR_PROFILE_AGENT_INVOCATION_TRACED, INVESTOR_PROFILE_SNAPSHOT_CREATED, INVESTOR_PROFILE_SNAPSHOT_UPDATED, RISK_EVALUATION_PRODUCED
+<!-- /card-drift:event-types -->
 - InvestorProfileEventTypes (outbound): GOAL_INTERPRETATION_PRODUCED, RISK_EVALUATION_PRODUCED, INVESTOR_PROFILE_AGENT_INVOCATION_TRACED, INVESTOR_PROFILE_SNAPSHOT_CREATED, INVESTOR_PROFILE_SNAPSHOT_UPDATED
 - HANDLED_EVENT_TYPES (inbound triggers): INVESTOR_PROFILE_UPDATED, MANDATE_ISSUED
 - KB_INGESTION_EVENT_TYPES (inbound, KB-only): DECISION_BLOCKED, DECISION_APPROVED
@@ -90,3 +102,9 @@ Note (row type, 2026-06-10): `InvestorProfileSnapshotRow` (domain/models.ts) is 
 - SSM: advisory-hub (models/opus, models/haiku), decision-workflow-ctrl (memory/id)
 - AgentCore Memory API (CreateEvent, RetrieveMemoryRecords, GetMemoryRecord, ListEvents, ListActors, ListSessions)
 - AgentCore Runtime (InvokeAgentRuntime)
+
+## DDB Entities
+<!-- card-drift:ddb-entities (generated — `nx run event-processor:card-drift -- --fix`) -->
+- AgentInvocation
+- InvestorProfileSnapshot
+<!-- /card-drift:ddb-entities -->

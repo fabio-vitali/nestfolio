@@ -12,10 +12,17 @@ Stack: services/ledger/reconciliation-ctrl/src/service.stack.ts
 - Enforced by `nx run reconciliation-ctrl:typecheck` (`test/types/read-model-ownership.type-test.ts`) + the mandatory `event-processor:read-model-drift` gate.
 
 ## Ingress
+<!-- card-drift:ingress (generated — `nx run event-processor:card-drift -- --fix`) -->
+- Ingress: ALPACA_ACCOUNT_SNAPSHOT, CORPORATE_ACTION_APPLIED, PORTFOLIO_SNAPSHOT_IMPORTED, PORTFOLIO_UPDATED
+<!-- /card-drift:ingress -->
 - LedgerBus → reconciliation-ctrl-ingress (SQS → Lambda)
   Subscriptions: PORTFOLIO_UPDATED, PORTFOLIO_SNAPSHOT_IMPORTED, CORPORATE_ACTION_APPLIED, ALPACA_ACCOUNT_SNAPSHOT
 
 ## Egress
+<!-- card-drift:egress (generated — `nx run event-processor:card-drift -- --fix`) -->
+- DriftRecord: DRIFT_RECORD_UPDATED, PORTFOLIO_DRIFT_DETECTED
+- ReconciliationResult: RECONCILIATION_COMPLETED, RECONCILIATION_RESULT_UPDATED
+<!-- /card-drift:egress -->
 - CDC: DynamoDB Streams → reconciliation-ctrl-egress (Lambda)
   Emits:
     - ReconciliationResult: insert → RECONCILIATION_COMPLETED, modify → RECONCILIATION_RESULT_UPDATED
@@ -33,6 +40,9 @@ Producer-owned zod payload contracts for the 2 CDC-emitted rows (imports ONLY zo
 - publisher-schemas.ts — typed-subject registry: maps each emitted __typename → its producer zod contract (subjectSchemas) + exemptTypenames; the publisher emits schema.parse(row) (the DRY subject) for covered types, the fat row for exempt.
 
 ## Event Types (domain/events.ts)
+<!-- card-drift:event-types (generated — `nx run event-processor:card-drift -- --fix`) -->
+- ReconciliationEventTypes: CORPORATE_ACTION_APPLIED, DRIFT_RECORD_UPDATED, PORTFOLIO_DRIFT_DETECTED, PROJECTION_REBUILT, RECONCILIATION_COMPLETED, RECONCILIATION_FAILED, RECONCILIATION_LOCK_ACQUIRED, RECONCILIATION_LOCK_RELEASED, RECONCILIATION_REQUIRED, RECONCILIATION_RESULT_UPDATED, RECONCILIATION_STARTED
+<!-- /card-drift:event-types -->
 - ReconciliationEventTypes: PORTFOLIO_DRIFT_DETECTED, RECONCILIATION_REQUIRED, RECONCILIATION_STARTED, RECONCILIATION_COMPLETED, RECONCILIATION_RESULT_UPDATED, RECONCILIATION_FAILED, DRIFT_RECORD_UPDATED, RECONCILIATION_LOCK_ACQUIRED, RECONCILIATION_LOCK_RELEASED, PROJECTION_REBUILT, CORPORATE_ACTION_APPLIED
 
 ## Tests
@@ -46,3 +56,9 @@ Producer-owned zod payload contracts for the 2 CDC-emitted rows (imports ONLY zo
 ## Dependencies
 - libs: cdk-constructs/core, cdk-constructs/extensions, event-processor
 - cross-domain: @nestfolio/ledger-ctrl/events, @nestfolio/execution-adpt/domain
+
+## DDB Entities
+<!-- card-drift:ddb-entities (generated — `nx run event-processor:card-drift -- --fix`) -->
+- DriftRecord
+- ReconciliationResult
+<!-- /card-drift:ddb-entities -->

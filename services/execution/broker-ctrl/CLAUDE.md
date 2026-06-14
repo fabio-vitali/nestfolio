@@ -12,6 +12,12 @@ Stack: services/execution/broker-ctrl/src/service.stack.ts
 - Enforced by `nx run broker-ctrl:typecheck` (`test/types/read-model-ownership.type-test.ts`) + the mandatory `event-processor:read-model-drift` gate. `FundingEvent` is an excluded CDC carrier (`tools/read-model-exclusions.json`).
 
 ## Ingress
+<!-- card-drift:ingress (generated — `nx run event-processor:card-drift -- --fix`) -->
+- CallbackIngress (callback-resolver.ts): ALPACA_ORDER_CANCELLED, ALPACA_ORDER_CANCEL_FAILED, ALPACA_ORDER_FILLED, ALPACA_ORDER_PARTIALLY_FILLED, ALPACA_ORDER_REJECTED, SIM_ORDER_FILLED, SIM_ORDER_REJECTED
+- DepositWithdrawalIngress (deposit-withdrawal-router.ts): DEPOSIT_INITIATED, WITHDRAWAL_INITIATED
+- DepositWithdrawalNormalizerIngress (deposit-withdrawal-normalizer.ts): ALPACA_TRANSFER_COMPLETED, ALPACA_TRANSFER_FAILED, SIM_DEPOSIT_COMPLETED, SIM_WITHDRAWAL_COMPLETED
+- ModeIngress (mode-listener.ts): EXECUTION_MODE_CHANGED
+<!-- /card-drift:ingress -->
 - ExecutionBus -> broker-ctrl-mode-ingress (SQS -> Lambda)
   Subscriptions: EXECUTION_MODE_CHANGED
   Handler: handlers/mode-listener.ts
@@ -29,6 +35,10 @@ Stack: services/execution/broker-ctrl/src/service.stack.ts
   Handler: handlers/deposit-withdrawal-normalizer.ts
 
 ## Egress
+<!-- card-drift:egress (generated — `nx run event-processor:card-drift -- --fix`) -->
+- FundingEvent: DEPOSIT_DETECTED, DEPOSIT_FAILED, DEPOSIT_REQUESTED, DEPOSIT_SETTLED, WITHDRAWAL_FAILED, WITHDRAWAL_REQUESTED, WITHDRAWAL_SETTLED
+- NormalizedEvent: ORDER_CANCELLED, ORDER_ESCALATED, ORDER_FILLED, ORDER_PARTIALLY_FILLED, ORDER_REJECTED
+<!-- /card-drift:egress -->
 - CDC: DynamoDB Streams -> broker-ctrl-egress (Lambda)
   Emits:
   - NormalizedEvent (insert, passthrough on `sk`): ORDER_FILLED, ORDER_PARTIALLY_FILLED, ORDER_REJECTED, ORDER_CANCELLED, ORDER_ESCALATED
@@ -49,6 +59,13 @@ Stack: services/execution/broker-ctrl/src/service.stack.ts
 - None
 
 ## Handlers
+<!-- card-drift:handlers (generated — `nx run event-processor:card-drift -- --fix`) -->
+- callback-resolver.ts
+- deposit-withdrawal-normalizer.ts
+- deposit-withdrawal-router.ts
+- mode-listener.ts
+- route-order.ts
+<!-- /card-drift:handlers -->
 - callback-resolver.ts — resolves SF task token callbacks from adapter results (createIngestionHandler)
 - deposit-withdrawal-normalizer.ts — normalizes deposit/withdrawal results to NormalizedEvent for CDC (materializeToTable); parseSubject per producer: SimDepositCompletedSchema/SimWithdrawalCompletedSchema from `@nestfolio/broker-sim-adpt/contracts`, AlpacaTransferResultSchema from `@nestfolio/execution-adpt/domain`; keys carryForward on the threaded nestfolioTransferId; zero `as Record<string,unknown>` casts
 - deposit-withdrawal-router.ts — routes deposit/withdrawal to correct adapter; validates inbound subjects via `parseSubject` against producer contracts `DepositInitiatedSchema`/`WithdrawalInitiatedSchema` from `@nestfolio/investor-adpt/domain`; live branch emits typed `AlpacaTransferRequest` (from `@nestfolio/execution-adpt/domain`) threading transferId=depositId/withdrawalId (materializeToTable)
@@ -58,6 +75,11 @@ Stack: services/execution/broker-ctrl/src/service.stack.ts
 - route-order.ts — routes order to correct adapter, writes BrokerOrder with taskToken (standalone, SF-invoked)
 
 ## Event Types (domain/events.ts)
+<!-- card-drift:event-types (generated — `nx run event-processor:card-drift -- --fix`) -->
+- BrokerCtrlEventTypes: DEPOSIT_DETECTED, DEPOSIT_FAILED, DEPOSIT_REQUESTED, DEPOSIT_SETTLED, ORDER_CANCELLED, ORDER_ESCALATED, ORDER_FILLED, ORDER_PARTIALLY_FILLED, ORDER_REJECTED, WITHDRAWAL_FAILED, WITHDRAWAL_REQUESTED, WITHDRAWAL_SETTLED
+- BrokerCtrlInboundEventTypes: ALPACA_ORDER_CANCEL_FAILED, ALPACA_ORDER_CANCELLED, ALPACA_ORDER_FILLED, ALPACA_ORDER_PARTIALLY_FILLED, ALPACA_ORDER_REJECTED, ALPACA_TRANSFER_COMPLETED, ALPACA_TRANSFER_FAILED, DEPOSIT_INITIATED, EXECUTION_MODE_CHANGED, ORDER_SUBMITTED, SIM_DEPOSIT_COMPLETED, SIM_ORDER_FILLED, SIM_ORDER_REJECTED, SIM_WITHDRAWAL_COMPLETED, WITHDRAWAL_INITIATED
+- BrokerCtrlRoutedEventTypes: ALPACA_ACCOUNT_CHECK, ALPACA_ORDER_CANCEL_REQUESTED, ALPACA_ORDER_REQUESTED, ALPACA_TRANSFER_REQUESTED, SIM_DEPOSIT_INITIATED, SIM_ORDER_REQUESTED, SIM_WITHDRAWAL_REQUESTED
+<!-- /card-drift:event-types -->
 - BrokerCtrlEventTypes (outbound/CDC): ORDER_FILLED, ORDER_PARTIALLY_FILLED, ORDER_REJECTED, ORDER_CANCELLED, ORDER_ESCALATED, DEPOSIT_REQUESTED, DEPOSIT_DETECTED, DEPOSIT_SETTLED, DEPOSIT_FAILED, WITHDRAWAL_REQUESTED, WITHDRAWAL_SETTLED, WITHDRAWAL_FAILED
 - BrokerCtrlRoutedEventTypes (routed to adapters): SIM_ORDER_REQUESTED, SIM_DEPOSIT_INITIATED, SIM_WITHDRAWAL_REQUESTED, ALPACA_ORDER_REQUESTED, ALPACA_ORDER_CANCEL_REQUESTED, ALPACA_TRANSFER_REQUESTED, ALPACA_ACCOUNT_CHECK
 - BrokerCtrlInboundEventTypes (subscribed): ORDER_SUBMITTED, EXECUTION_MODE_CHANGED, DEPOSIT_INITIATED, WITHDRAWAL_INITIATED, SIM_ORDER_FILLED, SIM_ORDER_REJECTED, SIM_DEPOSIT_COMPLETED, SIM_WITHDRAWAL_COMPLETED, ALPACA_ORDER_FILLED, ALPACA_ORDER_PARTIALLY_FILLED, ALPACA_ORDER_REJECTED, ALPACA_ORDER_CANCELLED, ALPACA_ORDER_CANCEL_FAILED, ALPACA_TRANSFER_COMPLETED, ALPACA_TRANSFER_FAILED
@@ -90,3 +112,10 @@ Producer-owned zod CDC subject contracts, exported via `@nestfolio/broker-ctrl/c
 - @nestfolio/broker-sim-adpt/contracts — consumes `SimDepositCompletedSchema`, `SimWithdrawalCompletedSchema` (normalizer `parseSubject` seam for SIM_DEPOSIT_COMPLETED / SIM_WITHDRAWAL_COMPLETED)
 - @nestfolio/test-support (test only)
 - @nestfolio/integration-testing (test only)
+
+## DDB Entities
+<!-- card-drift:ddb-entities (generated — `nx run event-processor:card-drift -- --fix`) -->
+- ExecutionMode
+- FundingEvent
+- NormalizedEvent
+<!-- /card-drift:ddb-entities -->

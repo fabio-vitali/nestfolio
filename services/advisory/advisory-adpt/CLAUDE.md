@@ -9,6 +9,11 @@ Tags: `scope:advisory`, `type:adpt`
 None (stateless adapter -- EB Rule forwarding only)
 
 ## Ingress (Cross-Domain Event Forwarding, Pull Model)
+<!-- card-drift:ingress (generated — `nx run event-processor:card-drift -- --fix`) -->
+- AdvisoryIngress-FromExecution: DEPOSIT_DETECTED, ORDER_CANCELLED, ORDER_FILLED, ORDER_REJECTED
+- AdvisoryIngress-FromInvestor: INVESTOR_PROFILE_UPDATED, MANDATE_ISSUED, MANDATE_REVOKED, OPERATING_MODE_CHANGED
+- AdvisoryIngress-FromLedger: PORTFOLIO_DRIFT_DETECTED, PORTFOLIO_UPDATED
+<!-- /card-drift:ingress -->
 
 ### Investor -> Advisory
 Rule on InvestorBus -> AdvisoryBus (DLQ: FromInvestorDLQ, 14-day retention, KMS encrypted)
@@ -41,6 +46,10 @@ None
 None
 
 ## Event Types (domain/events.ts)
+<!-- card-drift:event-types (generated — `nx run event-processor:card-drift -- --fix`) -->
+- AdvisoryCrossDomainEventTypes: ADVISORY_STATUS_UPDATED, DECISION_APPROVED, DECISION_BLOCKED, DECISION_PACKET_CREATED, ESCALATION_TRIGGERED, EXPLANATION_GENERATED, INCIDENT_DETECTED, INCIDENT_RESOLVED, USER_CONFIRMATION_REQUESTED, USER_CONFIRMED
+- AdvisoryIngestEventTypes: DEPOSIT_DETECTED, INVESTOR_PROFILE_CREATED, INVESTOR_PROFILE_UPDATED, MANDATE_ISSUED, MANDATE_REVOKED, OPERATING_MODE_CHANGED, ORDER_CANCELLED, ORDER_FILLED, ORDER_REJECTED, PORTFOLIO_DRIFT_DETECTED, PORTFOLIO_UPDATED
+<!-- /card-drift:event-types -->
 
 ### AdvisoryCrossDomainEventTypes (exported, not used by this stack)
 DECISION_PACKET_CREATED, DECISION_APPROVED, USER_CONFIRMATION_REQUESTED, EXPLANATION_GENERATED, DECISION_BLOCKED, ESCALATION_TRIGGERED, INCIDENT_DETECTED, INCIDENT_RESOLVED, USER_CONFIRMED

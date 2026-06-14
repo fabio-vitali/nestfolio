@@ -11,6 +11,9 @@ Stack: services/investor/investor-ctrl/src/service.stack.ts
 - Observability: addObservability({ ingress, egress })
 
 ## Ingress Subscriptions (15)
+<!-- card-drift:ingress (generated — `nx run event-processor:card-drift -- --fix`) -->
+- TriggerIngress: BALANCE_UPDATED, BROKER_CIRCUIT_CLOSED, BROKER_CIRCUIT_OPEN, BROKER_HEAL_ESCALATED, DECISION_APPROVED, DECISION_BLOCKED, DEPOSIT_INITIATED, GOAL_UPDATED, MANDATE_ISSUED, MANDATE_REVOKED, ONBOARDING_COMPLETED, OPERATING_MODE_CHANGED, ORDER_FILLED, ORDER_REJECTED, WITHDRAWAL_SETTLED
+<!-- /card-drift:ingress -->
 
 From investor-bff: ONBOARDING_COMPLETED, MANDATE_ISSUED, MANDATE_REVOKED, OPERATING_MODE_CHANGED, GOAL_UPDATED, DEPOSIT_INITIATED
 From investor-adpt: DECISION_APPROVED, ORDER_FILLED, BALANCE_UPDATED, ORDER_REJECTED, DECISION_BLOCKED, WITHDRAWAL_SETTLED, BROKER_CIRCUIT_OPEN, BROKER_CIRCUIT_CLOSED, BROKER_HEAL_ESCALATED
@@ -18,6 +21,10 @@ From investor-adpt: DECISION_APPROVED, ORDER_FILLED, BALANCE_UPDATED, ORDER_REJE
 Post-resplit (2026-05-08): INVESTOR_PROFILE_UPDATED diff-detect handler removed. Now subscribes directly to semantic events (OPERATING_MODE_CHANGED, GOAL_UPDATED) and lifecycle events (MANDATE_ISSUED, MANDATE_REVOKED). Each event maps to its own NOTIFICATION_TEMPLATE entry — no payload inspection required.
 
 ## Egress (CDC)
+<!-- card-drift:egress (generated — `nx run event-processor:card-drift -- --fix`) -->
+- MonthlyReport: MONTHLY_REPORT_CREATED, MONTHLY_REPORT_UPDATED
+- Notification: NOTIFICATION_CREATED, NOTIFICATION_UPDATED
+<!-- /card-drift:egress -->
 
 | Entity        | insert                 | modify                 |
 |---------------|------------------------|------------------------|
@@ -41,6 +48,10 @@ Post-resplit (2026-05-08): INVESTOR_PROFILE_UPDATED diff-detect handler removed.
 - Enforced by `nx run investor-ctrl:typecheck` (test/types/read-model-ownership.type-test.ts)
 
 ## DDB Entities
+<!-- card-drift:ddb-entities (generated — `nx run event-processor:card-drift -- --fix`) -->
+- MonthlyReport
+- Notification
+<!-- /card-drift:ddb-entities -->
 
 - Notification: pk=Notification#{tenantId}#{notificationId}, sk=Notification
 - MonthlyReport: pk=MonthlyReport#{tenantId}#{reportId}, sk=MonthlyReport
@@ -51,6 +62,9 @@ Post-resplit (2026-05-08): INVESTOR_PROFILE_UPDATED diff-detect handler removed.
 - @nestfolio/investor-ctrl/contracts (src/domain/contracts.ts) — producer-owned zod payload contracts (imports ONLY zod). DRY domain subjects — identity travels in the event context (RequestContext), not on the subject. NotificationCreatedSchema models the NOTIFICATION_CREATED subject; consumed by investor-bff/transforms/notification-created.ts via parseSubject. MonthlyReportSchema models the MONTHLY_REPORT_CREATED/UPDATED subject (the MonthlyReport row written by event-listener on ORDER_FILLED). Payload changes here break consumer builds (event-subject-payload-build-tripwire).
 
 ## Event Types (domain/events.ts)
+<!-- card-drift:event-types (generated — `nx run event-processor:card-drift -- --fix`) -->
+- InvestorCtrlEventTypes: MONTHLY_REPORT_CREATED, MONTHLY_REPORT_GENERATED, MONTHLY_REPORT_UPDATED, NOTIFICATION_CREATED, NOTIFICATION_DELIVERED, NOTIFICATION_SENT, NOTIFICATION_UPDATED
+<!-- /card-drift:event-types -->
 
 InvestorCtrlEventTypes: NOTIFICATION_CREATED, NOTIFICATION_UPDATED, NOTIFICATION_SENT, NOTIFICATION_DELIVERED, MONTHLY_REPORT_CREATED, MONTHLY_REPORT_UPDATED, MONTHLY_REPORT_GENERATED
 

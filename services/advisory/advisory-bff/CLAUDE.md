@@ -7,6 +7,9 @@ Stack: services/advisory/advisory-bff/src/service.stack.ts
 - DynamoDB table (streams enabled)
 
 ## Ingress
+<!-- card-drift:ingress (generated — `nx run event-processor:card-drift -- --fix`) -->
+- Ingress: DECISION_CYCLE_FAILED, DECISION_CYCLE_STARTED, DECISION_PACKET_CREATED, DECISION_PACKET_UPDATED
+<!-- /card-drift:ingress -->
 - advisoryBus → advisory-bff-ingress (SQS → Lambda)
   Subscriptions: DECISION_PACKET_CREATED, DECISION_PACKET_UPDATED, DECISION_CYCLE_STARTED, DECISION_CYCLE_FAILED
   (WS-2: the two SF-direct cycle-lifecycle events project GENERATING/FAILED onto the DecisionReadModel
@@ -16,6 +19,12 @@ Stack: services/advisory/advisory-bff/src/service.stack.ts
   cross-event races by construction.)
 
 ## Egress
+<!-- card-drift:egress (generated — `nx run event-processor:card-drift -- --fix`) -->
+- AdvisoryStatus: ADVISORY_STATUS_UPDATED
+- DecisionReadModel: DECISION_READ_MODEL_CREATED, DECISION_READ_MODEL_UPDATED
+- UserConfirmation: USER_CONFIRMED
+- UserRejection: USER_REJECTED
+<!-- /card-drift:egress -->
 - CDC: DynamoDB Streams → advisory-bff-egress (Lambda)
   Emits:
   - DecisionReadModel → insert: DECISION_READ_MODEL_CREATED, modify: DECISION_READ_MODEL_UPDATED [typed: DecisionReadModelSchema]
@@ -36,6 +45,10 @@ Stack: services/advisory/advisory-bff/src/service.stack.ts
   DecisionReadModel. The AdvisoryStatus aggregate stays, consumed by dashboard-bff via the ADVISORY_STATUS_UPDATED CDC.)
 
 ## Handlers
+<!-- card-drift:handlers (generated — `nx run event-processor:card-drift -- --fix`) -->
+- advisory-status-projector.ts
+- decision-publisher.ts
+<!-- /card-drift:handlers -->
 - event-listener.ts — Ingress handler; dispatches DECISION_PACKET_CREATED + DECISION_PACKET_UPDATED to decisionSnapshot; drops degraded snapshots (no explanation + no trades) via skip()
 - advisory-status-projector.ts — DDB-stream consumer (advisory-bff's own command-owned derived aggregate); recomputes the AdvisoryStatus aggregate post-commit via `repo.deriveAdvisoryAggregate(tenantId)` — ONE `tenantId-index` query over this tenant's non-terminal DecisionReadModel rows (status+createdAt projected) yielding `inFlightCount` (PENDING/AWAITING_CONFIRMATION), `generatingCount` (GENERATING), `failedCount` (FAILED), `oldestGeneratingAt` (min GENERATING createdAt, or null); writes all four via update(..., { add: { __version: 1 } }) (atomic strictly-monotonic __version self-increment, was projectVersioned+Date.now()); loop-guarded to skip AdvisoryStatus records. (WS-4: generating/failed/oldestGeneratingAt added so dashboard-bff can reflect generating/failed cycle states; replaced the prior COUNT-only countInFlightDecisions.)
 - decision-publisher.ts — DDB-stream consumer; broadcasts DecisionReadModel changes to MFE via AppSync publishDecisionUpdate mutation (WS-3: the AdvisoryStatus → publishAdvisoryStatusUpdate broadcast was removed — no MFE subscriber remains)
@@ -62,6 +75,9 @@ Producer-owned zod CDC subject contracts, exported via `@nestfolio/advisory-bff/
 - AdvisoryStatusSchema / AdvisoryStatus — the command-owned derived AdvisoryStatus aggregate DRY subject, CDC-emitted as ADVISORY_STATUS_UPDATED (insert + modify). Fields: inFlightCount (number), generatingCount (number), failedCount (number), oldestGeneratingAt (string | null), __version (number — retained in subject for downstream P3 keying by dashboard-bff). Identity (tenantId) travels in RequestContext.
 
 ## Event Types (domain/events.ts)
+<!-- card-drift:event-types (generated — `nx run event-processor:card-drift -- --fix`) -->
+- AdvisoryBffEventTypes: ADVISORY_STATUS_UPDATED, DECISION_READ_MODEL_CREATED, DECISION_READ_MODEL_UPDATED, USER_CONFIRMED, USER_INTERACTION_CREATED, USER_INTERACTION_UPDATED, USER_REJECTED, USER_VIEWED_EXPLANATION
+<!-- /card-drift:event-types -->
 - AdvisoryBffEventTypes: ADVISORY_STATUS_UPDATED, USER_CONFIRMED, USER_REJECTED, USER_VIEWED_EXPLANATION,
   DECISION_READ_MODEL_CREATED, DECISION_READ_MODEL_UPDATED, USER_INTERACTION_CREATED, USER_INTERACTION_UPDATED
 
@@ -99,3 +115,11 @@ Producer-owned zod CDC subject contracts, exported via `@nestfolio/advisory-bff/
 ## Dependencies
 - libs: cdk-constructs (core), event-processor
 - SSM: investor/auth/userPoolId
+
+## DDB Entities
+<!-- card-drift:ddb-entities (generated — `nx run event-processor:card-drift -- --fix`) -->
+- AdvisoryStatus
+- DecisionReadModel
+- UserConfirmation
+- UserRejection
+<!-- /card-drift:ddb-entities -->

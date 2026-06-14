@@ -7,6 +7,9 @@ Stack: services/ledger/ledger-bff/src/service.stack.ts
 - Table (DynamoDB, streams enabled)
 
 ## Ingress
+<!-- card-drift:ingress (generated — `nx run event-processor:card-drift -- --fix`) -->
+- Ingress: BALANCE_UPDATED, LEDGER_ENTRY_RECORDED, PORTFOLIO_UPDATED
+<!-- /card-drift:ingress -->
 - LedgerBus → ledger-bff-ingress (SQS → Lambda)
   Subscriptions: BALANCE_UPDATED, PORTFOLIO_UPDATED, LEDGER_ENTRY_RECORDED
 
@@ -37,6 +40,9 @@ Stack: services/ledger/ledger-bff/src/service.stack.ts
 - mfe/key
 
 ## Handlers
+<!-- card-drift:handlers (generated — `nx run event-processor:card-drift -- --fix`) -->
+- graphql-resolver.ts
+<!-- /card-drift:handlers -->
 - event-listener.ts — materializeToTable pipeline; handles BALANCE_UPDATED, PORTFOLIO_UPDATED, LEDGER_ENTRY_RECORDED via transform functions (each transform validates the payload at runtime with parseSubject against the producer's zod contract)
 - graphql-resolver.ts — AppSync Lambda resolver; handles getPortfolioAt (time-travel via snapshot replay) and getSimulationComparison (actual vs simulated portfolio diff)
 
@@ -60,3 +66,14 @@ Stack: services/ledger/ledger-bff/src/service.stack.ts
 ## Dependencies
 - libs: cdk-constructs/core, cdk-constructs/extensions, cdk-constructs/utils, event-processor
 - cross-domain: @nestfolio/ledger-ctrl/events (event-type constants), @nestfolio/ledger-ctrl/contracts (zod payload schemas: BalanceUpdatedSchema, PortfolioUpdatedSchema, LedgerEntryRecordedSchema — consumed via parseSubject in transforms)
+
+## DDB Entities
+<!-- card-drift:ddb-entities (generated — `nx run event-processor:card-drift -- --fix`) -->
+- Checkpoint
+- HistoryEntry
+- PortfolioLatest
+- Position
+- Simulation
+- SimulationPosition
+- SnapshotAt
+<!-- /card-drift:ddb-entities -->

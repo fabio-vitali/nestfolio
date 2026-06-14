@@ -7,12 +7,18 @@ Stack: services/advisory/compliance-ctrl/src/service.stack.ts
 - DynamoDB table (streams enabled). Stores GuardrailPolicy rows (MandateSnapshot): `{level, status, operatingMode, effectiveDate}`. GUARDRAIL_TABLE params (8 numeric thresholds per level) are hardcoded in `src/rules/guardrail-params.ts` — moved here from investor-bff in the domain resplit.
 
 ## Ingress
+<!-- card-drift:ingress (generated — `nx run event-processor:card-drift -- --fix`) -->
+- Ingress: MANDATE_ISSUED, MANDATE_REVOKED, OPERATING_MODE_CHANGED, RECOMMENDATION_PROPOSED
+<!-- /card-drift:ingress -->
 - advisoryBus → compliance-ctrl-ingress (SQS → Lambda)
   Subscriptions: RECOMMENDATION_PROPOSED, MANDATE_ISSUED, OPERATING_MODE_CHANGED, MANDATE_REVOKED
 
 Post-resplit (2026-05-08): subscribes to semantic/lifecycle events directly instead of carrier events. MANDATE_ISSUED bootstraps the GuardrailPolicy on onboarding; OPERATING_MODE_CHANGED re-projects the policy when mode changes; MANDATE_REVOKED sets MandateSnapshot.status='REVOKED'. No longer subscribes to INVESTOR_PROFILE_CREATED or INVESTOR_PROFILE_UPDATED.
 
 ## Egress
+<!-- card-drift:egress (generated — `nx run event-processor:card-drift -- --fix`) -->
+- ComplianceCheck: DECISION_APPROVED, DECISION_BLOCKED
+<!-- /card-drift:egress -->
 - CDC: DynamoDB Streams → compliance-ctrl-egress (Lambda)
   Emits:
   - ComplianceCheck → insert: field dispatch on `result` — APPROVED → DECISION_APPROVED, BLOCKED → DECISION_BLOCKED [typed: ComplianceCheckSchema]
@@ -32,6 +38,9 @@ Post-resplit (2026-05-08): subscribes to semantic/lifecycle events directly inst
 - Enforced by `nx run compliance-ctrl:typecheck` (test/types/read-model-ownership.type-test.ts)
 
 ## Event Types (domain/events.ts)
+<!-- card-drift:event-types (generated — `nx run event-processor:card-drift -- --fix`) -->
+- ComplianceEventTypes: AUDIT_ARTIFACT_CREATED, AUDIT_ARTIFACT_UPDATED, COMPLIANCE_APPROVAL_GRANTED, DECISION_APPROVED, DECISION_BLOCKED, ESCALATION_TRIGGERED, GUARDRAIL_VIOLATION_DETECTED, SUITABILITY_CHECK_FAILED, SUITABILITY_CHECK_PASSED
+<!-- /card-drift:event-types -->
 - ComplianceEventTypes (outbound, via CDC): DECISION_APPROVED, DECISION_BLOCKED, GUARDRAIL_VIOLATION_DETECTED, ESCALATION_TRIGGERED, COMPLIANCE_APPROVAL_GRANTED, AUDIT_ARTIFACT_CREATED, SUITABILITY_CHECK_PASSED, SUITABILITY_CHECK_FAILED, AUDIT_ARTIFACT_UPDATED
 
 ## Event Payload Contracts (domain/contracts.ts → @nestfolio/compliance-ctrl/contracts)
@@ -50,3 +59,10 @@ Producer-owned zod CDC subject contracts, exported via `@nestfolio/compliance-ct
 
 ## Dependencies
 - libs: cdk-constructs (core), event-processor, decision-workflow-ctrl/events, advisory-adpt/domain, investor-adpt/domain
+
+## DDB Entities
+<!-- card-drift:ddb-entities (generated — `nx run event-processor:card-drift -- --fix`) -->
+- AuditArtifact
+- ComplianceCheck
+- MandateSnapshot
+<!-- /card-drift:ddb-entities -->

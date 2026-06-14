@@ -13,6 +13,9 @@ Stack: services/advisory/portfolio-engine-ctrl/src/service.stack.ts
   Data source: S3 bucket (versioned)
 
 ## Ingress
+<!-- card-drift:ingress (generated — `nx run event-processor:card-drift -- --fix`) -->
+- Ingress: CONSTRUCT_PORTFOLIO, SEC_10K_UPDATED, SEC_PROSPECTUS_UPDATED
+<!-- /card-drift:ingress -->
 - advisoryBus -> portfolio-engine-ctrl-ingress (SQS -> Lambda)
   Subscriptions: CONSTRUCT_PORTFOLIO, SEC_PROSPECTUS_UPDATED, SEC_10K_UPDATED
   Profile: agentProfile({ p90=29_000ms, burst=40, ux=AGENT_BUDGETS.PORTFOLIO_ENGINE_UX_SEC=120s }) → 1024 MB / 49s timeout / batchSize 1 / concurrency 10 / visibility 196s
@@ -22,6 +25,10 @@ Stack: services/advisory/portfolio-engine-ctrl/src/service.stack.ts
   errorEventType: 'PORTFOLIO_ENGINE_CTRL_FAILED' (literal string in event-listener.ts materializeToTable call; not exported from domain/events.ts)
 
 ## Egress
+<!-- card-drift:egress (generated — `nx run event-processor:card-drift -- --fix`) -->
+- AgentCompletion: PORTFOLIO_COMPLETED
+- AgentFailure: PORTFOLIO_FAILED
+<!-- /card-drift:egress -->
 - CDC: DynamoDB Streams -> portfolio-engine-ctrl-egress (Lambda)
   Emits:
   - AgentCompletion -> PORTFOLIO_COMPLETED (insert only) [typed: PortfolioAgentCompletionSchema]
@@ -47,12 +54,18 @@ Agent folder: agents/portfolio-engine/
 - KBIngestion: Ingests SEC prospectus/10-K data into FundKB (triggered by SEC_PROSPECTUS_UPDATED, SEC_10K_UPDATED). Grants: kb.bucket write, kb.triggerSyncPolicy() (StartIngestionJob).
 
 ## Handlers
+<!-- card-drift:handlers (generated — `nx run event-processor:card-drift -- --fix`) -->
+- kb-ingestion-handler.ts
+<!-- /card-drift:handlers -->
 - event-listener.ts -- Ingress: dispatches CONSTRUCT_PORTFOLIO through the agent and records AgentCompletion (success) or AgentFailure (caught error) rows. SEC ingestion events are routed through to kb-ingestion-handler.
 - event-publisher.ts -- Egress CDC publisher (changeDataCapture pipeline, typed-subject mode)
 - publisher-schemas.ts — typed-subject registry: maps each emitted __typename → its producer zod contract (subjectSchemas) + exemptTypenames; the publisher emits schema.parse(row) (the DRY subject) for covered types, the fat row for exempt. Exempt: none (every emitted __typename now has a row-level contract — AgentCompletion → PortfolioAgentCompletionSchema, AgentFailure → PortfolioAgentFailureSchema).
 - kb-ingestion-handler.ts -- KB ingestion for SEC filing data
 
 ## Event Types (domain/events.ts)
+<!-- card-drift:event-types (generated — `nx run event-processor:card-drift -- --fix`) -->
+- PortfolioEngineEventTypes: PORTFOLIO_COMPLETED, PORTFOLIO_CONSTRUCTION_PROPOSED, PORTFOLIO_ENGINE_AGENT_INVOCATION_TRACED, PORTFOLIO_FAILED, REBALANCE_PLAN_PRODUCED
+<!-- /card-drift:event-types -->
 - PortfolioEngineEventTypes (outbound): PORTFOLIO_COMPLETED, PORTFOLIO_FAILED, PORTFOLIO_CONSTRUCTION_PROPOSED, REBALANCE_PLAN_PRODUCED, PORTFOLIO_ENGINE_AGENT_INVOCATION_TRACED
 - HANDLED_EVENT_TYPES (inbound): CONSTRUCT_PORTFOLIO, SEC_PROSPECTUS_UPDATED, SEC_10K_UPDATED
 - KB_INGESTION_EVENT_TYPES (KB-routed): SEC_PROSPECTUS_UPDATED, SEC_10K_UPDATED
@@ -104,3 +117,10 @@ The key helpers are imported from `@nestfolio/agent-orchestrator` and re-exporte
 - SSM: advisory-hub (models/opus, models/sonnet), decision-workflow-ctrl (memory/id)
 - AgentCore Memory API (CreateEvent, RetrieveMemoryRecords, GetMemoryRecord, ListEvents, ListActors, ListSessions)
 - AgentCore Runtime (InvokeAgentRuntime)
+
+## DDB Entities
+<!-- card-drift:ddb-entities (generated — `nx run event-processor:card-drift -- --fix`) -->
+- AgentCompletion
+- AgentFailure
+- AgentInvocation
+<!-- /card-drift:ddb-entities -->

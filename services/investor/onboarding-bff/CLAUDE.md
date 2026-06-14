@@ -13,6 +13,10 @@ Stack: services/investor/onboarding-bff/src/service.stack.ts
   Data source: S3 bucket (versioned)
 
 ## Egress
+<!-- card-drift:egress (generated — `nx run event-processor:card-drift -- --fix`) -->
+- GoLiveConfirmed: GO_LIVE_CONFIRMED
+- OnboardingCompleted: ONBOARDING_COMPLETED
+<!-- /card-drift:egress -->
 - CDC: DynamoDB Streams -> onboarding-bff-egress (Lambda)
   Emits:
   - OnboardingCompleted -> ONBOARDING_COMPLETED (insert only)
@@ -34,6 +38,9 @@ Tooling support code remains under src/agent/ (tools, prompts, state, router, se
 - SearchKbFn: RAG search over knowledge base (invoked by AgentRuntime tool, not via Ingress)
 
 ## Handlers
+<!-- card-drift:handlers (generated — `nx run event-processor:card-drift -- --fix`) -->
+- search-kb.handler.ts
+<!-- /card-drift:handlers -->
 - event-publisher.ts -- Egress CDC publisher (changeDataCapture pipeline, typed-subject mode)
 - publisher-schemas.ts — typed-subject registry: maps each emitted __typename → its producer zod contract (subjectSchemas) + exemptTypenames; the publisher emits schema.parse(row) (the DRY subject) for covered types, the fat row for exempt.
 - agent/tools/search-kb.handler.ts -- KB search tool for AgentRuntime
@@ -42,6 +49,10 @@ Tooling support code remains under src/agent/ (tools, prompts, state, router, se
 - agent/tools/render-ui.ts -- Render UI components
 
 ## Event Types (domain/events.ts)
+<!-- card-drift:event-types (generated — `nx run event-processor:card-drift -- --fix`) -->
+- (top-level exports): GO_LIVE_CONFIRMED, ONBOARDING_COMPLETED, ONBOARDING_STARTED
+- OnboardingBffEventTypes: ONBOARDING_AGENT_INVOCATION_TRACED
+<!-- /card-drift:event-types -->
 - Inbound: ONBOARDING_STARTED
 - Outbound (CDC): ONBOARDING_COMPLETED, GO_LIVE_CONFIRMED
 - Outbound (direct PutEvents): ONBOARDING_AGENT_INVOCATION_TRACED
@@ -79,3 +90,9 @@ Tooling support code remains under src/agent/ (tools, prompts, state, router, se
 ## Dependencies
 - libs: cdk-constructs (core, extensions, utils), event-processor, agent-orchestrator
 - SSM: advisory-hub (models/sonnet)
+
+## DDB Entities
+<!-- card-drift:ddb-entities (generated — `nx run event-processor:card-drift -- --fix`) -->
+- GoLiveConfirmed
+- OnboardingCompleted
+<!-- /card-drift:ddb-entities -->

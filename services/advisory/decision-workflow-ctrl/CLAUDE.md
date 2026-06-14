@@ -14,6 +14,11 @@ Stack: services/advisory/decision-workflow-ctrl/src/service.stack.ts
     via `States.StringToJson` on read. Used by AssemblePacket to compute portfolioValueCents + delta-based proposedTrades.
 
 ## Ingress (3 ingresses)
+<!-- card-drift:ingress (generated — `nx run event-processor:card-drift -- --fix`) -->
+- CallbackIngress (sfn-callback.ts): 
+- MandateProjectorIngress (mandate-projector.ts): 
+- SnapshotProjectorIngress (snapshot-projector.ts): INVESTOR_PROFILE_SNAPSHOT_CREATED, INVESTOR_PROFILE_SNAPSHOT_UPDATED, MARKET_SNAPSHOT_UPDATED, PORTFOLIO_UPDATED
+<!-- /card-drift:ingress -->
 - CallbackIngress: advisoryBus → decision-workflow-ctrl-callback-ingress (SQS → Lambda: sfn-callback.ts)
   Subscriptions: PORTFOLIO_COMPLETED, NARRATIVE_COMPLETED, PORTFOLIO_FAILED, NARRATIVE_FAILED, DECISION_APPROVED, DECISION_BLOCKED, USER_CONFIRMED, USER_REJECTED
   Note: post-precomputation, IP and MI no longer emit completion events (they precompute snapshots). PE + AN are the only services that resume the SF via callbacks; failure events are added so failures resume the SF via SendTaskFailure (Task 10).
@@ -28,6 +33,10 @@ Stack: services/advisory/decision-workflow-ctrl/src/service.stack.ts
   errorEventType: SNAPSHOT_PROJECTION_FAILED
 
 ## Egress
+<!-- card-drift:egress (generated — `nx run event-processor:card-drift -- --fix`) -->
+- DecisionPacket: DECISION_PACKET_CREATED, DECISION_PACKET_UPDATED
+- MandateSnapshot: MANDATE_SNAPSHOT_CREATED
+<!-- /card-drift:egress -->
 - CDC: DynamoDB Streams → decision-workflow-ctrl-egress (Lambda)
   Emits:
   - DecisionPacket → DECISION_PACKET_CREATED (insert), DECISION_PACKET_UPDATED (modify) [typed: DecisionPacketSchema]
@@ -63,6 +72,12 @@ Stack: services/advisory/decision-workflow-ctrl/src/service.stack.ts
 - Enforced by `nx run decision-workflow-ctrl:typecheck` (test/types/read-model-ownership.type-test.ts)
 
 ## Handlers
+<!-- card-drift:handlers (generated — `nx run event-processor:card-drift -- --fix`) -->
+- assemble-packet.ts
+- mandate-projector.ts
+- sfn-callback.ts
+- snapshot-projector.ts
+<!-- /card-drift:handlers -->
 - sfn-callback.ts — CallbackIngress handler. On PORTFOLIO_COMPLETED / NARRATIVE_COMPLETED → SendTaskSuccess; on PORTFOLIO_FAILED / NARRATIVE_FAILED → SendTaskFailure; also writes AgentOutput records on agent completions; updates DecisionPacket status on compliance + user response events.
 - mandate-projector.ts — MandateProjectorIngress handler (materializeToTable). MANDATE_ISSUED + OPERATING_MODE_CHANGED both route to `projectMandateSnapshot` which calls `projectVersioned('MandateSnapshot', fullImage, { version: subject.__version, overrides: { pk, sk } })`. The FIRST write (MANDATE_ISSUED) creates the row → stream INSERT → MANDATE_SNAPSHOT_CREATED (the SF trigger) fires once; later OPERATING_MODE_CHANGED overwrites the row → MODIFY → no re-trigger. Missing `operatingMode` throws NotRetryableError; missing `__version` → `skip()`.
 - snapshot-projector.ts — SnapshotProjectorIngress handler (materializeToTable). Validates each payload at the seam via `parseSubject(payload, <ProducerSchema>)` — InvestorProfileSnapshotSchema / MarketSnapshotSchema / PortfolioUpdatedSchema imported from the producers' `/contracts` (no local types, no `as` casts). INVESTOR_PROFILE_SNAPSHOT_CREATED/_UPDATED → projectVersioned(InvestorProfileSnapshot) keyed on subject.__version; MARKET_SNAPSHOT_UPDATED → projectVersioned(MarketSnapshot) keyed on subject.__version; PORTFOLIO_UPDATED → projectVersioned(LedgerSnapshot) keyed on snapshot.lastEventSequence. Missing subject.agentOutput/snapshot → NotRetryableError; absent version → drop (undefined).
@@ -71,6 +86,9 @@ Stack: services/advisory/decision-workflow-ctrl/src/service.stack.ts
 - publisher-schemas.ts — typed-subject registry: maps each emitted __typename → its producer zod contract (subjectSchemas) + exemptTypenames; the publisher emits schema.parse(row) (the DRY subject) for covered types, the fat row for exempt. Exempt: none (every emitted __typename now has a row-level contract — DecisionPacket → DecisionPacketSchema, MandateSnapshot → MandateSnapshotSchema).
 
 ## Event Types (domain/events.ts)
+<!-- card-drift:event-types (generated — `nx run event-processor:card-drift -- --fix`) -->
+- DecisionWorkflowEventTypes: AGENT_OUTPUT_CREATED, AGENT_OUTPUT_UPDATED, CONSTRUCT_PORTFOLIO, DECISION_CYCLE_FAILED, DECISION_CYCLE_STARTED, DECISION_FEEDBACK, DECISION_PACKET_CREATED, DECISION_PACKET_UPDATED, DECISION_WORKFLOW_FAILED, GENERATE_NARRATIVE, MANDATE_SNAPSHOT_CREATED, RECOMMENDATION_PROPOSED
+<!-- /card-drift:event-types -->
 - DecisionWorkflowEventTypes (outbound + routed): DECISION_PACKET_CREATED, DECISION_PACKET_UPDATED, CONSTRUCT_PORTFOLIO, GENERATE_NARRATIVE, RECOMMENDATION_PROPOSED, DECISION_FEEDBACK, DECISION_WORKFLOW_FAILED, AGENT_OUTPUT_CREATED, AGENT_OUTPUT_UPDATED, MANDATE_SNAPSHOT_CREATED, DECISION_CYCLE_STARTED, DECISION_CYCLE_FAILED
   Note: USER_CONFIRMATION_REQUESTED removed (Task 1.5). The RequestUserConfirmation SF state now writes the task token directly onto the DecisionPacket DDB row via updateItem.waitForTaskToken; advisory-bff reads the token from the DECISION_PACKET_UPDATED CDC snapshot.
   Note: DECISION_CYCLE_STARTED / DECISION_CYCLE_FAILED are SF-DIRECT events (putEvents from the state machine, Source=serviceName), NOT CDC/Egress — no DecisionPacket row exists at emit time. STARTED fires after UnpackTriggerEnvelope (status GENERATING, __version:0); FAILED fires from a shared Catch (errors States.ALL, resultPath $.error) on the 4 pre-packet states ParallelProjections / InvokePortfolioEngine / InvokeAdvisoryNarrative / AssembleDecisionPacket (status FAILED, __version:1) → Fail. advisory-bff (WS-2) projects them onto the DecisionReadModel row via projectVersioned. Uncatchable States.Runtime emits no FAILED (advisory-mfe staleness guard, WS-3).
@@ -126,3 +144,13 @@ Note: The 4 agent-output fields on AssemblePacketEvent (assemble-packet.ts) are 
 - `./events` — domain event types.
 - `./agent-budgets` — `AGENT_BUDGETS` constants (PE+AN UX budgets, shared with the agent service stacks).
 - `./contracts` — producer-owned zod subject contracts (DecisionPacketSchema, MandateSnapshotSchema, RecommendationProposedSchema, DecisionCycleStartedSchema, DecisionCycleFailedSchema).
+
+## DDB Entities
+<!-- card-drift:ddb-entities (generated — `nx run event-processor:card-drift -- --fix`) -->
+- AgentOutput
+- DecisionPacket
+- InvestorProfileSnapshot
+- LedgerSnapshot
+- MandateSnapshot
+- MarketSnapshot
+<!-- /card-drift:ddb-entities -->
