@@ -88,6 +88,72 @@ function propName(prop) {
   return null;
 }
 
+// Exposed only for tests (build a SourceFile without re-reading conventions).
+export function _sourceFileForTest(path) { return sourceFileOf(path); }
+
+// Walk a subtree; collect resolved wire names for every `Const.KEY` ref.
+// Falls back to the bare KEY when the ref is not in `resolve` (covers the
+// 288/294 key===wire convention for any cross-lib const not in this events.ts).
+function collectEventRefs(node, resolve) {
+  const out = new Set();
+  const visit = (n) => {
+    if (ts.isPropertyAccessExpression(n) && ts.isIdentifier(n.expression) &&
+        /EventTypes$/.test(n.expression.text)) {
+      const k = `${n.expression.text}.${n.name.text}`;
+      out.add(resolve.get(k) ?? n.name.text);
+    }
+    ts.forEachChild(n, visit);
+  };
+  visit(node);
+  return [...out].sort();
+}
+
+// Find all `new <Ctor>(...)` NewExpressions in a SourceFile.
+function findNewExprs(sf, ctorName) {
+  const out = [];
+  const visit = (n) => {
+    if (ts.isNewExpression(n) && ts.isIdentifier(n.expression) && n.expression.text === ctorName) {
+      out.push(n);
+    }
+    ts.forEachChild(n, visit);
+  };
+  visit(sf);
+  return out;
+}
+
+// The config object literal of a construct `new Ctor(scope, id, { ...config })`.
+function configObjOf(newExpr) {
+  const arg = (newExpr.arguments ?? []).find(a => ts.isObjectLiteralExpression(a));
+  return arg ?? null;
+}
+
+// Get a named property's initializer from an object literal.
+function getProp(objLit, name) {
+  if (!objLit) return null;
+  for (const p of objLit.properties) {
+    if (ts.isPropertyAssignment(p) && propName(p) === name) return p.initializer;
+  }
+  return null;
+}
+
+// Egress: each top-level key of the `eventTypes` object is an entity; collect
+// every resolvable event ref in that entity's value subtree.
+export function extractEgress(sf, resolve) {
+  const out = [];
+  for (const ne of findNewExprs(sf, 'Egress')) {
+    const eventTypes = getProp(configObjOf(ne), 'eventTypes');
+    if (!eventTypes || !ts.isObjectLiteralExpression(eventTypes)) continue;
+    for (const prop of eventTypes.properties) {
+      if (!ts.isPropertyAssignment(prop)) continue;
+      const entity = propName(prop);
+      if (!entity) continue;
+      out.push({ entity, events: collectEventRefs(prop.initializer, resolve) });
+    }
+  }
+  out.sort((a, b) => a.entity.localeCompare(b.entity));
+  return out;
+}
+
 // Parse domain/events.ts: every `export const <Name> = { KEY: eventName('WIRE') } as const`.
 export function parseEvents(eventsTsPath) {
   const groups = [];

@@ -86,3 +86,46 @@ test('parseEvents: absent file → empty', () => {
   assert.deepEqual(groups, []);
   assert.equal(resolve.size, 0);
 });
+
+import { extractEgress, parseEvents as _pe } from './check-service-card-drift.mjs';
+import { _sourceFileForTest as sourceFileForTest } from './check-service-card-drift.mjs';
+
+const EVENTS_FOR_STACK = `
+import { eventName } from '@nestfolio/event-types';
+export const FooEventTypes = {
+  ORDER_FILLED: eventName('ORDER_FILLED'),
+  DEPOSIT_REQUESTED: eventName('DEPOSIT_REQUESTED'),
+  DEPOSIT_INITIATED: eventName('DEPOSIT_INITIATED'),
+} as const;
+`;
+
+const STACK_EGRESS = `
+const egress = new Egress(this, 'Egress', {
+  state,
+  eventTypes: {
+    'NormalizedEvent': { insert: { field: 'sk', passthrough: true, emits: [
+      FooEventTypes.ORDER_FILLED,
+    ]}},
+    'FundingEvent': { insert: { field: 'sk', passthrough: true, emits: [
+      FooEventTypes.DEPOSIT_REQUESTED,
+    ]}},
+    'DepositIntent': { insert: FooEventTypes.DEPOSIT_INITIATED },
+  },
+});
+`;
+
+test('extractEgress: entity → emitted wire set (incl. insert: shorthand)', () => {
+  withTree({
+    'svc/src/domain/events.ts': EVENTS_FOR_STACK,
+    'svc/src/service.stack.ts': STACK_EGRESS,
+  }, (root) => {
+    const { resolve } = _pe(join(root, 'svc/src/domain/events.ts'));
+    const sf = sourceFileForTest(join(root, 'svc/src/service.stack.ts'));
+    const egress = extractEgress(sf, resolve);
+    assert.deepEqual(egress, [
+      { entity: 'DepositIntent', events: ['DEPOSIT_INITIATED'] },
+      { entity: 'FundingEvent', events: ['DEPOSIT_REQUESTED'] },
+      { entity: 'NormalizedEvent', events: ['ORDER_FILLED'] },
+    ]);
+  });
+});
