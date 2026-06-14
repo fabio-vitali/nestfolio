@@ -14,13 +14,11 @@ Stack: services/investor/onboarding-bff/src/service.stack.ts
 
 ## Egress
 <!-- card-drift:egress (generated — `nx run event-processor:card-drift -- --fix`) -->
-- GoLiveConfirmed: GO_LIVE_CONFIRMED
 - OnboardingCompleted: ONBOARDING_COMPLETED
 <!-- /card-drift:egress -->
 - CDC: DynamoDB Streams -> onboarding-bff-egress (Lambda)
   Emits:
   - OnboardingCompleted -> ONBOARDING_COMPLETED (insert only)
-  - GoLiveConfirmed -> GO_LIVE_CONFIRMED (insert only)
 
 ## AgentRuntime
 Agent folder: agents/onboarding/  (graph.ts + server.ts + Dockerfile)
@@ -50,11 +48,11 @@ Tooling support code remains under src/agent/ (tools, prompts, state, router, se
 
 ## Event Types (domain/events.ts)
 <!-- card-drift:event-types (generated — `nx run event-processor:card-drift -- --fix`) -->
-- (top-level exports): GO_LIVE_CONFIRMED, ONBOARDING_COMPLETED, ONBOARDING_STARTED
+- (top-level exports): ONBOARDING_COMPLETED, ONBOARDING_STARTED
 - OnboardingBffEventTypes: ONBOARDING_AGENT_INVOCATION_TRACED
 <!-- /card-drift:event-types -->
 - Inbound: ONBOARDING_STARTED
-- Outbound (CDC): ONBOARDING_COMPLETED, GO_LIVE_CONFIRMED
+- Outbound (CDC): ONBOARDING_COMPLETED
 - Outbound (direct PutEvents): ONBOARDING_AGENT_INVOCATION_TRACED
 
 ## MFE Hosting
@@ -84,7 +82,7 @@ Tooling support code remains under src/agent/ (tools, prompts, state, router, se
 - test/integration/onboarding-bff.integration.test.ts
 
 ## Exports (package subpaths)
-- `./contracts` — producer-owned zod payload contracts (`event-subject-payload-build-tripwire`), consumed via `parseSubject` for CDC subject type-checking: `OnboardingCompletedRecordSchema`/`OnboardingCompletedRecord` (ONBOARDING_COMPLETED) and `GoLiveConfirmedSchema`/`GoLiveConfirmed` (GO_LIVE_CONFIRMED, aliased from `GoLiveConfirmedRecord{,Schema}`). DRY domain subjects — identity travels in the event context (RequestContext), not on the subject. Re-exported from `src/domain/schemas.ts` (zod-only, no heavy deps). Consumed by investor-bff (onboarding-completed transform + event-listener).
+- `./contracts` — producer-owned zod payload contracts (`event-subject-payload-build-tripwire`), consumed via `parseSubject` for CDC subject type-checking: `OnboardingCompletedRecordSchema`/`OnboardingCompletedRecord` (ONBOARDING_COMPLETED). DRY domain subjects — identity travels in the event context (RequestContext), not on the subject. Re-exported from `src/domain/schemas.ts` (zod-only, no heavy deps). Consumed by investor-bff (onboarding-completed transform).
 - `./events` — domain event types (`OnboardingBffEventTypes`). Consumed by e2e-feature-tests.
 
 ## Dependencies
@@ -93,6 +91,5 @@ Tooling support code remains under src/agent/ (tools, prompts, state, router, se
 
 ## DDB Entities
 <!-- card-drift:ddb-entities (generated — `nx run event-processor:card-drift -- --fix`) -->
-- GoLiveConfirmed
 - OnboardingCompleted
 <!-- /card-drift:ddb-entities -->

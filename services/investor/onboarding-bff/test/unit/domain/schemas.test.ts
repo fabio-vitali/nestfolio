@@ -1,4 +1,4 @@
-import { OnboardingSessionSchema, OnboardingCompletedRecordSchema, GoLiveConfirmedRecordSchema } from '../../../src/domain/schemas';
+import { OnboardingSessionSchema, OnboardingCompletedRecordSchema } from '../../../src/domain/schemas';
 
 describe('OnboardingSessionSchema', () => {
   it('validates a valid in-progress session', () => {
@@ -19,36 +19,6 @@ describe('OnboardingSessionSchema', () => {
     expect(OnboardingSessionSchema.parse(session)).toBeDefined();
   });
 
-  it('defaults flowType to initial when not provided', () => {
-    const session = {
-      sessionId: 'sess-1',
-      status: 'in_progress',
-      currentPhase: 'goal',
-      phaseIndex: 0,
-      phases: {},
-      agentMemorySessionId: 'mem-1',
-      startedAt: '2026-03-26T00:00:00Z',
-      ttl: 1711324800,
-    };
-    const result = OnboardingSessionSchema.parse(session);
-    expect(result.flowType).toBe('initial');
-  });
-
-  it('accepts flowType go-live with go-live phases', () => {
-    const session = {
-      sessionId: 'sess-2',
-      status: 'in_progress',
-      flowType: 'go-live',
-      currentPhase: 'review_risk',
-      phaseIndex: 0,
-      phases: {},
-      agentMemorySessionId: 'mem-2',
-      startedAt: '2026-03-26T00:00:00Z',
-      ttl: 1711324800,
-    };
-    expect(OnboardingSessionSchema.parse(session)).toBeDefined();
-  });
-
   it('rejects invalid phase', () => {
     expect(() =>
       OnboardingSessionSchema.parse({
@@ -57,17 +27,6 @@ describe('OnboardingSessionSchema', () => {
         startedAt: '2026-01-01T00:00:00Z', ttl: 0,
       }),
     ).toThrow();
-  });
-});
-
-describe('GoLiveConfirmedRecordSchema', () => {
-  it('validates a go-live confirmed record', () => {
-    const record = {
-      tenantId: '550e8400-e29b-41d4-a716-446655440000',
-      userId: 'user-1',
-      timestamp: '2026-03-26T10:00:00.000Z',
-    };
-    expect(GoLiveConfirmedRecordSchema.parse(record)).toBeDefined();
   });
 });
 
@@ -133,8 +92,5 @@ describe('onboarding-bff CDC contracts cover the two emitted events (dry)', () =
     expect('tenantId' in parsed).toBe(false);
     expect(parsed.operatingMode).toBe('BALANCED');
   });
-  it('GoLiveConfirmedRecordSchema parses a real GoLiveConfirmed row', () => {
-    expect(GoLiveConfirmedRecordSchema.parse({ timestamp: '2026-06-09T00:00:00.000Z' }).timestamp)
-      .toBe('2026-06-09T00:00:00.000Z');
-  });
+
 });

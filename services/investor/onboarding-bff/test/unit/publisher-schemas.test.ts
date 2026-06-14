@@ -1,6 +1,6 @@
 import { subjectSchemas, exemptTypenames } from '../../src/handlers/publisher-schemas';
 
-const EMITTED = ['OnboardingCompleted', 'GoLiveConfirmed'];
+const EMITTED = ['OnboardingCompleted'];
 
 describe('onboarding-bff CDC publisher registry', () => {
   it('covers every emitted __typename (schemas ∪ exempt === emitted)', () => {

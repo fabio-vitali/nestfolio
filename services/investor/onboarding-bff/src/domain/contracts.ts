@@ -10,12 +10,3 @@ export {
   OnboardingCompletedRecordSchema,
   type OnboardingCompletedRecord,
 } from './schemas';
-
-/**
- * Subject shape emitted for GO_LIVE_CONFIRMED via CDC (GoLiveConfirmed table row).
- * Re-exported from schemas.ts under the consumer-facing name.
- */
-export {
-  GoLiveConfirmedRecordSchema as GoLiveConfirmedSchema,
-  type GoLiveConfirmedRecord as GoLiveConfirmed,
-} from './schemas';

@@ -118,38 +118,6 @@ export class OnboardingRepository extends TableRepository {
     },
   );
 
-  readonly confirmGoLive = this.log('confirmGoLive',
-    async (sessionId: string, ctx: RequestContext): Promise<void> => {
-      const pk = sessionPk(ctx.tenantId, ctx.userId);
-      const now = getTime();
-
-      // CDC record — emitted as GO_LIVE_CONFIRMED via event-publisher
-      const cdcRecord: TableEntry = {
-        pk: `GoLiveConfirmed#${ctx.tenantId}`,
-        sk: `GoLiveConfirmed#${now}`,
-        __typename: 'GoLiveConfirmed',
-        ...ctx,
-        timestamp: now,
-        ttl: Math.floor(Date.now() / 1000) + 30 * 24 * 60 * 60,
-      };
-
-      await this.transactWrite({
-        TransactItems: [
-          {
-            Update: {
-              TableName: this.tableName,
-              Key: { pk, sk: `OnboardingSession#${sessionId}` },
-              UpdateExpression: 'SET #status = :status, completedAt = :now, currentPhase = :phase, #ts = :ts',
-              ExpressionAttributeNames: { '#status': 'status', '#ts': 'timestamp' },
-              ExpressionAttributeValues: { ':status': 'completed', ':now': now, ':phase': 'go_live_confirmation', ':ts': now },
-            },
-          },
-          { Put: { TableName: this.tableName, Item: cdcRecord } },
-        ],
-      });
-    },
-  );
-
   readonly getActiveSession = this.log('getActiveSession',
     async (tenantId: string, userId: string): Promise<Record<string, unknown> | null> => {
       const pk = sessionPk(tenantId, userId);

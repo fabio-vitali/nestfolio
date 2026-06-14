@@ -6,7 +6,7 @@ import { Duration, Stack } from 'aws-cdk-lib';
 import { PolicyStatement } from 'aws-cdk-lib/aws-iam';
 import { UserPool, UserPoolClient } from 'aws-cdk-lib/aws-cognito';
 import { ServiceStack, ServiceStackProps, State, Egress } from '@nestfolio/cdk-constructs/core';
-import { ONBOARDING_COMPLETED, GO_LIVE_CONFIRMED } from './domain/events';
+import { ONBOARDING_COMPLETED } from './domain/events';
 import { defaultLambdaProps, NamingService } from '@nestfolio/cdk-constructs/utils';
 import {
   AgentRuntime, KnowledgeBase, MfeBucket,
@@ -19,12 +19,10 @@ export class OnboardingBffStack extends ServiceStack {
 
     const state = new State(this, 'State');
 
-    // Egress — CDC for ONBOARDING_COMPLETED and GO_LIVE_CONFIRMED
     new Egress(this, 'Egress', {
       state,
       eventTypes: {
         'OnboardingCompleted': { insert: ONBOARDING_COMPLETED },
-        'GoLiveConfirmed': { insert: GO_LIVE_CONFIRMED },
       },
     });
 

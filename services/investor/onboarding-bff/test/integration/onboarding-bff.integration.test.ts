@@ -5,15 +5,14 @@
  * ---------------------------------------------------------------------------
  * onboarding-bff has no Ingress event-listener and no AppSync Facade.
  * The only testable surface is DynamoDB: the agent's commit-phase tool writes
- * records that CDC picks up and emits ONBOARDING_COMPLETED / GO_LIVE_CONFIRMED.
+ * records that CDC picks up and emits ONBOARDING_COMPLETED.
  *
- * We directly insert the CDC records (OnboardingCompleted, GoLiveConfirmed)
+ * We directly insert the CDC records (OnboardingCompleted)
  * that the repository would write, then verify the key schema and __typename
  * are exactly what the Egress CDC config expects:
  *
  *   eventTypes: {
  *     'OnboardingCompleted': { insert: 'ONBOARDING_COMPLETED' },
- *     'GoLiveConfirmed':     { insert: 'GO_LIVE_CONFIRMED' },
  *   }
  *
  * This validates:
@@ -154,42 +153,4 @@ describe('onboarding-bff: DDB schema validation (CDC path)', () => {
     expect(item['capitalAmount']).toBe(50000);
   }, 60_000);
 
-  /**
-   * Verify that a GoLiveConfirmed CDC record can be written and read back.
-   * pk: GoLiveConfirmed#<tenantId>, sk: GoLiveConfirmed#<timestamp>
-   * __typename: 'GoLiveConfirmed' — triggers GO_LIVE_CONFIRMED via Egress CDC.
-   * This is what the repository's confirmGoLive() inserts in the transact-write.
-   */
-  it('should write and read back a GoLiveConfirmed CDC record (triggers GO_LIVE_CONFIRMED)', async () => {
-    const now = new Date().toISOString();
-    const pk = `GoLiveConfirmed#${ctx.tenantId}`;
-    const sk = `GoLiveConfirmed#${now}`;
-
-    const cdcRecord = {
-      pk,
-      sk,
-      __typename: 'GoLiveConfirmed',
-      tenantId: ctx.tenantId,
-      userId: ctx.userId,
-      timestamp: now,
-      ttl: Math.floor(Date.now() / 1000) + 30 * 24 * 60 * 60,
-    };
-
-    await ddb.send(new PutItemCommand({
-      TableName: tableName,
-      Item: marshall(cdcRecord),
-    }));
-    written.push({ pk, sk });
-
-    const item = await table.waitForItem({
-      table: 'onboarding-bff',
-      pk,
-      sk,
-      timeoutMs: 30_000,
-    });
-
-    expect(item['__typename']).toBe('GoLiveConfirmed');
-    expect(item['tenantId']).toBe(ctx.tenantId);
-    expect(item['userId']).toBe(ctx.userId);
-  }, 60_000);
 });
