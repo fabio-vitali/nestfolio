@@ -166,20 +166,24 @@ new Egress(this, 'Egress', {
 import { extractIngress } from './check-service-card-drift.mjs';
 
 const STACK_INGRESS = `
-const modeIngress = new Ingress(this, 'ModeIngress', {
-  state,
-  eventTypes: [FooInboundEventTypes.EXECUTION_MODE_CHANGED],
-  entry: join(__dirname, 'handlers', 'mode-listener.ts'),
-});
-const CALLBACK_EVENT_TYPES = [
-  FooInboundEventTypes.SIM_ORDER_FILLED,
-  FooInboundEventTypes.SIM_ORDER_REJECTED,
-];
-const cb = new Ingress(this, 'CallbackIngress', {
-  state,
-  eventTypes: CALLBACK_EVENT_TYPES,
-  entry: join(__dirname, 'handlers', 'callback-resolver.ts'),
-});
+class S {
+  constructor() {
+    const modeIngress = new Ingress(this, 'ModeIngress', {
+      state,
+      eventTypes: [FooInboundEventTypes.EXECUTION_MODE_CHANGED],
+      entry: join(__dirname, 'handlers', 'mode-listener.ts'),
+    });
+    const CALLBACK_EVENT_TYPES = [
+      FooInboundEventTypes.SIM_ORDER_FILLED,
+      FooInboundEventTypes.SIM_ORDER_REJECTED,
+    ];
+    const cb = new Ingress(this, 'CallbackIngress', {
+      state,
+      eventTypes: CALLBACK_EVENT_TYPES,
+      entry: join(__dirname, 'handlers', 'callback-resolver.ts'),
+    });
+  }
+}
 `;
 
 const EVENTS_INGRESS = `
@@ -216,15 +220,19 @@ export const InvestorIngestEventTypes = {
 } as const;
 `;
 const STACK_FWD = `
-const fromExecutionEvents = [
-  InvestorIngestEventTypes.ORDER_FILLED,
-  InvestorIngestEventTypes.DEPOSIT_REQUESTED,
-];
-const r = new Rule(this, 'InvestorIngress-FromExecution', {
-  eventBus: executionBus,
-  eventPattern: { detailType: fromExecutionEvents },
-  targets: [new EventBusTarget(investorBus)],
-});
+class S {
+  constructor() {
+    const fromExecutionEvents = [
+      InvestorIngestEventTypes.ORDER_FILLED,
+      InvestorIngestEventTypes.DEPOSIT_REQUESTED,
+    ];
+    const r = new Rule(this, 'InvestorIngress-FromExecution', {
+      eventBus: executionBus,
+      eventPattern: { detailType: fromExecutionEvents },
+      targets: [new EventBusTarget(investorBus)],
+    });
+  }
+}
 `;
 
 test('extractForwarding: Rule detailType array → forwarded wire set', () => {

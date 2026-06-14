@@ -158,17 +158,18 @@ export function extractEgress(sf, resolve) {
   return out;
 }
 
-// Map of local `const NAME = [ ... ]` array declarations in a SourceFile.
+// Map of `const NAME = [ ... ]` array declarations anywhere in a SourceFile
+// (top-level OR inside the class constructor, where real stacks declare them).
 function localArrayConsts(sf) {
   const map = new Map();
-  for (const stmt of sf.statements) {
-    if (!ts.isVariableStatement(stmt)) continue;
-    for (const decl of stmt.declarationList.declarations) {
-      if (ts.isIdentifier(decl.name) && decl.initializer && ts.isArrayLiteralExpression(decl.initializer)) {
-        map.set(decl.name.text, decl.initializer);
-      }
+  const visit = (n) => {
+    if (ts.isVariableDeclaration(n) && ts.isIdentifier(n.name) &&
+        n.initializer && ts.isArrayLiteralExpression(n.initializer)) {
+      map.set(n.name.text, n.initializer);
     }
-  }
+    ts.forEachChild(n, visit);
+  };
+  visit(sf);
   return map;
 }
 
