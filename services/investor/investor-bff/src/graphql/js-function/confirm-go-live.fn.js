@@ -22,6 +22,7 @@ export function request(ctx) {
           changeId, fromMode: 'simulation', toMode: 'live',
           changedAt: now, timestamp: now,
         }),
+        condition: { expression: 'attribute_not_exists(pk)' },
       },
       {
         table: tableName,
@@ -31,9 +32,9 @@ export function request(ctx) {
           expression:
             'SET executionMode = :mode, updatedAt = :now, #ts = :now, #v = if_not_exists(#v, :zero) + :one',
           expressionNames: { '#ts': 'timestamp', '#v': '__version' },
-          expressionValues: util.dynamodb.toMapValues({ ':mode': 'live', ':now': now, ':zero': 0, ':one': 1 }),
+          expressionValues: util.dynamodb.toMapValues({ ':mode': 'live', ':now': now, ':zero': 0, ':one': 1, ':simulation': 'simulation' }),
         },
-        condition: { expression: 'attribute_exists(pk)' },
+        condition: { expression: 'attribute_exists(pk) AND executionMode = :simulation' },
       },
     ],
   };

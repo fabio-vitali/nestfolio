@@ -20,14 +20,21 @@ describe('confirmGoLive resolver (sim→live switch)', () => {
     expect(put.attributeValues.toMode.S).toBe('live');
     expect(put.key.pk.S).toBe('InvestorProfile#t1#u1');
     expect(put.key.sk.S).toMatch(/^ExecutionModeChange#/);
+    // write-once: the audit row may not already exist
+    expect(put.condition.expression).toContain('attribute_not_exists(pk)');
 
     const upd = req.transactItems.find((i: any) => i.operation === 'UpdateItem');
     expect(upd.key.pk.S).toBe('InvestorProfile#t1#u1');
     expect(upd.key.sk.S).toBe('InvestorProfile');
+    // audit row shares the profile's pk (same item collection)
+    expect(put.key.pk.S).toBe(upd.key.pk.S);
     expect(upd.update.expression).toContain('executionMode = :mode');
+    expect(upd.update.expressionValues[':mode'].S).toBe('live');
     expect(upd.update.expression).toContain('#v = if_not_exists(#v, :zero) + :one');
     expect(upd.update.expressionNames['#v']).toBe('__version');
     expect(upd.condition.expression).toContain('attribute_exists(pk)');
+    // double-confirm guard: only flips when still in simulation
+    expect(upd.condition.expression).toContain('executionMode = :simulation');
   });
 
   it('maps a cancelled transaction to a clean InvalidState error', () => {
