@@ -1,11 +1,17 @@
 ---
 id: go-live-agent-wiring-and-emission
-status: queued
+status: active
 type: bug
 rank: 1
 notes: "Go-live is non-functional end-to-end: onboarding-bff confirmGoLive() (writes GoLiveConfirmed CDC row -> GO_LIVE_CONFIRMED) has NO runtime caller, so the simulation->live switch never fires; the wizard renders but the agent ignores flowType='go-live'. No e2e coverage. Surfaced 2026-06-14 by the flows-vs-code audit (go-live.flow.yaml). Done includes refreshing go-live.flow.yaml + regenerate."
 references: []
-out_of_scope: []
+out_of_scope:
+  - "The downstream simulation->live chain (go-live.flow.yaml steps 2-4: investor-bff setExecutionMode -> EXECUTION_MODE_CHANGED -> execution-adpt forward -> broker-ctrl ExecutionMode='live') is already wired; verify-only, do NOT re-implement."
+  - "Broker live-trading / Alpaca routing behavior itself (already exists)."
+  - "Onboarding agent refactors beyond what is required to reach the GO_LIVE_CONFIRMED trigger."
+  - "Frontend go-live wizard UI/UX changes beyond invoking the chosen trigger."
+  - "Notifications/observability for the go-live transition."
+  - "Provisional list pending brainstorming; will be reconciled with the spec's canonical Out-of-scope section."
 spec: null
 plan: null
 topic_memory: []
