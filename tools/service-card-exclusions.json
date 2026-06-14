@@ -1,0 +1,4 @@
+{
+  "$comment": "Service-card drift EXCLUSION registry. Each entry opts a (service[, section]) out of the card-drift gate (tools/check-service-card-drift.mjs). Omit 'section' to exclude the whole service; include it to exclude one section. 'reason' is mandatory and non-empty. See docs/superpowers/specs/2026-06-14-service-card-drift-gate-design.md. Keep alphabetised by service then section.",
+  "exclusions": []
+}
