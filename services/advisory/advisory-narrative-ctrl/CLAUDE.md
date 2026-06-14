@@ -17,7 +17,6 @@ Stack: services/advisory/advisory-narrative-ctrl/src/service.stack.ts
 - Ingress: DECISION_FEEDBACK, GENERATE_NARRATIVE
 <!-- /card-drift:ingress -->
 - advisoryBus -> advisory-narrative-ctrl-ingress (SQS -> Lambda)
-  Subscriptions: GENERATE_NARRATIVE, DECISION_FEEDBACK
   Profile: agentProfile({ p90=35_000ms, burst=40, ux=AGENT_BUDGETS.ADVISORY_NARRATIVE_UX_SEC=120s }) → 1024 MB / 58s timeout / batchSize 1 / concurrency 12 / visibility 232s. P90 raised from observed 29.7s to 35s so the Lambda timeout covers p99=53.7s.
   Grants: KB bucket read/write, Bedrock KB sync, AgentCore Memory API, InvokeAgentRuntime, AgentRuntimeUrl SSM read
   Pattern: materializeToTable. GENERATE_NARRATIVE runs the agent and emits AgentCompletion (success) / AgentFailure (caught error) rows. DECISION_FEEDBACK is routed through feedback-correlator to annotate decisions + sync the KB corpus.
@@ -31,11 +30,6 @@ Stack: services/advisory/advisory-narrative-ctrl/src/service.stack.ts
 - ReasoningOutput: EXPLANATION_GENERATED
 <!-- /card-drift:egress -->
 - CDC: DynamoDB Streams -> advisory-narrative-ctrl-egress (Lambda)
-  Emits:
-  - ReasoningOutput -> EXPLANATION_GENERATED (insert only)
-  - AgentCompletion -> NARRATIVE_COMPLETED (insert only)
-  - AgentFailure -> NARRATIVE_FAILED (insert only)
-
   Flow: handler writes AgentCompletion/AgentFailure via materializeToTable -> DDB Stream -> CDC publisher -> EB -> DWC CallbackIngress -> states:SendTaskSuccess / states:SendTaskFailure. (No states:* IAM owned by this service.)
 
 ## AgentRuntime
@@ -58,10 +52,6 @@ Agent folder: agents/advisory-narrative/
 <!-- card-drift:event-types (generated — `nx run event-processor:card-drift -- --fix`) -->
 - NarrativeEventTypes: ADVISORY_NARRATIVE_AGENT_INVOCATION_TRACED, EXPLANATION_GENERATED, NARRATIVE_COMPLETED, NARRATIVE_FAILED
 <!-- /card-drift:event-types -->
-- NarrativeEventTypes (outbound): NARRATIVE_COMPLETED, NARRATIVE_FAILED, EXPLANATION_GENERATED, ADVISORY_NARRATIVE_AGENT_INVOCATION_TRACED
-- HANDLED_EVENT_TYPES (inbound): GENERATE_NARRATIVE, DECISION_FEEDBACK
-- FEEDBACK_EVENT_TYPES (routed): DECISION_FEEDBACK
-
 ## IAM trace
 - Memory API: CreateEvent, RetrieveMemoryRecords, GetMemoryRecord, ListEvents, ListActors, ListSessions (resources: *)
 - InvokeAgentRuntime on runtime ARN + endpoint sub-resource

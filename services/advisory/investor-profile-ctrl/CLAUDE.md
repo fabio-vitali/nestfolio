@@ -17,7 +17,6 @@ Stack: services/advisory/investor-profile-ctrl/src/service.stack.ts
 - Ingress: DECISION_APPROVED, DECISION_BLOCKED, INVESTOR_PROFILE_UPDATED, MANDATE_ISSUED
 <!-- /card-drift:ingress -->
 - advisoryBus -> investor-profile-ctrl-ingress (SQS -> Lambda)
-  Subscriptions: INVESTOR_PROFILE_UPDATED, MANDATE_ISSUED, DECISION_BLOCKED, DECISION_APPROVED
   Note: OPERATING_MODE_CHANGED was dropped (2026-06-03) — investor-bff re-sourced it from the Mandate CDC row, so the event subject now carries Mandate fields (mandateId/level/status/operatingMode/effectiveDate) rather than the full InvestorProfile. Feeding a Mandate row to the snapshot agent would produce degraded output. operatingMode changes still rebuild the snapshot via INVESTOR_PROFILE_UPDATED, which investor-bff's dual-write co-fires on every operatingMode change (touching the InvestorProfile row → its `always` carrier).
   Profile: agentProps (1024 MB / batchSize 1 / concurrency 5) with timing overrides — lambdaTimeout 150s, SQS visibilityTimeout 240s (fast native redrive on maxVms; no production deadline — see agentcore-invocation-resilience spec)
   Grants: AgentCore Memory API, InvokeAgentRuntime, AgentRuntimeUrl SSM read
@@ -29,8 +28,6 @@ Stack: services/advisory/investor-profile-ctrl/src/service.stack.ts
 - InvestorProfileSnapshot: INVESTOR_PROFILE_SNAPSHOT_CREATED, INVESTOR_PROFILE_SNAPSHOT_UPDATED
 <!-- /card-drift:egress -->
 - CDC: DynamoDB Streams -> investor-profile-ctrl-egress (Lambda)
-  Emits:
-  - InvestorProfileSnapshot -> INVESTOR_PROFILE_SNAPSHOT_CREATED (insert), INVESTOR_PROFILE_SNAPSHOT_UPDATED (modify) [typed: InvestorProfileSnapshotSchema]
   (AgentInvocation + ReasoningOutput rows are still written but NOT CDC-emitted — GOAL_INTERPRETATION_PRODUCED + RISK_EVALUATION_PRODUCED were stop-emitted; zero consumers.)
 
 ## AgentRuntime
@@ -64,7 +61,6 @@ Agent folder: agents/investor-profile/
 <!-- card-drift:event-types (generated — `nx run event-processor:card-drift -- --fix`) -->
 - InvestorProfileEventTypes: GOAL_INTERPRETATION_PRODUCED, INVESTOR_PROFILE_AGENT_INVOCATION_TRACED, INVESTOR_PROFILE_SNAPSHOT_CREATED, INVESTOR_PROFILE_SNAPSHOT_UPDATED, RISK_EVALUATION_PRODUCED
 <!-- /card-drift:event-types -->
-- InvestorProfileEventTypes (outbound): GOAL_INTERPRETATION_PRODUCED, RISK_EVALUATION_PRODUCED, INVESTOR_PROFILE_AGENT_INVOCATION_TRACED, INVESTOR_PROFILE_SNAPSHOT_CREATED, INVESTOR_PROFILE_SNAPSHOT_UPDATED
 - HANDLED_EVENT_TYPES (inbound triggers): INVESTOR_PROFILE_UPDATED, MANDATE_ISSUED
 - KB_INGESTION_EVENT_TYPES (inbound, KB-only): DECISION_BLOCKED, DECISION_APPROVED
 

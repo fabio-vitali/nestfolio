@@ -11,7 +11,6 @@ Stack: services/advisory/yahoo-finance-adpt/src/service.stack.ts
 - Ingress: FETCH_YAHOO_FINANCE_REQUESTED
 <!-- /card-drift:ingress -->
 - advisoryBus → yahoo-finance-adpt-ingress (SQS → Lambda, 60s timeout)
-  Subscriptions: FETCH_YAHOO_FINANCE_REQUESTED
   Environment: TICKERS (default: VTI,BND,QQQ,VTIP,SPY)
 
 ## Egress
@@ -19,8 +18,6 @@ Stack: services/advisory/yahoo-finance-adpt/src/service.stack.ts
 - YahooFinanceArticle: YAHOO_FINANCE_UPDATED
 <!-- /card-drift:egress -->
 - CDC: DynamoDB Streams → yahoo-finance-adpt-egress (Lambda)
-  Emits:
-  - YahooFinanceArticle → insert: YAHOO_FINANCE_UPDATED
 
 ## Schedule
 - AdapterSchedule: EventBridge Scheduler → FetchTrigger Lambda → publishes FETCH_YAHOO_FINANCE_REQUESTED
@@ -42,7 +39,6 @@ Stack: services/advisory/yahoo-finance-adpt/src/service.stack.ts
 <!-- card-drift:event-types (generated — `nx run event-processor:card-drift -- --fix`) -->
 - YahooFinanceAdptEventTypes: FETCH_REQUESTED (FETCH_YAHOO_FINANCE_REQUESTED), YAHOO_FINANCE_UPDATED
 <!-- /card-drift:event-types -->
-- YahooFinanceAdptEventTypes: FETCH_REQUESTED (FETCH_YAHOO_FINANCE_REQUESTED), YAHOO_FINANCE_UPDATED
 
 ## Event Payload Contracts (domain/contracts.ts → @nestfolio/yahoo-finance-adpt/contracts)
 Producer-owned zod CDC subject contracts. GLOBAL aggregate — SubjectContext only, no identity context. project() injects pk/sk/__typename, so subjects are fields-only.

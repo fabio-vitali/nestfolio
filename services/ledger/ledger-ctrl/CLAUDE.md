@@ -11,7 +11,6 @@ Stack: services/ledger/ledger-ctrl/src/service.stack.ts
 - Ingress: CORPORATE_ACTION_APPLIED, DECISION_PACKET_CREATED, DEPOSIT_SETTLED, ORDER_CANCELLED, ORDER_FILLED, ORDER_PARTIALLY_FILLED, ORDER_REJECTED, WITHDRAWAL_SETTLED
 <!-- /card-drift:ingress -->
 - ledgerBus → ledger-ctrl-ingress (SQS → Lambda)
-  Subscriptions: ORDER_FILLED, ORDER_PARTIALLY_FILLED, ORDER_REJECTED, ORDER_CANCELLED, DEPOSIT_DETECTED, WITHDRAWAL_COMPLETED, CORPORATE_ACTION_APPLIED, DECISION_PACKET_CREATED
 
 ## Egress
 <!-- card-drift:egress (generated — `nx run event-processor:card-drift -- --fix`) -->
@@ -20,10 +19,6 @@ Stack: services/ledger/ledger-ctrl/src/service.stack.ts
 - PortfolioEvent: PORTFOLIO_EVENT_UPDATED, PORTFOLIO_UPDATED
 <!-- /card-drift:egress -->
 - CDC: DynamoDB Streams → ledger-ctrl-egress (Lambda)
-  Emits:
-  - BalanceEvent → insert: BALANCE_UPDATED, modify: BALANCE_EVENT_UPDATED
-  - PortfolioEvent → insert: PORTFOLIO_UPDATED, modify: PORTFOLIO_EVENT_UPDATED
-  - LedgerEntryEvent → insert: LEDGER_ENTRY_RECORDED, modify: LEDGER_ENTRY_EVENT_UPDATED
 
 ## Standalone Lambdas
 - ReducerFn: DDB Stream consumer that materializes account snapshots
@@ -45,7 +40,6 @@ Stack: services/ledger/ledger-ctrl/src/service.stack.ts
 <!-- card-drift:event-types (generated — `nx run event-processor:card-drift -- --fix`) -->
 - LedgerCtrlEventTypes: BALANCE_EVENT_UPDATED, BALANCE_UPDATED, LEDGER_ENTRY_EVENT_UPDATED, LEDGER_ENTRY_RECORDED, LEDGER_PROCESSING_FAILED, LEDGER_SIMULATION_FAILED, PORTFOLIO_EVENT_UPDATED, PORTFOLIO_UPDATED
 <!-- /card-drift:event-types -->
-- LedgerCtrlEventTypes: BALANCE_UPDATED, BALANCE_EVENT_UPDATED, PORTFOLIO_UPDATED, PORTFOLIO_EVENT_UPDATED, LEDGER_ENTRY_RECORDED, LEDGER_ENTRY_EVENT_UPDATED, LEDGER_PROCESSING_FAILED, LEDGER_SIMULATION_FAILED
 
 ## Contracts (domain/contracts.ts → @nestfolio/ledger-ctrl/contracts)
 Producer-owned zod payload contracts for the CDC-published subjects (imports ONLY zod). Consumers parse via these schemas — payload changes break consumer builds. DRY domain subjects — identity travels in the event context (RequestContext), not on the subject.

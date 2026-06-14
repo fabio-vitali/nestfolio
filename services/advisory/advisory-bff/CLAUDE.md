@@ -11,7 +11,6 @@ Stack: services/advisory/advisory-bff/src/service.stack.ts
 - Ingress: DECISION_CYCLE_FAILED, DECISION_CYCLE_STARTED, DECISION_PACKET_CREATED, DECISION_PACKET_UPDATED
 <!-- /card-drift:ingress -->
 - advisoryBus → advisory-bff-ingress (SQS → Lambda)
-  Subscriptions: DECISION_PACKET_CREATED, DECISION_PACKET_UPDATED, DECISION_CYCLE_STARTED, DECISION_CYCLE_FAILED
   (WS-2: the two SF-direct cycle-lifecycle events project GENERATING/FAILED onto the DecisionReadModel
   row before any packet exists; the Ingress $or source filter accepts the bare serviceName source.)
   (Workstream 3: DECISION_APPROVED, DECISION_BLOCKED, USER_CONFIRMATION_REQUESTED, and all 7 SF
@@ -26,11 +25,6 @@ Stack: services/advisory/advisory-bff/src/service.stack.ts
 - UserRejection: USER_REJECTED
 <!-- /card-drift:egress -->
 - CDC: DynamoDB Streams → advisory-bff-egress (Lambda)
-  Emits:
-  - DecisionReadModel → insert: DECISION_READ_MODEL_CREATED, modify: DECISION_READ_MODEL_UPDATED [typed: DecisionReadModelSchema]
-  - AdvisoryStatus → insert: ADVISORY_STATUS_UPDATED, modify: ADVISORY_STATUS_UPDATED [typed: AdvisoryStatusSchema]
-  - UserConfirmation → insert: USER_CONFIRMED [typed: UserConfirmationSchema]
-  - UserRejection → insert: USER_REJECTED [typed: UserRejectionSchema]
   (UserInteraction row is still written but NOT CDC-emitted — USER_INTERACTION_CREATED + USER_INTERACTION_UPDATED were stop-emitted; zero consumers.)
 
 ## Facade
@@ -78,9 +72,6 @@ Producer-owned zod CDC subject contracts, exported via `@nestfolio/advisory-bff/
 <!-- card-drift:event-types (generated — `nx run event-processor:card-drift -- --fix`) -->
 - AdvisoryBffEventTypes: ADVISORY_STATUS_UPDATED, DECISION_READ_MODEL_CREATED, DECISION_READ_MODEL_UPDATED, USER_CONFIRMED, USER_INTERACTION_CREATED, USER_INTERACTION_UPDATED, USER_REJECTED, USER_VIEWED_EXPLANATION
 <!-- /card-drift:event-types -->
-- AdvisoryBffEventTypes: ADVISORY_STATUS_UPDATED, USER_CONFIRMED, USER_REJECTED, USER_VIEWED_EXPLANATION,
-  DECISION_READ_MODEL_CREATED, DECISION_READ_MODEL_UPDATED, USER_INTERACTION_CREATED, USER_INTERACTION_UPDATED
-
 ## GraphQL Surface (schema.graphql)
 - Queries: getDecision, getPendingDecisions, getDecisionHistory, getAgentInvocations, getComplianceChecks
   - getPendingDecisions status filter includes GENERATING + FAILED (WS-3) so cycle-lifecycle rows reach the /advisory list UI.

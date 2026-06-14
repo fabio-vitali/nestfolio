@@ -16,7 +16,6 @@ Stack: services/ledger/reconciliation-ctrl/src/service.stack.ts
 - Ingress: ALPACA_ACCOUNT_SNAPSHOT, CORPORATE_ACTION_APPLIED, PORTFOLIO_SNAPSHOT_IMPORTED, PORTFOLIO_UPDATED
 <!-- /card-drift:ingress -->
 - LedgerBus → reconciliation-ctrl-ingress (SQS → Lambda)
-  Subscriptions: PORTFOLIO_UPDATED, PORTFOLIO_SNAPSHOT_IMPORTED, CORPORATE_ACTION_APPLIED, ALPACA_ACCOUNT_SNAPSHOT
 
 ## Egress
 <!-- card-drift:egress (generated — `nx run event-processor:card-drift -- --fix`) -->
@@ -24,9 +23,6 @@ Stack: services/ledger/reconciliation-ctrl/src/service.stack.ts
 - ReconciliationResult: RECONCILIATION_COMPLETED, RECONCILIATION_RESULT_UPDATED
 <!-- /card-drift:egress -->
 - CDC: DynamoDB Streams → reconciliation-ctrl-egress (Lambda)
-  Emits:
-    - ReconciliationResult: insert → RECONCILIATION_COMPLETED, modify → RECONCILIATION_RESULT_UPDATED
-    - DriftRecord: insert → PORTFOLIO_DRIFT_DETECTED, modify → DRIFT_RECORD_UPDATED
 
 ## Contracts (domain/contracts.ts → @nestfolio/reconciliation-ctrl/contracts)
 Producer-owned zod payload contracts for the 2 CDC-emitted rows (imports ONLY zod). Dry subjects — identity travels in the event context (RequestContext), not on the subject.
@@ -43,7 +39,6 @@ Producer-owned zod payload contracts for the 2 CDC-emitted rows (imports ONLY zo
 <!-- card-drift:event-types (generated — `nx run event-processor:card-drift -- --fix`) -->
 - ReconciliationEventTypes: CORPORATE_ACTION_APPLIED, DRIFT_RECORD_UPDATED, PORTFOLIO_DRIFT_DETECTED, PROJECTION_REBUILT, RECONCILIATION_COMPLETED, RECONCILIATION_FAILED, RECONCILIATION_LOCK_ACQUIRED, RECONCILIATION_LOCK_RELEASED, RECONCILIATION_REQUIRED, RECONCILIATION_RESULT_UPDATED, RECONCILIATION_STARTED
 <!-- /card-drift:event-types -->
-- ReconciliationEventTypes: PORTFOLIO_DRIFT_DETECTED, RECONCILIATION_REQUIRED, RECONCILIATION_STARTED, RECONCILIATION_COMPLETED, RECONCILIATION_RESULT_UPDATED, RECONCILIATION_FAILED, DRIFT_RECORD_UPDATED, RECONCILIATION_LOCK_ACQUIRED, RECONCILIATION_LOCK_RELEASED, PROJECTION_REBUILT, CORPORATE_ACTION_APPLIED
 
 ## Tests
 - domain/contracts.test.ts

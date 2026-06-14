@@ -20,15 +20,12 @@ Stack: services/advisory/decision-workflow-ctrl/src/service.stack.ts
 - SnapshotProjectorIngress (snapshot-projector.ts): INVESTOR_PROFILE_SNAPSHOT_CREATED, INVESTOR_PROFILE_SNAPSHOT_UPDATED, MARKET_SNAPSHOT_UPDATED, PORTFOLIO_UPDATED
 <!-- /card-drift:ingress -->
 - CallbackIngress: advisoryBus → decision-workflow-ctrl-callback-ingress (SQS → Lambda: sfn-callback.ts)
-  Subscriptions: PORTFOLIO_COMPLETED, NARRATIVE_COMPLETED, PORTFOLIO_FAILED, NARRATIVE_FAILED, DECISION_APPROVED, DECISION_BLOCKED, USER_CONFIRMED, USER_REJECTED
   Note: post-precomputation, IP and MI no longer emit completion events (they precompute snapshots). PE + AN are the only services that resume the SF via callbacks; failure events are added so failures resume the SF via SendTaskFailure (Task 10).
 
 - MandateProjectorIngress: advisoryBus → decision-workflow-ctrl-mandate-projector-ingress (SQS → Lambda: mandate-projector.ts)
-  Subscriptions: MANDATE_ISSUED, OPERATING_MODE_CHANGED
   Materializes a service-private MandateSnapshot row so the SF can resolve operatingMode for ALL triggers via a single Direct DDB GetItem (no Lambda, no Choice branch).
 
 - SnapshotProjectorIngress: advisoryBus → decision-workflow-ctrl-snapshot-projector-ingress (SQS → Lambda: snapshot-projector.ts) — added Task 8
-  Subscriptions: INVESTOR_PROFILE_SNAPSHOT_CREATED, INVESTOR_PROFILE_SNAPSHOT_UPDATED, MARKET_SNAPSHOT_UPDATED, PORTFOLIO_UPDATED
   Materializes DWC-local InvestorProfileSnapshot + MarketSnapshot rows so the SF reads pre-computed agent outputs via Direct DDB GetItem (no Lambda).
   errorEventType: SNAPSHOT_PROJECTION_FAILED
 
@@ -89,9 +86,8 @@ Stack: services/advisory/decision-workflow-ctrl/src/service.stack.ts
 <!-- card-drift:event-types (generated — `nx run event-processor:card-drift -- --fix`) -->
 - DecisionWorkflowEventTypes: AGENT_OUTPUT_CREATED, AGENT_OUTPUT_UPDATED, CONSTRUCT_PORTFOLIO, DECISION_CYCLE_FAILED, DECISION_CYCLE_STARTED, DECISION_FEEDBACK, DECISION_PACKET_CREATED, DECISION_PACKET_UPDATED, DECISION_WORKFLOW_FAILED, GENERATE_NARRATIVE, MANDATE_SNAPSHOT_CREATED, RECOMMENDATION_PROPOSED
 <!-- /card-drift:event-types -->
-- DecisionWorkflowEventTypes (outbound + routed): DECISION_PACKET_CREATED, DECISION_PACKET_UPDATED, CONSTRUCT_PORTFOLIO, GENERATE_NARRATIVE, RECOMMENDATION_PROPOSED, DECISION_FEEDBACK, DECISION_WORKFLOW_FAILED, AGENT_OUTPUT_CREATED, AGENT_OUTPUT_UPDATED, MANDATE_SNAPSHOT_CREATED, DECISION_CYCLE_STARTED, DECISION_CYCLE_FAILED
-  Note: USER_CONFIRMATION_REQUESTED removed (Task 1.5). The RequestUserConfirmation SF state now writes the task token directly onto the DecisionPacket DDB row via updateItem.waitForTaskToken; advisory-bff reads the token from the DECISION_PACKET_UPDATED CDC snapshot.
-  Note: DECISION_CYCLE_STARTED / DECISION_CYCLE_FAILED are SF-DIRECT events (putEvents from the state machine, Source=serviceName), NOT CDC/Egress — no DecisionPacket row exists at emit time. STARTED fires after UnpackTriggerEnvelope (status GENERATING, __version:0); FAILED fires from a shared Catch (errors States.ALL, resultPath $.error) on the 4 pre-packet states ParallelProjections / InvokePortfolioEngine / InvokeAdvisoryNarrative / AssembleDecisionPacket (status FAILED, __version:1) → Fail. advisory-bff (WS-2) projects them onto the DecisionReadModel row via projectVersioned. Uncatchable States.Runtime emits no FAILED (advisory-mfe staleness guard, WS-3).
+Note: USER_CONFIRMATION_REQUESTED removed (Task 1.5). The RequestUserConfirmation SF state now writes the task token directly onto the DecisionPacket DDB row via updateItem.waitForTaskToken; advisory-bff reads the token from the DECISION_PACKET_UPDATED CDC snapshot.
+Note: DECISION_CYCLE_STARTED / DECISION_CYCLE_FAILED are SF-DIRECT events (putEvents from the state machine, Source=serviceName), NOT CDC/Egress — no DecisionPacket row exists at emit time. STARTED fires after UnpackTriggerEnvelope (status GENERATING, __version:0); FAILED fires from a shared Catch (errors States.ALL, resultPath $.error) on the 4 pre-packet states ParallelProjections / InvokePortfolioEngine / InvokeAdvisoryNarrative / AssembleDecisionPacket (status FAILED, __version:1) → Fail. advisory-bff (WS-2) projects them onto the DecisionReadModel row via projectVersioned. Uncatchable States.Runtime emits no FAILED (advisory-mfe staleness guard, WS-3).
 - TRIGGER_EVENT_TYPES (7): MANDATE_SNAPSHOT_CREATED, INVESTOR_PROFILE_UPDATED, PORTFOLIO_DRIFT_DETECTED, ORDER_FILLED, ORDER_REJECTED, ORDER_CANCELLED, DEPOSIT_DETECTED
 - MANDATE_LIFECYCLE_EVENT_TYPES (2): MANDATE_ISSUED, OPERATING_MODE_CHANGED — wired into MandateProjectorIngress
 - AGENT_COMPLETION_EVENT_TYPES (post-precomputation — only PE+AN): PORTFOLIO_COMPLETED, NARRATIVE_COMPLETED

@@ -11,7 +11,6 @@ Stack: services/ledger/ledger-bff/src/service.stack.ts
 - Ingress: BALANCE_UPDATED, LEDGER_ENTRY_RECORDED, PORTFOLIO_UPDATED
 <!-- /card-drift:ingress -->
 - LedgerBus → ledger-bff-ingress (SQS → Lambda)
-  Subscriptions: BALANCE_UPDATED, PORTFOLIO_UPDATED, LEDGER_ENTRY_RECORDED
 
 ## Facade
 - AppSync GraphQL API

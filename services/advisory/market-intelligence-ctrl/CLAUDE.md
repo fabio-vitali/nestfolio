@@ -33,8 +33,6 @@ Stack: services/advisory/market-intelligence-ctrl/src/service.stack.ts
 - MarketSnapshot: MARKET_SNAPSHOT_UPDATED
 <!-- /card-drift:egress -->
 - CDC: DynamoDB Streams -> market-intelligence-ctrl-egress (Lambda)
-  Emits:
-  - MarketSnapshot -> MARKET_SNAPSHOT_UPDATED (insert AND modify — every fast-tier write or slow-tier rebuild emits one notification) [typed: MarketSnapshotSchema]
   (AgentInvocation row is still written but NOT CDC-emitted — MARKET_SIGNAL_DETECTED was stop-emitted; zero consumers.)
 
 ## AgentRuntime
@@ -82,7 +80,6 @@ Note (row type, 2026-06-10): `MarketSnapshotRow` (domain/models.ts) is now `Tabl
 <!-- card-drift:event-types (generated — `nx run event-processor:card-drift -- --fix`) -->
 - MarketIntelligenceEventTypes: MARKET_INTELLIGENCE_AGENT_INVOCATION_TRACED, MARKET_SIGNAL_DETECTED, MARKET_SNAPSHOT_REFRESH_TICK, MARKET_SNAPSHOT_UPDATED
 <!-- /card-drift:event-types -->
-- MarketIntelligenceEventTypes (outbound): MARKET_SIGNAL_DETECTED, MARKET_INTELLIGENCE_AGENT_INVOCATION_TRACED, MARKET_SNAPSHOT_UPDATED, MARKET_SNAPSHOT_REFRESH_TICK
 - HANDLED_EVENT_TYPES (inbound): YAHOO_FINANCE_UPDATED, MARKETWATCH_UPDATED, SEC_8K_FILED, FRED_INDICATORS_UPDATED, ALPHA_VANTAGE_NEWS_UPDATED, MARKET_SNAPSHOT_REFRESH_TICK
 - FEED_INGESTION_EVENT_TYPES (KB-routed): YAHOO_FINANCE_UPDATED, MARKETWATCH_UPDATED, SEC_8K_FILED, FRED_INDICATORS_UPDATED, ALPHA_VANTAGE_NEWS_UPDATED
 

@@ -11,7 +11,6 @@ Stack: services/advisory/compliance-ctrl/src/service.stack.ts
 - Ingress: MANDATE_ISSUED, MANDATE_REVOKED, OPERATING_MODE_CHANGED, RECOMMENDATION_PROPOSED
 <!-- /card-drift:ingress -->
 - advisoryBus → compliance-ctrl-ingress (SQS → Lambda)
-  Subscriptions: RECOMMENDATION_PROPOSED, MANDATE_ISSUED, OPERATING_MODE_CHANGED, MANDATE_REVOKED
 
 Post-resplit (2026-05-08): subscribes to semantic/lifecycle events directly instead of carrier events. MANDATE_ISSUED bootstraps the GuardrailPolicy on onboarding; OPERATING_MODE_CHANGED re-projects the policy when mode changes; MANDATE_REVOKED sets MandateSnapshot.status='REVOKED'. No longer subscribes to INVESTOR_PROFILE_CREATED or INVESTOR_PROFILE_UPDATED.
 
@@ -20,8 +19,6 @@ Post-resplit (2026-05-08): subscribes to semantic/lifecycle events directly inst
 - ComplianceCheck: DECISION_APPROVED, DECISION_BLOCKED
 <!-- /card-drift:egress -->
 - CDC: DynamoDB Streams → compliance-ctrl-egress (Lambda)
-  Emits:
-  - ComplianceCheck → insert: field dispatch on `result` — APPROVED → DECISION_APPROVED, BLOCKED → DECISION_BLOCKED [typed: ComplianceCheckSchema]
   (AuditArtifact row is still written but NOT CDC-emitted — AUDIT_ARTIFACT_CREATED + AUDIT_ARTIFACT_UPDATED were stop-emitted; zero consumers.)
 
 ## Handlers
@@ -41,8 +38,6 @@ Post-resplit (2026-05-08): subscribes to semantic/lifecycle events directly inst
 <!-- card-drift:event-types (generated — `nx run event-processor:card-drift -- --fix`) -->
 - ComplianceEventTypes: AUDIT_ARTIFACT_CREATED, AUDIT_ARTIFACT_UPDATED, COMPLIANCE_APPROVAL_GRANTED, DECISION_APPROVED, DECISION_BLOCKED, ESCALATION_TRIGGERED, GUARDRAIL_VIOLATION_DETECTED, SUITABILITY_CHECK_FAILED, SUITABILITY_CHECK_PASSED
 <!-- /card-drift:event-types -->
-- ComplianceEventTypes (outbound, via CDC): DECISION_APPROVED, DECISION_BLOCKED, GUARDRAIL_VIOLATION_DETECTED, ESCALATION_TRIGGERED, COMPLIANCE_APPROVAL_GRANTED, AUDIT_ARTIFACT_CREATED, SUITABILITY_CHECK_PASSED, SUITABILITY_CHECK_FAILED, AUDIT_ARTIFACT_UPDATED
-
 ## Event Payload Contracts (domain/contracts.ts → @nestfolio/compliance-ctrl/contracts)
 Producer-owned zod CDC subject contracts, exported via `@nestfolio/compliance-ctrl/contracts`. DRY domain subjects — identity travels in the event context (RequestContext), not on the subject. The old `domain/schemas.ts` (dead `DecisionApprovedSchema`/`DecisionBlockedSchema` — structurally wrong, unimported) was deleted and replaced by this contract.
 - ComplianceCheckSchema / ComplianceCheck — `ComplianceCheck` row (sk='ComplianceCheck'), CDC value-mapped on `result`: DECISION_APPROVED (result=APPROVED) / DECISION_BLOCKED (result=BLOCKED). Fields: ccId, decisionPacketId, decisionId (dual-field alias), taskToken, mandateSnapshot:{level['ADVISORY'|'DISCRETIONARY'],status['ACTIVE'|'REVOKED'],operatingMode['CONSERVATIVE'|'BALANCED'|'AGGRESSIVE'],effectiveDate}, status['COMPLETED'|'BLOCKED'], result['APPROVED'|'BLOCKED'], violations:[{rule,description,severity['WARNING'|'BLOCKING']}], authorityLevel['L1'|'L2'], sourceEventId.

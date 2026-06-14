@@ -26,11 +26,6 @@ Post-resplit (2026-05-08): INVESTOR_PROFILE_UPDATED diff-detect handler removed.
 - Notification: NOTIFICATION_CREATED, NOTIFICATION_UPDATED
 <!-- /card-drift:egress -->
 
-| Entity        | insert                 | modify                 |
-|---------------|------------------------|------------------------|
-| Notification  | NOTIFICATION_CREATED   | NOTIFICATION_UPDATED   |
-| MonthlyReport | MONTHLY_REPORT_CREATED | MONTHLY_REPORT_UPDATED |
-
 ## Handlers
 
 - event-listener.ts (materializeToTable, errorEventType: INVESTOR_CTRL_FAILED)
@@ -65,8 +60,6 @@ Post-resplit (2026-05-08): INVESTOR_PROFILE_UPDATED diff-detect handler removed.
 <!-- card-drift:event-types (generated — `nx run event-processor:card-drift -- --fix`) -->
 - InvestorCtrlEventTypes: MONTHLY_REPORT_CREATED, MONTHLY_REPORT_GENERATED, MONTHLY_REPORT_UPDATED, NOTIFICATION_CREATED, NOTIFICATION_DELIVERED, NOTIFICATION_SENT, NOTIFICATION_UPDATED
 <!-- /card-drift:event-types -->
-
-InvestorCtrlEventTypes: NOTIFICATION_CREATED, NOTIFICATION_UPDATED, NOTIFICATION_SENT, NOTIFICATION_DELIVERED, MONTHLY_REPORT_CREATED, MONTHLY_REPORT_UPDATED, MONTHLY_REPORT_GENERATED
 
 ## Services
 

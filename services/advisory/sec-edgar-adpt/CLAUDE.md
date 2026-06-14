@@ -11,7 +11,6 @@ Stack: services/advisory/sec-edgar-adpt/src/service.stack.ts
 - Ingress: FETCH_SEC_EDGAR_REQUESTED
 <!-- /card-drift:ingress -->
 - advisoryBus → sec-edgar-adpt-ingress (SQS → Lambda, 120s timeout, 512 MB)
-  Subscriptions: FETCH_SEC_EDGAR_REQUESTED
   Environment: TRACKED_CIKS (0000102909, 0000088053, 0000914208)
 
 ## Egress
@@ -45,7 +44,6 @@ Stack: services/advisory/sec-edgar-adpt/src/service.stack.ts
 <!-- card-drift:event-types (generated — `nx run event-processor:card-drift -- --fix`) -->
 - SecEdgarAdptEventTypes: FETCH_REQUESTED (FETCH_SEC_EDGAR_REQUESTED), SEC_10K_UPDATED, SEC_8K_FILED, SEC_PROSPECTUS_UPDATED
 <!-- /card-drift:event-types -->
-- SecEdgarAdptEventTypes: FETCH_REQUESTED (FETCH_SEC_EDGAR_REQUESTED), SEC_8K_FILED, SEC_PROSPECTUS_UPDATED, SEC_10K_UPDATED
 
 ## Event Payload Contracts (domain/contracts.ts → @nestfolio/sec-edgar-adpt/contracts)
 Producer-owned zod CDC subject contracts. GLOBAL aggregate — SubjectContext only, no identity context. project() injects pk/sk/__typename, so subjects are fields-only.

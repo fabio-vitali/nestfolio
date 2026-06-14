@@ -11,7 +11,6 @@ Stack: services/advisory/fred-adpt/src/service.stack.ts
 - Ingress: FETCH_FRED_REQUESTED
 <!-- /card-drift:ingress -->
 - advisoryBus → fred-adpt-ingress (SQS → Lambda, 90s timeout)
-  Subscriptions: FETCH_FRED_REQUESTED
   Environment: FRED_API_KEY (from SSM)
 
 ## Egress
@@ -19,7 +18,6 @@ Stack: services/advisory/fred-adpt/src/service.stack.ts
 - FredIndicator: FRED_INDICATORS_UPDATED
 <!-- /card-drift:egress -->
 - CDC: DynamoDB Streams → fred-adpt-egress (Lambda)
-  Emits: FRED_INDICATORS_UPDATED (FredIndicator, insert only)
 
 ## Schedule
 - AdapterSchedule: EventBridge Scheduler → FetchTrigger Lambda → publishes FETCH_FRED_REQUESTED
@@ -41,8 +39,6 @@ Stack: services/advisory/fred-adpt/src/service.stack.ts
 <!-- card-drift:event-types (generated — `nx run event-processor:card-drift -- --fix`) -->
 - FredAdptEventTypes: FETCH_REQUESTED (FETCH_FRED_REQUESTED), FRED_INDICATORS_UPDATED
 <!-- /card-drift:event-types -->
-- FredAdptEventTypes: FETCH_REQUESTED (FETCH_FRED_REQUESTED), FRED_INDICATORS_UPDATED
-
 ## Event Payload Contracts (domain/contracts.ts → @nestfolio/fred-adpt/contracts)
 Producer-owned zod CDC subject contracts. GLOBAL aggregate — SubjectContext only, no identity context. project() injects pk/sk/__typename, so subjects are fields-only.
 - FredIndicatorSchema / FredIndicator — FRED_INDICATORS_UPDATED subject. Fields: seriesId, label, date, value. Replaces the old `interface FredIndicator` (re-exported directly from contracts).

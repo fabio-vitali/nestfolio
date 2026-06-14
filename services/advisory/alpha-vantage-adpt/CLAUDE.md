@@ -11,7 +11,6 @@ Stack: services/advisory/alpha-vantage-adpt/src/service.stack.ts
 - Ingress: FETCH_ALPHA_VANTAGE_REQUESTED
 <!-- /card-drift:ingress -->
 - advisoryBus → alpha-vantage-adpt-ingress (SQS → Lambda, 90s timeout)
-  Subscriptions: FETCH_ALPHA_VANTAGE_REQUESTED
   Environment: ALPHA_VANTAGE_API_KEY (from SSM)
 
 ## Egress
@@ -20,7 +19,6 @@ Stack: services/advisory/alpha-vantage-adpt/src/service.stack.ts
 - EconomicIndicator: ALPHA_VANTAGE_ECONOMIC_INDICATOR_UPDATED
 <!-- /card-drift:egress -->
 - CDC: DynamoDB Streams → alpha-vantage-adpt-egress (Lambda)
-  Emits: ALPHA_VANTAGE_NEWS_UPDATED (AlphaVantageArticle, insert only), ALPHA_VANTAGE_ECONOMIC_INDICATOR_UPDATED (EconomicIndicator, insert only)
 
 ## Schedule
 - AdapterSchedule: EventBridge Scheduler → FetchTrigger Lambda → publishes FETCH_ALPHA_VANTAGE_REQUESTED
@@ -42,8 +40,6 @@ Stack: services/advisory/alpha-vantage-adpt/src/service.stack.ts
 <!-- card-drift:event-types (generated — `nx run event-processor:card-drift -- --fix`) -->
 - AlphaVantageAdptEventTypes: ALPHA_VANTAGE_NEWS_UPDATED, ECONOMIC_INDICATOR_UPDATED (ALPHA_VANTAGE_ECONOMIC_INDICATOR_UPDATED), FETCH_REQUESTED (FETCH_ALPHA_VANTAGE_REQUESTED)
 <!-- /card-drift:event-types -->
-- AlphaVantageAdptEventTypes: FETCH_REQUESTED (FETCH_ALPHA_VANTAGE_REQUESTED), ALPHA_VANTAGE_NEWS_UPDATED, ECONOMIC_INDICATOR_UPDATED (ALPHA_VANTAGE_ECONOMIC_INDICATOR_UPDATED)
-
 ## Event Payload Contracts (domain/contracts.ts → @nestfolio/alpha-vantage-adpt/contracts)
 Producer-owned zod CDC subject contracts. GLOBAL aggregate — SubjectContext only, no identity context. project() injects pk/sk/__typename, so subjects are fields-only. This adapter had no payload interface prior to this slice.
 - AlphaVantageArticleSchema / AlphaVantageArticle — ALPHA_VANTAGE_NEWS_UPDATED subject. Fields: title, url, time_published, summary, overall_sentiment_score? (number). Schema uses .passthrough() to preserve additional raw feed keys from the Alpha Vantage NEWS_SENTIMENT feed.

@@ -11,15 +11,12 @@ Stack: services/advisory/marketwatch-adpt/src/service.stack.ts
 - Ingress: FETCH_MARKETWATCH_REQUESTED
 <!-- /card-drift:ingress -->
 - advisoryBus → marketwatch-adpt-ingress (SQS → Lambda, 60s timeout)
-  Subscriptions: FETCH_MARKETWATCH_REQUESTED
 
 ## Egress
 <!-- card-drift:egress (generated — `nx run event-processor:card-drift -- --fix`) -->
 - MarketWatchArticle: MARKETWATCH_UPDATED
 <!-- /card-drift:egress -->
 - CDC: DynamoDB Streams → marketwatch-adpt-egress (Lambda)
-  Emits:
-  - MarketWatchArticle → insert: MARKETWATCH_UPDATED
 
 ## Schedule
 - AdapterSchedule: EventBridge Scheduler → FetchTrigger Lambda → publishes FETCH_MARKETWATCH_REQUESTED
@@ -41,7 +38,6 @@ Stack: services/advisory/marketwatch-adpt/src/service.stack.ts
 <!-- card-drift:event-types (generated — `nx run event-processor:card-drift -- --fix`) -->
 - MarketwatchAdptEventTypes: FETCH_REQUESTED (FETCH_MARKETWATCH_REQUESTED), MARKETWATCH_UPDATED
 <!-- /card-drift:event-types -->
-- MarketwatchAdptEventTypes: FETCH_REQUESTED (FETCH_MARKETWATCH_REQUESTED), MARKETWATCH_UPDATED
 
 ## Event Payload Contracts (domain/contracts.ts → @nestfolio/marketwatch-adpt/contracts)
 Producer-owned zod CDC subject contracts. GLOBAL aggregate — SubjectContext only, no identity context. project() injects pk/sk/__typename, so subjects are fields-only.

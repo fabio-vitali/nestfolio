@@ -11,7 +11,6 @@ Stack: services/execution/broker-sim-adpt/src/service.stack.ts
 - Ingress: SIM_DEPOSIT_INITIATED, SIM_ORDER_REQUESTED, SIM_WITHDRAWAL_REQUESTED
 <!-- /card-drift:ingress -->
 - ExecutionBus → broker-sim-adpt-ingress (SQS → Lambda)
-  Subscriptions: SIM_ORDER_REQUESTED, SIM_DEPOSIT_INITIATED, SIM_WITHDRAWAL_REQUESTED
 
 ## Egress
 <!-- card-drift:egress (generated — `nx run event-processor:card-drift -- --fix`) -->
@@ -20,11 +19,6 @@ Stack: services/execution/broker-sim-adpt/src/service.stack.ts
 - WithdrawalCompleted: SIM_WITHDRAWAL_COMPLETED
 <!-- /card-drift:egress -->
 - CDC: DynamoDB Streams → broker-sim-adpt-egress (Lambda)
-  Emits:
-  - VirtualTrade (insert): SIM_ORDER_FILLED (default), SIM_ORDER_REJECTED (status=REJECTED)
-  - VirtualTrade (modify): SIM_ORDER_FILLED (default), SIM_ORDER_REJECTED (status=REJECTED)
-  - DepositDetected (insert): SIM_DEPOSIT_COMPLETED
-  - WithdrawalCompleted (insert): SIM_WITHDRAWAL_COMPLETED
 
 ## Handlers
 - event-listener.ts — SQS Ingress handler (event-processor pipeline); SIM_DEPOSIT_INITIATED parses `DepositInitiatedSchema` (investor-adpt/domain) via `parseSubject` + threads `amountCents`; SIM_WITHDRAWAL_REQUESTED parses `WithdrawalInitiatedSchema` (investor-adpt/domain) via `parseSubject` + converts `amountCents` to dollars for the virtual ledger (mirrors the deposit handler)
@@ -36,9 +30,6 @@ Stack: services/execution/broker-sim-adpt/src/service.stack.ts
 - BrokerSimEventTypes: SIM_DEPOSIT_COMPLETED, SIM_DEPOSIT_INITIATED, SIM_ORDER_FILLED, SIM_ORDER_REJECTED, SIM_ORDER_REQUESTED, SIM_WITHDRAWAL_COMPLETED, SIM_WITHDRAWAL_REQUESTED
 - ExecutionAdptEventTypes: BROKER_AUTHORIZATION_REVOKED, BROKER_SESSION_ESTABLISHED, BROKER_SESSION_LOST, DEPOSIT_DETECTED, ORDER_ACCEPTED, ORDER_CANCELLED, ORDER_FILLED, ORDER_PARTIALLY_FILLED, ORDER_REJECTED, PORTFOLIO_SNAPSHOT_IMPORTED, STREAM_CONNECTED, STREAM_DISCONNECTED, WITHDRAWAL_COMPLETED, WITHDRAWAL_REJECTED, WITHDRAWAL_SUBMITTED
 <!-- /card-drift:event-types -->
-- ExecutionAdptEventTypes: ORDER_ACCEPTED, ORDER_PARTIALLY_FILLED, ORDER_FILLED, ORDER_REJECTED, ORDER_CANCELLED, PORTFOLIO_SNAPSHOT_IMPORTED, BROKER_SESSION_ESTABLISHED, BROKER_SESSION_LOST, STREAM_CONNECTED, STREAM_DISCONNECTED, BROKER_AUTHORIZATION_REVOKED, DEPOSIT_DETECTED, WITHDRAWAL_SUBMITTED, WITHDRAWAL_COMPLETED, WITHDRAWAL_REJECTED
-- BrokerSimEventTypes (inbound): SIM_ORDER_REQUESTED, SIM_DEPOSIT_INITIATED, SIM_WITHDRAWAL_REQUESTED
-- BrokerSimEventTypes (outbound/CDC): SIM_ORDER_FILLED, SIM_ORDER_REJECTED, SIM_DEPOSIT_COMPLETED, SIM_WITHDRAWAL_COMPLETED
 
 ## Event Payload Contracts (domain/contracts.ts → @nestfolio/broker-sim-adpt/contracts)
 Producer-owned zod CDC subject contracts, exported via `@nestfolio/broker-sim-adpt/contracts` (NOT re-exported through the `/domain` barrel). DRY domain subjects — identity travels in the event context (RequestContext), not on the subject.

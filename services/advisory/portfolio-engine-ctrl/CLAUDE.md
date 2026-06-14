@@ -17,7 +17,6 @@ Stack: services/advisory/portfolio-engine-ctrl/src/service.stack.ts
 - Ingress: CONSTRUCT_PORTFOLIO, SEC_10K_UPDATED, SEC_PROSPECTUS_UPDATED
 <!-- /card-drift:ingress -->
 - advisoryBus -> portfolio-engine-ctrl-ingress (SQS -> Lambda)
-  Subscriptions: CONSTRUCT_PORTFOLIO, SEC_PROSPECTUS_UPDATED, SEC_10K_UPDATED
   Profile: agentProfile({ p90=29_000ms, burst=40, ux=AGENT_BUDGETS.PORTFOLIO_ENGINE_UX_SEC=120s }) → 1024 MB / 49s timeout / batchSize 1 / concurrency 10 / visibility 196s
   Grants: AgentCore Memory API, InvokeAgentRuntime, AgentRuntimeUrl SSM read
   Pattern: materializeToTable. The handler runs the agent and emits either an AgentCompletion row (success) or an AgentFailure row (caught error) — it does NOT call states:SendTask*. The SF callback is performed by DWC's CallbackIngress consuming the resulting PORTFOLIO_COMPLETED / PORTFOLIO_FAILED events.
@@ -30,9 +29,6 @@ Stack: services/advisory/portfolio-engine-ctrl/src/service.stack.ts
 - AgentFailure: PORTFOLIO_FAILED
 <!-- /card-drift:egress -->
 - CDC: DynamoDB Streams -> portfolio-engine-ctrl-egress (Lambda)
-  Emits:
-  - AgentCompletion -> PORTFOLIO_COMPLETED (insert only) [typed: PortfolioAgentCompletionSchema]
-  - AgentFailure -> PORTFOLIO_FAILED (insert only) [typed: PortfolioAgentFailureSchema]
   (AgentInvocation + ReasoningOutput rows are still written but NOT CDC-emitted — PORTFOLIO_CONSTRUCTION_PROPOSED + REBALANCE_PLAN_PRODUCED were stop-emitted; zero consumers.)
 
   Flow: handler writes AgentCompletion/AgentFailure via materializeToTable -> DDB Stream -> CDC publisher -> EB -> DWC CallbackIngress -> states:SendTaskSuccess / states:SendTaskFailure. (No states:* IAM owned by this service.)
@@ -66,7 +62,6 @@ Agent folder: agents/portfolio-engine/
 <!-- card-drift:event-types (generated — `nx run event-processor:card-drift -- --fix`) -->
 - PortfolioEngineEventTypes: PORTFOLIO_COMPLETED, PORTFOLIO_CONSTRUCTION_PROPOSED, PORTFOLIO_ENGINE_AGENT_INVOCATION_TRACED, PORTFOLIO_FAILED, REBALANCE_PLAN_PRODUCED
 <!-- /card-drift:event-types -->
-- PortfolioEngineEventTypes (outbound): PORTFOLIO_COMPLETED, PORTFOLIO_FAILED, PORTFOLIO_CONSTRUCTION_PROPOSED, REBALANCE_PLAN_PRODUCED, PORTFOLIO_ENGINE_AGENT_INVOCATION_TRACED
 - HANDLED_EVENT_TYPES (inbound): CONSTRUCT_PORTFOLIO, SEC_PROSPECTUS_UPDATED, SEC_10K_UPDATED
 - KB_INGESTION_EVENT_TYPES (KB-routed): SEC_PROSPECTUS_UPDATED, SEC_10K_UPDATED
 

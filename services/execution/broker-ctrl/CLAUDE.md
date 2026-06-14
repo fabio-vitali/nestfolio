@@ -18,21 +18,6 @@ Stack: services/execution/broker-ctrl/src/service.stack.ts
 - DepositWithdrawalNormalizerIngress (deposit-withdrawal-normalizer.ts): ALPACA_TRANSFER_COMPLETED, ALPACA_TRANSFER_FAILED, SIM_DEPOSIT_COMPLETED, SIM_WITHDRAWAL_COMPLETED
 - ModeIngress (mode-listener.ts): EXECUTION_MODE_CHANGED
 <!-- /card-drift:ingress -->
-- ExecutionBus -> broker-ctrl-mode-ingress (SQS -> Lambda)
-  Subscriptions: EXECUTION_MODE_CHANGED
-  Handler: handlers/mode-listener.ts
-
-- ExecutionBus -> broker-ctrl-callback-ingress (SQS -> Lambda)
-  Subscriptions: SIM_ORDER_FILLED, SIM_ORDER_REJECTED, ALPACA_ORDER_FILLED, ALPACA_ORDER_PARTIALLY_FILLED, ALPACA_ORDER_REJECTED, ALPACA_ORDER_CANCELLED, ALPACA_ORDER_CANCEL_FAILED
-  Handler: handlers/callback-resolver.ts
-
-- ExecutionBus -> broker-ctrl-deposit-withdrawal-ingress (SQS -> Lambda)
-  Subscriptions: DEPOSIT_INITIATED, WITHDRAWAL_REQUESTED
-  Handler: handlers/deposit-withdrawal-router.ts
-
-- ExecutionBus -> broker-ctrl-deposit-withdrawal-normalizer-ingress (SQS -> Lambda)
-  Subscriptions: SIM_DEPOSIT_COMPLETED, SIM_WITHDRAWAL_COMPLETED, ALPACA_TRANSFER_COMPLETED, ALPACA_TRANSFER_FAILED
-  Handler: handlers/deposit-withdrawal-normalizer.ts
 
 ## Egress
 <!-- card-drift:egress (generated — `nx run event-processor:card-drift -- --fix`) -->
@@ -40,9 +25,6 @@ Stack: services/execution/broker-ctrl/src/service.stack.ts
 - NormalizedEvent: ORDER_CANCELLED, ORDER_ESCALATED, ORDER_FILLED, ORDER_PARTIALLY_FILLED, ORDER_REJECTED
 <!-- /card-drift:egress -->
 - CDC: DynamoDB Streams -> broker-ctrl-egress (Lambda)
-  Emits:
-  - NormalizedEvent (insert, passthrough on `sk`): ORDER_FILLED, ORDER_PARTIALLY_FILLED, ORDER_REJECTED, ORDER_CANCELLED, ORDER_ESCALATED
-  - FundingEvent (insert, passthrough on `sk`): DEPOSIT_REQUESTED, DEPOSIT_DETECTED, DEPOSIT_SETTLED, DEPOSIT_FAILED, WITHDRAWAL_REQUESTED, WITHDRAWAL_SETTLED, WITHDRAWAL_FAILED
 
 ## Orchestration
 - OrderStateMachine: orchestrates order lifecycle (ReadExecutionMode -> RouteOrder -> ClassifyResult)
@@ -80,9 +62,6 @@ Stack: services/execution/broker-ctrl/src/service.stack.ts
 - BrokerCtrlInboundEventTypes: ALPACA_ORDER_CANCEL_FAILED, ALPACA_ORDER_CANCELLED, ALPACA_ORDER_FILLED, ALPACA_ORDER_PARTIALLY_FILLED, ALPACA_ORDER_REJECTED, ALPACA_TRANSFER_COMPLETED, ALPACA_TRANSFER_FAILED, DEPOSIT_INITIATED, EXECUTION_MODE_CHANGED, ORDER_SUBMITTED, SIM_DEPOSIT_COMPLETED, SIM_ORDER_FILLED, SIM_ORDER_REJECTED, SIM_WITHDRAWAL_COMPLETED, WITHDRAWAL_INITIATED
 - BrokerCtrlRoutedEventTypes: ALPACA_ACCOUNT_CHECK, ALPACA_ORDER_CANCEL_REQUESTED, ALPACA_ORDER_REQUESTED, ALPACA_TRANSFER_REQUESTED, SIM_DEPOSIT_INITIATED, SIM_ORDER_REQUESTED, SIM_WITHDRAWAL_REQUESTED
 <!-- /card-drift:event-types -->
-- BrokerCtrlEventTypes (outbound/CDC): ORDER_FILLED, ORDER_PARTIALLY_FILLED, ORDER_REJECTED, ORDER_CANCELLED, ORDER_ESCALATED, DEPOSIT_REQUESTED, DEPOSIT_DETECTED, DEPOSIT_SETTLED, DEPOSIT_FAILED, WITHDRAWAL_REQUESTED, WITHDRAWAL_SETTLED, WITHDRAWAL_FAILED
-- BrokerCtrlRoutedEventTypes (routed to adapters): SIM_ORDER_REQUESTED, SIM_DEPOSIT_INITIATED, SIM_WITHDRAWAL_REQUESTED, ALPACA_ORDER_REQUESTED, ALPACA_ORDER_CANCEL_REQUESTED, ALPACA_TRANSFER_REQUESTED, ALPACA_ACCOUNT_CHECK
-- BrokerCtrlInboundEventTypes (subscribed): ORDER_SUBMITTED, EXECUTION_MODE_CHANGED, DEPOSIT_INITIATED, WITHDRAWAL_INITIATED, SIM_ORDER_FILLED, SIM_ORDER_REJECTED, SIM_DEPOSIT_COMPLETED, SIM_WITHDRAWAL_COMPLETED, ALPACA_ORDER_FILLED, ALPACA_ORDER_PARTIALLY_FILLED, ALPACA_ORDER_REJECTED, ALPACA_ORDER_CANCELLED, ALPACA_ORDER_CANCEL_FAILED, ALPACA_TRANSFER_COMPLETED, ALPACA_TRANSFER_FAILED
 
 ## Event Payload Contracts (domain/contracts.ts → @nestfolio/broker-ctrl/contracts)
 Producer-owned zod CDC subject contracts, exported via `@nestfolio/broker-ctrl/contracts` (NOT re-exported through the `/domain` barrel). DRY domain subjects — identity travels in the event context (RequestContext), not on the subject.
