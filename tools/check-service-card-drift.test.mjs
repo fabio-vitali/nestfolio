@@ -248,3 +248,32 @@ test('extractForwarding: Rule detailType array → forwarded wire set', () => {
     ]);
   });
 });
+
+import { parseStack, scanWriteTypenames, buildModel } from './check-service-card-drift.mjs';
+
+test('scanWriteTypenames: intent-factory write literals', () => {
+  withTree({
+    'svc/src/handlers/h.ts': `
+      project('BrokerOrder', x);
+      record('FundingEvent', y);
+      accumulate('NormalizedEvent', z);
+      const s = obj.update('NotAFactoryMethod'); // method call, not factory
+    `,
+  }, (root) => {
+    const got = scanWriteTypenames(join(root, 'svc/src'));
+    assert.deepEqual(got.sort(), ['BrokerOrder', 'FundingEvent', 'NormalizedEvent']);
+  });
+});
+
+test('parseStack + buildModel: ddb-entities = egress keys ∪ write typenames', () => {
+  withTree({
+    'svc/src/domain/events.ts': EVENTS_FOR_STACK,
+    'svc/src/service.stack.ts': STACK_EGRESS + `
+      const fn = new Ingress(this, 'In', { state, eventTypes: [], entry: join(__dirname,'handlers','x.ts') });`,
+    'svc/src/handlers/x.ts': `record('ExtraRow', a);`,
+  }, (root) => {
+    const model = buildModel(join(root, 'svc'));
+    assert.deepEqual(model.handlers, ['x.ts']);
+    assert.deepEqual(model.ddbEntities, ['DepositIntent', 'ExtraRow', 'FundingEvent', 'NormalizedEvent']);
+  });
+});

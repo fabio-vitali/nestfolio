@@ -233,6 +233,67 @@ export function extractForwarding(sf, resolve) {
   return out;
 }
 
+const FACTORY_RE = /(?<![.\w])(projectVersioned|updateOrRetry|project|accumulate|update|record)\s*\(\s*['"]([A-Za-z0-9_]+)['"]/g;
+
+function* walk(dir) {
+  let entries;
+  try { entries = readdirSync(dir, { withFileTypes: true }); } catch { return; }
+  for (const e of entries) {
+    if (EXCLUDE_DIR_FRAGMENTS.includes(e.name)) continue;
+    const p = join(dir, e.name);
+    if (e.isDirectory()) yield* walk(p);
+    else if (e.isFile()) yield p;
+  }
+}
+
+// All handler filenames declared via `entry:` across constructs in the stack.
+export function extractHandlers(sf) {
+  const out = new Set();
+  for (const ctor of ['Ingress', 'Egress', 'NodejsFunction']) {
+    for (const ne of findNewExprs(sf, ctor)) {
+      const f = entryFilename(getProp(configObjOf(ne), 'entry'));
+      if (f) out.add(f);
+    }
+  }
+  return [...out].sort();
+}
+
+// Intent-factory write typenames under a src dir (regex, mirrors read-model-drift).
+export function scanWriteTypenames(srcDir) {
+  const out = new Set();
+  for (const file of walk(srcDir)) {
+    if (!file.endsWith('.ts') || file.endsWith('.test.ts') || file.endsWith('.spec.ts')) continue;
+    let text;
+    try { text = readFileSync(file, 'utf8'); } catch { continue; }
+    FACTORY_RE.lastIndex = 0;
+    let m;
+    while ((m = FACTORY_RE.exec(text)) !== null) out.add(m[2]);
+  }
+  return [...out].sort();
+}
+
+export function parseStack(stackTsPath, resolve) {
+  const sf = sourceFileOf(stackTsPath);
+  if (!sf) return { ingress: [], egress: [], handlers: [], egressEntities: [] };
+  const egress = extractEgress(sf, resolve);
+  return {
+    ingress: [...extractIngress(sf, resolve), ...extractForwarding(sf, resolve)]
+      .sort((a, b) => a.label.localeCompare(b.label)),
+    egress,
+    handlers: extractHandlers(sf),
+    egressEntities: egress.map(e => e.entity),
+  };
+}
+
+// Full per-service model. serviceDir = services/<domain>/<service>.
+export function buildModel(serviceDir) {
+  const { groups, resolve } = parseEvents(join(serviceDir, 'src/domain/events.ts'));
+  const stack = parseStack(join(serviceDir, 'src/service.stack.ts'), resolve);
+  const writes = scanWriteTypenames(join(serviceDir, 'src'));
+  const ddbEntities = [...new Set([...stack.egressEntities, ...writes])].sort();
+  return { eventTypes: groups, ingress: stack.ingress, egress: stack.egress, handlers: stack.handlers, ddbEntities };
+}
+
 // Parse domain/events.ts: every `export const <Name> = { KEY: eventName('WIRE') } as const`.
 export function parseEvents(eventsTsPath) {
   const groups = [];
