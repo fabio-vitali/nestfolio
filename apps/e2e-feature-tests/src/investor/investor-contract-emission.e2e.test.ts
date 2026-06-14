@@ -14,9 +14,9 @@
  *                  ORDER_FILLED injected to investor-ctrl (see beforeAll) — withHoldings()
  *                  only drives the ledger bus, not the execution→investor fan-out.
  *
- * NOT covered here (documented boundary): ExecutionModeChanged — no e2e fixture triggers
- * a live execution-mode switch; covered by the investor-bff producer unit test against the
- * setExecutionMode write literal.
+ * ExecutionModeChange IS covered end-to-end by `src/account/go-live-switch.e2e.test.ts`,
+ * which drives confirmGoLive → sim→live switch, asserts EXECUTION_MODE_CHANGED emission,
+ * and polls broker-ctrl's ExecutionMode row for mode='live'.
  *
  * ONE SHARED TENANT (beforeAll), not a fresh tenant per `it`: the two assertions read
  * different tables (investor-bff vs investor-ctrl) for the SAME logical fixture state, and

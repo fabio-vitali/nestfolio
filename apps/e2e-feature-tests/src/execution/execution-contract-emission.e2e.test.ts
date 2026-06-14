@@ -376,8 +376,9 @@ describe('execution-domain producer contracts — SIM path', () => {
 // Block B — REAL Alpaca paper path (gated, high-fidelity)
 //
 // Drives broker-alpaca-adpt's inbound events DIRECTLY. The adapter always talks
-// to the real Alpaca paper API — there is no mode router to satisfy, so no
-// EXECUTION_MODE_CHANGED switch and no broker-ctrl ExecutionMode-row poll-confirm.
+// to the real Alpaca paper API — there is no mode router to satisfy here.
+// The live mode switch (EXECUTION_MODE_CHANGED + broker-ctrl ExecutionMode-row
+// poll-confirm) is exercised by `src/account/go-live-switch.e2e.test.ts`.
 // ===========================================================================
 
 describe('execution-domain producer contracts — REAL Alpaca paper path', () => {
