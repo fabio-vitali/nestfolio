@@ -39,6 +39,14 @@ test('parseExclusions: whole-service and per-section', () => {
   });
 });
 
+test('parseExclusions: absent file → empty', () => {
+  withTree({}, (root) => {
+    const { exclusions, entries } = parseExclusions(root);
+    assert.equal(exclusions.size, 0);
+    assert.deepEqual(entries, []);
+  });
+});
+
 test('parseExclusions: bad section rejected', () => {
   withTree({
     'tools/service-card-exclusions.json': JSON.stringify({ exclusions: [
