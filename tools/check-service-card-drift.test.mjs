@@ -277,3 +277,36 @@ test('parseStack + buildModel: ddb-entities = egress keys ∪ write typenames', 
     assert.deepEqual(model.ddbEntities, ['DepositIntent', 'ExtraRow', 'FundingEvent', 'NormalizedEvent']);
   });
 });
+
+import { renderBlock, wrapBlock, locateBlocks } from './check-service-card-drift.mjs';
+
+const MODEL = {
+  eventTypes: [{ constName: 'FooEventTypes', entries: [
+    { key: 'ORDER_FILLED', wire: 'ORDER_FILLED' },
+    { key: 'FETCH_REQUESTED', wire: 'FETCH_FOO_REQUESTED' },
+  ]}],
+  ingress: [{ label: 'ModeIngress', handler: 'mode-listener.ts', events: ['EXECUTION_MODE_CHANGED'] }],
+  egress: [{ entity: 'NormalizedEvent', events: ['ORDER_FILLED'] }],
+  handlers: ['mode-listener.ts'],
+  ddbEntities: ['NormalizedEvent'],
+};
+
+test('renderBlock: event-types shows KEY and KEY (WIRE)', () => {
+  assert.equal(renderBlock('event-types', MODEL),
+    '- FooEventTypes: FETCH_REQUESTED (FETCH_FOO_REQUESTED), ORDER_FILLED');
+});
+
+test('renderBlock: ingress with handler', () => {
+  assert.equal(renderBlock('ingress', MODEL),
+    '- ModeIngress (mode-listener.ts): EXECUTION_MODE_CHANGED');
+});
+
+test('locateBlocks: tolerates hint text in start marker, captures body', () => {
+  const card = [
+    '## Egress',
+    wrapBlock('egress', '- NormalizedEvent: ORDER_FILLED'),
+    'prose after',
+  ].join('\n');
+  const blocks = locateBlocks(card);
+  assert.equal(blocks.get('egress').body, '- NormalizedEvent: ORDER_FILLED');
+});

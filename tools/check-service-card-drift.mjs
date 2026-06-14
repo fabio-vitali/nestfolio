@@ -336,3 +336,62 @@ export function parseEvents(eventsTsPath) {
   }
   return { groups, resolve };
 }
+
+// ---------------------------------------------------------------------------
+// Rendering + marker layer
+// ---------------------------------------------------------------------------
+
+const FIX_HINT = '`nx run event-processor:card-drift -- --fix`';
+
+function renderEventTypes(model) {
+  return [...model.eventTypes]
+    .sort((a, b) => a.constName.localeCompare(b.constName))
+    .map(g => {
+      const items = [...g.entries]
+        .sort((a, b) => a.key.localeCompare(b.key))
+        .map(e => e.wire === e.key ? e.key : `${e.key} (${e.wire})`);
+      return `- ${g.constName}: ${items.join(', ')}`;
+    }).join('\n');
+}
+
+function renderInbound(list) {
+  return [...list].sort((a, b) => a.label.localeCompare(b.label)).map(i => {
+    const head = i.handler ? `${i.label} (${i.handler})` : i.label;
+    return `- ${head}: ${i.events.join(', ')}`;
+  }).join('\n');
+}
+
+function renderEgress(model) {
+  return [...model.egress].sort((a, b) => a.entity.localeCompare(b.entity))
+    .map(e => `- ${e.entity}: ${e.events.join(', ')}`).join('\n');
+}
+
+function renderList(items) {
+  return [...items].sort().map(x => `- ${x}`).join('\n');
+}
+
+export function renderBlock(section, model) {
+  switch (section) {
+    case 'event-types': return renderEventTypes(model);
+    case 'ingress': return renderInbound(model.ingress);
+    case 'egress': return renderEgress(model);
+    case 'handlers': return renderList(model.handlers);
+    case 'ddb-entities': return renderList(model.ddbEntities);
+    default: throw new Error(`unknown section ${section}`);
+  }
+}
+
+export function wrapBlock(section, body) {
+  return `<!-- card-drift:${section} (generated — ${FIX_HINT}) -->\n${body}\n<!-- /card-drift:${section} -->`;
+}
+
+// Find every card-drift block. Start marker tolerates trailing hint text.
+export function locateBlocks(cardText) {
+  const map = new Map();
+  for (const section of SECTION_IDS) {
+    const re = new RegExp(`<!--\\s*card-drift:${section}\\b[^>]*-->\\n?([\\s\\S]*?)\\n?<!--\\s*/card-drift:${section}\\s*-->`);
+    const m = re.exec(cardText);
+    if (m) map.set(section, { full: m[0], body: m[1].replace(/\s+$/, '') });
+  }
+  return map;
+}
