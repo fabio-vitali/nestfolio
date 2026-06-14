@@ -205,3 +205,38 @@ test('extractIngress: inline array + helper-const array, handler filenames', () 
     ]);
   });
 });
+
+import { extractForwarding } from './check-service-card-drift.mjs';
+
+const EVENTS_FWD = `
+import { eventName } from '@nestfolio/event-types';
+export const InvestorIngestEventTypes = {
+  ORDER_FILLED: eventName('ORDER_FILLED'),
+  DEPOSIT_REQUESTED: eventName('DEPOSIT_REQUESTED'),
+} as const;
+`;
+const STACK_FWD = `
+const fromExecutionEvents = [
+  InvestorIngestEventTypes.ORDER_FILLED,
+  InvestorIngestEventTypes.DEPOSIT_REQUESTED,
+];
+const r = new Rule(this, 'InvestorIngress-FromExecution', {
+  eventBus: executionBus,
+  eventPattern: { detailType: fromExecutionEvents },
+  targets: [new EventBusTarget(investorBus)],
+});
+`;
+
+test('extractForwarding: Rule detailType array → forwarded wire set', () => {
+  withTree({
+    'svc/src/domain/events.ts': EVENTS_FWD,
+    'svc/src/service.stack.ts': STACK_FWD,
+  }, (root) => {
+    const { resolve } = _pe(join(root, 'svc/src/domain/events.ts'));
+    const sf = sourceFileForTest(join(root, 'svc/src/service.stack.ts'));
+    const fwd = extractForwarding(sf, resolve);
+    assert.deepEqual(fwd, [
+      { label: 'InvestorIngress-FromExecution', handler: null, events: ['DEPOSIT_REQUESTED', 'ORDER_FILLED'] },
+    ]);
+  });
+});

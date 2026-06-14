@@ -192,7 +192,7 @@ function entryFilename(entryNode) {
 
 // Resolve an `eventTypes:` value (inline array OR identifier→local const array)
 // to a sorted wire set.
-function resolveEventTypesValue(node, sf, resolve, localConsts) {
+function resolveEventTypesValue(node, resolve, localConsts) {
   if (!node) return [];
   if (ts.isIdentifier(node) && localConsts.has(node.text)) {
     return collectEventRefs(localConsts.get(node.text), resolve);
@@ -207,8 +207,26 @@ export function extractIngress(sf, resolve) {
     const cfg = configObjOf(ne);
     const label = constructId(ne) ?? '(anonymous)';
     const handler = entryFilename(getProp(cfg, 'entry'));
-    const events = resolveEventTypesValue(getProp(cfg, 'eventTypes'), sf, resolve, localConsts);
+    const events = resolveEventTypesValue(getProp(cfg, 'eventTypes'), resolve, localConsts);
     out.push({ label, handler, events });
+  }
+  out.sort((a, b) => a.label.localeCompare(b.label));
+  return out;
+}
+
+// Adapter forwarding: `new Rule(this, 'Id', { eventPattern: { detailType: [...] } })`.
+// detailType is an inline array or an identifier → local const array.
+export function extractForwarding(sf, resolve) {
+  const localConsts = localArrayConsts(sf);
+  const out = [];
+  for (const ne of findNewExprs(sf, 'Rule')) {
+    const cfg = configObjOf(ne);
+    const pattern = getProp(cfg, 'eventPattern');
+    if (!pattern || !ts.isObjectLiteralExpression(pattern)) continue;
+    const detailType = getProp(pattern, 'detailType');
+    const events = resolveEventTypesValue(detailType, resolve, localConsts);
+    if (!events.length) continue; // not an event-forwarding rule
+    out.push({ label: constructId(ne) ?? '(rule)', handler: null, events });
   }
   out.sort((a, b) => a.label.localeCompare(b.label));
   return out;
