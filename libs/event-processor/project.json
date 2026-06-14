@@ -55,6 +55,19 @@
         "{workspaceRoot}/tools/typed-subject-exclusions.json"
       ],
       "options": { "command": "node tools/check-typed-subjects.mjs" }
+    },
+    "card-drift": {
+      "executor": "nx:run-commands",
+      "cache": true,
+      "inputs": [
+        "{workspaceRoot}/services/**/CLAUDE.md",
+        "{workspaceRoot}/services/**/src/service.stack.ts",
+        "{workspaceRoot}/services/**/src/domain/events.ts",
+        "{workspaceRoot}/services/**/src/**/*.ts",
+        "{workspaceRoot}/tools/check-service-card-drift.mjs",
+        "{workspaceRoot}/tools/service-card-exclusions.json"
+      ],
+      "options": { "command": "node tools/check-service-card-drift.mjs" }
     }
   },
   "tags": ["scope:platform", "type:lib"]

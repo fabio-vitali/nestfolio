@@ -84,6 +84,13 @@ if ! node tools/check-typed-subjects.mjs > /tmp/typed-subject-check.out 2>&1; th
   ERRORS=$((ERRORS + 1))
 fi
 
+# Check 9: service-card drift gate (blocking, daemon-free pure-node scan)
+if ! node tools/check-service-card-drift.mjs > /tmp/card-drift-check.out 2>&1; then
+  cat /tmp/card-drift-check.out
+  echo "✗ Service-card drift detected. Run 'node tools/check-service-card-drift.mjs --fix' and review."
+  exit 1
+fi
+
 echo ""
 if [ $ERRORS -gt 0 ]; then
   echo -e "${RED}FAILED: $ERRORS error(s), $WARNINGS warning(s)${NC}"
