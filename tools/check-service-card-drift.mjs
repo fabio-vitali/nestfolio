@@ -158,6 +158,62 @@ export function extractEgress(sf, resolve) {
   return out;
 }
 
+// Map of local `const NAME = [ ... ]` array declarations in a SourceFile.
+function localArrayConsts(sf) {
+  const map = new Map();
+  for (const stmt of sf.statements) {
+    if (!ts.isVariableStatement(stmt)) continue;
+    for (const decl of stmt.declarationList.declarations) {
+      if (ts.isIdentifier(decl.name) && decl.initializer && ts.isArrayLiteralExpression(decl.initializer)) {
+        map.set(decl.name.text, decl.initializer);
+      }
+    }
+  }
+  return map;
+}
+
+// The string id of `new Ctor(scope, 'Id', { ... })` (2nd arg).
+function constructId(newExpr) {
+  const a = newExpr.arguments?.[1];
+  return a && ts.isStringLiteral(a) ? a.text : null;
+}
+
+// Last path segment of an `entry: join(__dirname, 'handlers', 'x.ts')` value.
+function entryFilename(entryNode) {
+  if (!entryNode) return null;
+  let last = null;
+  const visit = (n) => {
+    if (ts.isStringLiteral(n) && n.text.endsWith('.ts')) last = basename(n.text);
+    ts.forEachChild(n, visit);
+  };
+  visit(entryNode);
+  return last;
+}
+
+// Resolve an `eventTypes:` value (inline array OR identifier→local const array)
+// to a sorted wire set.
+function resolveEventTypesValue(node, sf, resolve, localConsts) {
+  if (!node) return [];
+  if (ts.isIdentifier(node) && localConsts.has(node.text)) {
+    return collectEventRefs(localConsts.get(node.text), resolve);
+  }
+  return collectEventRefs(node, resolve);
+}
+
+export function extractIngress(sf, resolve) {
+  const localConsts = localArrayConsts(sf);
+  const out = [];
+  for (const ne of findNewExprs(sf, 'Ingress')) {
+    const cfg = configObjOf(ne);
+    const label = constructId(ne) ?? '(anonymous)';
+    const handler = entryFilename(getProp(cfg, 'entry'));
+    const events = resolveEventTypesValue(getProp(cfg, 'eventTypes'), sf, resolve, localConsts);
+    out.push({ label, handler, events });
+  }
+  out.sort((a, b) => a.label.localeCompare(b.label));
+  return out;
+}
+
 // Parse domain/events.ts: every `export const <Name> = { KEY: eventName('WIRE') } as const`.
 export function parseEvents(eventsTsPath) {
   const groups = [];

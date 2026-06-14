@@ -162,3 +162,46 @@ new Egress(this, 'Egress', {
     assert.deepEqual(extractEgress(sf, resolve), [{ entity: 'OnboardingCompleted', events: ['ONBOARDING_COMPLETED'] }]);
   });
 });
+
+import { extractIngress } from './check-service-card-drift.mjs';
+
+const STACK_INGRESS = `
+const modeIngress = new Ingress(this, 'ModeIngress', {
+  state,
+  eventTypes: [FooInboundEventTypes.EXECUTION_MODE_CHANGED],
+  entry: join(__dirname, 'handlers', 'mode-listener.ts'),
+});
+const CALLBACK_EVENT_TYPES = [
+  FooInboundEventTypes.SIM_ORDER_FILLED,
+  FooInboundEventTypes.SIM_ORDER_REJECTED,
+];
+const cb = new Ingress(this, 'CallbackIngress', {
+  state,
+  eventTypes: CALLBACK_EVENT_TYPES,
+  entry: join(__dirname, 'handlers', 'callback-resolver.ts'),
+});
+`;
+
+const EVENTS_INGRESS = `
+import { eventName } from '@nestfolio/event-types';
+export const FooInboundEventTypes = {
+  EXECUTION_MODE_CHANGED: eventName('EXECUTION_MODE_CHANGED'),
+  SIM_ORDER_FILLED: eventName('SIM_ORDER_FILLED'),
+  SIM_ORDER_REJECTED: eventName('SIM_ORDER_REJECTED'),
+} as const;
+`;
+
+test('extractIngress: inline array + helper-const array, handler filenames', () => {
+  withTree({
+    'svc/src/domain/events.ts': EVENTS_INGRESS,
+    'svc/src/service.stack.ts': STACK_INGRESS,
+  }, (root) => {
+    const { resolve } = _pe(join(root, 'svc/src/domain/events.ts'));
+    const sf = sourceFileForTest(join(root, 'svc/src/service.stack.ts'));
+    const ingress = extractIngress(sf, resolve);
+    assert.deepEqual(ingress, [
+      { label: 'CallbackIngress', handler: 'callback-resolver.ts', events: ['SIM_ORDER_FILLED', 'SIM_ORDER_REJECTED'] },
+      { label: 'ModeIngress', handler: 'mode-listener.ts', events: ['EXECUTION_MODE_CHANGED'] },
+    ]);
+  });
+});
