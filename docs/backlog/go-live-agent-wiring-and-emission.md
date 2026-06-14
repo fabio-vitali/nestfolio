@@ -12,7 +12,7 @@ out_of_scope:
   - "Frontend go-live wizard UI/UX changes beyond invoking the chosen trigger."
   - "Notifications/observability for the go-live transition."
   - "Provisional list pending brainstorming; will be reconciled with the spec's canonical Out-of-scope section."
-spec: null
+spec: docs/superpowers/specs/2026-06-14-go-live-functional-design.md
 plan: null
 topic_memory: []
 validation_gate: null
