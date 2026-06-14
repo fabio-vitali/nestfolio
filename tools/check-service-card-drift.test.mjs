@@ -56,3 +56,33 @@ test('parseExclusions: bad section rejected', () => {
     assert.throws(() => parseExclusions(root), /bad entry/);
   });
 });
+
+import { parseEvents } from './check-service-card-drift.mjs';
+
+const EVENTS_TS = `
+import { eventName } from '@nestfolio/event-types';
+export const FooEventTypes = {
+  ORDER_FILLED: eventName('ORDER_FILLED'),
+  FETCH_REQUESTED: eventName('FETCH_FOO_REQUESTED'),
+} as const;
+export const FooInboundEventTypes = {
+  EXECUTION_MODE_CHANGED: eventName('EXECUTION_MODE_CHANGED'),
+} as const;
+`;
+
+test('parseEvents: groups + key≠wire resolution', () => {
+  withTree({ 'services/d/foo-ctrl/src/domain/events.ts': EVENTS_TS }, (root) => {
+    const { groups, resolve } = parseEvents(join(root, 'services/d/foo-ctrl/src/domain/events.ts'));
+    assert.deepEqual(groups.map(g => g.constName).sort(), ['FooEventTypes', 'FooInboundEventTypes']);
+    const foo = groups.find(g => g.constName === 'FooEventTypes');
+    assert.deepEqual(foo.entries.find(e => e.key === 'FETCH_REQUESTED'), { key: 'FETCH_REQUESTED', wire: 'FETCH_FOO_REQUESTED' });
+    assert.equal(resolve.get('FooEventTypes.ORDER_FILLED'), 'ORDER_FILLED');
+    assert.equal(resolve.get('FooInboundEventTypes.EXECUTION_MODE_CHANGED'), 'EXECUTION_MODE_CHANGED');
+  });
+});
+
+test('parseEvents: absent file → empty', () => {
+  const { groups, resolve } = parseEvents('/no/such/events.ts');
+  assert.deepEqual(groups, []);
+  assert.equal(resolve.size, 0);
+});

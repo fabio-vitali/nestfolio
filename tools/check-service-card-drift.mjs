@@ -56,3 +56,65 @@ export function parseExclusions(root) {
 export function isExcluded(exclusions, service, section) {
   return exclusions.has(`${service}::*`) || exclusions.has(`${service}::${section}`);
 }
+
+// --- typescript AST helpers -------------------------------------------------
+
+function sourceFileOf(path) {
+  let text;
+  try { text = readFileSync(path, 'utf8'); } catch { return null; }
+  return ts.createSourceFile(path, text, ts.ScriptTarget.Latest, /*setParentNodes*/ true, ts.ScriptKind.TS);
+}
+
+// Unwrap `<expr> as const` / `<expr> as T`.
+function unwrapAs(node) {
+  return ts.isAsExpression(node) ? unwrapAs(node.expression) : node;
+}
+
+// `eventName('WIRE')` → 'WIRE', else null.
+function eventNameArg(node) {
+  if (ts.isCallExpression(node) && ts.isIdentifier(node.expression) &&
+      node.expression.text === 'eventName' && node.arguments.length >= 1 &&
+      ts.isStringLiteral(node.arguments[0])) {
+    return node.arguments[0].text;
+  }
+  return null;
+}
+
+// Property name as plain text (handles 'quoted' and bare identifiers).
+function propName(prop) {
+  const n = prop.name;
+  if (!n) return null;
+  if (ts.isIdentifier(n) || ts.isStringLiteral(n)) return n.text;
+  return null;
+}
+
+// Parse domain/events.ts: every `export const <Name> = { KEY: eventName('WIRE') } as const`.
+export function parseEvents(eventsTsPath) {
+  const groups = [];
+  const resolve = new Map();
+  const sf = sourceFileOf(eventsTsPath);
+  if (!sf) return { groups, resolve };
+  for (const stmt of sf.statements) {
+    if (!ts.isVariableStatement(stmt)) continue;
+    const isExport = (stmt.modifiers ?? []).some(m => m.kind === ts.SyntaxKind.ExportKeyword);
+    if (!isExport) continue;
+    for (const decl of stmt.declarationList.declarations) {
+      if (!ts.isIdentifier(decl.name) || !decl.initializer) continue;
+      const constName = decl.name.text;
+      const obj = unwrapAs(decl.initializer);
+      if (!ts.isObjectLiteralExpression(obj)) continue;
+      const entries = [];
+      for (const prop of obj.properties) {
+        if (!ts.isPropertyAssignment(prop)) continue;
+        const key = propName(prop);
+        const wire = eventNameArg(prop.initializer);
+        if (key && wire) {
+          entries.push({ key, wire });
+          resolve.set(`${constName}.${key}`, wire);
+        }
+      }
+      if (entries.length) groups.push({ constName, entries });
+    }
+  }
+  return { groups, resolve };
+}
