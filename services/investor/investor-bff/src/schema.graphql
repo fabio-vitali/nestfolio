@@ -135,6 +135,7 @@ type InvestorProfile {
   userId: String!
   email: String!
   operatingMode: OperatingMode!
+  executionMode: String!
   accountMode: AccountMode!
   goal: Goal!
   riskProfile: RiskProfile!
