@@ -310,3 +310,80 @@ test('locateBlocks: tolerates hint text in start marker, captures body', () => {
   const blocks = locateBlocks(card);
   assert.equal(blocks.get('egress').body, '- NormalizedEvent: ORDER_FILLED');
 });
+
+import { expectedSections, applyFix, evaluate } from './check-service-card-drift.mjs';
+
+test('expectedSections: only sections with a source signal', () => {
+  assert.deepEqual(expectedSections(MODEL).sort(),
+    ['ddb-entities', 'egress', 'event-types', 'handlers', 'ingress']);
+  const hub = { eventTypes: [], ingress: [], egress: [], handlers: [], ddbEntities: [] };
+  assert.deepEqual(expectedSections(hub), []);
+});
+
+test('applyFix: inserts block under matching heading', () => {
+  const card = '# foo-ctrl\n\n## Egress\n\nprose\n';
+  const out = applyFix(card, 'egress', '- NormalizedEvent: ORDER_FILLED');
+  assert.match(out, /## Egress\n<!-- card-drift:egress[^>]*-->\n- NormalizedEvent: ORDER_FILLED\n<!-- \/card-drift:egress -->/);
+});
+
+test('applyFix: updates existing block in place', () => {
+  const card = '## Egress\n' + wrapBlock('egress', '- Old: X') + '\nprose';
+  const out = applyFix(card, 'egress', '- New: Y');
+  assert.match(out, /- New: Y/);
+  assert.doesNotMatch(out, /- Old: X/);
+});
+
+test('evaluate: drift error + fix produced', () => {
+  withTree({
+    'services/d/foo-ctrl/src/domain/events.ts': EVENTS_FOR_STACK,
+    'services/d/foo-ctrl/src/service.stack.ts': STACK_EGRESS,
+    'services/d/foo-ctrl/CLAUDE.md': '## Egress\n' + wrapBlock('egress', '- NormalizedEvent: WRONG') + '\n',
+  }, (root) => {
+    const { errors } = evaluate(root, new Set());
+    const egErr = errors.find(e => e.service === 'foo-ctrl' && e.section === 'egress');
+    assert.ok(egErr, 'expected an egress drift error');
+    assert.equal(egErr.kind, 'drift');
+  });
+});
+
+test('evaluate: missing-block error when section expected but no block', () => {
+  withTree({
+    'services/d/foo-ctrl/src/domain/events.ts': EVENTS_FOR_STACK,
+    'services/d/foo-ctrl/src/service.stack.ts': STACK_EGRESS,
+    'services/d/foo-ctrl/CLAUDE.md': '# foo-ctrl\n\n## Egress\n\nprose only, no block\n',
+  }, (root) => {
+    const { errors } = evaluate(root, new Set());
+    assert.ok(errors.some(e => e.service === 'foo-ctrl' && e.section === 'egress' && e.kind === 'missing'));
+  });
+});
+
+test('evaluate: stale-block error when block present but no source signal', () => {
+  withTree({
+    'services/d/foo-hub/src/service.stack.ts': 'export class S {}',
+    'services/d/foo-hub/CLAUDE.md': '## Egress\n' + wrapBlock('egress', '- Ghost: X') + '\n',
+  }, (root) => {
+    const { errors } = evaluate(root, new Set());
+    assert.ok(errors.some(e => e.service === 'foo-hub' && e.section === 'egress' && e.kind === 'stale'));
+  });
+});
+
+test('evaluate: exclusion suppresses the error', () => {
+  withTree({
+    'services/d/foo-ctrl/src/domain/events.ts': EVENTS_FOR_STACK,
+    'services/d/foo-ctrl/src/service.stack.ts': STACK_EGRESS,
+    'services/d/foo-ctrl/CLAUDE.md': '## Egress\n' + wrapBlock('egress', '- NormalizedEvent: WRONG') + '\n',
+  }, (root) => {
+    const { errors } = evaluate(root, new Set(['foo-ctrl::egress']));
+    assert.ok(!errors.some(e => e.service === 'foo-ctrl' && e.section === 'egress'));
+  });
+});
+
+test('evaluate: hub with no event constructs → no errors', () => {
+  withTree({
+    'services/d/foo-hub/src/service.stack.ts': 'export class S {}',
+    'services/d/foo-hub/CLAUDE.md': '# foo-hub\n\n## State\nNone (stateless hub)\n',
+  }, (root) => {
+    const { errors } = evaluate(root, new Set());
+    assert.deepEqual(errors, []);
+  });
+});

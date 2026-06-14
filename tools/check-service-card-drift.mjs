@@ -395,3 +395,96 @@ export function locateBlocks(cardText) {
   }
   return map;
 }
+
+// A section is expected iff its source signal is non-empty.
+export function expectedSections(model) {
+  const present = {
+    'event-types': model.eventTypes.length > 0,
+    'ingress': model.ingress.length > 0,
+    'egress': model.egress.length > 0,
+    'handlers': model.handlers.length > 0,
+    'ddb-entities': model.ddbEntities.length > 0,
+  };
+  return SECTION_IDS.filter(s => present[s]);
+}
+
+// Heading a section's block lives under (first match wins; else appended).
+const SECTION_HEADING = {
+  'event-types': { re: /^##\s+Event Types.*$/m, canonical: '## Event Types (domain/events.ts)' },
+  'ingress': { re: /^##\s+(Ingress|Cross-Domain Event Forwarding).*$/m, canonical: '## Ingress' },
+  'egress': { re: /^##\s+Egress.*$/m, canonical: '## Egress' },
+  'handlers': { re: /^##\s+Handlers.*$/m, canonical: '## Handlers' },
+  'ddb-entities': { re: /^##\s+(DDB Entities|Entities).*$/m, canonical: '## DDB Entities' },
+};
+
+// Insert/update/remove one section's block. body===null removes the block.
+export function applyFix(cardText, section, body) {
+  const block = body === null ? null : wrapBlock(section, body);
+  const existing = locateBlocks(cardText).get(section);
+  if (existing) {
+    return block === null
+      ? cardText.replace(existing.full + '\n', '').replace(existing.full, '')
+      : cardText.replace(existing.full, block);
+  }
+  if (block === null) return cardText;
+  const { re, canonical } = SECTION_HEADING[section];
+  const hm = re.exec(cardText);
+  if (hm) {
+    const insertAt = hm.index + hm[0].length;
+    return cardText.slice(0, insertAt) + '\n' + block + cardText.slice(insertAt);
+  }
+  const trimmed = cardText.replace(/\s+$/, '');
+  return `${trimmed}\n\n${canonical}\n${block}\n`;
+}
+
+// services/<domain>/<service> dirs that have a stack file.
+function serviceDirs(root) {
+  const base = join(root, 'services');
+  const out = [];
+  let domains;
+  try { domains = readdirSync(base, { withFileTypes: true }); } catch { return out; }
+  for (const d of domains) {
+    if (!d.isDirectory()) continue;
+    let svcs;
+    try { svcs = readdirSync(join(base, d.name), { withFileTypes: true }); } catch { continue; }
+    for (const s of svcs) {
+      if (!s.isDirectory()) continue;
+      const dir = join(base, d.name, s.name);
+      try { statSync(join(dir, 'src/service.stack.ts')); } catch { continue; }
+      out.push({ service: s.name, dir, cardPath: join(dir, 'CLAUDE.md') });
+    }
+  }
+  return out;
+}
+
+// Evaluate the whole tree. Returns drift/missing/stale errors and the fixes
+// that --fix would apply (one rewritten card text per drifted card).
+export function evaluate(root, exclusions) {
+  const errors = [];
+  const fixes = [];
+  for (const { service, dir, cardPath } of serviceDirs(root)) {
+    let cardText;
+    try { cardText = readFileSync(cardPath, 'utf8'); }
+    catch { errors.push({ service, section: '*', kind: 'no-card', detail: `${cardPath} missing` }); continue; }
+    const model = buildModel(dir);
+    const expected = new Set(expectedSections(model));
+    const blocks = locateBlocks(cardText);
+    let next = cardText;
+    let changed = false;
+
+    for (const section of SECTION_IDS) {
+      if (isExcluded(exclusions, service, section)) continue;
+      const has = blocks.has(section);
+      if (expected.has(section)) {
+        const want = renderBlock(section, model);
+        if (!has) { errors.push({ service, section, kind: 'missing', detail: 'no generated block' }); next = applyFix(next, section, want); changed = true; }
+        else if (blocks.get(section).body !== want) { errors.push({ service, section, kind: 'drift', detail: 'card block ≠ rendered' }); next = applyFix(next, section, want); changed = true; }
+      } else if (has) {
+        errors.push({ service, section, kind: 'stale', detail: 'block present but no source signal' });
+        next = applyFix(next, section, null); changed = true;
+      }
+    }
+    if (changed) fixes.push({ cardPath, newText: next });
+  }
+  return { errors, fixes };
+}
