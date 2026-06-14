@@ -25,6 +25,7 @@ export class InvestorBffStack extends ServiceStack {
         extraSteps: {
           getProfile: ['get-profile-mandate.fn.js'],
           updateOperatingMode: ['get-profile.fn.js'],
+          confirmGoLive: ['get-profile.fn.js'],
         },
       }),
     });

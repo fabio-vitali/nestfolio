@@ -1,0 +1,43 @@
+import { request, response } from '../../../src/graphql/js-function/confirm-go-live.fn.js';
+
+const baseCtx = {
+  stash: { tenantId: 't1', userId: 'u1', tableName: 'investor-bff-table' },
+  arguments: {},
+  result: {},
+};
+
+describe('confirmGoLive resolver (sim→live switch)', () => {
+  it('TransactWriteItems: puts ExecutionModeChange + flips InvestorProfile executionMode to live', () => {
+    const req = request(baseCtx as any);
+    expect(req.operation).toBe('TransactWriteItems');
+    // P1: two items (ExecutionModeChange Put + InvestorProfile Update). A later phase adds the Mandate item.
+    expect(req.transactItems).toHaveLength(2);
+
+    const put = req.transactItems.find((i: any) => i.operation === 'PutItem');
+    expect(put.table).toBe('investor-bff-table');
+    expect(put.attributeValues.__typename.S).toBe('ExecutionModeChange');
+    expect(put.attributeValues.fromMode.S).toBe('simulation');
+    expect(put.attributeValues.toMode.S).toBe('live');
+    expect(put.key.pk.S).toBe('InvestorProfile#t1#u1');
+    expect(put.key.sk.S).toMatch(/^ExecutionModeChange#/);
+
+    const upd = req.transactItems.find((i: any) => i.operation === 'UpdateItem');
+    expect(upd.key.pk.S).toBe('InvestorProfile#t1#u1');
+    expect(upd.key.sk.S).toBe('InvestorProfile');
+    expect(upd.update.expression).toContain('executionMode = :mode');
+    expect(upd.update.expression).toContain('#v = if_not_exists(#v, :zero) + :one');
+    expect(upd.update.expressionNames['#v']).toBe('__version');
+    expect(upd.condition.expression).toContain('attribute_exists(pk)');
+  });
+
+  it('maps a cancelled transaction to a clean InvalidState error', () => {
+    expect(() => response({
+      ...baseCtx,
+      error: { message: 'cancelled', type: 'DynamoDB:TransactionCanceledException' },
+    } as any)).toThrow(/go.?live/i);
+  });
+
+  it('passes ctx.result through on success (readback step returns the profile)', () => {
+    expect(response(baseCtx as any)).toEqual({});
+  });
+});

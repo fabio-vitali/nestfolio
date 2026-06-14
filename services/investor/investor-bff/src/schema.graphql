@@ -9,6 +9,7 @@ type Query {
 type Mutation {
   updateGoal(input: GoalInput!): Goal!
   updateOperatingMode(mode: OperatingMode!): InvestorProfile!
+  confirmGoLive: InvestorProfile!
   revokeMandate: Mandate!
   initiateDeposit(input: DepositInput!): Deposit!
   requestWithdrawal(input: WithdrawalInput!): WithdrawalRequest!
