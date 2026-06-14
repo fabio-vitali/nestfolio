@@ -4,17 +4,19 @@ description: Compliance escalations and broker order escalations surface as inve
 domains: [advisory, execution, investor]
 
 # ─────────────────────────────────────────────────────────────────────────────
-# Two parallel trigger paths converge at investor-adpt:
+# Trigger paths intended to converge at investor-adpt:
 #
-#   Path B: compliance-ctrl compliance pipeline determines decision must be
-#           escalated → publishes ESCALATION_TRIGGERED directly to AdvisoryBus
+#   Path B (NON-FUNCTIONAL): ESCALATION_TRIGGERED is an aspirational path. No
+#           producer emits it — compliance-ctrl's pipeline only writes a
+#           ComplianceCheck row (result=APPROVED|BLOCKED). The event name exists
+#           only as a dead constant. See step 1 note.
 #
-#   Path C: broker-ctrl Step Functions order-state-machine times out waiting
-#           for adapter callback → writes NormalizedEvent (sk=ORDER_ESCALATED)
+#   Path C (functional): broker-ctrl Step Functions order-state-machine times out
+#           waiting for adapter callback → writes NormalizedEvent (sk=ORDER_ESCALATED)
 #           → CDC emits ORDER_ESCALATED on ExecutionBus
 # ─────────────────────────────────────────────────────────────────────────────
 
-trigger: compliance-ctrl emits ESCALATION_TRIGGERED (direct PutEvents to AdvisoryBus); broker-ctrl Step Functions writes NormalizedEvent record (sk=ORDER_ESCALATED) → CDC emits ORDER_ESCALATED on ExecutionBus
+trigger: broker-ctrl Step Functions order-state-machine times out → writes NormalizedEvent record (sk=ORDER_ESCALATED) → CDC emits ORDER_ESCALATED on ExecutionBus. (Path B / ESCALATION_TRIGGERED is a NON-FUNCTIONAL aspirational path — no producer emits it; see step note.)
 
 steps:
   # ─── Path B: ESCALATION_TRIGGERED ────────────────────────────────────────
@@ -22,8 +24,8 @@ steps:
   - service: compliance-ctrl
     receives: RECOMMENDATION_PROPOSED
     via: AdvisoryBus -> SQS -> compliance-ctrl-Ingress
-    state_change: Evaluates suitability and guardrail rules against GuardrailPolicy (MandateSnapshot projected from MANDATE_ISSUED + OPERATING_MODE_CHANGED); if threshold breached, publishes ESCALATION_TRIGGERED directly to AdvisoryBus via event-listener/event-publisher Lambda
-    emits: ESCALATION_TRIGGERED (direct PutEvents to AdvisoryBus; not in egress CDC config)
+    state_change: compliance-ctrl event-listener writes only a ComplianceCheck row (result=APPROVED|BLOCKED) -> CDC emits DECISION_APPROVED|DECISION_BLOCKED. NO escalation branch exists; ESCALATION_TRIGGERED is never emitted (dead constant in domain/events.ts:7).
+    emits: none (ESCALATION_TRIGGERED is defined but unpublished -- no producer; event-publisher.ts is a pure CDC publisher)
     idempotent: true
 
   - cross_domain: ESCALATION_TRIGGERED
@@ -35,8 +37,8 @@ steps:
 
   - service: broker-ctrl
     action: Step Functions order-state-machine adapter-callback timeout branch fires
-    via: broker-ctrl-OrderStateMachine (Step Functions) → DynamoDB PutItem (arn:aws:states:::dynamodb:putItem)
-    state_change: Writes NormalizedEvent record (pk=NormalizedEvent#{tenantId}#{orderId}, sk=ORDER_ESCALATED#{timestamp}, failureReason="Adapter timeout — escalated")
+    via: broker-ctrl-OrderStateMachine (Step Functions) HandleTimeout Parallel state — branch 1 DynamoDB UpdateItem (arn:aws:states:::dynamodb:updateItem) sets BrokerOrder.state='ESCALATED'; branch 2 DynamoDB PutItem (arn:aws:states:::dynamodb:putItem) writes the NormalizedEvent row
+    state_change: Updates BrokerOrder row (sk=BrokerOrder, state='ESCALATED') and writes NormalizedEvent record (pk=NormalizedEvent#{tenantId}#{orderId}, sk=ORDER_ESCALATED#{$$.State.EnteredTime}, failureReason="Adapter timeout — escalated")
     emits: ORDER_ESCALATED (CDC from NormalizedEvent INSERT, sk passthrough determines event type)
     idempotent: true
 
@@ -52,7 +54,7 @@ steps:
   # coverage gap. investor-ctrl triggerIngress handles (post-resplit 2026-05-08):
   # ONBOARDING_COMPLETED, MANDATE_ISSUED, MANDATE_REVOKED, OPERATING_MODE_CHANGED,
   # GOAL_UPDATED, DEPOSIT_INITIATED, DECISION_APPROVED, ORDER_FILLED, BALANCE_UPDATED,
-  # ORDER_REJECTED, DECISION_BLOCKED, WITHDRAWAL_COMPLETED, BROKER_CIRCUIT_OPEN,
+  # ORDER_REJECTED, DECISION_BLOCKED, WITHDRAWAL_SETTLED, BROKER_CIRCUIT_OPEN,
   # BROKER_CIRCUIT_CLOSED, BROKER_HEAL_ESCALATED.
 
   - service: investor-ctrl
@@ -64,12 +66,15 @@ steps:
     note: MISSING SUBSCRIPTION — investor-ctrl does not handle these events; no notification is sent to the investor
 
 success_criteria:
-  - ESCALATION_TRIGGERED reaches InvestorBus via investor-adpt InvestorIngress-FromAdvisory rule
+  # Path B (ESCALATION_TRIGGERED) is UNIMPLEMENTED — no producer emits the event, so this
+  # criterion is aspirational and cannot be satisfied by current code. ESCALATION_TRIGGERED,
+  # INCIDENT_DETECTED, and INCIDENT_RESOLVED are dead constants (advisory-adpt domain/events.ts:15-17).
+  - "[UNIMPLEMENTED] ESCALATION_TRIGGERED would reach InvestorBus via investor-adpt InvestorIngress-FromAdvisory rule — but no producer emits ESCALATION_TRIGGERED, so this path never fires"
   - ORDER_ESCALATED NormalizedEvent written by Step Functions, CDC emits on ExecutionBus, forwarded to InvestorBus via investor-adpt InvestorIngress-FromExecution rule
 
 failure_modes:
-  - Path B fails: compliance-ctrl event-publisher Lambda IAM error — PutEvents denied; event never reaches AdvisoryBus
-  - Path B cross-domain: investor-adpt InvestorIngress-FromAdvisory DLQ (FromAdvisoryDLQ, 14-day retention) receives message if InvestorBus target is throttled or unavailable
+  # Path B failure modes describe an UNIMPLEMENTED path — ESCALATION_TRIGGERED is never emitted.
+  - "[UNIMPLEMENTED] Path B: ESCALATION_TRIGGERED has no producer — compliance-ctrl only writes a ComplianceCheck row (DECISION_APPROVED|DECISION_BLOCKED via CDC); the escalation branch and its DLQ path (InvestorIngress-FromAdvisory / FromAdvisoryDLQ) are never exercised"
   - Path C fails: Step Functions DynamoDB PutItem fails — ORDER_ESCALATED NormalizedEvent not written; CDC never fires; event lost
   - Path C cross-domain: investor-adpt InvestorIngress-FromExecution DLQ (FromExecutionDLQ, 14-day retention) receives message if InvestorBus target is unavailable
   - All paths: events reach InvestorBus but investor-ctrl has no subscription — no downstream notification is created (known gap)

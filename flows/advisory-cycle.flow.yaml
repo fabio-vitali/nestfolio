@@ -8,15 +8,20 @@ trigger: decision-workflow-ctrl receives one of 7 trigger events (MANDATE_SNAPSH
 steps:
   # -- Phase 0: Cross-domain trigger ingestion --
   # 3 of the 7 triggers originate from the investor domain and arrive via advisory-adpt
-  - cross_domain: INVESTOR_PROFILE_UPDATED | MANDATE_ISSUED | MANDATE_REVOKED
+  - cross_domain: INVESTOR_PROFILE_UPDATED | MANDATE_ISSUED | MANDATE_REVOKED | OPERATING_MODE_CHANGED
     from: InvestorBus
     to: AdvisoryBus
     via: advisory-adpt EB rule (AdvisoryIngress-FromInvestor)
 
-  - cross_domain: ORDER_FILLED | ORDER_REJECTED | ORDER_CANCELLED | DEPOSIT_DETECTED | PORTFOLIO_DRIFT_DETECTED
+  - cross_domain: ORDER_FILLED | ORDER_REJECTED | ORDER_CANCELLED | DEPOSIT_DETECTED
     from: ExecutionBus
     to: AdvisoryBus
     via: advisory-adpt EB rule (AdvisoryIngress-FromExecution)
+
+  - cross_domain: PORTFOLIO_UPDATED | PORTFOLIO_DRIFT_DETECTED
+    from: LedgerBus
+    to: AdvisoryBus
+    via: advisory-adpt EB rule (AdvisoryIngress-FromLedger)
 
   # -- Phase 0a: First-decision projection (MandateSnapshot) --
   # MANDATE_ISSUED feeds the local mandate-projector → MandateSnapshot row →
@@ -35,13 +40,22 @@ steps:
   # SnapshotProjectorIngress mirrors the snapshot into its own table so the SF
   # can resolve the IP agent output via Direct DDB GetItem — no per-cycle agent invocation.
   - service: investor-profile-ctrl
-    receives: INVESTOR_PROFILE_UPDATED | MANDATE_ISSUED | OPERATING_MODE_CHANGED
+    # Ingress subscribes 4 events: 2 snapshot-driving triggers (INVESTOR_PROFILE_UPDATED,
+    # MANDATE_ISSUED) + 2 KB-ingestion-only subs (DECISION_BLOCKED, DECISION_APPROVED →
+    # KBIngestion Lambda, NOT the snapshot writer). OPERATING_MODE_CHANGED was DROPPED
+    # 2026-06-03 — the event now carries Mandate fields (would degrade the snapshot agent);
+    # operatingMode changes still rebuild the snapshot via INVESTOR_PROFILE_UPDATED, which
+    # investor-bff co-fires on every operatingMode change.
+    receives: INVESTOR_PROFILE_UPDATED | MANDATE_ISSUED | DECISION_BLOCKED | DECISION_APPROVED
     via: AdvisoryBus -> SQS -> investor-profile-ctrl-Ingress
     state_change: >
-      LangGraph investor-profile agent (Haiku goals + Opus risk-assessment, parallel) runs once per
+      INVESTOR_PROFILE_UPDATED | MANDATE_ISSUED drive the snapshot writer: LangGraph
+      investor-profile agent (Haiku goals + Sonnet risk-assessment, parallel) runs once per
       input event against the Regulatory KB; materializeToTable writes the InvestorProfileSnapshot
-      row carrying the full agent output (operatingMode + goalInterpretation + riskEvaluation).
+      row carrying the composite agent output (decisionId + goals + risk + metadata).
       No AgentCore Memory write on the critical path; no SF callback (pre-cycle precomputation).
+      DECISION_BLOCKED | DECISION_APPROVED feed the separate KBIngestion Lambda only
+      (compliance precedents into RegulatoryKB) — they do NOT write a snapshot.
     emits: INVESTOR_PROFILE_SNAPSHOT_CREATED (CDC, InvestorProfileSnapshot:INSERT) | INVESTOR_PROFILE_SNAPSHOT_UPDATED (CDC, InvestorProfileSnapshot:MODIFY)
     idempotent: true
 
@@ -78,9 +92,27 @@ steps:
     receives: MARKET_SNAPSHOT_UPDATED
     via: AdvisoryBus -> SQS -> SnapshotProjectorIngress (handlers/snapshot-projector.ts)
     state_change: >
-      materializeToTable mirrors MI-ctrl's snapshot into DWC's own DDB table as the
-      MarketSnapshot row (pk=`MarketSnapshot#{region}`, sk='MarketSnapshot'). The SF
-      reads this via Direct DDB GetItem during the cycle. Missing subject.agentOutput → NotRetryableError.
+      projectVersioned mirrors MI-ctrl's snapshot into DWC's own DDB table as the
+      MarketSnapshot row (pk=`MarketSnapshot#{region}`, sk='MarketSnapshot'), keyed on
+      subject.__version. The SF reads this via Direct DDB GetItem during the cycle.
+      Missing subject.agentOutput → NotRetryableError.
+    emits: (none — local projection)
+    idempotent: true
+
+  # -- Phase 0a-quater: LedgerSnapshot continuous projection (pre-cycle) --
+  # SnapshotProjectorIngress ALSO subscribes PORTFOLIO_UPDATED (forwarded from
+  # LedgerBus by advisory-adpt's AdvisoryIngress-FromLedger rule) and projects a
+  # per-tenant LedgerSnapshot row mirroring the ledger's positions + cashBalanceCents.
+  - service: decision-workflow-ctrl
+    receives: PORTFOLIO_UPDATED
+    via: AdvisoryBus -> SQS -> SnapshotProjectorIngress (handlers/snapshot-projector.ts)
+    state_change: >
+      projectVersioned mirrors the ledger's per-tenant positions + cashBalanceCents into
+      DWC's own table as the LedgerSnapshot row (pk=`LedgerSnapshot#{tenantId}`,
+      sk='LedgerSnapshot'), keyed on snapshot.lastEventSequence. `state` is JSON-stringified
+      so the SF parses it via States.StringToJson on read. The SF reads it via Direct DDB
+      GetItem (ParallelProjections Branch C); AssemblePacket uses it to compute
+      portfolioValueCents + delta-based proposedTrades. Missing subject.snapshot → NotRetryableError.
     emits: (none — local projection)
     idempotent: true
 
@@ -99,11 +131,24 @@ steps:
     emits: (none -- SF internal)
     idempotent: false  # duplicate trigger events start duplicate executions
 
+  # -- Phase 1a: SF-direct cycle-lifecycle signals (advisory-generating-failed-ux) --
+  # EmitDecisionCycleStarted fires fire-and-forget putEvents right after UnpackTriggerEnvelope,
+  # BEFORE any DecisionPacket row exists (the packet lands ~30-60s later at AssembleDecisionPacket).
+  # A shared pre-packet Catch (errors States.ALL, resultPath $.error) on the 4 pre-packet states
+  # (ParallelProjections / InvokePortfolioEngine / InvokeAdvisoryNarrative / AssembleDecisionPacket)
+  # routes to EmitDecisionCycleFailed → Fail. Both are Source=serviceName putEvents (NOT CDC),
+  # so advisory-bff's Ingress $or accepts the bare-serviceName source.
+  - service: decision-workflow-ctrl
+    action: SF EmitDecisionCycleStarted (events:putEvents, ResultPath:null) right after UnpackTriggerEnvelope; on any pre-packet failure the shared Catch routes to EmitDecisionCycleFailed → Fail
+    emits: DECISION_CYCLE_STARTED (SF-direct putEvents, status=GENERATING, __version:0) | DECISION_CYCLE_FAILED (SF-direct putEvents from the shared pre-packet Catch, status=FAILED, __version:1) — uncatchable States.Runtime emits neither (WS-3 UI-staleness guard)
+    idempotent: false
+
   # -- Phase 2: Step Functions resolves snapshots + dispatches PE+AN tasks --
   # SF state machine definition: decision-state-machine.ts
   # Flow (post-precomputation):
   #   ParallelProjections (Branch A: InvestorProfile payload-first → snapshot fallback,
-  #                        Branch B: LookupMarketSnapshot via Direct DDB GetItem)
+  #                        Branch B: LookupMarketSnapshot via Direct DDB GetItem,
+  #                        Branch C: LookupLedgerSnapshot via Direct DDB GetItem)
   #   → MergeProjections
   #   → ResolveMandateSnapshot (payload-first → LookupMandateSnapshot via DDB GetItem)
   #   → PortfolioEngine (waitForTaskToken)
@@ -119,6 +164,11 @@ steps:
   - service: decision-workflow-ctrl
     action: SF ParallelProjections Branch B — Direct DDB GetItem on MarketSnapshot (pk=`MarketSnapshot#{region}`, sk='MarketSnapshot'). No payload-first path (market signals are a global projection). No event emitted; no Lambda invoked.
     state_change: SF state Parameters carry marketSnapshot.agentOutput for downstream PE + AN steps.
+
+  # Phase 2b-bis: SF resolves Ledger snapshot (Direct DDB GetItem on DWC-local LedgerSnapshot)
+  - service: decision-workflow-ctrl
+    action: SF ParallelProjections Branch C — LookupLedgerSnapshot (Direct DDB GetItem on LedgerSnapshot, pk=`LedgerSnapshot#{tenantId}`, sk='LedgerSnapshot', captures raw response on $.ledgerSnapshotResponse) → CheckLedgerSnapshotPresent (Choice on isPresent($.ledgerSnapshotResponse.Item.state.S)) → ExtractLedgerSnapshot (States.StringToJson of $.ledgerSnapshotResponse.Item.state.S) on hit, or HandleMissingLedgerSnapshot (Pass seeding {positions:{}, cashBalanceCents:0}) on miss. No payload-first path (no trigger carries a full ledger state). No event emitted; no Lambda invoked.
+    state_change: SF state Parameters carry ledgerSnapshot.state (positions + cashBalanceCents) for AssemblePacket portfolioValueCents + delta-based proposedTrades. Choice-on-isPresent avoids the uncatchable States.Runtime from States.StringToJson(undefined) on a missing row.
 
   # Phase 2c: SF resolves MandateSnapshot (Direct DDB GetItem; payload-first when trigger carries operatingMode hint)
   - service: decision-workflow-ctrl
@@ -239,41 +289,55 @@ steps:
 
   # -- Phase 9: Request User Confirmation (L2 path only) --
   - service: decision-workflow-ctrl
-    action: SF emits USER_CONFIRMATION_REQUESTED via EventBridge putEvents.waitForTaskToken; waits up to 72h for user response
-    emits: USER_CONFIRMATION_REQUESTED (SF EventBridge integration with taskToken)
+    action: SF RequestUserConfirmation state — arn:aws:states:::aws-sdk:dynamodb:updateItem.waitForTaskToken writes taskToken + status=AWAITING_CONFIRMATION (and bumps __version) directly onto the DecisionPacket row; waits up to 72h. NO event emitted (USER_CONFIRMATION_REQUESTED removed). SF is the sole writer of AWAITING_CONFIRMATION.
+    emits: DECISION_PACKET_UPDATED (CDC, DecisionPacket:MODIFY — the versioned snapshot carries taskToken + AWAITING_CONFIRMATION to advisory-bff)
 
-  # -- Phase 9a: Cross-domain forwarding to investor for user confirmation --
-  - cross_domain: USER_CONFIRMATION_REQUESTED
-    from: AdvisoryBus
-    to: InvestorBus
-    via: investor-adpt EB rule (InvestorIngress-FromAdvisory)
+  # -- Phase 9a: L2 confirmation surfaces via the versioned CDC snapshot --
+  # There is NO USER_CONFIRMATION_REQUESTED cross-domain hop. RequestUserConfirmation
+  # writes the task token + AWAITING_CONFIRMATION onto the DecisionPacket row, whose
+  # DECISION_PACKET_UPDATED CDC snapshot reaches advisory-bff (Phase 9b) → DecisionReadModel
+  # → the advisory MFE confirm/reject UI. The investor-adpt InvestorIngress-FromAdvisory
+  # rule still lists USER_CONFIRMATION_REQUESTED but it is an unpruned orphan — no producer
+  # emits it, so the rule never matches.
 
-  # -- Phase 0b: advisory-bff tracks in-flight decisions at trigger time --
-  # Source: services/advisory/advisory-bff/src/transforms/decision-trigger-received.ts
-  # advisory-bff subscribes to all 7 TRIGGER_EVENT_TYPES (same list as SF above).
-  # On each trigger event: increments AdvisoryStatus.inFlightCount + sets lastTriggerAt.
-  # On DECISION_PACKET_CREATED: decrements inFlightCount (decision has landed in the read model).
-  # AdvisoryStatus changes are published via CDC → advisory-bff-egress → ADVISORY_STATUS_UPDATED,
-  # which the event-publisher broadcasts via publishAdvisoryStatusUpdate IAM mutation so
-  # the advisory MFE can subscribe onAdvisoryStatusUpdate and show a "N decisions in flight" badge
-  # without polling. UI receives the counter update before the full DecisionPacket is assembled.
+  # -- Phase 0b: advisory-bff AdvisoryStatus is a command-owned DERIVED aggregate --
+  # advisory-bff does NOT subscribe to trigger events (decision-trigger-received.ts was
+  # DELETED). Its Ingress is exactly: DECISION_PACKET_CREATED, DECISION_PACKET_UPDATED,
+  # DECISION_CYCLE_STARTED, DECISION_CYCLE_FAILED. AdvisoryStatus (inFlightCount /
+  # generatingCount / failedCount / oldestGeneratingAt) is RECOMPUTED post-commit by a
+  # second DDB-stream consumer (handlers/advisory-status-projector.ts) that calls
+  # repo.deriveAdvisoryAggregate(tenantId) — ONE tenantId-index query over this tenant's
+  # non-terminal DecisionReadModel rows — then writes the aggregate via an atomic
+  # update(..., add:{__version:1}). The count is always a pure function of the projected
+  # rows (replacing the prior two-writer accumulate() race). CDC then emits
+  # ADVISORY_STATUS_UPDATED, consumed by dashboard-bff (the AppSync AdvisoryStatus
+  # read/subscribe surface was removed in WS-3 as dead).
   - service: advisory-bff
-    receives: MANDATE_SNAPSHOT_CREATED | INVESTOR_PROFILE_UPDATED | PORTFOLIO_DRIFT_DETECTED | ORDER_FILLED | ORDER_REJECTED | ORDER_CANCELLED | DEPOSIT_DETECTED
-    via: AdvisoryBus -> SQS -> advisory-bff-Ingress
-    handler: event-listener.ts (decisionTriggerReceived → decision-trigger-received.ts)
-    state_change: Increments AdvisoryStatus.inFlightCount; sets lastTriggerAt; emits ADVISORY_STATUS_UPDATED via CDC
-    emits: ADVISORY_STATUS_UPDATED (CDC, AdvisoryStatus insert/modify)
+    action: AdvisoryStatusProjector (DDB-stream consumer) recomputes the AdvisoryStatus derived aggregate post-commit from non-terminal DecisionReadModel rows (tenantId-index query) and writes it via update(add:{__version:1})
+    state_change: Sets AdvisoryStatus.{inFlightCount, generatingCount, failedCount, oldestGeneratingAt} as a pure function of the current DecisionReadModel rows; self-increments __version
+    emits: ADVISORY_STATUS_UPDATED (CDC, AdvisoryStatus insert/modify — consumed by dashboard-bff)
     idempotent: true
 
   # -- Phase 9b: BFF materialises for user-facing UI --
+  # advisory-bff Ingress is exactly these 4 events. DECISION_APPROVED / DECISION_BLOCKED /
+  # AWAITING_CONFIRMATION outcomes are NOT separate subscriptions — they arrive inside the
+  # versioned DECISION_PACKET_UPDATED snapshot (decision-snapshot.ts projects the full CDC
+  # subject via projectVersioned). The two SF-direct cycle-lifecycle events project a MINIMAL
+  # versioned row via decision-cycle-status.ts: DECISION_CYCLE_STARTED → status GENERATING
+  # (__version 0), DECISION_CYCLE_FAILED → status FAILED (__version 1). The version guard lets
+  # a content DECISION_PACKET_CREATED (v1) overwrite GENERATING (v0) and drops a late STARTED.
+  # This GENERATING/FAILED projection is what apps/nestfolio-e2e advisory-generating-state.spec.ts asserts.
   - service: advisory-bff
-    receives: USER_CONFIRMATION_REQUESTED | DECISION_PACKET_CREATED | DECISION_APPROVED | DECISION_BLOCKED | DECISION_PACKET_UPDATED
+    receives: DECISION_PACKET_CREATED | DECISION_PACKET_UPDATED | DECISION_CYCLE_STARTED | DECISION_CYCLE_FAILED
     via: AdvisoryBus -> SQS -> advisory-bff-Ingress
-    handler: event-listener.ts (materializeToTable)
+    handler: event-listener.ts (decisionSnapshot for DECISION_PACKET_*; decisionCycleStatus for DECISION_CYCLE_*)
     state_change: >
-      Materialises DecisionReadModel for GraphQL queries; user sees decision in UI.
-      DECISION_PACKET_CREATED also decrements AdvisoryStatus.inFlightCount (counter closes at packet-creation time).
-    emits: DECISION_READ_MODEL_CREATED | DECISION_READ_MODEL_UPDATED (CDC, DecisionReadModel insert/modify) | ADVISORY_STATUS_UPDATED (CDC, AdvisoryStatus insert/modify; DRY subject — typed AdvisoryStatusSchema) # USER_INTERACTION_CREATED (UserInteraction) stop-emitted — zero consumers (advisory-agent-event-contract-coverage)
+      DECISION_PACKET_CREATED / _UPDATED: decision-snapshot.ts projects the full CDC subject into
+      DecisionReadModel P1 via projectVersioned (degraded snapshots — no explanation AND no
+      proposedTrades — are skipped). DECISION_CYCLE_STARTED / _FAILED: decision-cycle-status.ts
+      projects a minimal versioned DecisionReadModel row (STARTED→GENERATING v0, FAILED→FAILED v1)
+      BEFORE any packet exists. User sees decision (and generating/failed cycle state) in UI.
+    emits: DECISION_READ_MODEL_CREATED | DECISION_READ_MODEL_UPDATED (CDC, DecisionReadModel insert/modify) # USER_INTERACTION_CREATED (UserInteraction) stop-emitted — zero consumers (advisory-agent-event-contract-coverage)
     idempotent: true
 
   # -- Phase 10: User responds via advisory-bff mutations --
@@ -338,9 +402,9 @@ steps:
 
 success_criteria:
   - InvestorProfileSnapshot + MarketSnapshot projections exist in DWC-local DDB before the cycle begins (continuously materialised). Absent MarketSnapshot is tolerated — SF Branch B routes via Choice on isPresent($.marketSnapshotResponse.Item): ExtractMarketSnapshot on hit, HandleMissingMarketSnapshot (empty agentOutput default) on miss; PE+AN degrade gracefully.
-  - SF resolves both snapshots via Direct DDB GetItem (no IP/MI agent invocation per cycle)
+  - SF resolves all three snapshots (InvestorProfile + Market + Ledger) via Direct DDB GetItem (no IP/MI agent invocation per cycle)
   - PE + AN agents return via materializeToTable AgentCompletion CDC within their windows; PORTFOLIO_COMPLETED / NARRATIVE_COMPLETED reach DWC's CallbackIngress and SendTaskSuccess resumes the SF
-  - AssemblePacket writes a DecisionPacket row; CDC emits DECISION_PACKET_CREATED reaching advisory-bff (UI), ledger-adpt (audit), and investor-bff (decision history)
+  - AssemblePacket writes a DecisionPacket row; CDC emits DECISION_PACKET_CREATED reaching advisory-bff (UI), ledger-adpt (audit, via cross-domain hop), and dashboard-bff (investor-domain decision history, via the InvestorIngress-FromAdvisory cross-domain hop)
   - compliance-ctrl emits exactly one of DECISION_APPROVED / DECISION_BLOCKED
   - For L1 approved DecisionPacket.status='APPROVED' and DECISION_APPROVED reaches ExecutionBus
   - For L2 approved confirmDecision/rejectDecision mutation lands within 72h; USER_CONFIRMED causes DECISION_APPROVED propagation; USER_REJECTED ends the cycle with no execution
@@ -348,12 +412,13 @@ success_criteria:
 failure_modes:
   - trigger ingestion fails: EventBridge → SF native target invocation fails or is throttled; SF not started; trigger event sits on source-bus DLQ. No automatic retry of the cycle; manual replay.
   - InvestorProfileSnapshot missing at cycle start (IP-ctrl Ingress DLQ accumulating, or new tenant never went through onboarding): SF Branch A's Choice payload-first path is the safety net only when the trigger payload carries the IP body; otherwise the Direct DDB GetItem returns no row and SF state catches the error.
-  - MarketSnapshot missing at cycle start (MI-ctrl Ingress DLQ, scheduler-broken, Bedrock outage, or fresh-deploy 15-min window): LookupMarketSnapshot captures the raw GetItem response on $.marketSnapshotResponse (no ResultSelector — that would raise the uncatchable States.Runtime on missing rows), then CheckMarketSnapshotPresent (Choice on isPresent($.marketSnapshotResponse.Item)) routes to HandleMissingMarketSnapshot, a Pass that seeds `{ agentOutput: {} }` on $.agentResults.InvokeMarketIntelligence. PE+AN read `subject.marketAnalysis ?? {}` so absent market context degrades the decision rather than aborting the cycle. Hit path: ExtractMarketSnapshot lifts $.marketSnapshotResponse.Item.agentOutput.M into the same shape.
-  - SnapshotProjectorIngress fails (DWC-local mirror falls behind IP/MI source rows): DWC's SF reads a stale snapshot until the SQS retry succeeds; missing subject.agentOutput → NotRetryableError so corrupt envelopes go straight to DLQ.
+  - "MarketSnapshot missing at cycle start (MI-ctrl Ingress DLQ, scheduler-broken, Bedrock outage, or fresh-deploy 15-min window): LookupMarketSnapshot captures the raw GetItem response on $.marketSnapshotResponse (no ResultSelector — that would raise the uncatchable States.Runtime on missing rows), then CheckMarketSnapshotPresent (Choice on isPresent($.marketSnapshotResponse.Item)) routes to HandleMissingMarketSnapshot, a Pass that seeds `{ agentOutput: {} }` on $.agentResults.InvokeMarketIntelligence. PE+AN read `subject.marketAnalysis ?? {}` so absent market context degrades the decision rather than aborting the cycle. Hit path: ExtractMarketSnapshot lifts $.marketSnapshotResponse.Item.agentOutput.M into the same shape."
+  - "SnapshotProjectorIngress fails (DWC-local mirror falls behind IP/MI/Ledger source rows): DWC's SF reads a stale snapshot until the SQS retry succeeds; missing subject.agentOutput (IP/Market) or subject.snapshot (Ledger) → NotRetryableError so corrupt envelopes go straight to DLQ."
+  - "LedgerSnapshot missing at cycle start (no PORTFOLIO_UPDATED yet, or SnapshotProjectorIngress DLQ): LookupLedgerSnapshot captures the raw GetItem response on $.ledgerSnapshotResponse (no ResultSelector), then CheckLedgerSnapshotPresent (Choice on isPresent($.ledgerSnapshotResponse.Item.state.S)) routes to HandleMissingLedgerSnapshot, a Pass seeding `{ state: { positions: {}, cashBalanceCents: 0 } }`. PE tolerates empty ledger context via `?? {}`; AssemblePacket computes portfolioValueCents from the empty defaults (isInitialBuild=true). Hit path: ExtractLedgerSnapshot parses $.ledgerSnapshotResponse.Item.state.S via States.StringToJson."
   - PE / AN agent invocation fails (Lambda exception, AgentCore degraded response): handler writes AgentFailure row → CDC emits PORTFOLIO_FAILED / NARRATIVE_FAILED → CallbackIngress calls SendTaskFailure → SF state catches and the cycle fails with DECISION_WORKFLOW_FAILED.
   - PE / AN agent stalls past waitForTaskToken window: SF TaskTimedOut fires; CDC-based completion event arriving after the timeout is logged and ignored. Manual replay; no auto-retry.
   - AssemblePacket fails: Lambda invocation error; SF state catches the error. Cycle ends without a DecisionPacket row. No retry.
   - compliance fails: compliance-ctrl Ingress DLQ; WaitForCompliance times out at 24h. Manual DLQ replay; SF can resume only if token is still valid (won't be after 24h).
   - compliance callback fails: CallbackIngress DLQ; SF stuck waiting; eventually times out at 24h. Manual replay (token-lag risk applies).
-  - user confirmation cross-bus hop fails: investor-adpt FromAdvisoryDLQ accumulates; user never sees the request. SF will time out at 72h.
+  - L2 confirmation snapshot fails to reach the UI: RequestUserConfirmation writes taskToken + AWAITING_CONFIRMATION onto the DecisionPacket row, but the DECISION_PACKET_UPDATED CDC → advisory-bff DecisionReadModel projection stalls (advisory-bff Ingress DLQ, or decision-snapshot.ts skip() on a degraded snapshot); user never sees the confirm/reject prompt. SF will time out at 72h. (No USER_CONFIRMATION_REQUESTED cross-bus hop exists — the event was removed.)
   - user callback fails: CallbackIngress DLQ; SF stuck waiting. Manual replay within the 72h window.

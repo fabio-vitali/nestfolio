@@ -49,30 +49,40 @@ steps:
   # dashboard-bff (InvestorBus, via step 2b): increments AdvisoryStatus.pendingDecisionsCount
   # Both counters decrement when the decision resolves (DECISION_PACKET_CREATED / DECISION_APPROVED / DECISION_BLOCKED).
 
-  # Step 4: SF orchestration — Step Functions runs the 4-agent pipeline + compliance + user-confirm
+  # Step 4: SF orchestration — Step Functions reads precomputed IP+MI snapshots, then runs
+  #         the 2 per-cycle agents (PE+AN) + compliance + user-confirm
   # Source: services/advisory/decision-workflow-ctrl/src/constructs/decision-state-machine.ts
-  # SF flow: UnpackTriggerEnvelope → ParallelProfiling (InvokeInvestorProfile || InvokeMarketIntelligence)
+  # SF flow: UnpackTriggerEnvelope → ParallelProjections (LookupInvestorProfileSnapshot || LookupMarketSnapshot, DDB GetItem)
   #        → InvokePortfolioEngine → InvokeAdvisoryNarrative → AssembleDecisionPacket
   #        → WaitForCompliance → ComplianceChoice (BLOCKED | APPROVED+L1 | else → user confirm)
-  # Each agent invocation publishes detailType to AdvisoryBus with waitForTaskToken
+  # Only PE+AN are invoked per cycle (publish detailType to AdvisoryBus with waitForTaskToken);
+  # IP+MI are read as precomputed snapshots via DDB GetItem (no per-cycle invocation).
 
-  # Step 4a: Parallel — investor-profile-ctrl + market-intelligence-ctrl
-  # Source: decision-state-machine.ts (InvokeInvestorProfile emits ANALYZE_INVESTOR_PROFILE)
-  # Source: services/advisory/investor-profile-ctrl/src/service.stack.ts (Ingress: ANALYZE_INVESTOR_PROFILE)
+  # Step 4a: Precomputed snapshots — the SF reads InvestorProfileSnapshot + MarketSnapshot
+  # via DDB GetItem (no per-cycle agent invocation). Post advisory-cycle-agent-precomputation,
+  # investor-profile-ctrl and market-intelligence-ctrl no longer participate per cycle: they
+  # continuously project their snapshot rows from upstream events, and the SF (ParallelProjections)
+  # reads the DWC-local mirror via LookupInvestorProfileSnapshot + LookupMarketSnapshot.
+  # Source: decision-state-machine.ts:413 (LookupInvestorProfileSnapshot DDB GetItem)
+  # Source: decision-state-machine.ts:498 (LookupMarketSnapshot DDB GetItem)
+
+  # investor-profile-ctrl: continuously projects InvestorProfileSnapshot from INVESTOR_PROFILE_UPDATED
+  # (also MANDATE_ISSUED, DECISION_APPROVED, DECISION_BLOCKED). NOT invoked per cycle.
+  # Source: services/advisory/investor-profile-ctrl/src/service.stack.ts:40-46 (Ingress), :58-61 (Egress)
   - service: investor-profile-ctrl
-    receives: ANALYZE_INVESTOR_PROFILE
-    via: AdvisoryBus → SQS → investor-profile-ctrl-ingress
-    state_change: Runs user-goals (Haiku) + risk-assessment (Opus) agents; writes AgentInvocation to DDB
-    emits: GOAL_INTERPRETATION_PRODUCED (CDC from AgentInvocation insert)
+    receives: INVESTOR_PROFILE_UPDATED
+    via: AdvisoryBus → SQS → investor-profile-ctrl-ingress (continuous projection, NOT per-cycle)
+    state_change: Runs user-goals (Haiku) + risk-assessment (Sonnet) agents; upserts InvestorProfileSnapshot row to DDB
+    emits: INVESTOR_PROFILE_SNAPSHOT_CREATED (insert) / INVESTOR_PROFILE_SNAPSHOT_UPDATED (modify) (CDC from InvestorProfileSnapshot row)
     idempotent: false
 
-  # Source: decision-state-machine.ts (InvokeMarketIntelligence emits ANALYZE_MARKET)
-  # Source: services/advisory/market-intelligence-ctrl/src/service.stack.ts (Ingress: ANALYZE_MARKET)
+  # market-intelligence-ctrl: continuously projects MarketSnapshot from 5 feed events + a 15-min tick.
+  # NOT invoked per cycle. Source: services/advisory/market-intelligence-ctrl/src/service.stack.ts:46-52 (Ingress), :64-68 (Egress)
   - service: market-intelligence-ctrl
-    receives: ANALYZE_MARKET
-    via: AdvisoryBus → SQS → market-intelligence-ctrl-ingress
-    state_change: Runs market-research (Sonnet) agent; writes AgentInvocation to DDB
-    emits: MARKET_SIGNAL_DETECTED (CDC from AgentInvocation insert)
+    receives: YAHOO_FINANCE_UPDATED, MARKETWATCH_UPDATED, SEC_8K_FILED, FRED_INDICATORS_UPDATED, ALPHA_VANTAGE_NEWS_UPDATED, MARKET_SNAPSHOT_REFRESH_TICK
+    via: AdvisoryBus → SQS → market-intelligence-ctrl-ingress (continuous projection, NOT per-cycle)
+    state_change: Runs market-research (Sonnet) agent; upserts MarketSnapshot row (one per region) to DDB
+    emits: MARKET_SNAPSHOT_UPDATED (CDC from MarketSnapshot insert/modify)
     idempotent: false
 
   # Step 4b: Sequential — portfolio-engine-ctrl
@@ -81,8 +91,8 @@ steps:
   - service: portfolio-engine-ctrl
     receives: CONSTRUCT_PORTFOLIO
     via: AdvisoryBus → SQS → portfolio-engine-ctrl-ingress
-    state_change: Runs portfolio-construction (Opus) + rebalance-planner (Sonnet) agents; writes AgentInvocation + ReasoningOutput
-    emits: PORTFOLIO_CONSTRUCTION_PROPOSED (CDC from AgentInvocation insert), REBALANCE_PLAN_PRODUCED (CDC from ReasoningOutput insert)
+    state_change: Runs portfolio-construction (Sonnet) + rebalance-planner (Nova Pro) agents; writes AgentCompletion (success) or AgentFailure (caught error) row to DDB
+    emits: PORTFOLIO_COMPLETED (CDC from AgentCompletion insert) or PORTFOLIO_FAILED (CDC from AgentFailure insert) — resumes SF via DWC CallbackIngress → SendTaskSuccess/Failure
     idempotent: false
 
   # Step 4c: Sequential — advisory-narrative-ctrl
@@ -91,8 +101,8 @@ steps:
   - service: advisory-narrative-ctrl
     receives: GENERATE_NARRATIVE
     via: AdvisoryBus → SQS → advisory-narrative-ctrl-ingress
-    state_change: Runs explainability (Sonnet) agent; writes ReasoningOutput to DDB
-    emits: EXPLANATION_GENERATED (CDC from ReasoningOutput insert)
+    state_change: Runs explainability (Haiku) agent; writes ReasoningOutput + AgentCompletion (success) / AgentFailure (caught error) rows to DDB
+    emits: EXPLANATION_GENERATED (CDC from ReasoningOutput insert), NARRATIVE_COMPLETED (CDC from AgentCompletion insert) / NARRATIVE_FAILED (CDC from AgentFailure insert) — resumes SF via DWC CallbackIngress → SendTaskSuccess/Failure
     idempotent: false
 
   # Step 5: AssemblePacket Lambda reads agent outputs from Memory, writes DecisionPacket to DDB
@@ -102,14 +112,14 @@ steps:
   # Step 6: SF publishes RECOMMENDATION_PROPOSED, then WaitForCompliance (task token)
   # Source: decision-state-machine.ts (PublishRecommendation + WaitForCompliance)
 
-  # Step 7: compliance-ctrl evaluates decision packet
-  # Source: services/advisory/compliance-ctrl/src/service.stack.ts (Ingress: DECISION_PACKET_CREATED)
-  # Source: services/advisory/compliance-ctrl/src/handlers/event-listener.ts (processDecisionPacket)
+  # Step 7: compliance-ctrl evaluates the recommendation
+  # Source: services/advisory/compliance-ctrl/src/service.stack.ts:16 (Ingress: RECOMMENDATION_PROPOSED), :25-32 (Egress field-map on ComplianceCheck.result)
+  # Source: services/advisory/compliance-ctrl/src/handlers/event-listener.ts:193 (processDecisionPacket)
   - service: compliance-ctrl
-    receives: DECISION_PACKET_CREATED
+    receives: RECOMMENDATION_PROPOSED
     via: AdvisoryBus → SQS → compliance-ctrl-ingress
     state_change: Evaluates mandate, guardrails, suitability; writes ComplianceCheck + AuditArtifact to DDB
-    emits: COMPLIANCE_CHECK (CDC from ComplianceCheck insert), AUDIT_ARTIFACT (CDC from AuditArtifact insert)
+    emits: DECISION_APPROVED or DECISION_BLOCKED (CDC from ComplianceCheck insert, field-mapped on result); AuditArtifact written to DDB but NOT CDC-emitted
     idempotent: true
 
   # Step 8: Compliance result resumes SF via callback
@@ -141,7 +151,7 @@ steps:
 
 success_criteria:
   - Drift quantified in DriftRecord by reconciliation-ctrl
-  - Advisory decision cycle (4 LangGraph agents) produces rebalance plan with proposed trades
+  - Advisory decision cycle (PE + AN per-cycle agents; IP + MI precomputed snapshots) produces rebalance plan with proposed trades
   - Compliance-ctrl evaluates and approves decision packet
   - Rebalance orders created in execution-ctrl (SUBMITTED or STAGED)
   - Staged orders processed at next market open
@@ -150,11 +160,11 @@ failure_modes:
   - step 1 fails: reconciliation-ctrl ingress DLQ; drift remains undetected
   - step 2 fails: advisory-adpt FromLedgerDLQ (14d retention); advisory domain not notified
   - step 3 fails: EventBridge → SF native target invocation fails or is throttled; decision cycle not started; trigger event sits on the source bus DLQ if a downstream rule failure cascades back
-  - step 4a fails: agent invocation timeout (10 min); SF task token expires, workflow fails
+  - step 4a (snapshot lookup) misses: InvestorProfileSnapshot/MarketSnapshot row absent; SF Choice routes to HandleMissing* (empty agentOutput default); PE+AN degrade the decision via `?? {}` rather than aborting the cycle (tolerated, not a failure)
   - step 4b fails: portfolio-engine-ctrl agent failure; SF task token expires
   - step 4c fails: advisory-narrative-ctrl agent failure; SF task token expires
   - step 7 fails: compliance-ctrl ingress DLQ; compliance evaluation not performed
-  - step 8 fails: compliance callback fails; SF WaitForCompliance times out (24h)
+  - step 8 fails: compliance callback fails; SF WaitForCompliance times out (72h SF timeout)
   - step 9 fails: execution-adpt FromAdvisoryDLQ (14d retention); execution not notified
   - step 10 fails: execution-ctrl ingress DLQ; rebalance orders not created
   - safety checks fail: Order written with status REJECTED; no broker submission

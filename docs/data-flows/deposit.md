@@ -4,7 +4,7 @@
 
 **Domains:** investor, execution, ledger
 
-**Trigger:** investor-bff emits DEPOSIT_INITIATED (CDC from Deposit:INSERT)
+**Trigger:** investor-bff emits DEPOSIT_INITIATED (CDC from DepositIntent:INSERT)
 
 ## Flowchart
 
@@ -13,6 +13,7 @@ flowchart TD
     subgraph investor["Investor Domain"]
         investor_bff["investor-bff"]
         investor_ctrl["investor-ctrl"]
+        dashboard_bff["dashboard-bff"]
     end
     subgraph execution["Execution Domain"]
         broker_ctrl["broker-ctrl"]
@@ -22,13 +23,14 @@ flowchart TD
     subgraph ledger["Ledger Domain"]
         ledger_ctrl["ledger-ctrl"]
     end
-    investor_bff -->|"DEPOSIT_INITIATED, DEPOSIT_INITIATED"| investor_ctrl
+    investor_bff -.->|"DEPOSIT_INITIATED"| investor_ctrl
     broker_ctrl -->|"SIM_DEPOSIT_INITIATED"| broker_sim_adpt
     broker_ctrl -->|"ALPACA_TRANSFER_REQUESTED"| broker_alpaca_adpt
     broker_sim_adpt -->|"SIM_DEPOSIT_COMPLETED"| broker_ctrl
     broker_alpaca_adpt -->|"ALPACA_TRANSFER_COMPLETED"| broker_ctrl
-    broker_ctrl -->|"DEPOSIT_DETECTED, DEPOSIT_DETECTED"| ledger_ctrl
-    ledger_ctrl -->|"BALANCE_UPDATED, BALANCE_UPDATED"| investor_bff
+    broker_ctrl -.->|"DEPOSIT_DETECTED"| dashboard_bff
+    broker_ctrl -.->|"DEPOSIT_SETTLED"| ledger_ctrl
+    ledger_ctrl -.->|"BALANCE_UPDATED"| investor_bff
 ```
 
 ## Sequence Diagram
@@ -38,6 +40,7 @@ sequenceDiagram
     box investor domain
         participant investor_bff as investor-bff
         participant investor_ctrl as investor-ctrl
+        participant dashboard_bff as dashboard-bff
     end
     box execution domain
         participant broker_ctrl as broker-ctrl
@@ -53,7 +56,8 @@ sequenceDiagram
     broker_ctrl->>+broker_sim_adpt: SIM_DEPOSIT_INITIATED
     broker_ctrl->>+broker_alpaca_adpt: ALPACA_TRANSFER_REQUESTED
     broker_alpaca_adpt->>+broker_ctrl: SIM_DEPOSIT_COMPLETED | ALPACA_TRANSFER_COMPLETED
-    broker_ctrl-)ledger_ctrl: DEPOSIT_DETECTED (ExecutionBus → LedgerBus)
+    broker_ctrl-)dashboard_bff: DEPOSIT_DETECTED (ExecutionBus → InvestorBus)
+    broker_ctrl-)ledger_ctrl: DEPOSIT_SETTLED (ExecutionBus → LedgerBus)
     ledger_ctrl-)investor_bff: BALANCE_UPDATED (LedgerBus → InvestorBus)
     ledger_ctrl->>+investor_ctrl: BALANCE_UPDATED
 ```
@@ -62,9 +66,9 @@ sequenceDiagram
 
 ### Step 1: investor-bff
 
-- **Action:** User calls initiateDeposit GraphQL mutation (initiate-deposit.fn.js) which writes Deposit record to DDB; alternatively onboardingCompleted writes Deposit if capitalAmount > 0
-- **State change:** Deposit record written with status INITIATED
-- **Emits:** `DEPOSIT_INITIATED (CDC, Deposit:insert)`
+- **Action:** User calls initiateDeposit GraphQL mutation (initiate-deposit.fn.js) which writes a DepositIntent record to DDB; alternatively onboardingCompleted writes a DepositIntent record if capitalAmount > 0
+- **State change:** DepositIntent record written with status INITIATED
+- **Emits:** `DEPOSIT_INITIATED (CDC, DepositIntent:insert)`
 - **Idempotent:** yes
 
 ### Step 2: Cross-domain hop
@@ -79,7 +83,7 @@ sequenceDiagram
 - **Receives:** `DEPOSIT_INITIATED`
 - **Via:** InvestorBus → SQS → investor-ctrl-trigger-ingress
 - **State change:** Creates Notification record (title "Deposit Received")
-- **Emits:** `NOTIFICATION (CDC, Notification:insert)`
+- **Emits:** `NOTIFICATION_CREATED (CDC, Notification:insert)`
 - **Idempotent:** yes
 
 ### Step 4: broker-ctrl
@@ -118,33 +122,48 @@ sequenceDiagram
 
 - **Receives:** `SIM_DEPOSIT_COMPLETED | ALPACA_TRANSFER_COMPLETED`
 - **Via:** ExecutionBus → SQS → broker-ctrl-deposit-withdrawal-normalizer-ingress
-- **State change:** deposit-withdrawal-normalizer writes NormalizedEvent record with sk=DEPOSIT_DETECTED
-- **Emits:** `DEPOSIT_DETECTED (CDC, NormalizedEvent:insert, passthrough on sk field)`
+- **State change:** deposit-withdrawal-normalizer writes TWO FundingEvent records (sk=DEPOSIT_DETECTED status=detected, sk=DEPOSIT_SETTLED status=settled) via fundingCarrier
+- **Emits:** `DEPOSIT_DETECTED, DEPOSIT_SETTLED (CDC, FundingEvent:insert, passthrough on sk field)`
 - **Idempotent:** yes
 
 ### Step 9: Cross-domain hop
 
 - **Event:** `DEPOSIT_DETECTED`
 - **From:** ExecutionBus
+- **To:** InvestorBus
+- **Via:** investor-adpt EB rule (InvestorIngress-FromExecution)
+
+### Step 10: dashboard-bff
+
+- **Receives:** `DEPOSIT_DETECTED`
+- **Via:** InvestorBus → SQS → dashboard-bff-ingress
+- **State change:** recentActivity transform writes Activity record (activityType=DEPOSIT_DETECTED)
+- **Emits:** `none (read model projection)`
+- **Idempotent:** yes
+
+### Step 11: Cross-domain hop
+
+- **Event:** `DEPOSIT_SETTLED`
+- **From:** ExecutionBus
 - **To:** LedgerBus
 - **Via:** ledger-adpt EB rule (LedgerIngress-FromExecution)
 
-### Step 10: ledger-ctrl
+### Step 12: ledger-ctrl
 
-- **Receives:** `DEPOSIT_DETECTED`
+- **Receives:** `DEPOSIT_SETTLED`
 - **Via:** LedgerBus → SQS → ledger-ctrl-ingress
 - **State change:** event-listener writes LedgerEntry record (actual stream). Reducer (DDB Stream consumer, filters LedgerEntry:INSERT) replays events through accountReducer (RecordDeposit adds amountCents to cashBalanceCents). saveSnapshotWithEvents writes AccountSnapshot + BalanceEvent (when balanceChanged) + LedgerEntryEvent
 - **Emits:** `BALANCE_UPDATED (CDC, BalanceEvent:insert), LEDGER_ENTRY_RECORDED (CDC, LedgerEntryEvent:insert)`
 - **Idempotent:** yes
 
-### Step 11: Cross-domain hop
+### Step 13: Cross-domain hop
 
 - **Event:** `BALANCE_UPDATED`
 - **From:** LedgerBus
 - **To:** InvestorBus
 - **Via:** investor-adpt EB rule (InvestorIngress-FromLedger)
 
-### Step 12: investor-bff
+### Step 14: investor-bff
 
 - **Receives:** `BALANCE_UPDATED`
 - **Via:** InvestorBus → SQS → investor-bff-ingress
@@ -152,12 +171,12 @@ sequenceDiagram
 - **Emits:** `none (read model projection, no CDC entity configured for CashBalance)`
 - **Idempotent:** yes
 
-### Step 13: investor-ctrl
+### Step 15: investor-ctrl
 
 - **Receives:** `BALANCE_UPDATED`
 - **Via:** InvestorBus → SQS → investor-ctrl-trigger-ingress
 - **State change:** Creates Notification record for balance update
-- **Emits:** `NOTIFICATION (CDC, Notification:insert)`
+- **Emits:** `NOTIFICATION_CREATED (CDC, Notification:insert)`
 - **Idempotent:** yes
 
 ## Success Criteria
@@ -167,6 +186,7 @@ sequenceDiagram
 - investor-bff CashBalance read model reflects new balance
 - LEDGER_ENTRY_RECORDED event persists audit trail
 - investor-ctrl creates notifications for both DEPOSIT_INITIATED and BALANCE_UPDATED
+- dashboard-bff getRecentActivity surfaces a DEPOSIT_DETECTED activity entry
 
 ## Failure Modes
 
@@ -175,7 +195,9 @@ sequenceDiagram
 - **step 5 (broker-sim-adpt) fails:** broker-sim-adpt ingress DLQ; simulated deposit not completed
 - **step 6 (broker-alpaca-adpt initiate) fails:** broker-alpaca-adpt ingress DLQ; Alpaca transfer not submitted
 - **step 7 (broker-alpaca-adpt polling) fails:** TransferPollingStateMachine 7-day timeout writes FAILED status; broker-ctrl normalizer receives ALPACA_TRANSFER_FAILED instead
-- **step 8 (broker-ctrl normalizer) fails:** broker-ctrl DepositWithdrawalNormalizerIngress DLQ; normalized DEPOSIT_DETECTED not created
-- **step 9 (cross_domain) fails:** ledger-adpt FromExecutionDLQ; balance not updated in ledger
-- **step 10 (ledger-ctrl) fails:** ledger-ctrl ingress DLQ; ledger entry not recorded, balance not materialized
-- **step 11 (cross_domain) fails:** investor-adpt FromLedgerDLQ; investor not notified of balance change
+- **step 8 (broker-ctrl normalizer) fails:** broker-ctrl DepositWithdrawalNormalizerIngress DLQ; normalized DEPOSIT_DETECTED/DEPOSIT_SETTLED carriers not created
+- **step 9 (cross_domain) fails:** investor-adpt FromExecutionDLQ; DEPOSIT_DETECTED not forwarded to investor domain, dashboard activity entry not created
+- **step 10 (dashboard-bff) fails:** dashboard-bff ingress DLQ; recent-activity feed missing the deposit entry
+- **step 11 (cross_domain) fails:** ledger-adpt FromExecutionDLQ; balance not updated in ledger
+- **step 12 (ledger-ctrl) fails:** ledger-ctrl ingress DLQ; ledger entry not recorded, balance not materialized
+- **step 13 (cross_domain) fails:** investor-adpt FromLedgerDLQ; investor not notified of balance change

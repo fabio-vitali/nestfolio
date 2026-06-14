@@ -4,7 +4,7 @@
 
 **Domains:** ledger, investor, advisory, execution
 
-**Trigger:** Any of four events arriving on LedgerBus: PORTFOLIO_UPDATED (CDC from ledger-ctrl PortfolioEvent:INSERT), PORTFOLIO_SNAPSHOT_IMPORTED (execution cross-domain, pulled by ledger-adpt from ExecutionBus), CORPORATE_ACTION_APPLIED (execution cross-domain, pulled by ledger-adpt from ExecutionBus), ALPACA_ACCOUNT_SNAPSHOT (CDC from broker-alpaca-adpt AlpacaAccountSnapshot:INSERT, pulled by ledger-adpt from ExecutionBus)
+**Trigger:** Any of four events arriving on LedgerBus: PORTFOLIO_UPDATED (CDC from ledger-ctrl PortfolioEvent:INSERT), PORTFOLIO_SNAPSHOT_IMPORTED (execution cross-domain, pulled by ledger-adpt from ExecutionBus), CORPORATE_ACTION_APPLIED (execution cross-domain, pulled by ledger-adpt from ExecutionBus), ALPACA_ACCOUNT_SNAPSHOT (CDC from broker-alpaca-adpt AlpacaAccountSnapshot:INSERT, pulled by ledger-adpt from ExecutionBus). Each event only CACHES its side (Intent for the first three, Settlement for ALPACA_ACCOUNT_SNAPSHOT); reconciliation actually fires only when both the Intent and Settlement caches are present and fresh (<24h) — not on any single event in isolation.
 
 ## Flowchart
 
@@ -67,17 +67,17 @@ sequenceDiagram
 ### Step 4: reconciliation-ctrl
 
 - **Receives:** `PORTFOLIO_UPDATED | PORTFOLIO_SNAPSHOT_IMPORTED | CORPORATE_ACTION_APPLIED`
-- **Action:** Calls ReconciliationService.reconcile() which builds intent and settlement position maps from the event payload, iterates all instruments, and computes drift (intentQty - settlementQty) for each. Instruments with abs(drift) > 0.001 produce DriftEntry items. Status is DRIFT_DETECTED if any drifts exist, otherwise COMPLETED.
+- **Action:** Caches the event's positions as the INTENT side into a PositionCache#tenantId row (sk=Intent), then reads the SETTLEMENT side from DDB. If the other side is absent or stale (>24h), returns skip() — no reconciliation. Only when BOTH sides are fresh does it call ReconciliationService.reconcile(), computing drift (intentQty - settlementQty) per instrument; abs(drift) > 0.001 produces a DriftEntry. Status DRIFT_DETECTED if any drift, else COMPLETED. reconciliationId is content-derived (sha256 of canonicalized positions).
 - **Via:** LedgerBus -> SQS -> reconciliation-ctrl-ingress
-- **State change:** Writes ReconciliationResult record (pk=Reconciliation#tenantId#reconciliationId, sk=Reconciliation) with status and driftCount. Writes one DriftRecord per mismatched instrument (sk=DriftRecord#instrument) with intentQty, settlementQty, and drift.
+- **State change:** On reconcile only: writes ReconciliationResult (pk=Reconciliation#tenantId#<contentHash>, sk=Reconciliation) with status and driftCount, plus one DriftRecord per mismatched instrument (sk=DriftRecord#instrument) with intentQty, settlementQty, and drift.
 - **Idempotent:** yes
 
 ### Step 5: reconciliation-ctrl
 
 - **Receives:** `ALPACA_ACCOUNT_SNAPSHOT`
-- **Action:** Same reconciliation logic as reconcileHandler but reads positions from Alpaca-format payload (qty field instead of quantity). Calls ReconciliationService.reconcile().
+- **Action:** Reads positions from Alpaca-format payload (qty field) and caches them as the SETTLEMENT side (sk=Settlement) — unlike the other three events, which cache the INTENT side. Then cache-and-compare: reconciles only if a fresh Intent side exists, else skip().
 - **Via:** LedgerBus -> SQS -> reconciliation-ctrl-ingress
-- **State change:** Writes ReconciliationResult and DriftRecord items (same schema as reconcileHandler).
+- **State change:** On reconcile only: same ReconciliationResult + DriftRecord schema as the Intent-side path.
 - **Idempotent:** yes
 
 ### Step 6: reconciliation-ctrl
@@ -95,7 +95,7 @@ sequenceDiagram
 
 - **Receives:** `RECONCILIATION_COMPLETED`
 - **Via:** InvestorBus -> SQS -> dashboard-bff-ingress
-- **State change:** Updates PortfolioSummary projection via portfolioSummary transform
+- **State change:** No-op. RECONCILIATION_COMPLETED is subscribed but the portfolioSummary transform explicitly skips it (only BALANCE_UPDATED / PORTFOLIO_UPDATED carry a ledger snapshot); guarded out before parseSubject so it does not poison-pill to the DLQ. No row written.
 - **Idempotent:** yes
 
 ### Step 9: Cross-domain hop
@@ -118,7 +118,7 @@ sequenceDiagram
 - Intent and settlement positions compared for all instruments in the event payload
 - DriftRecord created per instrument where abs(drift) > 0.001
 - ReconciliationResult written with status COMPLETED or DRIFT_DETECTED and accurate driftCount
-- RECONCILIATION_COMPLETED reaches dashboard-bff and updates PortfolioSummary projection
+- RECONCILIATION_COMPLETED reaches dashboard-bff (currently a no-op — subscribed but not projected)
 - PORTFOLIO_DRIFT_DETECTED reaches decision-workflow-ctrl and triggers a Step Functions execution (rebalance)
 
 ## Failure Modes

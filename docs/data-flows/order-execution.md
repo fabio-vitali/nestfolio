@@ -16,7 +16,7 @@ flowchart TD
         broker_sim_adpt["broker-sim-adpt"]
         broker_alpaca_adpt["broker-alpaca-adpt"]
     end
-    execution_ctrl -->|"ORDER_SUBMITTED, ORDER_SUBMITTED ..."| broker_ctrl
+    execution_ctrl -->|"ORDER_SUBMITTED"| broker_ctrl
     broker_ctrl -->|"SIM_ORDER_REQUESTED"| broker_sim_adpt
     broker_ctrl -->|"ALPACA_ORDER_REQUESTED"| broker_alpaca_adpt
     broker_sim_adpt -->|"SIM_ORDER_FILLED, SIM_ORDER_REJECTED"| broker_ctrl
@@ -77,9 +77,8 @@ sequenceDiagram
 
 - **Receives:** `ORDER_SUBMITTED`
 - **Via:** ExecutionBus -> Orchestration EB rule -> broker-ctrl OrderStateMachine
-- **State change:** SF starts; reads ExecutionMode and CircuitBreaker from DDB.
-If circuit breaker OPEN, waits 30s and re-checks (loop).
-If clear, invokes RouteOrder Lambda (waitForTaskToken).
+- **State change:** SF starts; reads ExecutionMode from DDB (ReadExecutionMode GetItem). No circuit-breaker read in this SF — the circuit breaker lives in broker-alpaca-adpt.
+Invokes RouteOrder Lambda (waitForTaskToken, TimeoutSeconds 300).
 RouteOrder writes BrokerOrder record with taskToken, emits SIM_ORDER_REQUESTED (sim mode) or ALPACA_ORDER_REQUESTED (live mode) to ExecutionBus via PutEvents.
 
 - **Emits:** `SIM_ORDER_REQUESTED or ALPACA_ORDER_REQUESTED (explicit PutEvents from RouteOrder Lambda)`
@@ -120,14 +119,13 @@ RouteOrder writes BrokerOrder record with taskToken, emits SIM_ORDER_REQUESTED (
 ### Step 10: broker-ctrl
 
 - **Action:** OrderStateMachine ClassifyResult processes adapter callback
-- **State change:** SF classifies adapterResult.status:
+- **State change:** SF ClassifyResult branches on adapterResult.status (FILLED / PARTIALLY_FILLED / otherwise):
 - FILLED: Parallel writes BrokerOrder state=FILLED + NormalizedEvent sk=ORDER_FILLED#{timestamp}
-- PARTIALLY_FILLED: Updates BrokerOrder state=PARTIALLY_FILLED, re-invokes RouteOrder (waitForTaskToken) for more fills
-- transient failure: CheckRetryCount (< 3 retries -> IncrementRetry + exponential backoff 5s/15s/45s -> re-invoke RouteOrder; >= 3 -> MarkFailed with NormalizedEvent sk=ORDER_REJECTED)
-- default: Parallel writes BrokerOrder state=REJECTED + NormalizedEvent sk=ORDER_REJECTED#{timestamp}
-- Timeout (300s): HandleTimeout parallel opens circuit breaker, escalates order, writes NormalizedEvent sk=ORDER_ESCALATED + BROKER_CIRCUIT_OPEN
+- PARTIALLY_FILLED: Updates BrokerOrder state=PARTIALLY_FILLED, re-invokes RouteOrder (WaitForMoreFills, waitForTaskToken) for more fills
+- otherwise (incl. all rejections): Parallel writes BrokerOrder state=REJECTED + NormalizedEvent sk=ORDER_REJECTED#{timestamp}
+- RouteOrder/WaitForMoreFills States.Timeout (300s / 15min): addCatch -> HandleTimeout parallel writes BrokerOrder state=ESCALATED + NormalizedEvent sk=ORDER_ESCALATED#{timestamp}. No retry/backoff path and no circuit-breaker open in this SF.
 
-- **Emits:** `ORDER_FILLED, ORDER_PARTIALLY_FILLED, ORDER_REJECTED, ORDER_ESCALATED, or BROKER_CIRCUIT_OPEN (CDC from NormalizedEvent:INSERT, sk passthrough)`
+- **Emits:** `ORDER_FILLED, ORDER_PARTIALLY_FILLED, ORDER_REJECTED, or ORDER_ESCALATED (CDC from NormalizedEvent:INSERT, sk passthrough). BROKER_CIRCUIT_OPEN is emitted by broker-alpaca-adpt, NOT broker-ctrl.`
 - **Idempotent:** yes
 
 ### Step 11: Cross-domain hop
@@ -174,12 +172,26 @@ RouteOrder writes BrokerOrder record with taskToken, emits SIM_ORDER_REQUESTED (
 
 ### Step 17: Cross-domain hop
 
+- **Event:** `ORDER_FILLED`
+- **From:** ExecutionBus
+- **To:** InvestorBus
+- **Via:** investor-adpt EB rule
+
+### Step 18: Cross-domain hop
+
+- **Event:** `ORDER_CANCELLED`
+- **From:** ExecutionBus
+- **To:** InvestorBus
+- **Via:** investor-adpt EB rule
+
+### Step 19: Cross-domain hop
+
 - **Event:** `ORDER_CANCELLED`
 - **From:** ExecutionBus
 - **To:** LedgerBus
 - **Via:** ledger-adpt EB rule
 
-### Step 18: Cross-domain hop
+### Step 20: Cross-domain hop
 
 - **Event:** `ORDER_CANCELLED`
 - **From:** ExecutionBus
@@ -200,11 +212,11 @@ RouteOrder writes BrokerOrder record with taskToken, emits SIM_ORDER_REQUESTED (
 ## Failure Modes
 
 - **step 2 fails:** execution-ctrl ingress DLQ; orders not created from decision
-- **step 4 fails:** broker-ctrl OrderStateMachine circuit breaker loop or RouteOrder Lambda failure; SF stuck until 1h timeout triggers HandleTimeout (opens circuit breaker, writes ORDER_ESCALATED)
+- **step 4 fails:** broker-ctrl RouteOrder Lambda failure or no adapter callback; RouteOrder States.Timeout (300s) triggers HandleTimeout (BrokerOrder state=ESCALATED + ORDER_ESCALATED). The 1h Orchestration timeout is the SF-level cap, not the HandleTimeout trigger.
 - **step 5a fails:** broker-sim-adpt ingress DLQ; simulated fill not produced, SF task token times out (300s) triggering HandleTimeout
 - **step 5b fails:** broker-alpaca-adpt ingress DLQ or Alpaca API error; live order not submitted, SF task token times out
 - **step 5b-poll fails:** OrderPollingStateMachine timeout (24h); AlpacaOrderResult stuck in PLACED status
 - **step 6 fails:** broker-ctrl CallbackIngress DLQ; SF task token not resolved, times out triggering HandleTimeout
-- **step 7 fails:** SF transient retry exhausted (3 retries with 5s/15s/45s backoff); MarkFailed writes NormalizedEvent ORDER_REJECTED
-- **step 7 timeout:** [object Object]
+- **step 7 rejection:** any non-FILLED/non-PARTIALLY_FILLED adapterResult falls through ClassifyResult.otherwise -> MarkRejected writes NormalizedEvent ORDER_REJECTED (no retry/backoff path exists)
+- step 7 timeout: RouteOrder/WaitForMoreFills States.Timeout (300s / 15min) triggers HandleTimeout -> BrokerOrder state=ESCALATED + NormalizedEvent ORDER_ESCALATED via CDC. No circuit-breaker open here (that is broker-alpaca-adpt).
 - **step 8+ fails:** cross-domain adapter DLQs (ledger-adpt, advisory-adpt, investor-adpt); downstream domains not notified

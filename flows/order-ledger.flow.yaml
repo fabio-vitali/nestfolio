@@ -32,13 +32,21 @@ steps:
     receives: ORDER_FILLED | ORDER_PARTIALLY_FILLED | ORDER_REJECTED | ORDER_CANCELLED
     via: LedgerBus -> SQS -> ledger-ctrl-ingress
     state_change: Writes LedgerEntry record (__typename LedgerEntry) to DDB with sequenceNo; for ORDER_FILLED with live executionMode also opens/closes tax lots via TaxLotManager
+    note: Live tax-lot open/close is gated on executionMode==='live', but the symbol/side/quantity/fillPrice field reads currently resolve undefined in prod (NormalizedOrderEvent contract drops them) — latent bug, see docs/backlog/ledger-ctrl-live-tax-lot-missing-order-fields.md
     emits: none (state change only; LedgerEntry:INSERT triggers reducer via DDB Stream)
     idempotent: true
 
-  # Reducer materializes account snapshots from LedgerEntry stream
+  # Reducer materializes the AccountSnapshot from the LedgerEntry stream
   - service: ledger-ctrl
     action: ReducerFn (DDB Stream consumer, filtered on INSERT where __typename = LedgerEntry)
-    state_change: Replays events since last checkpoint via accountReducer (RecordFill updates positions + cashBalanceCents); transactionally writes AccountSnapshot, BalanceEvent (if cash changed), PortfolioEvent (if positions changed), LedgerEntryEvent (always), and daily SnapshotHistory
+    state_change: Replays entries since last checkpoint via accountReducer (RecordFill updates positions + cashBalanceCents); saveSnapshot writes AccountSnapshot (Snapshot#latest) + AccountCheckpoint with optimistic version lock
+    emits: none (AccountSnapshot INSERT/MODIFY triggers SnapshotPublisherFn via DDB Stream)
+    idempotent: true
+
+  # Snapshot publisher derives per-event rows from the AccountSnapshot stream
+  - service: ledger-ctrl
+    action: SnapshotPublisherFn (DDB Stream consumer, filtered on INSERT and MODIFY where __typename = AccountSnapshot)
+    state_change: snapshotToEvents writes BalanceEvent (if cashBalanceCents changed), PortfolioEvent (if positions changed), LedgerEntryEvent (always), and TTL'd SnapshotHistory — as independent record() intents, not one transaction
     emits: BALANCE_UPDATED (CDC from BalanceEvent:INSERT), PORTFOLIO_UPDATED (CDC from PortfolioEvent:INSERT), LEDGER_ENTRY_RECORDED (CDC from LedgerEntryEvent:INSERT)
     idempotent: true
 
@@ -85,9 +93,20 @@ success_criteria:
     via: investor-adpt EB rule (InvestorIngress-FromLedger)
     note: No investor-domain consumer currently subscribes; event is available on InvestorBus for alerting/notification wiring
 
+  # -- Failure path: LEDGER_SNAPSHOT_PUBLISHER_FAILED --
+  # When the SnapshotPublisherFn deriveFromStream pipeline throws (after DDB-stream retries),
+  # event-processor emits LEDGER_SNAPSHOT_PUBLISHER_FAILED directly to LedgerBus. Unlike
+  # LEDGER_PROCESSING_FAILED, this event is NOT in the InvestorIngress-FromLedger rule, so it is
+  # terminal on LedgerBus.
+  - service: ledger-ctrl
+    action: SnapshotPublisherFn throws (deriveFromStream error after DDB-stream retries exhausted)
+    emits: LEDGER_SNAPSHOT_PUBLISHER_FAILED (direct EB putEvents via event-processor errorEventType)
+    note: NOT forwarded by investor-adpt (absent from InvestorIngress-FromLedger) — currently terminal on LedgerBus
+
 failure_modes:
   - Ingestion handler fails: LEDGER_PROCESSING_FAILED error event emitted to LedgerBus (direct EB); SQS retries + DLQ
   - Reducer snapshot conflict: optimistic concurrency on snapshot version; DDB Stream retries (bisectBatchOnError, 3 retries)
   - CDC Egress fails: DLQ on Egress Lambda; BalanceEvent/PortfolioEvent/LedgerEntryEvent records persist regardless
   - Cross-domain forwarding fails: adapter DLQs (FromExecutionDLQ on ledger-adpt, FromLedgerDLQ on investor-adpt and advisory-adpt) with 14-day retention
   - LEDGER_PROCESSING_FAILED forwarding fails: investor-adpt FromLedgerDLQ (14-day retention)
+  - Snapshot publisher fails: LEDGER_SNAPSHOT_PUBLISHER_FAILED error event emitted to LedgerBus (direct EB); DDB Stream retries (bisectBatchOnError, 3 retries); event is terminal on LedgerBus (not forwarded cross-domain)

@@ -41,32 +41,45 @@ const BUS_LABELS = {
 };
 
 function serviceDomain(serviceName, domains) {
+  // Keyed to the actual services/<domain>/<service> folder each service lives in.
+  // NOTE: -ctrl/-adpt prefixes are NOT a reliable domain signal — e.g. investor-profile-ctrl
+  // and the market-data *-adpt services live under services/advisory/. Keep this map explicit.
   const mapping = {
+    // investor domain — services/investor/
     'investor-bff': 'investor',
     'investor-ctrl': 'investor',
     'investor-adpt': 'investor',
-    'investor-mfe': 'investor',
+    'investor-hub': 'investor',
+    'investor-web': 'investor',
     'onboarding-bff': 'investor',
     'dashboard-bff': 'investor',
-    'advisory-ctrl': 'advisory',
+    // advisory domain — services/advisory/
     'advisory-adpt': 'advisory',
+    'advisory-bff': 'advisory',
+    'advisory-hub': 'advisory',
     'decision-workflow-ctrl': 'advisory',
     'compliance-ctrl': 'advisory',
+    'investor-profile-ctrl': 'advisory',
     'market-intelligence-ctrl': 'advisory',
     'portfolio-engine-ctrl': 'advisory',
     'advisory-narrative-ctrl': 'advisory',
+    'alpha-vantage-adpt': 'advisory',
+    'fred-adpt': 'advisory',
+    'marketwatch-adpt': 'advisory',
+    'sec-edgar-adpt': 'advisory',
+    'yahoo-finance-adpt': 'advisory',
+    // execution domain — services/execution/
     'execution-ctrl': 'execution',
     'execution-adpt': 'execution',
     'execution-hub': 'execution',
     'broker-ctrl': 'execution',
     'broker-sim-adpt': 'execution',
     'broker-alpaca-adpt': 'execution',
-    'alpha-vantage-adpt': 'execution',
-    'fred-adpt': 'execution',
-    'marketwatch-adpt': 'execution',
-    'sec-edgar-adpt': 'execution',
+    // ledger domain — services/ledger/
     'ledger-ctrl': 'ledger',
     'ledger-adpt': 'ledger',
+    'ledger-bff': 'ledger',
+    'ledger-hub': 'ledger',
     'reconciliation-ctrl': 'ledger',
   };
   if (mapping[serviceName]) return mapping[serviceName];
@@ -87,6 +100,21 @@ function parseEvents(str) {
     .split(/\s*(?:,|\bor\b|\|)\s*/i)
     .map((e) => e.trim())
     .filter(Boolean);
+}
+
+/**
+ * Walk backwards from `upToIndex` to find the service whose `emits` actually contains one of
+ * `events`. Used to attribute a cross_domain hop to its TRUE producer rather than to whichever
+ * service step happens to be listed immediately before it (which breaks when one producer fans
+ * the same event out to multiple domains). Returns null if no prior emitter matches.
+ */
+function findEmitterService(steps, events, upToIndex) {
+  for (let j = upToIndex - 1; j >= 0; j--) {
+    const s = steps[j];
+    if (!s.emits || !s.service) continue;
+    if (events.some((e) => parseEvents(s.emits).includes(e))) return s.service;
+  }
+  return null;
 }
 
 // ── Flowchart diagram generation ─────────────────────────────────────────────
@@ -129,13 +157,15 @@ function buildFlowchart(flow) {
   for (let i = 0; i < steps.length; i++) {
     const step = steps[i];
 
-    // cross_domain step: connect previous service emitter to next service receiver
+    // cross_domain step: connect the true emitter to the next service receiver
     if (step.cross_domain) {
       const eventName = step.cross_domain;
-      // Find the last service-based step before this one
-      let fromSvc = null;
-      for (let j = i - 1; j >= 0; j--) {
-        if (steps[j].service) { fromSvc = steps[j].service; break; }
+      // Attribute the hop to the service that actually emits it; fall back to the last service step
+      let fromSvc = findEmitterService(steps, parseEvents(eventName), i);
+      if (!fromSvc) {
+        for (let j = i - 1; j >= 0; j--) {
+          if (steps[j].service) { fromSvc = steps[j].service; break; }
+        }
       }
       // Find the first service-based step after this one that receives this event
       for (let j = i + 1; j < steps.length; j++) {
@@ -172,14 +202,18 @@ function buildFlowchart(flow) {
     }
   }
 
-  // Deduplicate: merge edges between the same service pair into one label
+  // Deduplicate: merge edges between the same service pair into one label.
+  // A pair can collect both a direct-emit edge and a cross_domain hop for the same event — keep each
+  // event label once, and let a cross_domain hop dominate the styling (dashed = crosses a bus).
   const pairMap = new Map(); // "from|to" -> { from, to, labels[], dashed }
   for (const e of rawEdges) {
     const key = `${e.from}|${e.to}`;
     if (!pairMap.has(key)) {
-      pairMap.set(key, { from: e.from, to: e.to, labels: [], dashed: e.dashed });
+      pairMap.set(key, { from: e.from, to: e.to, labels: [], dashed: false });
     }
-    pairMap.get(key).labels.push(e.label);
+    const entry = pairMap.get(key);
+    if (!entry.labels.includes(e.label)) entry.labels.push(e.label);
+    entry.dashed = entry.dashed || e.dashed;
   }
 
   for (const edge of pairMap.values()) {
@@ -228,19 +262,8 @@ function buildMermaid(flow) {
   }
 
   /** Find the service that emitted one of the received events, looking only at prior steps */
-  function findSource(receivesStr, upToIndex) {
-    const wanted = parseEvents(receivesStr);
-    // Walk backwards through prior steps to find the most recent emitter
-    for (let j = upToIndex - 1; j >= 0; j--) {
-      const s = steps[j];
-      if (!s.emits || !s.service) continue;
-      const emitted = parseEvents(s.emits);
-      for (const ev of wanted) {
-        if (emitted.includes(ev)) return s.service;
-      }
-    }
-    return null;
-  }
+  const findSource = (receivesStr, upToIndex) =>
+    findEmitterService(steps, parseEvents(receivesStr), upToIndex);
 
   // Add interactions
   let prevService = null;
@@ -248,14 +271,16 @@ function buildMermaid(flow) {
   for (let i = 0; i < steps.length; i++) {
     const step = steps[i];
 
-    // cross_domain step: draw a dashed async arrow from prev service to next service
+    // cross_domain step: draw a dashed async arrow from the true emitter to next service
     if (step.cross_domain) {
       const eventName = truncate(step.cross_domain, 60);
       const hopLabel = `${eventName} (${step.from} → ${step.to})`;
+      // Attribute the hop to the service that actually emits it; fall back to the prior service
+      const fromSvc = findEmitterService(steps, parseEvents(step.cross_domain), i) ?? prevService;
       // Find next service-based step
       const next = steps.slice(i + 1).find((s) => s.service);
-      if (prevService && next?.service) {
-        lines.push(`    ${sanitizeId(prevService)}-)${sanitizeId(next.service)}: ${hopLabel}`);
+      if (fromSvc && next?.service) {
+        lines.push(`    ${sanitizeId(fromSvc)}-)${sanitizeId(next.service)}: ${hopLabel}`);
         skipNextReceive = true;
       }
       continue;

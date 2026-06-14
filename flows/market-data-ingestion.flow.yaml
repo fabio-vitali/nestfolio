@@ -80,6 +80,6 @@ failure_modes:
 notes:
   - ALPHA_VANTAGE_ECONOMIC_INDICATOR_UPDATED is emitted by alpha-vantage-adpt but has no consumer in current code
   - SEC form-type routing maps 8-K→SEC_8K_FILED, 485BPOS/N-1A→SEC_PROSPECTUS_UPDATED, 10-K/10-Q→SEC_10K_UPDATED (default→SEC_8K_FILED)
-  - market-intelligence-ctrl also subscribes to ANALYZE_MARKET (explicit trigger, not part of this scheduled ingestion flow)
+  - market-intelligence-ctrl is driven by the 5 feed events plus a scheduled MARKET_SNAPSHOT_REFRESH_TICK (continuous projection) — it no longer has a per-cycle ANALYZE_MARKET trigger
   - All adapters use AdapterSchedule with default rate(24 hours), disabled by default
   - All services are intra-domain (advisory) — no cross-domain hops in this flow

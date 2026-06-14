@@ -4,7 +4,7 @@
 
 **Domains:** investor, execution
 
-**Trigger:** onboarding-bff emits GO_LIVE_CONFIRMED (CDC from GoLiveConfirmed:INSERT)
+**Trigger:** onboarding-bff WOULD emit GO_LIVE_CONFIRMED (CDC from GoLiveConfirmed:INSERT) — emission path NOT wired in agent
 
 ## Flowchart
 
@@ -18,7 +18,7 @@ flowchart TD
         broker_ctrl["broker-ctrl"]
     end
     onboarding_bff -->|"GO_LIVE_CONFIRMED"| investor_bff
-    investor_bff -->|"EXECUTION_MODE_CHANGED, EXECUTION_MODE_CHANG…"| broker_ctrl
+    investor_bff -.->|"EXECUTION_MODE_CHANGED"| broker_ctrl
 ```
 
 ## Sequence Diagram
@@ -41,8 +41,8 @@ sequenceDiagram
 
 ### Step 1: onboarding-bff
 
-- **Action:** Investor completes Go Live wizard (flowType='go-live', phases review_risk -> review_goals -> review_mandate -> fund_account -> go_live_confirmation)
-- **State change:** confirmGoLive() TransactWrite updates OnboardingSession (status='completed', currentPhase='go_live_confirmation') and puts GoLiveConfirmed CDC record (__typename='GoLiveConfirmed')
+- **Action:** Investor completes Go Live wizard (flowType='go-live', phases review_risk -> review_goals -> review_mandate -> fund_account -> go_live_confirmation). NOTE: these phases exist only as zod schema (src/domain/schemas.ts); the agent graph (src/agent/state.ts PHASE_ORDER) does not run them.
+- **State change:** confirmGoLive() (onboarding.repository.ts:121) WOULD TransactWrite OnboardingSession (status='completed', currentPhase='go_live_confirmation') + put GoLiveConfirmed CDC record — but confirmGoLive() has no runtime caller, so this state change does not occur today.
 - **Emits:** `GO_LIVE_CONFIRMED (CDC from GoLiveConfirmed:INSERT)`
 - **Idempotent:** yes
 
@@ -50,7 +50,7 @@ sequenceDiagram
 
 - **Receives:** `GO_LIVE_CONFIRMED`
 - **Via:** InvestorBus -> SQS -> investor-bff-Ingress
-- **State change:** event-listener calls profileRepo.setExecutionMode(tenantId, userId, 'simulation', 'live') which TransactWrites ExecutionModeChange record (__typename='ExecutionModeChange', fromMode='simulation', toMode='live') and updates InvestorProfile (executionMode='live')
+- **State change:** event-listener calls profileRepo.setExecutionMode(reqCtx, 'simulation', 'live') which TransactWrites ExecutionModeChange record (__typename='ExecutionModeChange', fromMode='simulation', toMode='live') and updates InvestorProfile (executionMode='live')
 - **Emits:** `EXECUTION_MODE_CHANGED (CDC from ExecutionModeChange:INSERT)`
 - **Idempotent:** yes
 

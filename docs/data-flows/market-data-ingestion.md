@@ -10,13 +10,11 @@
 
 ```mermaid
 flowchart TD
-    subgraph execution["Execution Domain"]
+    subgraph advisory["Advisory Domain"]
         alpha_vantage_adpt["alpha-vantage-adpt"]
         fred_adpt["fred-adpt"]
         marketwatch_adpt["marketwatch-adpt"]
         sec_edgar_adpt["sec-edgar-adpt"]
-    end
-    subgraph advisory["Advisory Domain"]
         yahoo_finance_adpt["yahoo-finance-adpt"]
         market_intelligence_ctrl["market-intelligence-ctrl"]
         portfolio_engine_ctrl["portfolio-engine-ctrl"]
@@ -33,13 +31,11 @@ flowchart TD
 
 ```mermaid
 sequenceDiagram
-    box execution domain
+    box advisory domain
         participant alpha_vantage_adpt as alpha-vantage-adpt
         participant fred_adpt as fred-adpt
         participant marketwatch_adpt as marketwatch-adpt
         participant sec_edgar_adpt as sec-edgar-adpt
-    end
-    box advisory domain
         participant yahoo_finance_adpt as yahoo-finance-adpt
         participant market_intelligence_ctrl as market-intelligence-ctrl
         participant portfolio_engine_ctrl as portfolio-engine-ctrl
@@ -99,7 +95,7 @@ sequenceDiagram
 - **Receives:** `ALPHA_VANTAGE_NEWS_UPDATED | FRED_INDICATORS_UPDATED | MARKETWATCH_UPDATED | SEC_8K_FILED | YAHOO_FINANCE_UPDATED`
 - **Via:** AdvisoryBus → SQS → market-intelligence-ctrl-ingress
 - **State change:** Ingests feed data into Bedrock Knowledge Base (S3 vector store), refreshes market intelligence
-- **Emits:** `MARKET_SIGNAL_DETECTED (CDC, AgentInvocation insert)`
+- **Emits:** `MARKET_SNAPSHOT_UPDATED (CDC, MarketSnapshot insert/modify)`
 - **Idempotent:** yes
 
 ### Step 7: portfolio-engine-ctrl
@@ -115,7 +111,7 @@ sequenceDiagram
 - All 5 feed adapters fetch data on schedule and emit CDC events to AdvisoryBus
 - market-intelligence-ctrl Knowledge Base is refreshed with latest market data from 5 sources
 - portfolio-engine-ctrl Fund KB is refreshed with SEC prospectus and 10-K filings
-- MARKET_SIGNAL_DETECTED event emitted when agent invocation completes
+- MARKET_SNAPSHOT_UPDATED event emitted when the market snapshot row is refreshed (the AgentInvocation-row MARKET_SIGNAL_DETECTED signal is no longer CDC-emitted — zero consumers)
 
 ## Failure Modes
 

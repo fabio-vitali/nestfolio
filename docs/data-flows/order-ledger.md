@@ -23,6 +23,7 @@ sequenceDiagram
         participant ledger_ctrl as ledger-ctrl
     end
     Note over ledger_ctrl: ReducerFn (DDB Stream consumer, filtered on INSER…
+    Note over ledger_ctrl: SnapshotPublisherFn (DDB Stream consumer, filtere…
 ```
 
 ## Steps
@@ -66,32 +67,39 @@ sequenceDiagram
 ### Step 6: ledger-ctrl
 
 - **Action:** ReducerFn (DDB Stream consumer, filtered on INSERT where __typename = LedgerEntry)
-- **State change:** Replays events since last checkpoint via accountReducer (RecordFill updates positions + cashBalanceCents); transactionally writes AccountSnapshot, BalanceEvent (if cash changed), PortfolioEvent (if positions changed), LedgerEntryEvent (always), and daily SnapshotHistory
+- **State change:** Replays entries since last checkpoint via accountReducer (RecordFill updates positions + cashBalanceCents); saveSnapshot writes AccountSnapshot (Snapshot#latest) + AccountCheckpoint with optimistic version lock
+- **Emits:** `none (AccountSnapshot INSERT/MODIFY triggers SnapshotPublisherFn via DDB Stream)`
+- **Idempotent:** yes
+
+### Step 7: ledger-ctrl
+
+- **Action:** SnapshotPublisherFn (DDB Stream consumer, filtered on INSERT and MODIFY where __typename = AccountSnapshot)
+- **State change:** snapshotToEvents writes BalanceEvent (if cashBalanceCents changed), PortfolioEvent (if positions changed), LedgerEntryEvent (always), and TTL'd SnapshotHistory — as independent record() intents, not one transaction
 - **Emits:** `BALANCE_UPDATED (CDC from BalanceEvent:INSERT), PORTFOLIO_UPDATED (CDC from PortfolioEvent:INSERT), LEDGER_ENTRY_RECORDED (CDC from LedgerEntryEvent:INSERT)`
 - **Idempotent:** yes
 
-### Step 7: Cross-domain hop
+### Step 8: Cross-domain hop
 
 - **Event:** `BALANCE_UPDATED`
 - **From:** LedgerBus
 - **To:** InvestorBus
 - **Via:** investor-adpt EB rule (InvestorIngress-FromLedger)
 
-### Step 8: Cross-domain hop
+### Step 9: Cross-domain hop
 
 - **Event:** `PORTFOLIO_UPDATED`
 - **From:** LedgerBus
 - **To:** InvestorBus
 - **Via:** investor-adpt EB rule (InvestorIngress-FromLedger)
 
-### Step 9: Cross-domain hop
+### Step 10: Cross-domain hop
 
 - **Event:** `LEDGER_ENTRY_RECORDED`
 - **From:** LedgerBus
 - **To:** InvestorBus
 - **Via:** investor-adpt EB rule (InvestorIngress-FromLedger)
 
-### Step 10: Cross-domain hop
+### Step 11: Cross-domain hop
 
 - **Event:** `PORTFOLIO_UPDATED`
 - **From:** LedgerBus
@@ -106,6 +114,7 @@ sequenceDiagram
 - Advisory domain receives PORTFOLIO_UPDATED for drift detection and rebalancing triggers
 - [object Object]
 - [object Object]
+- [object Object]
 
 ## Failure Modes
 
@@ -114,3 +123,4 @@ sequenceDiagram
 - **CDC Egress fails:** DLQ on Egress Lambda; BalanceEvent/PortfolioEvent/LedgerEntryEvent records persist regardless
 - **Cross-domain forwarding fails:** adapter DLQs (FromExecutionDLQ on ledger-adpt, FromLedgerDLQ on investor-adpt and advisory-adpt) with 14-day retention
 - **LEDGER_PROCESSING_FAILED forwarding fails:** investor-adpt FromLedgerDLQ (14-day retention)
+- **Snapshot publisher fails:** LEDGER_SNAPSHOT_PUBLISHER_FAILED error event emitted to LedgerBus (direct EB); DDB Stream retries (bisectBatchOnError, 3 retries); event is terminal on LedgerBus (not forwarded cross-domain)

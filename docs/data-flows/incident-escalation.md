@@ -4,7 +4,7 @@
 
 **Domains:** advisory, execution, investor
 
-**Trigger:** compliance-ctrl emits ESCALATION_TRIGGERED (direct PutEvents to AdvisoryBus); broker-ctrl Step Functions writes NormalizedEvent record (sk=ORDER_ESCALATED) → CDC emits ORDER_ESCALATED on ExecutionBus
+**Trigger:** broker-ctrl Step Functions order-state-machine times out → writes NormalizedEvent record (sk=ORDER_ESCALATED) → CDC emits ORDER_ESCALATED on ExecutionBus. (Path B / ESCALATION_TRIGGERED is a NON-FUNCTIONAL aspirational path — no producer emits it; see step note.)
 
 ## Flowchart
 
@@ -19,8 +19,8 @@ flowchart TD
     subgraph investor["Investor Domain"]
         investor_ctrl["investor-ctrl"]
     end
-    compliance_ctrl -->|"ESCALATION_TRIGGERED, ESCALATION_TRIGGERED"| investor_ctrl
-    broker_ctrl -->|"ORDER_ESCALATED, ORDER_ESCALATED"| investor_ctrl
+    compliance_ctrl -.->|"ESCALATION_TRIGGERED"| investor_ctrl
+    broker_ctrl -.->|"ORDER_ESCALATED"| investor_ctrl
 ```
 
 ## Sequence Diagram
@@ -44,10 +44,10 @@ sequenceDiagram
 
 ### Step 1: compliance-ctrl
 
-- **Receives:** `DECISION_PACKET_CREATED or DECISION_PACKET_UPDATED`
+- **Receives:** `RECOMMENDATION_PROPOSED`
 - **Via:** AdvisoryBus -> SQS -> compliance-ctrl-Ingress
-- **State change:** Evaluates suitability and guardrail rules; if threshold breached, publishes ESCALATION_TRIGGERED directly to AdvisoryBus via event-listener/event-publisher Lambda
-- **Emits:** `ESCALATION_TRIGGERED (direct PutEvents to AdvisoryBus; not in egress CDC config)`
+- **State change:** compliance-ctrl event-listener writes only a ComplianceCheck row (result=APPROVED|BLOCKED) -> CDC emits DECISION_APPROVED|DECISION_BLOCKED. NO escalation branch exists; ESCALATION_TRIGGERED is never emitted (dead constant in domain/events.ts:7).
+- **Emits:** `none (ESCALATION_TRIGGERED is defined but unpublished -- no producer; event-publisher.ts is a pure CDC publisher)`
 - **Idempotent:** yes
 
 ### Step 2: Cross-domain hop
@@ -60,8 +60,8 @@ sequenceDiagram
 ### Step 3: broker-ctrl
 
 - **Action:** Step Functions order-state-machine adapter-callback timeout branch fires
-- **Via:** broker-ctrl-OrderStateMachine (Step Functions) → DynamoDB PutItem (arn:aws:states:::dynamodb:putItem)
-- **State change:** Writes NormalizedEvent record (pk=NormalizedEvent#{tenantId}#{orderId}, sk=ORDER_ESCALATED#{timestamp}, failureReason="Adapter timeout — escalated")
+- **Via:** broker-ctrl-OrderStateMachine (Step Functions) HandleTimeout Parallel state — branch 1 DynamoDB UpdateItem (arn:aws:states:::dynamodb:updateItem) sets BrokerOrder.state='ESCALATED'; branch 2 DynamoDB PutItem (arn:aws:states:::dynamodb:putItem) writes the NormalizedEvent row
+- **State change:** Updates BrokerOrder row (sk=BrokerOrder, state='ESCALATED') and writes NormalizedEvent record (pk=NormalizedEvent#{tenantId}#{orderId}, sk=ORDER_ESCALATED#{$$.State.EnteredTime}, failureReason="Adapter timeout — escalated")
 - **Emits:** `ORDER_ESCALATED (CDC from NormalizedEvent INSERT, sk passthrough determines event type)`
 - **Idempotent:** yes
 
@@ -82,13 +82,12 @@ sequenceDiagram
 
 ## Success Criteria
 
-- ESCALATION_TRIGGERED reaches InvestorBus via investor-adpt InvestorIngress-FromAdvisory rule
+- [UNIMPLEMENTED] ESCALATION_TRIGGERED would reach InvestorBus via investor-adpt InvestorIngress-FromAdvisory rule — but no producer emits ESCALATION_TRIGGERED, so this path never fires
 - ORDER_ESCALATED NormalizedEvent written by Step Functions, CDC emits on ExecutionBus, forwarded to InvestorBus via investor-adpt InvestorIngress-FromExecution rule
 
 ## Failure Modes
 
-- **Path B fails:** compliance-ctrl event-publisher Lambda IAM error — PutEvents denied; event never reaches AdvisoryBus
-- **Path B cross-domain:** investor-adpt InvestorIngress-FromAdvisory DLQ (FromAdvisoryDLQ, 14-day retention) receives message if InvestorBus target is throttled or unavailable
+- [UNIMPLEMENTED] Path B: ESCALATION_TRIGGERED has no producer — compliance-ctrl only writes a ComplianceCheck row (DECISION_APPROVED|DECISION_BLOCKED via CDC); the escalation branch and its DLQ path (InvestorIngress-FromAdvisory / FromAdvisoryDLQ) are never exercised
 - **Path C fails:** Step Functions DynamoDB PutItem fails — ORDER_ESCALATED NormalizedEvent not written; CDC never fires; event lost
 - **Path C cross-domain:** investor-adpt InvestorIngress-FromExecution DLQ (FromExecutionDLQ, 14-day retention) receives message if InvestorBus target is unavailable
 - **All paths:** events reach InvestorBus but investor-ctrl has no subscription — no downstream notification is created (known gap)
