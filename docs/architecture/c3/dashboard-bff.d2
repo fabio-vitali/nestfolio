@@ -1,6 +1,6 @@
 direction: down
 
-title: "Dashboard\nBFF\n[GraphQL API]" {
+title: "Dashboard\nBFF\n[GraphQL API · Real-Time Push]" {
   style: { font-size: 40; bold: true; fill: transparent; stroke: transparent }
 }
 
@@ -14,7 +14,7 @@ facade: "Facade" {
 
 ingress: "Ingress" {
   style: { fill: "#FFF8E1"; stroke: "#FFC107"; border-radius: 12; font-size: 28 }
-  rule: "EventBridge Rule\n[17 events]" { class: aws-eventbridge }
+  rule: "EventBridge Rule\n[14 events]" { class: aws-eventbridge }
   sqs: "SQS Queue" { class: aws-sqs }
   dlq: "DLQ" { class: aws-dlq }
   handler: "Lambda" { class: aws-lambda }
@@ -31,8 +31,18 @@ state: "State" {
   table -> stream: CDC
 }
 
-dashboard-publisher: "Lambda\n[DashboardPublisher]" { class: aws-lambda }
+broadcaster: "Broadcaster\n[DashboardBroadcaster]" {
+  style: { fill: "#E8EAF6"; stroke: "#3F51B5"; border-radius: 12; font-size: 28 }
+  publisher: "Lambda" { class: aws-lambda }
+  dlq: "DLQ" { class: aws-dlq }
+
+  publisher -> dlq: On failure
+}
+
+mfe-bundle: "MFE Bundle\n[/dashboard · via shared CDN]" { class: aws-s3 }
 
 # Flows
 facade.resolvers -> state.table: Read/Write
 ingress.handler -> state.table: Read/Write
+state.stream -> broadcaster.publisher: CDC
+broadcaster.publisher -> facade.appsync: Broadcast

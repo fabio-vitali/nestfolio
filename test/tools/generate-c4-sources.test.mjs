@@ -1,7 +1,7 @@
 import { describe, it, before } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
-import { discoverServices, discoverMfes, parseStack, serviceLabel, generateC1, generateC2 } from '../../tools/generate-c4-sources.mjs';
+import { discoverServices, discoverMfes, parseStack, serviceLabel, generateC1, generateC2, generateC3 } from '../../tools/generate-c4-sources.mjs';
 
 describe('discoverServices', () => {
   it('returns services grouped by domain', () => {
@@ -203,6 +203,19 @@ describe('parseStack', () => {
     assert.equal(result.constructs.agentMemory.length, 1);
     assert.equal(result.constructs.agentMemory[0].id, 'AgentMemory');
   });
+
+  it('detects Broadcaster construct', () => {
+    const src = `
+      const broadcaster = new Broadcaster(this, 'DashboardBroadcaster', {
+        state,
+        entry: join(__dirname, 'handlers', 'dashboard-publisher.ts'),
+        facade,
+      });
+    `;
+    const result = parseStack(src);
+    assert.equal(result.constructs.broadcaster.length, 1);
+    assert.equal(result.constructs.broadcaster[0].id, 'DashboardBroadcaster');
+  });
 });
 
 describe('parseStack — raw resources', () => {
@@ -283,6 +296,49 @@ describe('parseStack — raw resources', () => {
     const src = `new AdapterSchedule(this, 'FetchSchedule', { target: fetchTrigger });`;
     const result = parseStack(src);
     assert.equal(result.raw.schedules.length, 1);
+  });
+
+  it('detects MfeBucket with mfeKey', () => {
+    const src = `new MfeBucket(this, 'MfeBucket', { mfeKey: 'dashboard' });`;
+    const result = parseStack(src);
+    assert.equal(result.raw.mfeBuckets.length, 1);
+    assert.equal(result.raw.mfeBuckets[0].mfeKey, 'dashboard');
+  });
+});
+
+describe('generateC3 — Broadcaster + MfeBucket', () => {
+  const src = `
+    const state = new State(this, 'State');
+    const facade = new Facade(this, 'Facade', { state, jsResolvers: discoverJsResolvers(__dirname) });
+    const ingress = new Ingress(this, 'Ingress', { state, eventTypes: ['BALANCE_UPDATED'] });
+    const broadcaster = new Broadcaster(this, 'DashboardBroadcaster', {
+      state,
+      entry: join(__dirname, 'handlers', 'dashboard-publisher.ts'),
+      facade,
+    });
+    new MfeBucket(this, 'MfeBucket', { mfeKey: 'dashboard' });
+  `;
+
+  it('renders a Broadcaster construct block', () => {
+    const d2 = generateC3('dashboard-bff', 'investor', parseStack(src));
+    assert.ok(d2.includes('broadcaster: "Broadcaster\\n[DashboardBroadcaster]"'));
+    assert.ok(d2.includes('publisher: "Lambda"'));
+  });
+
+  it('wires State.stream → Broadcaster → AppSync flows', () => {
+    const d2 = generateC3('dashboard-bff', 'investor', parseStack(src));
+    assert.ok(d2.includes('state.stream -> broadcaster.publisher: CDC'));
+    assert.ok(d2.includes('broadcaster.publisher -> facade.appsync: Broadcast'));
+  });
+
+  it('tags the service subtitle with Real-Time Push', () => {
+    const d2 = generateC3('dashboard-bff', 'investor', parseStack(src));
+    assert.ok(d2.includes('Real-Time Push'));
+  });
+
+  it('renders the MFE bundle bucket node', () => {
+    const d2 = generateC3('dashboard-bff', 'investor', parseStack(src));
+    assert.ok(d2.includes('mfe-bundle: "MFE Bundle\\n[/dashboard · via shared CDN]"'));
   });
 });
 

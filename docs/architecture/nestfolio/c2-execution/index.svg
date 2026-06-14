@@ -1,12 +1,12 @@
-<?xml version="1.0" encoding="utf-8"?><svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" data-d2-version="0.7.1" preserveAspectRatio="xMinYMin meet" viewBox="0 0 1280 989"><svg class="d2-2026316407 d2-svg" width="1280" height="989" viewBox="-50 -143 1280 989"><rect x="-50.000000" y="-67.000000" width="1280.000000" height="903.000000" rx="0.000000" stroke="#FFFFFF" fill="#FFFFFF" stroke-width="0" /><style type="text/css"><![CDATA[
+<?xml version="1.0" encoding="utf-8"?><svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" data-d2-version="0.7.1" preserveAspectRatio="xMinYMin meet" viewBox="0 0 1280 989"><svg class="d2-2559092491 d2-svg" width="1280" height="989" viewBox="-50 -143 1280 989"><rect x="-50.000000" y="-67.000000" width="1280.000000" height="903.000000" rx="0.000000" stroke="#FFFFFF" fill="#FFFFFF" stroke-width="0" /><style type="text/css"><![CDATA[
 .appendix-icon {
 	filter: drop-shadow(0px 0px 32px rgba(31, 36, 58, 0.1));
 }
-.d2-2026316407 .text-bold {
-	font-family: "d2-2026316407-font-bold";
+.d2-2559092491 .text-bold {
+	font-family: "d2-2559092491-font-bold";
 }
 @font-face {
-	font-family: d2-2026316407-font-bold;
+	font-family: d2-2559092491-font-bold;
 	src: url("data:application/font-woff;base64,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");
 }]]></style><style type="text/css"><![CDATA[.shape {
   shape-rendering: geometricPrecision;
@@ -21,78 +21,78 @@
   opacity: 0.5;
 }
 
-		.d2-2026316407 .fill-N1{fill:#0A0F25;}
-		.d2-2026316407 .fill-N2{fill:#676C7E;}
-		.d2-2026316407 .fill-N3{fill:#9499AB;}
-		.d2-2026316407 .fill-N4{fill:#CFD2DD;}
-		.d2-2026316407 .fill-N5{fill:#DEE1EB;}
-		.d2-2026316407 .fill-N6{fill:#EEF1F8;}
-		.d2-2026316407 .fill-N7{fill:#FFFFFF;}
-		.d2-2026316407 .fill-B1{fill:#0D32B2;}
-		.d2-2026316407 .fill-B2{fill:#0D32B2;}
-		.d2-2026316407 .fill-B3{fill:#E3E9FD;}
-		.d2-2026316407 .fill-B4{fill:#E3E9FD;}
-		.d2-2026316407 .fill-B5{fill:#EDF0FD;}
-		.d2-2026316407 .fill-B6{fill:#F7F8FE;}
-		.d2-2026316407 .fill-AA2{fill:#4A6FF3;}
-		.d2-2026316407 .fill-AA4{fill:#EDF0FD;}
-		.d2-2026316407 .fill-AA5{fill:#F7F8FE;}
-		.d2-2026316407 .fill-AB4{fill:#EDF0FD;}
-		.d2-2026316407 .fill-AB5{fill:#F7F8FE;}
-		.d2-2026316407 .stroke-N1{stroke:#0A0F25;}
-		.d2-2026316407 .stroke-N2{stroke:#676C7E;}
-		.d2-2026316407 .stroke-N3{stroke:#9499AB;}
-		.d2-2026316407 .stroke-N4{stroke:#CFD2DD;}
-		.d2-2026316407 .stroke-N5{stroke:#DEE1EB;}
-		.d2-2026316407 .stroke-N6{stroke:#EEF1F8;}
-		.d2-2026316407 .stroke-N7{stroke:#FFFFFF;}
-		.d2-2026316407 .stroke-B1{stroke:#0D32B2;}
-		.d2-2026316407 .stroke-B2{stroke:#0D32B2;}
-		.d2-2026316407 .stroke-B3{stroke:#E3E9FD;}
-		.d2-2026316407 .stroke-B4{stroke:#E3E9FD;}
-		.d2-2026316407 .stroke-B5{stroke:#EDF0FD;}
-		.d2-2026316407 .stroke-B6{stroke:#F7F8FE;}
-		.d2-2026316407 .stroke-AA2{stroke:#4A6FF3;}
-		.d2-2026316407 .stroke-AA4{stroke:#EDF0FD;}
-		.d2-2026316407 .stroke-AA5{stroke:#F7F8FE;}
-		.d2-2026316407 .stroke-AB4{stroke:#EDF0FD;}
-		.d2-2026316407 .stroke-AB5{stroke:#F7F8FE;}
-		.d2-2026316407 .background-color-N1{background-color:#0A0F25;}
-		.d2-2026316407 .background-color-N2{background-color:#676C7E;}
-		.d2-2026316407 .background-color-N3{background-color:#9499AB;}
-		.d2-2026316407 .background-color-N4{background-color:#CFD2DD;}
-		.d2-2026316407 .background-color-N5{background-color:#DEE1EB;}
-		.d2-2026316407 .background-color-N6{background-color:#EEF1F8;}
-		.d2-2026316407 .background-color-N7{background-color:#FFFFFF;}
-		.d2-2026316407 .background-color-B1{background-color:#0D32B2;}
-		.d2-2026316407 .background-color-B2{background-color:#0D32B2;}
-		.d2-2026316407 .background-color-B3{background-color:#E3E9FD;}
-		.d2-2026316407 .background-color-B4{background-color:#E3E9FD;}
-		.d2-2026316407 .background-color-B5{background-color:#EDF0FD;}
-		.d2-2026316407 .background-color-B6{background-color:#F7F8FE;}
-		.d2-2026316407 .background-color-AA2{background-color:#4A6FF3;}
-		.d2-2026316407 .background-color-AA4{background-color:#EDF0FD;}
-		.d2-2026316407 .background-color-AA5{background-color:#F7F8FE;}
-		.d2-2026316407 .background-color-AB4{background-color:#EDF0FD;}
-		.d2-2026316407 .background-color-AB5{background-color:#F7F8FE;}
-		.d2-2026316407 .color-N1{color:#0A0F25;}
-		.d2-2026316407 .color-N2{color:#676C7E;}
-		.d2-2026316407 .color-N3{color:#9499AB;}
-		.d2-2026316407 .color-N4{color:#CFD2DD;}
-		.d2-2026316407 .color-N5{color:#DEE1EB;}
-		.d2-2026316407 .color-N6{color:#EEF1F8;}
-		.d2-2026316407 .color-N7{color:#FFFFFF;}
-		.d2-2026316407 .color-B1{color:#0D32B2;}
-		.d2-2026316407 .color-B2{color:#0D32B2;}
-		.d2-2026316407 .color-B3{color:#E3E9FD;}
-		.d2-2026316407 .color-B4{color:#E3E9FD;}
-		.d2-2026316407 .color-B5{color:#EDF0FD;}
-		.d2-2026316407 .color-B6{color:#F7F8FE;}
-		.d2-2026316407 .color-AA2{color:#4A6FF3;}
-		.d2-2026316407 .color-AA4{color:#EDF0FD;}
-		.d2-2026316407 .color-AA5{color:#F7F8FE;}
-		.d2-2026316407 .color-AB4{color:#EDF0FD;}
-		.d2-2026316407 .color-AB5{color:#F7F8FE;}.appendix text.text{fill:#0A0F25}.md{--color-fg-default:#0A0F25;--color-fg-muted:#676C7E;--color-fg-subtle:#9499AB;--color-canvas-default:#FFFFFF;--color-canvas-subtle:#EEF1F8;--color-border-default:#0D32B2;--color-border-muted:#0D32B2;--color-neutral-muted:#EEF1F8;--color-accent-fg:#0D32B2;--color-accent-emphasis:#0D32B2;--color-attention-subtle:#676C7E;--color-danger-fg:red;}.sketch-overlay-B1{fill:url(#streaks-darker-d2-2026316407);mix-blend-mode:lighten}.sketch-overlay-B2{fill:url(#streaks-darker-d2-2026316407);mix-blend-mode:lighten}.sketch-overlay-B3{fill:url(#streaks-bright-d2-2026316407);mix-blend-mode:darken}.sketch-overlay-B4{fill:url(#streaks-bright-d2-2026316407);mix-blend-mode:darken}.sketch-overlay-B5{fill:url(#streaks-bright-d2-2026316407);mix-blend-mode:darken}.sketch-overlay-B6{fill:url(#streaks-bright-d2-2026316407);mix-blend-mode:darken}.sketch-overlay-AA2{fill:url(#streaks-dark-d2-2026316407);mix-blend-mode:overlay}.sketch-overlay-AA4{fill:url(#streaks-bright-d2-2026316407);mix-blend-mode:darken}.sketch-overlay-AA5{fill:url(#streaks-bright-d2-2026316407);mix-blend-mode:darken}.sketch-overlay-AB4{fill:url(#streaks-bright-d2-2026316407);mix-blend-mode:darken}.sketch-overlay-AB5{fill:url(#streaks-bright-d2-2026316407);mix-blend-mode:darken}.sketch-overlay-N1{fill:url(#streaks-darker-d2-2026316407);mix-blend-mode:lighten}.sketch-overlay-N2{fill:url(#streaks-dark-d2-2026316407);mix-blend-mode:overlay}.sketch-overlay-N3{fill:url(#streaks-normal-d2-2026316407);mix-blend-mode:color-burn}.sketch-overlay-N4{fill:url(#streaks-normal-d2-2026316407);mix-blend-mode:color-burn}.sketch-overlay-N5{fill:url(#streaks-bright-d2-2026316407);mix-blend-mode:darken}.sketch-overlay-N6{fill:url(#streaks-bright-d2-2026316407);mix-blend-mode:darken}.sketch-overlay-N7{fill:url(#streaks-bright-d2-2026316407);mix-blend-mode:darken}.light-code{display: block}.dark-code{display: none}]]></style><text x="-40" y="-83" font-family="Source Sans Pro, sans-serif" font-size="48" font-weight="700" fill="#000000">Execution Domain</text><defs>
+		.d2-2559092491 .fill-N1{fill:#0A0F25;}
+		.d2-2559092491 .fill-N2{fill:#676C7E;}
+		.d2-2559092491 .fill-N3{fill:#9499AB;}
+		.d2-2559092491 .fill-N4{fill:#CFD2DD;}
+		.d2-2559092491 .fill-N5{fill:#DEE1EB;}
+		.d2-2559092491 .fill-N6{fill:#EEF1F8;}
+		.d2-2559092491 .fill-N7{fill:#FFFFFF;}
+		.d2-2559092491 .fill-B1{fill:#0D32B2;}
+		.d2-2559092491 .fill-B2{fill:#0D32B2;}
+		.d2-2559092491 .fill-B3{fill:#E3E9FD;}
+		.d2-2559092491 .fill-B4{fill:#E3E9FD;}
+		.d2-2559092491 .fill-B5{fill:#EDF0FD;}
+		.d2-2559092491 .fill-B6{fill:#F7F8FE;}
+		.d2-2559092491 .fill-AA2{fill:#4A6FF3;}
+		.d2-2559092491 .fill-AA4{fill:#EDF0FD;}
+		.d2-2559092491 .fill-AA5{fill:#F7F8FE;}
+		.d2-2559092491 .fill-AB4{fill:#EDF0FD;}
+		.d2-2559092491 .fill-AB5{fill:#F7F8FE;}
+		.d2-2559092491 .stroke-N1{stroke:#0A0F25;}
+		.d2-2559092491 .stroke-N2{stroke:#676C7E;}
+		.d2-2559092491 .stroke-N3{stroke:#9499AB;}
+		.d2-2559092491 .stroke-N4{stroke:#CFD2DD;}
+		.d2-2559092491 .stroke-N5{stroke:#DEE1EB;}
+		.d2-2559092491 .stroke-N6{stroke:#EEF1F8;}
+		.d2-2559092491 .stroke-N7{stroke:#FFFFFF;}
+		.d2-2559092491 .stroke-B1{stroke:#0D32B2;}
+		.d2-2559092491 .stroke-B2{stroke:#0D32B2;}
+		.d2-2559092491 .stroke-B3{stroke:#E3E9FD;}
+		.d2-2559092491 .stroke-B4{stroke:#E3E9FD;}
+		.d2-2559092491 .stroke-B5{stroke:#EDF0FD;}
+		.d2-2559092491 .stroke-B6{stroke:#F7F8FE;}
+		.d2-2559092491 .stroke-AA2{stroke:#4A6FF3;}
+		.d2-2559092491 .stroke-AA4{stroke:#EDF0FD;}
+		.d2-2559092491 .stroke-AA5{stroke:#F7F8FE;}
+		.d2-2559092491 .stroke-AB4{stroke:#EDF0FD;}
+		.d2-2559092491 .stroke-AB5{stroke:#F7F8FE;}
+		.d2-2559092491 .background-color-N1{background-color:#0A0F25;}
+		.d2-2559092491 .background-color-N2{background-color:#676C7E;}
+		.d2-2559092491 .background-color-N3{background-color:#9499AB;}
+		.d2-2559092491 .background-color-N4{background-color:#CFD2DD;}
+		.d2-2559092491 .background-color-N5{background-color:#DEE1EB;}
+		.d2-2559092491 .background-color-N6{background-color:#EEF1F8;}
+		.d2-2559092491 .background-color-N7{background-color:#FFFFFF;}
+		.d2-2559092491 .background-color-B1{background-color:#0D32B2;}
+		.d2-2559092491 .background-color-B2{background-color:#0D32B2;}
+		.d2-2559092491 .background-color-B3{background-color:#E3E9FD;}
+		.d2-2559092491 .background-color-B4{background-color:#E3E9FD;}
+		.d2-2559092491 .background-color-B5{background-color:#EDF0FD;}
+		.d2-2559092491 .background-color-B6{background-color:#F7F8FE;}
+		.d2-2559092491 .background-color-AA2{background-color:#4A6FF3;}
+		.d2-2559092491 .background-color-AA4{background-color:#EDF0FD;}
+		.d2-2559092491 .background-color-AA5{background-color:#F7F8FE;}
+		.d2-2559092491 .background-color-AB4{background-color:#EDF0FD;}
+		.d2-2559092491 .background-color-AB5{background-color:#F7F8FE;}
+		.d2-2559092491 .color-N1{color:#0A0F25;}
+		.d2-2559092491 .color-N2{color:#676C7E;}
+		.d2-2559092491 .color-N3{color:#9499AB;}
+		.d2-2559092491 .color-N4{color:#CFD2DD;}
+		.d2-2559092491 .color-N5{color:#DEE1EB;}
+		.d2-2559092491 .color-N6{color:#EEF1F8;}
+		.d2-2559092491 .color-N7{color:#FFFFFF;}
+		.d2-2559092491 .color-B1{color:#0D32B2;}
+		.d2-2559092491 .color-B2{color:#0D32B2;}
+		.d2-2559092491 .color-B3{color:#E3E9FD;}
+		.d2-2559092491 .color-B4{color:#E3E9FD;}
+		.d2-2559092491 .color-B5{color:#EDF0FD;}
+		.d2-2559092491 .color-B6{color:#F7F8FE;}
+		.d2-2559092491 .color-AA2{color:#4A6FF3;}
+		.d2-2559092491 .color-AA4{color:#EDF0FD;}
+		.d2-2559092491 .color-AA5{color:#F7F8FE;}
+		.d2-2559092491 .color-AB4{color:#EDF0FD;}
+		.d2-2559092491 .color-AB5{color:#F7F8FE;}.appendix text.text{fill:#0A0F25}.md{--color-fg-default:#0A0F25;--color-fg-muted:#676C7E;--color-fg-subtle:#9499AB;--color-canvas-default:#FFFFFF;--color-canvas-subtle:#EEF1F8;--color-border-default:#0D32B2;--color-border-muted:#0D32B2;--color-neutral-muted:#EEF1F8;--color-accent-fg:#0D32B2;--color-accent-emphasis:#0D32B2;--color-attention-subtle:#676C7E;--color-danger-fg:red;}.sketch-overlay-B1{fill:url(#streaks-darker-d2-2559092491);mix-blend-mode:lighten}.sketch-overlay-B2{fill:url(#streaks-darker-d2-2559092491);mix-blend-mode:lighten}.sketch-overlay-B3{fill:url(#streaks-bright-d2-2559092491);mix-blend-mode:darken}.sketch-overlay-B4{fill:url(#streaks-bright-d2-2559092491);mix-blend-mode:darken}.sketch-overlay-B5{fill:url(#streaks-bright-d2-2559092491);mix-blend-mode:darken}.sketch-overlay-B6{fill:url(#streaks-bright-d2-2559092491);mix-blend-mode:darken}.sketch-overlay-AA2{fill:url(#streaks-dark-d2-2559092491);mix-blend-mode:overlay}.sketch-overlay-AA4{fill:url(#streaks-bright-d2-2559092491);mix-blend-mode:darken}.sketch-overlay-AA5{fill:url(#streaks-bright-d2-2559092491);mix-blend-mode:darken}.sketch-overlay-AB4{fill:url(#streaks-bright-d2-2559092491);mix-blend-mode:darken}.sketch-overlay-AB5{fill:url(#streaks-bright-d2-2559092491);mix-blend-mode:darken}.sketch-overlay-N1{fill:url(#streaks-darker-d2-2559092491);mix-blend-mode:lighten}.sketch-overlay-N2{fill:url(#streaks-dark-d2-2559092491);mix-blend-mode:overlay}.sketch-overlay-N3{fill:url(#streaks-normal-d2-2559092491);mix-blend-mode:color-burn}.sketch-overlay-N4{fill:url(#streaks-normal-d2-2559092491);mix-blend-mode:color-burn}.sketch-overlay-N5{fill:url(#streaks-bright-d2-2559092491);mix-blend-mode:darken}.sketch-overlay-N6{fill:url(#streaks-bright-d2-2559092491);mix-blend-mode:darken}.sketch-overlay-N7{fill:url(#streaks-bright-d2-2559092491);mix-blend-mode:darken}.light-code{display: block}.dark-code{display: none}]]></style><text x="-40" y="-83" font-family="Source Sans Pro, sans-serif" font-size="48" font-weight="700" fill="#000000">Execution Domain</text><defs>
 	<filter id="shadow-filter" width="200%" height="200%" x="-50%" y="-50%">
 		<feGaussianBlur stdDeviation="1.7 " in="SourceGraphic"></feGaussianBlur>
 		<feFlood flood-color="#3d4574" flood-opacity="0.4" result="ShadowFeFlood" in="SourceGraphic"></feFlood>
@@ -100,184 +100,184 @@
 		<feOffset dx="3" dy="5" result="ShadowFeOffset" in="ShadowFeComposite"></feOffset>
 		<feBlend in="SourceGraphic" in2="ShadowFeOffset" mode="normal" result="ShadowFeBlend"></feBlend>
 	</filter>
-</defs><a href="c3-broker-ctrl.svg" xlink:href="c3-broker-ctrl.svg"><g class="YnJva2VyLWN0cmw="><g class="shape" filter="url(#shadow-filter)" ><rect x="662.000000" y="647.000000" width="212.000000" height="122.000000" rx="14.000000" stroke="#2E6295" fill="#438DD5" style="stroke-width:3;" /></g><text x="768.000000" y="703.500000" fill="#ffffff" class="text-bold" style="text-anchor:middle;font-size:34px"><tspan x="768.000000" dy="0.000000">Broker</tspan><tspan x="768.000000" dy="38.500000">CTRL</tspan></text><title>Controls broker connections and order routing by managing the active broker session, dispatching orders to the appropriate broker adapter, and handling execution callbacks and circuit breaker logic.</title></g></a><a href="c3-broker-alpaca-adpt.svg" xlink:href="c3-broker-alpaca-adpt.svg"><g class="YnJva2VyLWFscGFjYS1hZHB0"><g class="shape" filter="url(#shadow-filter)" ><rect x="12.000000" y="12.000000" width="319.000000" height="122.000000" rx="14.000000" stroke="#2E6295" fill="#438DD5" style="stroke-width:3;" /></g><text x="171.500000" y="68.500000" fill="#ffffff" class="text-bold" style="text-anchor:middle;font-size:34px"><tspan x="171.500000" dy="0.000000">Broker Alpaca</tspan><tspan x="171.500000" dy="38.500000">ADPT</tspan></text><title>Integrates with the Alpaca brokerage API for live trading, submitting orders, streaming execution updates, and reconciling account positions with the Alpaca platform.</title></g></a><a href="c3-broker-sim-adpt.svg" xlink:href="c3-broker-sim-adpt.svg"><g class="YnJva2VyLXNpbS1hZHB0"><g class="shape" filter="url(#shadow-filter)" ><rect x="351.000000" y="12.000000" width="276.000000" height="122.000000" rx="14.000000" stroke="#2E6295" fill="#438DD5" style="stroke-width:3;" /></g><text x="489.000000" y="68.500000" fill="#ffffff" class="text-bold" style="text-anchor:middle;font-size:34px"><tspan x="489.000000" dy="0.000000">Broker Sim</tspan><tspan x="489.000000" dy="38.500000">ADPT</tspan></text><title>Simulates broker order execution for paper trading, accepting orders and generating realistic fill, reject, and partial-fill events without connecting to a real brokerage.</title></g></a><a href="c3-execution-ctrl.svg" xlink:href="c3-execution-ctrl.svg"><g class="ZXhlY3V0aW9uLWN0cmw="><g class="shape" filter="url(#shadow-filter)" ><rect x="894.000000" y="647.000000" width="257.000000" height="122.000000" rx="14.000000" stroke="#2E6295" fill="#438DD5" style="stroke-width:3;" /></g><text x="1022.500000" y="703.500000" fill="#ffffff" class="text-bold" style="text-anchor:middle;font-size:34px"><tspan x="1022.500000" dy="0.000000">Execution</tspan><tspan x="1022.500000" dy="38.500000">CTRL</tspan></text><title>Manages the order staging lifecycle by receiving approved decisions, staging orders for market-open execution, and coordinating with broker services for order submission and status tracking.</title></g></a><a href="c3-execution-adpt.svg" xlink:href="c3-execution-adpt.svg"><g class="ZXhlY3V0aW9uLWFkcHQ="><g class="shape" filter="url(#shadow-filter)" ><rect x="765.000000" y="332.000000" width="259.000000" height="122.000000" rx="14.000000" stroke="#2E6295" fill="#438DD5" style="stroke-width:3;" /></g><text x="894.500000" y="388.500000" fill="#ffffff" class="text-bold" style="text-anchor:middle;font-size:34px"><tspan x="894.500000" dy="0.000000">Execution</tspan><tspan x="894.500000" dy="38.500000">ADPT</tspan></text><title>Ingests cross-domain events from the advisory and investor buses into the execution domain bus, subscribing to decision approvals, circuit breaker signals, deposit and withdrawal requests.</title></g></a><g class="ZXh0LWFkdmlzb3J5"><g class="shape" ><rect x="647.000000" y="56.000000" width="240.000000" height="78.000000" rx="10.000000" stroke="#666666" fill="#8B8B8B" style="stroke-width:1;stroke-dasharray:5.000000,5.000000;" /></g><text x="767.000000" y="104.500000" fill="#ffffff" class="text-bold" style="text-anchor:middle;font-size:26px">Advisory Domain</text></g><g class="YWR2aXNvcnktdG8tZXhlY3V0aW9uLWFkcHQ="><g class="shape" ><rect x="703.000000" y="176.000000" width="127.000000" height="73.000000" rx="20.000000" stroke="#999999" fill="#F5F5F5" style="stroke-width:1;" /></g><text x="766.500000" y="220.500000" fill="#666666" class="text-bold" style="text-anchor:middle;font-size:22px">2 Events</text><title>DECISION_APPROVED&#xA;USER_CONFIRMED</title></g><g class="ZXh0LWludmVzdG9y"><g class="shape" ><rect x="907.000000" y="56.000000" width="233.000000" height="78.000000" rx="10.000000" stroke="#666666" fill="#8B8B8B" style="stroke-width:1;stroke-dasharray:5.000000,5.000000;" /></g><text x="1023.500000" y="104.500000" fill="#ffffff" class="text-bold" style="text-anchor:middle;font-size:26px">Investor Domain</text></g><g class="aW52ZXN0b3ItdG8tZXhlY3V0aW9uLWFkcHQ="><g class="shape" ><rect x="960.000000" y="176.000000" width="127.000000" height="73.000000" rx="20.000000" stroke="#999999" fill="#F5F5F5" style="stroke-width:1;" /></g><text x="1023.500000" y="220.500000" fill="#666666" class="text-bold" style="text-anchor:middle;font-size:22px">4 Events</text><title>DEPOSIT_INITIATED&#xA;WITHDRAWAL_REQUESTED&#xA;ACCOUNT_CLOSURE_REQUESTED&#xA;EXECUTION_MODE_CHANGED</title></g><g class="ZXhlY3V0aW9uLWFkcHQtdG8tYnJva2VyLWN0cmw="><g class="shape" ><rect x="704.000000" y="534.000000" width="127.000000" height="73.000000" rx="20.000000" stroke="#999999" fill="#F5F5F5" style="stroke-width:1;" /></g><text x="767.500000" y="578.500000" fill="#666666" class="text-bold" style="text-anchor:middle;font-size:22px">3 Events</text><title>DEPOSIT_INITIATED&#xA;WITHDRAWAL_REQUESTED&#xA;EXECUTION_MODE_CHANGED</title></g><g class="ZXhlY3V0aW9uLWFkcHQtdG8tZXhlY3V0aW9uLWN0cmw="><g class="shape" ><rect x="959.000000" y="534.000000" width="127.000000" height="73.000000" rx="20.000000" stroke="#999999" fill="#F5F5F5" style="stroke-width:1;" /></g><text x="1022.500000" y="578.500000" fill="#666666" class="text-bold" style="text-anchor:middle;font-size:22px">3 Events</text><title>DECISION_APPROVED&#xA;USER_CONFIRMED&#xA;ACCOUNT_CLOSURE_REQUESTED</title></g><g class="ZXh0LWFscGFjYQ=="><g class="shape" ><rect x="110.000000" y="174.000000" width="123.000000" height="78.000000" rx="10.000000" stroke="#666666" fill="#8B8B8B" style="stroke-width:1;stroke-dasharray:5.000000,5.000000;" /></g><text x="171.500000" y="222.500000" fill="#ffffff" class="text-bold" style="text-anchor:middle;font-size:26px">Alpaca</text></g><g class="ZXh0LXNpbQ=="><g class="shape" ><rect x="445.000000" y="174.000000" width="88.000000" height="78.000000" rx="10.000000" stroke="#666666" fill="#8B8B8B" style="stroke-width:1;stroke-dasharray:5.000000,5.000000;" /></g><text x="489.000000" y="222.500000" fill="#ffffff" class="text-bold" style="text-anchor:middle;font-size:26px">Sim</text></g><g class="KGV4dC1hZHZpc29yeSAtJmd0OyBhZHZpc29yeS10by1leGVjdXRpb24tYWRwdClbMF0="><marker id="mk-d2-2026316407-2749698431" markerWidth="13.000000" markerHeight="16.000000" refX="8.500000" refY="8.000000" viewBox="0.000000 0.000000 13.000000 16.000000" orient="auto" markerUnits="userSpaceOnUse"> <polygon points="0.000000,0.000000 13.000000,8.000000 0.000000,16.000000" fill="#999999" class="connection" stroke-width="3" /> </marker><path d="M 767.000000 135.500000 L 767.000000 171.500000" stroke="#999999" fill="none" class="connection" style="stroke-width:3;stroke-dasharray:9.000000,8.750172;" marker-end="url(#mk-d2-2026316407-2749698431)" mask="url(#d2-2026316407)" /></g><g class="KGFkdmlzb3J5LXRvLWV4ZWN1dGlvbi1hZHB0IC0mZ3Q7IGV4ZWN1dGlvbi1hZHB0KVswXQ=="><path d="M 767.000000 251.000000 L 767.000000 282.000000 S 767.000000 292.000000 777.000000 292.000000 L 842.083008 292.000000 S 852.083008 292.000000 852.083008 302.000000 L 852.083008 326.000000" stroke="#999999" fill="none" class="connection" style="stroke-width:3;stroke-dasharray:9.000000,8.750172;" marker-end="url(#mk-d2-2026316407-2749698431)" mask="url(#d2-2026316407)" /></g><g class="KGV4dC1pbnZlc3RvciAtJmd0OyBpbnZlc3Rvci10by1leGVjdXRpb24tYWRwdClbMF0="><path d="M 1023.500000 135.500000 L 1023.500000 171.500000" stroke="#999999" fill="none" class="connection" style="stroke-width:3;stroke-dasharray:9.000000,8.750172;" marker-end="url(#mk-d2-2026316407-2749698431)" mask="url(#d2-2026316407)" /></g><g class="KGludmVzdG9yLXRvLWV4ZWN1dGlvbi1hZHB0IC0mZ3Q7IGV4ZWN1dGlvbi1hZHB0KVswXQ=="><path d="M 1023.500000 251.000000 L 1023.500000 282.000000 S 1023.500000 292.000000 1013.500000 292.000000 L 948.416016 292.000000 S 938.416016 292.000000 938.416016 302.000000 L 938.416016 326.000000" stroke="#999999" fill="none" class="connection" style="stroke-width:3;stroke-dasharray:9.000000,8.750172;" marker-end="url(#mk-d2-2026316407-2749698431)" mask="url(#d2-2026316407)" /></g><g class="KGV4ZWN1dGlvbi1hZHB0IC0mZ3Q7IGV4ZWN1dGlvbi1hZHB0LXRvLWJyb2tlci1jdHJsKVswXQ=="><path d="M 852.083008 457.000000 L 852.083008 484.000000 S 852.083008 494.000000 842.083008 494.000000 L 778.000000 494.000000 S 768.000000 494.000000 768.000000 504.000000 L 768.000000 529.000000" stroke="#999999" fill="none" class="connection" style="stroke-width:3;stroke-dasharray:9.000000,8.750172;" marker-end="url(#mk-d2-2026316407-2749698431)" mask="url(#d2-2026316407)" /></g><g class="KGV4ZWN1dGlvbi1hZHB0LXRvLWJyb2tlci1jdHJsIC0mZ3Q7IGJyb2tlci1jdHJsKVswXQ=="><path d="M 768.000000 609.000000 L 768.000000 641.000000" stroke="#999999" fill="none" class="connection" style="stroke-width:3;stroke-dasharray:9.000000,8.750172;" marker-end="url(#mk-d2-2026316407-2749698431)" mask="url(#d2-2026316407)" /></g><g class="KGV4ZWN1dGlvbi1hZHB0IC0mZ3Q7IGV4ZWN1dGlvbi1hZHB0LXRvLWV4ZWN1dGlvbi1jdHJsKVswXQ=="><path d="M 938.416016 457.000000 L 938.416016 484.000000 S 938.416016 494.000000 948.416016 494.000000 L 1012.500000 494.000000 S 1022.500000 494.000000 1022.500000 504.000000 L 1022.500000 529.000000" stroke="#999999" fill="none" class="connection" style="stroke-width:3;stroke-dasharray:9.000000,8.750172;" marker-end="url(#mk-d2-2026316407-2749698431)" mask="url(#d2-2026316407)" /></g><g class="KGV4ZWN1dGlvbi1hZHB0LXRvLWV4ZWN1dGlvbi1jdHJsIC0mZ3Q7IGV4ZWN1dGlvbi1jdHJsKVswXQ=="><path d="M 1022.500000 609.000000 L 1022.500000 641.000000" stroke="#999999" fill="none" class="connection" style="stroke-width:3;stroke-dasharray:9.000000,8.750172;" marker-end="url(#mk-d2-2026316407-2749698431)" mask="url(#d2-2026316407)" /></g><g class="KGJyb2tlci1hbHBhY2EtYWRwdCAtJmd0OyBleHQtYWxwYWNhKVswXQ=="><marker id="mk-d2-2026316407-3488378134" markerWidth="10.000000" markerHeight="12.000000" refX="7.000000" refY="6.000000" viewBox="0.000000 0.000000 10.000000 12.000000" orient="auto" markerUnits="userSpaceOnUse"> <polygon points="0.000000,0.000000 10.000000,6.000000 0.000000,12.000000" fill="#0D32B2" class="connection fill-B1" stroke-width="2" /> </marker><path d="M 171.500000 136.500000 L 171.500000 170.500000" stroke="#0D32B2" fill="none" class="connection stroke-B1" style="stroke-width:2;" marker-end="url(#mk-d2-2026316407-3488378134)" mask="url(#d2-2026316407)" /></g><g class="KGJyb2tlci1zaW0tYWRwdCAtJmd0OyBleHQtc2ltKVswXQ=="><path d="M 489.000000 136.500000 L 489.000000 170.500000" stroke="#0D32B2" fill="none" class="connection stroke-B1" style="stroke-width:2;" marker-end="url(#mk-d2-2026316407-3488378134)" mask="url(#d2-2026316407)" /></g><g transform="translate(858 631)" class="appendix-icon"><title>Controls broker connections and order routing by managing the active broker session, dispatching orders to the appropriate broker adapter, and handling execution callbacks and circuit breaker logic.</title><svg width="32" height="32" viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg">
-<g clip-path="url(#clip0_3427_35082111-d2-2026316407-MJZG623FOIWWG5DSNQ)">
+</defs><a href="c3-broker-ctrl.svg" xlink:href="c3-broker-ctrl.svg"><g class="YnJva2VyLWN0cmw="><g class="shape" filter="url(#shadow-filter)" ><rect x="662.000000" y="647.000000" width="212.000000" height="122.000000" rx="14.000000" stroke="#2E6295" fill="#438DD5" style="stroke-width:3;" /></g><text x="768.000000" y="703.500000" fill="#ffffff" class="text-bold" style="text-anchor:middle;font-size:34px"><tspan x="768.000000" dy="0.000000">Broker</tspan><tspan x="768.000000" dy="38.500000">CTRL</tspan></text><title>Controls broker connections and order routing by managing the active broker session, dispatching orders to the appropriate broker adapter, and handling execution callbacks and circuit breaker logic.</title></g></a><a href="c3-broker-alpaca-adpt.svg" xlink:href="c3-broker-alpaca-adpt.svg"><g class="YnJva2VyLWFscGFjYS1hZHB0"><g class="shape" filter="url(#shadow-filter)" ><rect x="12.000000" y="12.000000" width="319.000000" height="122.000000" rx="14.000000" stroke="#2E6295" fill="#438DD5" style="stroke-width:3;" /></g><text x="171.500000" y="68.500000" fill="#ffffff" class="text-bold" style="text-anchor:middle;font-size:34px"><tspan x="171.500000" dy="0.000000">Broker Alpaca</tspan><tspan x="171.500000" dy="38.500000">ADPT</tspan></text><title>Integrates with the Alpaca brokerage API for live trading, submitting orders, streaming execution updates, and reconciling account positions with the Alpaca platform.</title></g></a><a href="c3-broker-sim-adpt.svg" xlink:href="c3-broker-sim-adpt.svg"><g class="YnJva2VyLXNpbS1hZHB0"><g class="shape" filter="url(#shadow-filter)" ><rect x="351.000000" y="12.000000" width="276.000000" height="122.000000" rx="14.000000" stroke="#2E6295" fill="#438DD5" style="stroke-width:3;" /></g><text x="489.000000" y="68.500000" fill="#ffffff" class="text-bold" style="text-anchor:middle;font-size:34px"><tspan x="489.000000" dy="0.000000">Broker Sim</tspan><tspan x="489.000000" dy="38.500000">ADPT</tspan></text><title>Simulates broker order execution for paper trading, accepting orders and generating realistic fill, reject, and partial-fill events without connecting to a real brokerage.</title></g></a><a href="c3-execution-ctrl.svg" xlink:href="c3-execution-ctrl.svg"><g class="ZXhlY3V0aW9uLWN0cmw="><g class="shape" filter="url(#shadow-filter)" ><rect x="894.000000" y="647.000000" width="257.000000" height="122.000000" rx="14.000000" stroke="#2E6295" fill="#438DD5" style="stroke-width:3;" /></g><text x="1022.500000" y="703.500000" fill="#ffffff" class="text-bold" style="text-anchor:middle;font-size:34px"><tspan x="1022.500000" dy="0.000000">Execution</tspan><tspan x="1022.500000" dy="38.500000">CTRL</tspan></text><title>Manages the order staging lifecycle by receiving approved decisions, staging orders for market-open execution, and coordinating with broker services for order submission and status tracking.</title></g></a><a href="c3-execution-adpt.svg" xlink:href="c3-execution-adpt.svg"><g class="ZXhlY3V0aW9uLWFkcHQ="><g class="shape" filter="url(#shadow-filter)" ><rect x="765.000000" y="332.000000" width="259.000000" height="122.000000" rx="14.000000" stroke="#2E6295" fill="#438DD5" style="stroke-width:3;" /></g><text x="894.500000" y="388.500000" fill="#ffffff" class="text-bold" style="text-anchor:middle;font-size:34px"><tspan x="894.500000" dy="0.000000">Execution</tspan><tspan x="894.500000" dy="38.500000">ADPT</tspan></text><title>Ingests cross-domain events from the advisory and investor buses into the execution domain bus, subscribing to decision approvals, circuit breaker signals, deposit and withdrawal requests.</title></g></a><g class="ZXh0LWFkdmlzb3J5"><g class="shape" ><rect x="647.000000" y="56.000000" width="240.000000" height="78.000000" rx="10.000000" stroke="#666666" fill="#8B8B8B" style="stroke-width:1;stroke-dasharray:5.000000,5.000000;" /></g><text x="767.000000" y="104.500000" fill="#ffffff" class="text-bold" style="text-anchor:middle;font-size:26px">Advisory Domain</text></g><g class="YWR2aXNvcnktdG8tZXhlY3V0aW9uLWFkcHQ="><g class="shape" ><rect x="703.000000" y="176.000000" width="127.000000" height="73.000000" rx="20.000000" stroke="#999999" fill="#F5F5F5" style="stroke-width:1;" /></g><text x="766.500000" y="220.500000" fill="#666666" class="text-bold" style="text-anchor:middle;font-size:22px">2 Events</text><title>DECISION_APPROVED&#xA;USER_CONFIRMED</title></g><g class="ZXh0LWludmVzdG9y"><g class="shape" ><rect x="907.000000" y="56.000000" width="233.000000" height="78.000000" rx="10.000000" stroke="#666666" fill="#8B8B8B" style="stroke-width:1;stroke-dasharray:5.000000,5.000000;" /></g><text x="1023.500000" y="104.500000" fill="#ffffff" class="text-bold" style="text-anchor:middle;font-size:26px">Investor Domain</text></g><g class="aW52ZXN0b3ItdG8tZXhlY3V0aW9uLWFkcHQ="><g class="shape" ><rect x="960.000000" y="176.000000" width="127.000000" height="73.000000" rx="20.000000" stroke="#999999" fill="#F5F5F5" style="stroke-width:1;" /></g><text x="1023.500000" y="220.500000" fill="#666666" class="text-bold" style="text-anchor:middle;font-size:22px">4 Events</text><title>DEPOSIT_INITIATED&#xA;WITHDRAWAL_INITIATED&#xA;ACCOUNT_CLOSURE_REQUESTED&#xA;EXECUTION_MODE_CHANGED</title></g><g class="ZXhlY3V0aW9uLWFkcHQtdG8tYnJva2VyLWN0cmw="><g class="shape" ><rect x="704.000000" y="534.000000" width="127.000000" height="73.000000" rx="20.000000" stroke="#999999" fill="#F5F5F5" style="stroke-width:1;" /></g><text x="767.500000" y="578.500000" fill="#666666" class="text-bold" style="text-anchor:middle;font-size:22px">3 Events</text><title>DEPOSIT_INITIATED&#xA;WITHDRAWAL_INITIATED&#xA;EXECUTION_MODE_CHANGED</title></g><g class="ZXhlY3V0aW9uLWFkcHQtdG8tZXhlY3V0aW9uLWN0cmw="><g class="shape" ><rect x="959.000000" y="534.000000" width="127.000000" height="73.000000" rx="20.000000" stroke="#999999" fill="#F5F5F5" style="stroke-width:1;" /></g><text x="1022.500000" y="578.500000" fill="#666666" class="text-bold" style="text-anchor:middle;font-size:22px">3 Events</text><title>DECISION_APPROVED&#xA;USER_CONFIRMED&#xA;ACCOUNT_CLOSURE_REQUESTED</title></g><g class="ZXh0LWFscGFjYQ=="><g class="shape" ><rect x="110.000000" y="174.000000" width="123.000000" height="78.000000" rx="10.000000" stroke="#666666" fill="#8B8B8B" style="stroke-width:1;stroke-dasharray:5.000000,5.000000;" /></g><text x="171.500000" y="222.500000" fill="#ffffff" class="text-bold" style="text-anchor:middle;font-size:26px">Alpaca</text></g><g class="ZXh0LXNpbQ=="><g class="shape" ><rect x="445.000000" y="174.000000" width="88.000000" height="78.000000" rx="10.000000" stroke="#666666" fill="#8B8B8B" style="stroke-width:1;stroke-dasharray:5.000000,5.000000;" /></g><text x="489.000000" y="222.500000" fill="#ffffff" class="text-bold" style="text-anchor:middle;font-size:26px">Sim</text></g><g class="KGV4dC1hZHZpc29yeSAtJmd0OyBhZHZpc29yeS10by1leGVjdXRpb24tYWRwdClbMF0="><marker id="mk-d2-2559092491-2749698431" markerWidth="13.000000" markerHeight="16.000000" refX="8.500000" refY="8.000000" viewBox="0.000000 0.000000 13.000000 16.000000" orient="auto" markerUnits="userSpaceOnUse"> <polygon points="0.000000,0.000000 13.000000,8.000000 0.000000,16.000000" fill="#999999" class="connection" stroke-width="3" /> </marker><path d="M 767.000000 135.500000 L 767.000000 171.500000" stroke="#999999" fill="none" class="connection" style="stroke-width:3;stroke-dasharray:9.000000,8.750172;" marker-end="url(#mk-d2-2559092491-2749698431)" mask="url(#d2-2559092491)" /></g><g class="KGFkdmlzb3J5LXRvLWV4ZWN1dGlvbi1hZHB0IC0mZ3Q7IGV4ZWN1dGlvbi1hZHB0KVswXQ=="><path d="M 767.000000 251.000000 L 767.000000 282.000000 S 767.000000 292.000000 777.000000 292.000000 L 842.083008 292.000000 S 852.083008 292.000000 852.083008 302.000000 L 852.083008 326.000000" stroke="#999999" fill="none" class="connection" style="stroke-width:3;stroke-dasharray:9.000000,8.750172;" marker-end="url(#mk-d2-2559092491-2749698431)" mask="url(#d2-2559092491)" /></g><g class="KGV4dC1pbnZlc3RvciAtJmd0OyBpbnZlc3Rvci10by1leGVjdXRpb24tYWRwdClbMF0="><path d="M 1023.500000 135.500000 L 1023.500000 171.500000" stroke="#999999" fill="none" class="connection" style="stroke-width:3;stroke-dasharray:9.000000,8.750172;" marker-end="url(#mk-d2-2559092491-2749698431)" mask="url(#d2-2559092491)" /></g><g class="KGludmVzdG9yLXRvLWV4ZWN1dGlvbi1hZHB0IC0mZ3Q7IGV4ZWN1dGlvbi1hZHB0KVswXQ=="><path d="M 1023.500000 251.000000 L 1023.500000 282.000000 S 1023.500000 292.000000 1013.500000 292.000000 L 948.416016 292.000000 S 938.416016 292.000000 938.416016 302.000000 L 938.416016 326.000000" stroke="#999999" fill="none" class="connection" style="stroke-width:3;stroke-dasharray:9.000000,8.750172;" marker-end="url(#mk-d2-2559092491-2749698431)" mask="url(#d2-2559092491)" /></g><g class="KGV4ZWN1dGlvbi1hZHB0IC0mZ3Q7IGV4ZWN1dGlvbi1hZHB0LXRvLWJyb2tlci1jdHJsKVswXQ=="><path d="M 852.083008 457.000000 L 852.083008 484.000000 S 852.083008 494.000000 842.083008 494.000000 L 778.000000 494.000000 S 768.000000 494.000000 768.000000 504.000000 L 768.000000 529.000000" stroke="#999999" fill="none" class="connection" style="stroke-width:3;stroke-dasharray:9.000000,8.750172;" marker-end="url(#mk-d2-2559092491-2749698431)" mask="url(#d2-2559092491)" /></g><g class="KGV4ZWN1dGlvbi1hZHB0LXRvLWJyb2tlci1jdHJsIC0mZ3Q7IGJyb2tlci1jdHJsKVswXQ=="><path d="M 768.000000 609.000000 L 768.000000 641.000000" stroke="#999999" fill="none" class="connection" style="stroke-width:3;stroke-dasharray:9.000000,8.750172;" marker-end="url(#mk-d2-2559092491-2749698431)" mask="url(#d2-2559092491)" /></g><g class="KGV4ZWN1dGlvbi1hZHB0IC0mZ3Q7IGV4ZWN1dGlvbi1hZHB0LXRvLWV4ZWN1dGlvbi1jdHJsKVswXQ=="><path d="M 938.416016 457.000000 L 938.416016 484.000000 S 938.416016 494.000000 948.416016 494.000000 L 1012.500000 494.000000 S 1022.500000 494.000000 1022.500000 504.000000 L 1022.500000 529.000000" stroke="#999999" fill="none" class="connection" style="stroke-width:3;stroke-dasharray:9.000000,8.750172;" marker-end="url(#mk-d2-2559092491-2749698431)" mask="url(#d2-2559092491)" /></g><g class="KGV4ZWN1dGlvbi1hZHB0LXRvLWV4ZWN1dGlvbi1jdHJsIC0mZ3Q7IGV4ZWN1dGlvbi1jdHJsKVswXQ=="><path d="M 1022.500000 609.000000 L 1022.500000 641.000000" stroke="#999999" fill="none" class="connection" style="stroke-width:3;stroke-dasharray:9.000000,8.750172;" marker-end="url(#mk-d2-2559092491-2749698431)" mask="url(#d2-2559092491)" /></g><g class="KGJyb2tlci1hbHBhY2EtYWRwdCAtJmd0OyBleHQtYWxwYWNhKVswXQ=="><marker id="mk-d2-2559092491-3488378134" markerWidth="10.000000" markerHeight="12.000000" refX="7.000000" refY="6.000000" viewBox="0.000000 0.000000 10.000000 12.000000" orient="auto" markerUnits="userSpaceOnUse"> <polygon points="0.000000,0.000000 10.000000,6.000000 0.000000,12.000000" fill="#0D32B2" class="connection fill-B1" stroke-width="2" /> </marker><path d="M 171.500000 136.500000 L 171.500000 170.500000" stroke="#0D32B2" fill="none" class="connection stroke-B1" style="stroke-width:2;" marker-end="url(#mk-d2-2559092491-3488378134)" mask="url(#d2-2559092491)" /></g><g class="KGJyb2tlci1zaW0tYWRwdCAtJmd0OyBleHQtc2ltKVswXQ=="><path d="M 489.000000 136.500000 L 489.000000 170.500000" stroke="#0D32B2" fill="none" class="connection stroke-B1" style="stroke-width:2;" marker-end="url(#mk-d2-2559092491-3488378134)" mask="url(#d2-2559092491)" /></g><g transform="translate(858 631)" class="appendix-icon"><title>Controls broker connections and order routing by managing the active broker session, dispatching orders to the appropriate broker adapter, and handling execution callbacks and circuit breaker logic.</title><svg width="32" height="32" viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg">
+<g clip-path="url(#clip0_3427_35082111-d2-2559092491-MJZG623FOIWWG5DSNQ)">
 <path d="M16 31.1109C24.3456 31.1109 31.1111 24.3454 31.1111 15.9998C31.1111 7.65415 24.3456 0.888672 16 0.888672C7.65436 0.888672 0.888885 7.65415 0.888885 15.9998C0.888885 24.3454 7.65436 31.1109 16 31.1109Z" fill="white" stroke="#DEE1EB"/>
 <path d="M16 26C21.5228 26 26 21.5228 26 16C26 10.4772 21.5228 6 16 6C10.4772 6 6 10.4772 6 16C6 21.5228 10.4772 26 16 26Z" stroke="#2E3346" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
 <path d="M16 19.998V15.998" stroke="#2E3346" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
 <path d="M16 12H16.0098" stroke="#2E3346" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
 </g>
 <defs>
-<clipPath id="clip0_3427_35082111-d2-2026316407-MJZG623FOIWWG5DSNQ">
+<clipPath id="clip0_3427_35082111-d2-2559092491-MJZG623FOIWWG5DSNQ">
 <rect width="32" height="32" fill="white"/>
 </clipPath>
 </defs>
 </svg>
 </g><g transform="translate(826 631)" class="appendix-icon"><svg width="32" height="32" viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg">
-<g clip-path="url(#clip0_3440_35088111-d2-2026316407-MJZG623FOIWWG5DSNQ)">
+<g clip-path="url(#clip0_3440_35088111-d2-2559092491-MJZG623FOIWWG5DSNQ)">
 <path d="M16 31.1109C24.3456 31.1109 31.1111 24.3454 31.1111 15.9998C31.1111 7.65415 24.3456 0.888672 16 0.888672C7.65436 0.888672 0.888885 7.65415 0.888885 15.9998C0.888885 24.3454 7.65436 31.1109 16 31.1109Z" fill="white" stroke="#DEE1EB"/>
 <path d="M14.3909 16.7965C14.7364 17.2584 15.1772 17.6406 15.6834 17.9171C16.1896 18.1938 16.7494 18.3582 17.3248 18.3993C17.9001 18.4405 18.4777 18.3575 19.0181 18.1559C19.5586 17.9543 20.0492 17.6389 20.4571 17.2309L22.8708 14.8173C23.6036 14.0586 24.0089 13.0425 23.9998 11.9877C23.9906 10.933 23.5676 9.92404 22.8217 9.17821C22.0759 8.43237 21.067 8.00931 20.0123 8.00015C18.9575 7.99098 17.9413 8.39644 17.1827 9.1292L15.7988 10.505" stroke="#2E3346" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
 <path d="M17.609 15.1874C17.2635 14.7255 16.8227 14.3433 16.3165 14.0667C15.8103 13.7902 15.2505 13.6257 14.6752 13.5845C14.0998 13.5433 13.5223 13.6263 12.9819 13.8279C12.4414 14.0295 11.9506 14.345 11.5428 14.753L9.1292 17.1666C8.39644 17.9252 7.99098 18.9414 8.00015 19.9962C8.00931 21.0509 8.43237 22.0598 9.17821 22.8056C9.92405 23.5515 10.933 23.9745 11.9877 23.9837C13.0425 23.9928 14.0586 23.5875 14.8173 22.8547L16.193 21.4788" stroke="#2E3346" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
 </g>
 <defs>
-<clipPath id="clip0_3440_35088111-d2-2026316407-MJZG623FOIWWG5DSNQ">
+<clipPath id="clip0_3440_35088111-d2-2559092491-MJZG623FOIWWG5DSNQ">
 <rect width="32" height="32" fill="white"/>
 </clipPath>
 </defs>
 </svg>
 </g><g transform="translate(315 -4)" class="appendix-icon"><title>Integrates with the Alpaca brokerage API for live trading, submitting orders, streaming execution updates, and reconciling account positions with the Alpaca platform.</title><svg width="32" height="32" viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg">
-<g clip-path="url(#clip0_3427_35082111-d2-2026316407-MJZG623FOIWWC3DQMFRWCLLBMRYHI)">
+<g clip-path="url(#clip0_3427_35082111-d2-2559092491-MJZG623FOIWWC3DQMFRWCLLBMRYHI)">
 <path d="M16 31.1109C24.3456 31.1109 31.1111 24.3454 31.1111 15.9998C31.1111 7.65415 24.3456 0.888672 16 0.888672C7.65436 0.888672 0.888885 7.65415 0.888885 15.9998C0.888885 24.3454 7.65436 31.1109 16 31.1109Z" fill="white" stroke="#DEE1EB"/>
 <path d="M16 26C21.5228 26 26 21.5228 26 16C26 10.4772 21.5228 6 16 6C10.4772 6 6 10.4772 6 16C6 21.5228 10.4772 26 16 26Z" stroke="#2E3346" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
 <path d="M16 19.998V15.998" stroke="#2E3346" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
 <path d="M16 12H16.0098" stroke="#2E3346" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
 </g>
 <defs>
-<clipPath id="clip0_3427_35082111-d2-2026316407-MJZG623FOIWWC3DQMFRWCLLBMRYHI">
+<clipPath id="clip0_3427_35082111-d2-2559092491-MJZG623FOIWWC3DQMFRWCLLBMRYHI">
 <rect width="32" height="32" fill="white"/>
 </clipPath>
 </defs>
 </svg>
 </g><g transform="translate(283 -4)" class="appendix-icon"><svg width="32" height="32" viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg">
-<g clip-path="url(#clip0_3440_35088111-d2-2026316407-MJZG623FOIWWC3DQMFRWCLLBMRYHI)">
+<g clip-path="url(#clip0_3440_35088111-d2-2559092491-MJZG623FOIWWC3DQMFRWCLLBMRYHI)">
 <path d="M16 31.1109C24.3456 31.1109 31.1111 24.3454 31.1111 15.9998C31.1111 7.65415 24.3456 0.888672 16 0.888672C7.65436 0.888672 0.888885 7.65415 0.888885 15.9998C0.888885 24.3454 7.65436 31.1109 16 31.1109Z" fill="white" stroke="#DEE1EB"/>
 <path d="M14.3909 16.7965C14.7364 17.2584 15.1772 17.6406 15.6834 17.9171C16.1896 18.1938 16.7494 18.3582 17.3248 18.3993C17.9001 18.4405 18.4777 18.3575 19.0181 18.1559C19.5586 17.9543 20.0492 17.6389 20.4571 17.2309L22.8708 14.8173C23.6036 14.0586 24.0089 13.0425 23.9998 11.9877C23.9906 10.933 23.5676 9.92404 22.8217 9.17821C22.0759 8.43237 21.067 8.00931 20.0123 8.00015C18.9575 7.99098 17.9413 8.39644 17.1827 9.1292L15.7988 10.505" stroke="#2E3346" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
 <path d="M17.609 15.1874C17.2635 14.7255 16.8227 14.3433 16.3165 14.0667C15.8103 13.7902 15.2505 13.6257 14.6752 13.5845C14.0998 13.5433 13.5223 13.6263 12.9819 13.8279C12.4414 14.0295 11.9506 14.345 11.5428 14.753L9.1292 17.1666C8.39644 17.9252 7.99098 18.9414 8.00015 19.9962C8.00931 21.0509 8.43237 22.0598 9.17821 22.8056C9.92405 23.5515 10.933 23.9745 11.9877 23.9837C13.0425 23.9928 14.0586 23.5875 14.8173 22.8547L16.193 21.4788" stroke="#2E3346" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
 </g>
 <defs>
-<clipPath id="clip0_3440_35088111-d2-2026316407-MJZG623FOIWWC3DQMFRWCLLBMRYHI">
+<clipPath id="clip0_3440_35088111-d2-2559092491-MJZG623FOIWWC3DQMFRWCLLBMRYHI">
 <rect width="32" height="32" fill="white"/>
 </clipPath>
 </defs>
 </svg>
 </g><g transform="translate(611 -4)" class="appendix-icon"><title>Simulates broker order execution for paper trading, accepting orders and generating realistic fill, reject, and partial-fill events without connecting to a real brokerage.</title><svg width="32" height="32" viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg">
-<g clip-path="url(#clip0_3427_35082111-d2-2026316407-MJZG623FOIWXG2LNFVQWI4DU)">
+<g clip-path="url(#clip0_3427_35082111-d2-2559092491-MJZG623FOIWXG2LNFVQWI4DU)">
 <path d="M16 31.1109C24.3456 31.1109 31.1111 24.3454 31.1111 15.9998C31.1111 7.65415 24.3456 0.888672 16 0.888672C7.65436 0.888672 0.888885 7.65415 0.888885 15.9998C0.888885 24.3454 7.65436 31.1109 16 31.1109Z" fill="white" stroke="#DEE1EB"/>
 <path d="M16 26C21.5228 26 26 21.5228 26 16C26 10.4772 21.5228 6 16 6C10.4772 6 6 10.4772 6 16C6 21.5228 10.4772 26 16 26Z" stroke="#2E3346" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
 <path d="M16 19.998V15.998" stroke="#2E3346" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
 <path d="M16 12H16.0098" stroke="#2E3346" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
 </g>
 <defs>
-<clipPath id="clip0_3427_35082111-d2-2026316407-MJZG623FOIWXG2LNFVQWI4DU">
+<clipPath id="clip0_3427_35082111-d2-2559092491-MJZG623FOIWXG2LNFVQWI4DU">
 <rect width="32" height="32" fill="white"/>
 </clipPath>
 </defs>
 </svg>
 </g><g transform="translate(579 -4)" class="appendix-icon"><svg width="32" height="32" viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg">
-<g clip-path="url(#clip0_3440_35088111-d2-2026316407-MJZG623FOIWXG2LNFVQWI4DU)">
+<g clip-path="url(#clip0_3440_35088111-d2-2559092491-MJZG623FOIWXG2LNFVQWI4DU)">
 <path d="M16 31.1109C24.3456 31.1109 31.1111 24.3454 31.1111 15.9998C31.1111 7.65415 24.3456 0.888672 16 0.888672C7.65436 0.888672 0.888885 7.65415 0.888885 15.9998C0.888885 24.3454 7.65436 31.1109 16 31.1109Z" fill="white" stroke="#DEE1EB"/>
 <path d="M14.3909 16.7965C14.7364 17.2584 15.1772 17.6406 15.6834 17.9171C16.1896 18.1938 16.7494 18.3582 17.3248 18.3993C17.9001 18.4405 18.4777 18.3575 19.0181 18.1559C19.5586 17.9543 20.0492 17.6389 20.4571 17.2309L22.8708 14.8173C23.6036 14.0586 24.0089 13.0425 23.9998 11.9877C23.9906 10.933 23.5676 9.92404 22.8217 9.17821C22.0759 8.43237 21.067 8.00931 20.0123 8.00015C18.9575 7.99098 17.9413 8.39644 17.1827 9.1292L15.7988 10.505" stroke="#2E3346" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
 <path d="M17.609 15.1874C17.2635 14.7255 16.8227 14.3433 16.3165 14.0667C15.8103 13.7902 15.2505 13.6257 14.6752 13.5845C14.0998 13.5433 13.5223 13.6263 12.9819 13.8279C12.4414 14.0295 11.9506 14.345 11.5428 14.753L9.1292 17.1666C8.39644 17.9252 7.99098 18.9414 8.00015 19.9962C8.00931 21.0509 8.43237 22.0598 9.17821 22.8056C9.92405 23.5515 10.933 23.9745 11.9877 23.9837C13.0425 23.9928 14.0586 23.5875 14.8173 22.8547L16.193 21.4788" stroke="#2E3346" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
 </g>
 <defs>
-<clipPath id="clip0_3440_35088111-d2-2026316407-MJZG623FOIWXG2LNFVQWI4DU">
+<clipPath id="clip0_3440_35088111-d2-2559092491-MJZG623FOIWXG2LNFVQWI4DU">
 <rect width="32" height="32" fill="white"/>
 </clipPath>
 </defs>
 </svg>
 </g><g transform="translate(1135 631)" class="appendix-icon"><title>Manages the order staging lifecycle by receiving approved decisions, staging orders for market-open execution, and coordinating with broker services for order submission and status tracking.</title><svg width="32" height="32" viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg">
-<g clip-path="url(#clip0_3427_35082111-d2-2026316407-MV4GKY3VORUW63RNMN2HE3A)">
+<g clip-path="url(#clip0_3427_35082111-d2-2559092491-MV4GKY3VORUW63RNMN2HE3A)">
 <path d="M16 31.1109C24.3456 31.1109 31.1111 24.3454 31.1111 15.9998C31.1111 7.65415 24.3456 0.888672 16 0.888672C7.65436 0.888672 0.888885 7.65415 0.888885 15.9998C0.888885 24.3454 7.65436 31.1109 16 31.1109Z" fill="white" stroke="#DEE1EB"/>
 <path d="M16 26C21.5228 26 26 21.5228 26 16C26 10.4772 21.5228 6 16 6C10.4772 6 6 10.4772 6 16C6 21.5228 10.4772 26 16 26Z" stroke="#2E3346" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
 <path d="M16 19.998V15.998" stroke="#2E3346" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
 <path d="M16 12H16.0098" stroke="#2E3346" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
 </g>
 <defs>
-<clipPath id="clip0_3427_35082111-d2-2026316407-MV4GKY3VORUW63RNMN2HE3A">
+<clipPath id="clip0_3427_35082111-d2-2559092491-MV4GKY3VORUW63RNMN2HE3A">
 <rect width="32" height="32" fill="white"/>
 </clipPath>
 </defs>
 </svg>
 </g><g transform="translate(1103 631)" class="appendix-icon"><svg width="32" height="32" viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg">
-<g clip-path="url(#clip0_3440_35088111-d2-2026316407-MV4GKY3VORUW63RNMN2HE3A)">
+<g clip-path="url(#clip0_3440_35088111-d2-2559092491-MV4GKY3VORUW63RNMN2HE3A)">
 <path d="M16 31.1109C24.3456 31.1109 31.1111 24.3454 31.1111 15.9998C31.1111 7.65415 24.3456 0.888672 16 0.888672C7.65436 0.888672 0.888885 7.65415 0.888885 15.9998C0.888885 24.3454 7.65436 31.1109 16 31.1109Z" fill="white" stroke="#DEE1EB"/>
 <path d="M14.3909 16.7965C14.7364 17.2584 15.1772 17.6406 15.6834 17.9171C16.1896 18.1938 16.7494 18.3582 17.3248 18.3993C17.9001 18.4405 18.4777 18.3575 19.0181 18.1559C19.5586 17.9543 20.0492 17.6389 20.4571 17.2309L22.8708 14.8173C23.6036 14.0586 24.0089 13.0425 23.9998 11.9877C23.9906 10.933 23.5676 9.92404 22.8217 9.17821C22.0759 8.43237 21.067 8.00931 20.0123 8.00015C18.9575 7.99098 17.9413 8.39644 17.1827 9.1292L15.7988 10.505" stroke="#2E3346" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
 <path d="M17.609 15.1874C17.2635 14.7255 16.8227 14.3433 16.3165 14.0667C15.8103 13.7902 15.2505 13.6257 14.6752 13.5845C14.0998 13.5433 13.5223 13.6263 12.9819 13.8279C12.4414 14.0295 11.9506 14.345 11.5428 14.753L9.1292 17.1666C8.39644 17.9252 7.99098 18.9414 8.00015 19.9962C8.00931 21.0509 8.43237 22.0598 9.17821 22.8056C9.92405 23.5515 10.933 23.9745 11.9877 23.9837C13.0425 23.9928 14.0586 23.5875 14.8173 22.8547L16.193 21.4788" stroke="#2E3346" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
 </g>
 <defs>
-<clipPath id="clip0_3440_35088111-d2-2026316407-MV4GKY3VORUW63RNMN2HE3A">
+<clipPath id="clip0_3440_35088111-d2-2559092491-MV4GKY3VORUW63RNMN2HE3A">
 <rect width="32" height="32" fill="white"/>
 </clipPath>
 </defs>
 </svg>
 </g><g transform="translate(1008 316)" class="appendix-icon"><title>Ingests cross-domain events from the advisory and investor buses into the execution domain bus, subscribing to decision approvals, circuit breaker signals, deposit and withdrawal requests.</title><svg width="32" height="32" viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg">
-<g clip-path="url(#clip0_3427_35082111-d2-2026316407-MV4GKY3VORUW63RNMFSHA5A)">
+<g clip-path="url(#clip0_3427_35082111-d2-2559092491-MV4GKY3VORUW63RNMFSHA5A)">
 <path d="M16 31.1109C24.3456 31.1109 31.1111 24.3454 31.1111 15.9998C31.1111 7.65415 24.3456 0.888672 16 0.888672C7.65436 0.888672 0.888885 7.65415 0.888885 15.9998C0.888885 24.3454 7.65436 31.1109 16 31.1109Z" fill="white" stroke="#DEE1EB"/>
 <path d="M16 26C21.5228 26 26 21.5228 26 16C26 10.4772 21.5228 6 16 6C10.4772 6 6 10.4772 6 16C6 21.5228 10.4772 26 16 26Z" stroke="#2E3346" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
 <path d="M16 19.998V15.998" stroke="#2E3346" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
 <path d="M16 12H16.0098" stroke="#2E3346" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
 </g>
 <defs>
-<clipPath id="clip0_3427_35082111-d2-2026316407-MV4GKY3VORUW63RNMFSHA5A">
+<clipPath id="clip0_3427_35082111-d2-2559092491-MV4GKY3VORUW63RNMFSHA5A">
 <rect width="32" height="32" fill="white"/>
 </clipPath>
 </defs>
 </svg>
 </g><g transform="translate(976 316)" class="appendix-icon"><svg width="32" height="32" viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg">
-<g clip-path="url(#clip0_3440_35088111-d2-2026316407-MV4GKY3VORUW63RNMFSHA5A)">
+<g clip-path="url(#clip0_3440_35088111-d2-2559092491-MV4GKY3VORUW63RNMFSHA5A)">
 <path d="M16 31.1109C24.3456 31.1109 31.1111 24.3454 31.1111 15.9998C31.1111 7.65415 24.3456 0.888672 16 0.888672C7.65436 0.888672 0.888885 7.65415 0.888885 15.9998C0.888885 24.3454 7.65436 31.1109 16 31.1109Z" fill="white" stroke="#DEE1EB"/>
 <path d="M14.3909 16.7965C14.7364 17.2584 15.1772 17.6406 15.6834 17.9171C16.1896 18.1938 16.7494 18.3582 17.3248 18.3993C17.9001 18.4405 18.4777 18.3575 19.0181 18.1559C19.5586 17.9543 20.0492 17.6389 20.4571 17.2309L22.8708 14.8173C23.6036 14.0586 24.0089 13.0425 23.9998 11.9877C23.9906 10.933 23.5676 9.92404 22.8217 9.17821C22.0759 8.43237 21.067 8.00931 20.0123 8.00015C18.9575 7.99098 17.9413 8.39644 17.1827 9.1292L15.7988 10.505" stroke="#2E3346" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
 <path d="M17.609 15.1874C17.2635 14.7255 16.8227 14.3433 16.3165 14.0667C15.8103 13.7902 15.2505 13.6257 14.6752 13.5845C14.0998 13.5433 13.5223 13.6263 12.9819 13.8279C12.4414 14.0295 11.9506 14.345 11.5428 14.753L9.1292 17.1666C8.39644 17.9252 7.99098 18.9414 8.00015 19.9962C8.00931 21.0509 8.43237 22.0598 9.17821 22.8056C9.92405 23.5515 10.933 23.9745 11.9877 23.9837C13.0425 23.9928 14.0586 23.5875 14.8173 22.8547L16.193 21.4788" stroke="#2E3346" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
 </g>
 <defs>
-<clipPath id="clip0_3440_35088111-d2-2026316407-MV4GKY3VORUW63RNMFSHA5A">
+<clipPath id="clip0_3440_35088111-d2-2559092491-MV4GKY3VORUW63RNMFSHA5A">
 <rect width="32" height="32" fill="white"/>
 </clipPath>
 </defs>
 </svg>
 </g><g transform="translate(814 160)" class="appendix-icon"><title>DECISION_APPROVED&#xA;USER_CONFIRMED</title><svg width="32" height="32" viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg">
-<g clip-path="url(#clip0_3427_35082111-d2-2026316407-MFSHM2LTN5ZHSLLUN4WWK6DFMN2XI2LPNYWWCZDQOQ)">
+<g clip-path="url(#clip0_3427_35082111-d2-2559092491-MFSHM2LTN5ZHSLLUN4WWK6DFMN2XI2LPNYWWCZDQOQ)">
 <path d="M16 31.1109C24.3456 31.1109 31.1111 24.3454 31.1111 15.9998C31.1111 7.65415 24.3456 0.888672 16 0.888672C7.65436 0.888672 0.888885 7.65415 0.888885 15.9998C0.888885 24.3454 7.65436 31.1109 16 31.1109Z" fill="white" stroke="#DEE1EB"/>
 <path d="M16 26C21.5228 26 26 21.5228 26 16C26 10.4772 21.5228 6 16 6C10.4772 6 6 10.4772 6 16C6 21.5228 10.4772 26 16 26Z" stroke="#2E3346" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
 <path d="M16 19.998V15.998" stroke="#2E3346" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
 <path d="M16 12H16.0098" stroke="#2E3346" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
 </g>
 <defs>
-<clipPath id="clip0_3427_35082111-d2-2026316407-MFSHM2LTN5ZHSLLUN4WWK6DFMN2XI2LPNYWWCZDQOQ">
+<clipPath id="clip0_3427_35082111-d2-2559092491-MFSHM2LTN5ZHSLLUN4WWK6DFMN2XI2LPNYWWCZDQOQ">
 <rect width="32" height="32" fill="white"/>
 </clipPath>
 </defs>
 </svg>
-</g><g transform="translate(1071 160)" class="appendix-icon"><title>DEPOSIT_INITIATED&#xA;WITHDRAWAL_REQUESTED&#xA;ACCOUNT_CLOSURE_REQUESTED&#xA;EXECUTION_MODE_CHANGED</title><svg width="32" height="32" viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg">
-<g clip-path="url(#clip0_3427_35082111-d2-2026316407-NFXHMZLTORXXELLUN4WWK6DFMN2XI2LPNYWWCZDQOQ)">
+</g><g transform="translate(1071 160)" class="appendix-icon"><title>DEPOSIT_INITIATED&#xA;WITHDRAWAL_INITIATED&#xA;ACCOUNT_CLOSURE_REQUESTED&#xA;EXECUTION_MODE_CHANGED</title><svg width="32" height="32" viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg">
+<g clip-path="url(#clip0_3427_35082111-d2-2559092491-NFXHMZLTORXXELLUN4WWK6DFMN2XI2LPNYWWCZDQOQ)">
 <path d="M16 31.1109C24.3456 31.1109 31.1111 24.3454 31.1111 15.9998C31.1111 7.65415 24.3456 0.888672 16 0.888672C7.65436 0.888672 0.888885 7.65415 0.888885 15.9998C0.888885 24.3454 7.65436 31.1109 16 31.1109Z" fill="white" stroke="#DEE1EB"/>
 <path d="M16 26C21.5228 26 26 21.5228 26 16C26 10.4772 21.5228 6 16 6C10.4772 6 6 10.4772 6 16C6 21.5228 10.4772 26 16 26Z" stroke="#2E3346" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
 <path d="M16 19.998V15.998" stroke="#2E3346" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
 <path d="M16 12H16.0098" stroke="#2E3346" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
 </g>
 <defs>
-<clipPath id="clip0_3427_35082111-d2-2026316407-NFXHMZLTORXXELLUN4WWK6DFMN2XI2LPNYWWCZDQOQ">
+<clipPath id="clip0_3427_35082111-d2-2559092491-NFXHMZLTORXXELLUN4WWK6DFMN2XI2LPNYWWCZDQOQ">
 <rect width="32" height="32" fill="white"/>
 </clipPath>
 </defs>
 </svg>
-</g><g transform="translate(815 518)" class="appendix-icon"><title>DEPOSIT_INITIATED&#xA;WITHDRAWAL_REQUESTED&#xA;EXECUTION_MODE_CHANGED</title><svg width="32" height="32" viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg">
-<g clip-path="url(#clip0_3427_35082111-d2-2026316407-MV4GKY3VORUW63RNMFSHA5BNORXS2YTSN5VWK4RNMN2HE3A)">
+</g><g transform="translate(815 518)" class="appendix-icon"><title>DEPOSIT_INITIATED&#xA;WITHDRAWAL_INITIATED&#xA;EXECUTION_MODE_CHANGED</title><svg width="32" height="32" viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg">
+<g clip-path="url(#clip0_3427_35082111-d2-2559092491-MV4GKY3VORUW63RNMFSHA5BNORXS2YTSN5VWK4RNMN2HE3A)">
 <path d="M16 31.1109C24.3456 31.1109 31.1111 24.3454 31.1111 15.9998C31.1111 7.65415 24.3456 0.888672 16 0.888672C7.65436 0.888672 0.888885 7.65415 0.888885 15.9998C0.888885 24.3454 7.65436 31.1109 16 31.1109Z" fill="white" stroke="#DEE1EB"/>
 <path d="M16 26C21.5228 26 26 21.5228 26 16C26 10.4772 21.5228 6 16 6C10.4772 6 6 10.4772 6 16C6 21.5228 10.4772 26 16 26Z" stroke="#2E3346" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
 <path d="M16 19.998V15.998" stroke="#2E3346" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
 <path d="M16 12H16.0098" stroke="#2E3346" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
 </g>
 <defs>
-<clipPath id="clip0_3427_35082111-d2-2026316407-MV4GKY3VORUW63RNMFSHA5BNORXS2YTSN5VWK4RNMN2HE3A">
+<clipPath id="clip0_3427_35082111-d2-2559092491-MV4GKY3VORUW63RNMFSHA5BNORXS2YTSN5VWK4RNMN2HE3A">
 <rect width="32" height="32" fill="white"/>
 </clipPath>
 </defs>
 </svg>
 </g><g transform="translate(1070 518)" class="appendix-icon"><title>DECISION_APPROVED&#xA;USER_CONFIRMED&#xA;ACCOUNT_CLOSURE_REQUESTED</title><svg width="32" height="32" viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg">
-<g clip-path="url(#clip0_3427_35082111-d2-2026316407-MV4GKY3VORUW63RNMFSHA5BNORXS2ZLYMVRXK5DJN5XC2Y3UOJWA)">
+<g clip-path="url(#clip0_3427_35082111-d2-2559092491-MV4GKY3VORUW63RNMFSHA5BNORXS2ZLYMVRXK5DJN5XC2Y3UOJWA)">
 <path d="M16 31.1109C24.3456 31.1109 31.1111 24.3454 31.1111 15.9998C31.1111 7.65415 24.3456 0.888672 16 0.888672C7.65436 0.888672 0.888885 7.65415 0.888885 15.9998C0.888885 24.3454 7.65436 31.1109 16 31.1109Z" fill="white" stroke="#DEE1EB"/>
 <path d="M16 26C21.5228 26 26 21.5228 26 16C26 10.4772 21.5228 6 16 6C10.4772 6 6 10.4772 6 16C6 21.5228 10.4772 26 16 26Z" stroke="#2E3346" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
 <path d="M16 19.998V15.998" stroke="#2E3346" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
 <path d="M16 12H16.0098" stroke="#2E3346" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
 </g>
 <defs>
-<clipPath id="clip0_3427_35082111-d2-2026316407-MV4GKY3VORUW63RNMFSHA5BNORXS2ZLYMVRXK5DJN5XC2Y3UOJWA">
+<clipPath id="clip0_3427_35082111-d2-2559092491-MV4GKY3VORUW63RNMFSHA5BNORXS2ZLYMVRXK5DJN5XC2Y3UOJWA">
 <rect width="32" height="32" fill="white"/>
 </clipPath>
 </defs>
 </svg>
-</g><mask id="d2-2026316407" maskUnits="userSpaceOnUse" x="-50" y="-67" width="1280" height="903">
+</g><mask id="d2-2559092491" maskUnits="userSpaceOnUse" x="-50" y="-67" width="1280" height="903">
 <rect x="-50" y="-67" width="1280" height="903" fill="white"></rect>
 
 </mask></svg></svg>

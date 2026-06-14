@@ -36,6 +36,8 @@ knowledge-base: "KnowledgeBase" {
 
 search-kb-fn: "Lambda\n[SearchKbFn]" { class: aws-lambda }
 
+mfe-bundle: "MFE Bundle\n[/onboarding · via shared CDN]" { class: aws-s3 }
+
 # Flows
 state.stream -> egress.processor: Trigger
 agent-runtime.runtime -> knowledge-base.kb: RAG Query

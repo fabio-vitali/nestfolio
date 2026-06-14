@@ -14,7 +14,7 @@ facade: "Facade" {
 
 ingress: "Ingress" {
   style: { fill: "#FFF8E1"; stroke: "#FFC107"; border-radius: 12; font-size: 28 }
-  rule: "EventBridge Rule\n[5 events]" { class: aws-eventbridge }
+  rule: "EventBridge Rule\n[4 events]" { class: aws-eventbridge }
   sqs: "SQS Queue" { class: aws-sqs }
   dlq: "DLQ" { class: aws-dlq }
   handler: "Lambda" { class: aws-lambda }
@@ -41,6 +41,9 @@ egress: "Egress" {
 }
 
 decision-publisher: "Lambda\n[DecisionPublisher]" { class: aws-lambda }
+advisory-status-projector: "Lambda\n[AdvisoryStatusProjector]" { class: aws-lambda }
+
+mfe-bundle: "MFE Bundle\n[/advisory · via shared CDN]" { class: aws-s3 }
 
 # Flows
 facade.resolvers -> state.table: Read/Write

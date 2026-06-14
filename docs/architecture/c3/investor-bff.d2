@@ -1,6 +1,6 @@
 direction: down
 
-title: "Investor\nBFF\n[GraphQL API]" {
+title: "Investor\nBFF\n[GraphQL API · Real-Time Push]" {
   style: { font-size: 40; bold: true; fill: transparent; stroke: transparent }
 }
 
@@ -14,7 +14,7 @@ facade: "Facade" {
 
 ingress: "Ingress" {
   style: { fill: "#FFF8E1"; stroke: "#FFC107"; border-radius: 12; font-size: 28 }
-  rule: "EventBridge Rule\n[5 events]" { class: aws-eventbridge }
+  rule: "EventBridge Rule\n[12 events]" { class: aws-eventbridge }
   sqs: "SQS Queue" { class: aws-sqs }
   dlq: "DLQ" { class: aws-dlq }
   handler: "Lambda" { class: aws-lambda }
@@ -26,7 +26,7 @@ ingress: "Ingress" {
 
 broadcast-ingress: "BroadcastIngress" {
   style: { fill: "#FFF8E1"; stroke: "#FFC107"; border-radius: 12; font-size: 28 }
-  rule: "EventBridge Rule\n[3 events]" { class: aws-eventbridge }
+  rule: "EventBridge Rule\n[2 events]" { class: aws-eventbridge }
   sqs: "SQS Queue" { class: aws-sqs }
   dlq: "DLQ" { class: aws-dlq }
   handler: "Lambda" { class: aws-lambda }
@@ -52,8 +52,20 @@ egress: "Egress" {
   processor -> bus: Publish
 }
 
+broadcaster: "Broadcaster\n[DepositBroadcaster]" {
+  style: { fill: "#E8EAF6"; stroke: "#3F51B5"; border-radius: 12; font-size: 28 }
+  publisher: "Lambda" { class: aws-lambda }
+  dlq: "DLQ" { class: aws-dlq }
+
+  publisher -> dlq: On failure
+}
+
+mfe-bundle: "MFE Bundle\n[/investor · via shared CDN]" { class: aws-s3 }
+
 # Flows
 facade.resolvers -> state.table: Read/Write
 ingress.handler -> state.table: Read/Write
 broadcast-ingress.handler -> state.table: Read/Write
 state.stream -> egress.processor: Trigger
+state.stream -> broadcaster.publisher: CDC
+broadcaster.publisher -> facade.appsync: Broadcast

@@ -33,6 +33,8 @@ state: "State" {
 
 graphql-resolver: "Lambda\n[GraphqlResolver]" { class: aws-lambda }
 
+mfe-bundle: "MFE Bundle\n[/ledger · via shared CDN]" { class: aws-s3 }
+
 # Flows
 facade.resolvers -> state.table: Read/Write
 ingress.handler -> state.table: Read/Write

@@ -19,8 +19,10 @@ Scans `services/{domain}/{service}/src/service.stack.ts` files and generates:
 - **C3 D2 files** — one per service in `docs/architecture/c3/`
 - **Root nestfolio.d2** — global styles + C1 system context + C2 domain layers with service classification
 
-Parses 8 high-level constructs: State, Ingress, Egress, Facade, Orchestration, AgentRuntime, KnowledgeBase, AgentMemory
-Plus raw CDK resources: EventBus, Archive, Rule, Lambda, Bucket, UserPool, Distribution, Schedule, resolveBusArn
+Parses 9 high-level constructs: State, Ingress, Egress, Facade, Orchestration, AgentRuntime, KnowledgeBase, AgentMemory, Broadcaster
+Plus raw CDK resources: EventBus, Archive, Rule, Lambda, Bucket, MfeBucket, UserPool, Distribution, Schedule, resolveBusArn
+
+Stale C3 files for removed/renamed/suppressed services are pruned automatically on each run (no orphan `.d2` files left behind).
 
 Service classification for C2: hubs (has EventBus), cross-domain adapters (has EventBusTarget rules), data adapters (has Schedule or `-adpt` suffix with State), frontends (has Distribution or `-web` suffix), regular services (everything else)
 
@@ -47,9 +49,9 @@ Compiles `nestfolio.d2` → navigable SVG tree with clickable C1→C2→C3 drill
   ls docs/architecture/nestfolio/c2-investor/c3-investor-bff.svg
   ```
 
-- [ ] 4. **Run tests** (if D2 generation logic was changed):
+- [ ] 4. **Run tests** (if D2 generation logic was changed) — standalone `node:test`, not an nx target:
   ```bash
-  pnpm nx test tools --testPathPattern generate-c4-sources
+  node --test test/tools/generate-c4-sources.test.mjs
   ```
 
 ## D2 Source Structure
@@ -75,9 +77,10 @@ docs/architecture/
 The generator produces different C3 layouts based on service type:
 
 ### Standard Service (ctrl/bff)
-Color-coded construct groups: Facade (purple), Ingress (yellow), State (blue), Egress (orange), Orchestration (green).
-Each construct renders its internal resources (e.g., Ingress → Rule + SQS + DLQ + Lambda).
-Flows auto-wired: Facade→State, Ingress→State, State.stream→Egress, Ingress→Orchestration→State.
+Color-coded construct groups: Facade (purple), Ingress (yellow), State (blue), Egress (orange), Orchestration (green), Broadcaster (indigo).
+Each construct renders its internal resources (e.g., Ingress → Rule + SQS + DLQ + Lambda; Broadcaster → Publisher Lambda + DLQ).
+Flows auto-wired: Facade→State, Ingress→State, State.stream→Egress, Ingress→Orchestration→State, State.stream→Broadcaster→Facade (AppSync real-time fan-out).
+Read-model BFFs that host an MFE bundle also render a standalone "MFE Bundle [/key · via shared CDN]" S3 node (the per-BFF `MfeBucket`).
 
 ### Hub
 Raw EventBus + Archive nodes (no construct wrappers). `{domain}-bus → archive` flow.

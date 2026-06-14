@@ -1,4 +1,4 @@
-import { readdirSync, existsSync, readFileSync, writeFileSync, mkdirSync } from 'node:fs';
+import { readdirSync, existsSync, readFileSync, writeFileSync, mkdirSync, unlinkSync } from 'node:fs';
 import { join, dirname } from 'node:path';
 
 const ROOT = new URL('..', import.meta.url).pathname.replace(/\/$/, '');
@@ -74,7 +74,7 @@ export function discoverMfes(services) {
 
 /**
  * Parse a service.stack.ts source string and extract construct usage.
- * Returns { constructs: { state[], ingress[], egress[], facade[], orchestration[], agentRuntime[], knowledgeBase[], agentMemory[] }, raw: { ... } }
+ * Returns { constructs: { state[], ingress[], egress[], facade[], orchestration[], agentRuntime[], knowledgeBase[], agentMemory[], broadcaster[] }, raw: { ... } }
  */
 export function parseStack(src) {
   const result = {
@@ -87,6 +87,7 @@ export function parseStack(src) {
       agentRuntime: [],
       knowledgeBase: [],
       agentMemory: [],
+      broadcaster: [],
     },
     raw: {
       eventBuses: [],
@@ -94,6 +95,7 @@ export function parseStack(src) {
       rules: [],
       lambdas: [],
       buckets: [],
+      mfeBuckets: [],
       userPools: [],
       distributions: [],
       schedules: [],
@@ -227,6 +229,11 @@ export function parseStack(src) {
     result.constructs.agentMemory.push({ id: m[1] });
   }
 
+  // Broadcaster — DDB-stream-driven AppSync @aws_subscribe publisher (7th construct)
+  for (const m of src.matchAll(/new\s+Broadcaster\s*\(\s*this\s*,\s*['"](\w+)['"]/g)) {
+    result.constructs.broadcaster.push({ id: m[1] });
+  }
+
   // --- Raw CDK resources (for hubs, adapters, web) ---
 
   // EventBus creation
@@ -306,6 +313,13 @@ export function parseStack(src) {
     result.raw.buckets.push({ id: m[1] });
   }
 
+  // MfeBucket — per-BFF S3 bucket serving the MFE bundle via the shared CloudFront CDN
+  for (const m of src.matchAll(
+    /new\s+MfeBucket\s*\(\s*this\s*,\s*['"](\w+)['"]\s*,\s*\{[^}]*mfeKey\s*:\s*['"]([^'"]+)['"]/gs,
+  )) {
+    result.raw.mfeBuckets.push({ id: m[1], mfeKey: m[2] });
+  }
+
   // AdapterSchedule
   for (const m of src.matchAll(/new\s+AdapterSchedule\s*\(\s*this\s*,\s*['"](\w+)['"]/g)) {
     result.raw.schedules.push({ id: m[1] });
@@ -325,6 +339,7 @@ const COLORS = {
   agentRuntime: { fill: '#E8F5E9', stroke: '#4CAF50' },
   knowledgeBase: { fill: '#FFF3E0', stroke: '#FF9800' },
   agentMemory: { fill: '#E0F2F1', stroke: '#00695C' },
+  broadcaster: { fill: '#E8EAF6', stroke: '#3F51B5' },
 };
 
 function groupStyle(type) {
@@ -383,6 +398,9 @@ export function serviceSubtitle(parsed) {
 
   // AgentMemory
   if (c.agentMemory.length > 0) tags.push('Agent Memory');
+
+  // Broadcaster — real-time push to subscribed clients
+  if (c.broadcaster.length > 0) tags.push('Real-Time Push');
 
   // Cross-domain bridge
   if (r.rules.some((rule) => rule.isCrossDomain)) tags.push('Cross-Domain Bridge');
@@ -721,6 +739,19 @@ function agentMemoryBlock(mem) {
   ];
 }
 
+function broadcasterBlock(blockId, bc) {
+  return [
+    `${blockId}: "Broadcaster\\n[${bc.id}]" {`,
+    groupStyle('broadcaster'),
+    '  publisher: "Lambda" { class: aws-lambda }',
+    '  dlq: "DLQ" { class: aws-dlq }',
+    '',
+    '  publisher -> dlq: On failure',
+    '}',
+    '',
+  ];
+}
+
 function generateC3Flows(c, r, domain) {
   const flows = [];
   const hasState = c.state.length > 0 && c.state[0].withTable !== false;
@@ -762,6 +793,17 @@ function generateC3Flows(c, r, domain) {
   if (c.agentMemory.length > 0 && c.orchestration.length > 0) {
     const orchId = toD2Id(c.orchestration[0].id);
     flows.push(`${orchId}.state-machine -> agent-memory.memory: Store`);
+  }
+
+  // Broadcaster: State.stream → Publisher → AppSync (real-time fan-out)
+  for (const bc of c.broadcaster) {
+    const blockId = c.broadcaster.length === 1 ? 'broadcaster' : toD2Id(bc.id);
+    if (hasState) {
+      flows.push(`state.stream -> ${blockId}.publisher: CDC`);
+    }
+    if (c.facade.length > 0) {
+      flows.push(`${blockId}.publisher -> facade.appsync: Broadcast`);
+    }
   }
 
   // AgentRuntime flows
@@ -847,6 +889,12 @@ export function generateC3(service, domain, parsed) {
     lines.push(...agentMemoryBlock(mem));
   }
 
+  // Broadcaster (single → 'broadcaster'; multiple → id-derived)
+  for (const bc of c.broadcaster) {
+    const blockId = c.broadcaster.length === 1 ? 'broadcaster' : toD2Id(bc.id);
+    lines.push(...broadcasterBlock(blockId, bc));
+  }
+
   // --- Raw resources (no wrapper box) ---
 
   // Hub pattern: EventBus + Archive
@@ -911,6 +959,13 @@ export function generateC3(service, domain, parsed) {
     if (r.lambdas.length > 0) {
       lines.push(`schedule -> ${toD2Id(r.lambdas[0].id)}`);
     }
+    lines.push('');
+  }
+
+  // MFE bundle hosting: per-BFF S3 bucket serving this BFF's MFE static bundle
+  // (delivered to browsers via the shared CloudFront distribution owned by investor-web).
+  for (const mb of r.mfeBuckets) {
+    lines.push(`mfe-bundle: "MFE Bundle\\n[/${mb.mfeKey} · via shared CDN]" { class: aws-s3 }`);
     lines.push('');
   }
 
@@ -1492,15 +1547,28 @@ function main() {
   }
 
   let c3Count = 0;
+  const expectedC3 = new Set();
   for (const svc of services) {
     if (suppressedFrontends.has(svc.service)) continue;
     const parsed = parsedStacks.get(svc.service);
     if (!parsed) continue;
     const d2 = generateC3(svc.service, svc.domain, parsed);
     writeFileSync(join(C3_DIR, `${svc.service}.d2`), d2 + '\n');
+    expectedC3.add(`${svc.service}.d2`);
     c3Count++;
   }
   console.log(`  wrote: ${c3Count} C3 files to ${C3_DIR}/`);
+
+  // Prune orphan C3 files (services that were removed/renamed/suppressed)
+  let prunedCount = 0;
+  for (const entry of readdirSync(C3_DIR)) {
+    if (entry.endsWith('.d2') && !expectedC3.has(entry)) {
+      unlinkSync(join(C3_DIR, entry));
+      prunedCount++;
+      console.log(`  pruned orphan C3 file: ${entry}`);
+    }
+  }
+  if (prunedCount) console.log(`  pruned: ${prunedCount} orphan C3 file(s)`);
 
   // 4. Generate root nestfolio.d2
   const domains = [...new Set(services.map((s) => s.domain))].sort();
