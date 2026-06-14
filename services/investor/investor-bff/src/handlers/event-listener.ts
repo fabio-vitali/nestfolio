@@ -3,7 +3,7 @@
 // merge is global across the compilation; this import is not what "activates"
 // it — do not infer that other handlers need it.
 import '../read-model-ownership';
-import { materializeToTable, toUow, skip, pickRequestContext, parseSubject, type EventPayload, type EventContext } from '@nestfolio/event-processor';
+import { materializeToTable, toUow, type EventPayload, type EventContext } from '@nestfolio/event-processor';
 import { InvestorBffEventTypes } from '../domain/events';
 import { InvestorCtrlEventTypes } from '@nestfolio/investor-ctrl/events';
 import { LedgerCrossDomainEventTypes } from '@nestfolio/ledger-adpt/domain';
@@ -13,10 +13,8 @@ import { balanceUpdated } from '../transforms/balance-updated';
 import { onboardingCompleted } from '../transforms/onboarding-completed';
 import { depositLifecycle } from '../transforms/deposit-lifecycle';
 import { withdrawalLifecycle } from '../transforms/withdrawal-lifecycle';
-import { InvestorProfileRepository } from '../repositories/investor-profile.repository';
-import { GoLiveConfirmedSchema } from '@nestfolio/onboarding-bff/contracts';
 
-export function createHandlers(deps?: { profileRepo?: InvestorProfileRepository }) {
+export function createHandlers() {
   return {
     [InvestorBffEventTypes.USER_REGISTERED]: (payload: EventPayload, ctx: EventContext) =>
       userRegistered(toUow(payload, ctx)),
@@ -41,13 +39,6 @@ export function createHandlers(deps?: { profileRepo?: InvestorProfileRepository 
       withdrawalLifecycle(toUow(payload, ctx)),
     [InvestorBffEventTypes.ONBOARDING_COMPLETED]: async (payload: EventPayload, ctx: EventContext) =>
       onboardingCompleted(payload, ctx),
-    [InvestorBffEventTypes.GO_LIVE_CONFIRMED]: async (payload: EventPayload, ctx: EventContext) => {
-      parseSubject(payload, GoLiveConfirmedSchema);
-      const reqCtx = pickRequestContext(ctx);
-      const profileRepo = deps?.profileRepo ?? new InvestorProfileRepository(process.env['TABLE_NAME']!);
-      await profileRepo.setExecutionMode(reqCtx, 'simulation', 'live');
-      return skip();
-    },
   };
 }
 

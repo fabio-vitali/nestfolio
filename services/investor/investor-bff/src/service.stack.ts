@@ -37,7 +37,6 @@ export class InvestorBffStack extends ServiceStack {
         InvestorCtrlEventTypes.NOTIFICATION_CREATED,
         InvestorIngestEventTypes.BALANCE_UPDATED,
         InvestorBffEventTypes.ONBOARDING_COMPLETED,
-        InvestorBffEventTypes.GO_LIVE_CONFIRMED,
         // funding lifecycle from broker-ctrl, forwarded by investor-adpt → Deposit/WithdrawalRequest P1 rows
         InvestorIngestEventTypes.DEPOSIT_REQUESTED,
         InvestorIngestEventTypes.DEPOSIT_DETECTED,

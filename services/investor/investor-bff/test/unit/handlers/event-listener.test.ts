@@ -9,7 +9,6 @@ describe('event-listener handler registry', () => {
         'NOTIFICATION_CREATED',
         'BALANCE_UPDATED',
         'ONBOARDING_COMPLETED',
-        'GO_LIVE_CONFIRMED',
         // funding lifecycle from broker-ctrl → Deposit/WithdrawalRequest P1 rows
         'DEPOSIT_REQUESTED',
         'DEPOSIT_DETECTED',

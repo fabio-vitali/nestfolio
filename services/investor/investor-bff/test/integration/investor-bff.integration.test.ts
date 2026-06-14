@@ -331,45 +331,6 @@ describe('investor-bff', () => {
       expect(residual).not.toContain('MANDATE_CREATED');
       expect(residual).not.toContain('OPERATING_MODE_SELECTED');
     }, 180_000);
-
-    it('should set executionMode to live on GO_LIVE_CONFIRMED', async () => {
-      const userId = cognitoSub;
-      const pk = `InvestorProfile#${ctx.tenantId}#${userId}`;
-
-      // InvestorProfile already exists from ONBOARDING_COMPLETED materialization test.
-      await table.waitForItem({
-        table: 'investor-bff',
-        pk: `InvestorProfile#${ctx.tenantId}#${userId}`,
-        sk: 'InvestorProfile',
-        timeoutMs: 60_000,
-      });
-
-      await eb.putEvent({
-        bus: 'investor',
-        targetService: 'investor-bff',
-        detailType: 'GO_LIVE_CONFIRMED',
-        detail: {
-          tenantId: ctx.tenantId,
-          userId,
-          timestamp: new Date().toISOString(),
-        },
-      });
-
-      // Verify ExecutionModeChange record was created
-      let modeChangeItem: Record<string, unknown> | undefined;
-      const deadline = Date.now() + 60_000;
-      while (Date.now() < deadline && !modeChangeItem) {
-        const items = await table.queryItems({
-          table: 'investor-bff',
-          pk,
-          skPrefix: 'ExecutionModeChange#',
-        });
-        modeChangeItem = items.find((i) => i['__typename'] === 'ExecutionModeChange');
-        if (!modeChangeItem) await new Promise((r) => setTimeout(r, 2_000));
-      }
-      expect(modeChangeItem).toBeDefined();
-      expect(modeChangeItem!['toMode']).toBe('live');
-    }, 120_000);
   });
 
   // ── AppSync Mutations ───────────────────────────────────────────────
