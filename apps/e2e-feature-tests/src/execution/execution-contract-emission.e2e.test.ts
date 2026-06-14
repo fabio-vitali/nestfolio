@@ -138,6 +138,34 @@ function makeByTypename(
   };
 }
 
+// A valid ComplianceCheck subject for DECISION_APPROVED. execution-ctrl's
+// event-listener parses the subject via ComplianceCheckSchema (WS-3 consumer
+// typing — services/execution/execution-ctrl/src/handlers/event-listener.ts
+// fromDecisionApproved), so the trigger MUST satisfy that contract or the parse
+// throws and no Order row is ever written. fromDecisionApproved reads ONLY
+// decisionPacketId — proposedTrades ride RECOMMENDATION_PROPOSED, not this event,
+// so the resulting Order carries proposedTrades:[] (faithful to production; see
+// the event-listener doc-comment + backlog broker-ctrl-order-sf-input-contract-gap).
+function approvedComplianceCheck(decisionPacketId: string): Record<string, unknown> {
+  return {
+    ccId: `e2e-cc-${randomUUID()}`,
+    decisionPacketId,
+    decisionId: `e2e-dec-${randomUUID()}`,
+    taskToken: `e2e-tasktoken-${randomUUID()}`,
+    mandateSnapshot: {
+      level: 'DISCRETIONARY',
+      status: 'ACTIVE',
+      operatingMode: 'BALANCED',
+      effectiveDate: '2026-01-01T00:00:00.000Z',
+    },
+    status: 'COMPLETED',
+    result: 'APPROVED',
+    violations: [],
+    authorityLevel: 'L1',
+    sourceEventId: `e2e-src-${randomUUID()}`,
+  };
+}
+
 // ===========================================================================
 // Block A — SIM path (deterministic)
 // ===========================================================================
@@ -188,19 +216,7 @@ describe('execution-domain producer contracts — SIM path', () => {
         bus: 'execution',
         targetService: 'execution-ctrl',
         detailType: 'DECISION_APPROVED',
-        detail: {
-          decisionPacketId,
-          proposedTrades: [
-            {
-              symbol: 'VTI',
-              assetClass: 'EQUITY',
-              side: 'BUY',
-              quantityOrAmountCents: 500_000,
-              targetWeightPercent: 100,
-              rationale: 'e2e',
-            },
-          ],
-        },
+        detail: approvedComplianceCheck(decisionPacketId),
       });
 
       const orders = await poll(async () => {
@@ -619,21 +635,23 @@ async function stopOrphanedPollExecutions(
 // DRY-wire emission capture — execution domain (Task 9)
 //
 // Proves the REAL emitted EventBridge event carries a DRY subject
-// (no envelope/identity keys) for ORDER_CREATED.
-// Representative event: ORDER_CREATED (Order INSERT row from execution-ctrl,
-// written when DECISION_APPROVED is processed).
+// (no envelope/identity keys) for the execution-ctrl Order row.
+//
+// The Order INSERT field-dispatches on `status` (service.stack.ts Egress
+// eventTypes map): SUBMITTED→ORDER_SUBMITTED, STAGED→ORDER_STAGED,
+// REJECTED→ORDER_REJECTED. The default ORDER_CREATED is unreachable — the
+// event-listener only ever writes those three statuses (processApprovedDecision:
+// REJECTED on safety fail, SUBMITTED when market open, STAGED when closed).
+// Which one fires is non-deterministic across a deployed run (market hours +
+// safety outcome), so arm the trap on all three and capture whichever the CDC
+// publisher emits — the DRY subject is the same OrderSchema.parse(row) either way.
 //
 // Arm BEFORE the DECISION_APPROVED putEvent so the trap's EB rule is active
 // when the CDC publisher fires. subject = OrderSchema.parse(row) —
 // no pk/sk/__typename/tenantId on the emitted subject.
 // ===========================================================================
 
-// SKIPPED (WS-2 closing): the Order row is INSERTed with a status that field-dispatches to
-// ORDER_SUBMITTED (not the default ORDER_CREATED this trap waits for), so it times out.
-// Re-enable with the real emitted event name — filed: dry-wire-capture-event-name-and-maxvms.
-// The DRY-emission property itself is proven by the ledger + investor DRY-wire its (green) and
-// the deterministic change-data-capture unit tests; this capture is belt-and-suspenders.
-describe.skip('execution-domain DRY-wire emission — ORDER_CREATED subject (Task 9)', () => {
+describe('execution-domain DRY-wire emission — Order subject (Task 9)', () => {
   let ctx: TestContext;
   let tenant: FreshTenant;
 
@@ -648,41 +666,39 @@ describe.skip('execution-domain DRY-wire emission — ORDER_CREATED subject (Tas
   }, 60_000);
 
   it(
-    'emits a DRY ORDER_CREATED subject (no envelope keys)',
+    'emits a DRY Order subject (no envelope keys)',
     async () => {
-      // Arm BEFORE the putEvent that triggers Order row INSERT.
+      // Arm BEFORE the putEvent that triggers Order row INSERT. The INSERT emits
+      // exactly one of these three (status-dispatched); capture whichever fires.
       const trap = await armEventSubjectTrap(ctx, {
         bus: 'execution',
-        detailType: ExecutionCtrlEventTypes.ORDER_CREATED,
+        detailType: [
+          ExecutionCtrlEventTypes.ORDER_SUBMITTED,
+          ExecutionCtrlEventTypes.ORDER_STAGED,
+          ExecutionCtrlEventTypes.ORDER_REJECTED,
+        ],
       });
 
       // DECISION_APPROVED → execution-ctrl event-listener writes Order row (INSERT)
-      // → CDC ORDER_CREATED. subject = OrderSchema.parse(row) — DRY.
+      // → CDC ORDER_SUBMITTED | ORDER_STAGED | ORDER_REJECTED.
+      // subject = OrderSchema.parse(row) — DRY.
       const eb = new EventBridgeClient(ctx);
       await eb.putEvent({
         bus: 'execution',
         targetService: 'execution-ctrl',
         detailType: 'DECISION_APPROVED',
-        detail: {
-          decisionPacketId: `e2e-dp-dry-${randomUUID()}`,
-          proposedTrades: [
-            {
-              symbol: 'VTI',
-              assetClass: 'EQUITY',
-              side: 'BUY',
-              quantityOrAmountCents: 500_000,
-              targetWeightPercent: 100,
-              rationale: 'e2e DRY wire check',
-            },
-          ],
-        },
+        detail: approvedComplianceCheck(`e2e-dp-dry-${randomUUID()}`),
       });
 
-      // Wait for the live CDC emission.
-      const subject = await trap.waitForSubject(180_000);
+      // Wait for the live CDC emission. 300s window (matching the ledger + investor
+      // DRY-wire siblings, not the 180s this was first authored with): the full
+      // putEvent → ingress → Order INSERT → DDB stream → CDC publish → EB chain can
+      // exceed 180s when the execution-ctrl ingress/egress Lambdas are cold or the
+      // ingress queue is contended (observed empirically — warm runs land in ~78s).
+      const subject = await trap.waitForSubject(300_000);
 
       // 1. Subject must parse as a well-formed Order contract.
-      expectContractMatch(OrderSchema, subject, 'ORDER_CREATED.subject');
+      expectContractMatch(OrderSchema, subject, 'ORDER.subject');
 
       // 2. Identity keys must NOT be on the subject — they travel in detail.context.
       expect(subject['pk']).toBeUndefined();
@@ -690,6 +706,6 @@ describe.skip('execution-domain DRY-wire emission — ORDER_CREATED subject (Tas
       expect(subject['__typename']).toBeUndefined();
       expect(subject['tenantId']).toBeUndefined();
     },
-    420_000,
+    600_000,
   );
 });

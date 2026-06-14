@@ -40,24 +40,35 @@ export async function armEventSubjectTrap(
   ctx: TestContext,
   params: {
     bus: string;
-    detailType: string;
+    /**
+     * One detailType, or several when the row's CDC event is status-dispatched
+     * across multiple possible names (e.g. an execution-ctrl Order INSERT emits
+     * ORDER_SUBMITTED | ORDER_STAGED | ORDER_REJECTED depending on market hours /
+     * safety outcome). With multiple, waitForSubject() returns whichever fires
+     * first — the EB rule restricts the queue to exactly the armed set (plus an
+     * internal canary, which is discarded), so the first real event IS one of them.
+     */
+    detailType: string | string[];
     /** Default: ctx.timings.eventTimeout (typically 60s). */
     defaultTimeoutMs?: number;
   },
 ): Promise<EventSubjectTrap> {
   const trap = new EventBusTrap(ctx);
   await trap.deploy({ bus: params.bus, detailType: params.detailType });
+  const armed = Array.isArray(params.detailType) ? params.detailType : [params.detailType];
 
   return {
     async waitForSubject(timeoutMs?: number): Promise<Record<string, unknown>> {
       const event = await trap.waitForEvent({
-        detailType: params.detailType,
+        // Single armed type → filter exactly. Multiple → accept whichever armed
+        // type arrives first (the EB rule already scoped the queue to the set).
+        detailType: armed.length === 1 ? armed[0] : undefined,
         timeoutMs: timeoutMs ?? params.defaultTimeoutMs,
       });
       const subject = (event.detail as Record<string, unknown>)['subject'];
       if (subject === undefined || subject === null) {
         throw new Error(
-          `EventSubjectTrap.waitForSubject: event ${params.detailType} carried no detail.subject. ` +
+          `EventSubjectTrap.waitForSubject: event ${event.detailType} carried no detail.subject. ` +
             `Full detail: ${JSON.stringify(event.detail).slice(0, 500)}`,
         );
       }
