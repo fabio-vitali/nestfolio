@@ -88,7 +88,7 @@ fi
 if ! node tools/check-service-card-drift.mjs > /tmp/card-drift-check.out 2>&1; then
   cat /tmp/card-drift-check.out
   echo "✗ Service-card drift detected. Run 'node tools/check-service-card-drift.mjs --fix' and review."
-  exit 1
+  ERRORS=$((ERRORS + 1))
 fi
 
 echo ""
