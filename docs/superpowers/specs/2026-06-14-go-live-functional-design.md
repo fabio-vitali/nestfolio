@@ -32,6 +32,7 @@ a display-only confirm. This makes it a cross-domain *feature*, delivered as **o
 | D3 | Trigger / event topology | `confirmGoLive` **investor-bff mutation** sets `executionMode='live'` directly → `EXECUTION_MODE_CHANGED`. **`GO_LIVE_CONFIRMED` is removed** | `GO_LIVE_CONFIRMED` is consumed by nobody but investor-bff itself; moving the trigger in-domain makes it a redundant round-trip. [[no-deprecation]]: dev is disposable, remove it. |
 | D4 | Mandate re-acceptance | **Re-affirm event**: bump Mandate row `effectiveDate` + `__version`, emit new `MANDATE_REAFFIRMED` → compliance-ctrl audit | Clean event-sourced, compliance-aware audit of "mandate affirmed for live at T"; reusable "re-affirm an aggregate" pattern. Level unchanged. |
 | D5 | Risk editing | **Editable** — new `updateRiskProfile(toleranceIdx, experienceIdx)` recomputes via canonical `computeRiskProfile` | Risk appetite is the most decision-relevant field at the real-money moment. Reuses the single owned algorithm. |
+| D7 | Risk-algorithm reuse in the resolver | **esbuild-bundle resolvers** (separate prerequisite workstream) so `updateRiskProfile.fn.ts` can `import { computeRiskProfile }` — true single source | JS resolvers ship raw today (`Code.fromAsset`, `JS_1_0_0`, no `import`/`require`). Bundling is the AWS-recommended way to share code into APPSYNC_JS resolvers and is broadly reusable across all BFFs. See §Dependencies. |
 | D6 | Funding | **Optional, reuses existing `initiateDeposit`**; does NOT gate the confirm | Go-live's real job is the mode switch; funding is its own already-built real-money flow. |
 
 ## 3. Target flow
@@ -62,12 +63,11 @@ atomic commit that flips execution mode **and** re-affirms the mandate (the conf
   performing the three writes in §3. Mirrors the `update-operating-mode.fn.js` transact pattern and the
   repo's existing `setExecutionMode` write (`investor-profile.repository.ts:73`). Returns the updated
   `InvestorProfile` (readback step, like `updateOperatingMode`).
-- **`updateRiskProfile(toleranceIdx: Int!, experienceIdx: Int!): InvestorProfile!`** — new resolver that
-  recomputes score/band/labels via the canonical `computeRiskProfile` (`domain/risk-profile.service.ts`)
-  and writes `riskProfile` to the composite row (`__version++`). *Open implementation choice for the plan:*
-  inline the (tiny, pure) algorithm in the JS resolver vs. a Lambda-backed resolver importing the owned
-  function. **Recommend** single-sourcing the algorithm (Lambda-backed) to avoid duplicating the owned
-  scoring logic; the plan decides.
+- **`updateRiskProfile(toleranceIdx: Int!, experienceIdx: Int!): InvestorProfile!`** — new resolver
+  (`update-risk-profile.fn.ts`) that `import { computeRiskProfile } from '../domain/risk-profile.service'`
+  (single source of truth), recomputes score/band/labels, and writes `riskProfile` to the composite row
+  (`__version++`). **Depends on** the esbuild-resolver-bundling capability (D7 / §Dependencies) — the
+  import only works once resolvers are bundled. This lands in **P2**, after the bundling workstream.
 - **Remove `GO_LIVE_CONFIRMED`**: drop from Ingress subscriptions (`service.stack.ts`), the
   `event-listener.ts` handler branch (`setExecutionMode` on GO_LIVE_CONFIRMED), and `domain/events.ts`.
 - **`MANDATE_REAFFIRMED`**: new event in `domain/events.ts`; Egress `eventTypes` adds
@@ -114,11 +114,16 @@ atomic commit that flips execution mode **and** re-affirms the mandate (the conf
 - **Unit (TDD):** new resolvers (`confirmGoLive`, `updateRiskProfile`) — write transactions, `__version`
   bumps, risk recomputation; investor-bff event-listener loses its GO_LIVE_CONFIRMED branch (test removed);
   compliance-ctrl `MANDATE_REAFFIRMED` handler; onboarding-bff tests pruned with the removed code.
-- **e2e (deterministic, UI assertions only — [[feedback-e2e-ui-assertions-only]]):** a new
-  `apps/e2e-feature-tests` scenario driving the wizard to confirm go-live and asserting the observable
-  sim→live outcome through the UI. Deterministic (no LLM), so no flake-tolerance band-aids. Replaces the
-  two contract-emission tests that currently *document the gap*
+- **e2e — Jest `apps/e2e-feature-tests` (P1 gate, deterministic):** a new scenario driving the go-live
+  confirm and asserting the observable sim→live outcome. Deterministic (no LLM), so no flake-tolerance
+  band-aids. Replaces the two contract-emission tests that currently *document the gap*
   (`investor/investor-contract-emission.e2e.test.ts:17`, `execution/execution-contract-emission.e2e.test.ts:378`).
+- **e2e — Playwright `apps/nestfolio-e2e` full journey (P4, UI-truth):** extend
+  `src/journeys/new-investor-happy-path.spec.ts` so the same user it onboards (sim) then **goes live** —
+  add a `pages/go-live.page.ts` POM, drive the editable wizard (revise risk, accept live mandate,
+  confirm), and assert live mode through the UI ([[feedback-e2e-ui-assertions-only]]). Reuses the
+  journey's own onboarded user (no seeding — [[feedback-no-seeder-fixtures]]); the go-live portion is
+  deterministic so it adds no LLM flake surface beyond the existing onboarding prefix.
 
 ## 6. Phasing (the plan sequences these; each independently verifiable)
 
@@ -128,8 +133,17 @@ atomic commit that flips execution mode **and** re-affirms the mandate (the conf
 - **P2 — Revise.** `updateRiskProfile` + editable goals/operating-mode in the wizard.
 - **P3 — Mandate re-affirm.** `MANDATE_REAFFIRMED` event + advisory-adpt forward + compliance-ctrl audit;
   fold the mandate re-affirm write into `confirmGoLive`'s transaction.
-- **P4 — Polish.** Wizard UX completion (fund link, mandate checkbox gating), flow spec + data-flows +
-  service cards + C4 regen.
+- **P4 — Polish + UI-truth.** Wizard UX completion (fund link, mandate checkbox gating); extend the
+  Playwright `new-investor-happy-path` journey through go-live; flow spec + data-flows + service cards + C4 regen.
+
+## 6.1 Dependencies
+
+- **esbuild-resolver-bundling (D7)** — a separate cdk-constructs workstream filed as
+  `facade-esbuild-bundle-js-resolvers` (reusable platform capability: bundle `*.fn.ts` resolver entries
+  into APPSYNC_JS-compatible output so resolvers can `import` shared code; re-verify all existing
+  resolvers). **go-live P2 (`updateRiskProfile`) requires it.** Sequencing: the bundling workstream lands
+  before go-live P2. go-live **P1 (the switch — which closes the filed bug) does not depend on it** and
+  can proceed independently.
 
 ## 7. Out of scope
 
