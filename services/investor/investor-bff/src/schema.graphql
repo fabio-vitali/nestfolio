@@ -10,6 +10,7 @@ type Mutation {
   updateGoal(input: GoalInput!): Goal!
   updateOperatingMode(mode: OperatingMode!): InvestorProfile!
   confirmGoLive: InvestorProfile!
+  updateRiskProfile(toleranceIdx: Int!, experienceIdx: Int!): InvestorProfile!
   revokeMandate: Mandate!
   initiateDeposit(input: DepositInput!): Deposit!
   requestWithdrawal(input: WithdrawalInput!): WithdrawalRequest!

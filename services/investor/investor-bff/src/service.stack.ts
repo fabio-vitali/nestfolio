@@ -26,6 +26,7 @@ export class InvestorBffStack extends ServiceStack {
           getProfile: ['get-profile-mandate.fn.js'],
           updateOperatingMode: ['get-profile.fn.js'],
           confirmGoLive: ['get-profile.fn.js'],
+          updateRiskProfile: ['get-profile.fn.js'],
         },
       }),
     });
