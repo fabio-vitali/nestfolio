@@ -23,7 +23,7 @@ describe('GoLiveService', () => {
     const p = await svc.getProfile();
     expect(graphql.query).toHaveBeenCalledWith(
       expect.stringContaining('getProfile'),
-      expect.anything(),
+      {},
     );
     expect(p.executionMode).toBe('simulation');
   });
@@ -33,7 +33,7 @@ describe('GoLiveService', () => {
     const p = await svc.confirmGoLive();
     expect(graphql.mutate).toHaveBeenCalledWith(
       expect.stringContaining('confirmGoLive'),
-      expect.anything(),
+      {},
     );
     expect(p.executionMode).toBe('live');
   });

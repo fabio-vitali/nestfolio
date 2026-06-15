@@ -83,6 +83,8 @@ export const GET_DEPOSIT = `
   ${DEPOSIT_FIELDS}
 `;
 
+// --- Go Live ---
+
 export const GET_PROFILE = `
   query GetProfile {
     getProfile {

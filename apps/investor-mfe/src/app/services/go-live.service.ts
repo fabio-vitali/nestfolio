@@ -35,8 +35,13 @@ export interface GoLiveMandate {
   effectiveDate: string;
 }
 
+// Mirrors the investor-bff `OperatingMode` GraphQL enum (schema.graphql).
+// Backend owns the canonical type (investor-bff domain/models.ts); the MFE
+// cannot import across the frontend/backend boundary, so we restate the union.
+export type OperatingMode = 'CONSERVATIVE' | 'BALANCED' | 'AGGRESSIVE';
+
 export interface InvestorProfile {
-  operatingMode: string;
+  operatingMode: OperatingMode;
   executionMode: string;
   goal: GoLiveGoal;
   riskProfile: GoLiveRiskProfile;
@@ -60,8 +65,11 @@ export class GoLiveService {
     return d.getProfile;
   }
 
-  async updateRiskProfile(toleranceIdx: number, experienceIdx: number): Promise<InvestorProfile> {
-    const d = await this.graphql.mutate<{ updateRiskProfile: InvestorProfile }>(
+  async updateRiskProfile(
+    toleranceIdx: number,
+    experienceIdx: number,
+  ): Promise<{ riskProfile: GoLiveRiskProfile }> {
+    const d = await this.graphql.mutate<{ updateRiskProfile: { riskProfile: GoLiveRiskProfile } }>(
       UPDATE_RISK_PROFILE,
       { toleranceIdx, experienceIdx },
     );
@@ -73,16 +81,19 @@ export class GoLiveService {
     return d.updateGoal;
   }
 
-  async updateOperatingMode(mode: string): Promise<InvestorProfile> {
-    const d = await this.graphql.mutate<{ updateOperatingMode: InvestorProfile }>(
+  async updateOperatingMode(mode: OperatingMode): Promise<{ operatingMode: OperatingMode }> {
+    const d = await this.graphql.mutate<{ updateOperatingMode: { operatingMode: OperatingMode } }>(
       UPDATE_OPERATING_MODE,
       { mode },
     );
     return d.updateOperatingMode;
   }
 
-  async confirmGoLive(): Promise<InvestorProfile> {
-    const d = await this.graphql.mutate<{ confirmGoLive: InvestorProfile }>(CONFIRM_GO_LIVE, {});
+  async confirmGoLive(): Promise<{ executionMode: string }> {
+    const d = await this.graphql.mutate<{ confirmGoLive: { executionMode: string } }>(
+      CONFIRM_GO_LIVE,
+      {},
+    );
     return d.confirmGoLive;
   }
 }
