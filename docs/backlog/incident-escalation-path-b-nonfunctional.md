@@ -10,7 +10,7 @@ out_of_scope:
   - "Whether dashboard-bff recent-activity should source an 'awaiting confirmation' item from the DecisionPacket AWAITING_CONFIRMATION CDC path (the intent of the dead USER_CONFIRMATION_REQUESTED handler) — filed as a separate parking finding."
   - "adapter-event-name redeclare-vs-reexport hardening (parked) — this slice follows the existing eventName() redeclare convention."
 spec: docs/superpowers/specs/2026-06-15-incident-escalation-path-b-design.md
-plan: null
+plan: docs/superpowers/plans/2026-06-15-incident-escalation-path-b.md
 topic_memory: []
 validation_gate: null
 ---
