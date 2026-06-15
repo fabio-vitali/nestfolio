@@ -8,7 +8,7 @@ Stack: services/advisory/compliance-ctrl/src/service.stack.ts
 
 ## Ingress
 <!-- card-drift:ingress (generated — `nx run event-processor:card-drift -- --fix`) -->
-- Ingress: MANDATE_ISSUED, MANDATE_REVOKED, OPERATING_MODE_CHANGED, RECOMMENDATION_PROPOSED
+- Ingress: MANDATE_ISSUED, MANDATE_REAFFIRMED, MANDATE_REVOKED, OPERATING_MODE_CHANGED, RECOMMENDATION_PROPOSED
 <!-- /card-drift:ingress -->
 - advisoryBus → compliance-ctrl-ingress (SQS → Lambda)
 
