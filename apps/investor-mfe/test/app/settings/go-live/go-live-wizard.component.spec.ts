@@ -1,39 +1,68 @@
-import { TestBed, ComponentFixture } from '@angular/core/testing';
+import { ComponentFixture } from '@angular/core/testing';
 import { Router } from '@angular/router';
 import { I18nService } from '@nestfolio/shell/i18n';
+import {
+  setupComponentTest,
+  createMockI18nService,
+  createMockRouter,
+} from '@nestfolio/shell/testing';
 import { GoLiveWizardComponent } from '../../../../src/app/settings/go-live/go-live-wizard.component';
+import { GoLiveService, InvestorProfile } from '../../../../src/app/services/go-live.service';
 
-const MockI18nService = {
-  t: (key: string) => key,
+const mockProfile: InvestorProfile = {
+  operatingMode: 'BALANCED',
+  executionMode: 'simulation',
+  goal: {
+    objective: 'Growth',
+    targetAmountCents: 100000,
+    currency: 'USD',
+    timeHorizonMonths: 60,
+    targetReturn: 8,
+  },
+  riskProfile: {
+    score: 2,
+    band: { minEquity: 40, maxEquity: 70 },
+    toleranceResponse: 'MODERATE',
+    experienceLevel: 'INTERMEDIATE',
+  },
+  mandate: {
+    mandateId: 'mandate-1',
+    level: 'STANDARD',
+    status: 'ACTIVE',
+    effectiveDate: '2024-01-01',
+  },
 };
 
 describe('GoLiveWizardComponent', () => {
   let component: GoLiveWizardComponent;
   let fixture: ComponentFixture<GoLiveWizardComponent>;
-  let router: { navigate: jest.Mock };
+  let router: ReturnType<typeof createMockRouter>;
+  let goLive: {
+    getProfile: jest.Mock;
+    updateRiskProfile: jest.Mock;
+    updateGoal: jest.Mock;
+    updateOperatingMode: jest.Mock;
+    confirmGoLive: jest.Mock;
+  };
 
   beforeEach(async () => {
-    router = { navigate: jest.fn().mockResolvedValue(true) };
+    router = createMockRouter();
+    goLive = {
+      getProfile: jest.fn().mockResolvedValue(mockProfile),
+      updateRiskProfile: jest.fn().mockResolvedValue({ riskProfile: mockProfile.riskProfile }),
+      updateGoal: jest.fn().mockResolvedValue(mockProfile.goal),
+      updateOperatingMode: jest.fn().mockResolvedValue({ operatingMode: 'BALANCED' }),
+      confirmGoLive: jest.fn().mockResolvedValue({ executionMode: 'live' }),
+    };
 
-    await TestBed.configureTestingModule({
-      imports: [GoLiveWizardComponent],
+    fixture = await setupComponentTest(GoLiveWizardComponent, {
       providers: [
-        { provide: I18nService, useValue: MockI18nService },
+        { provide: I18nService, useValue: createMockI18nService() },
         { provide: Router, useValue: router },
+        { provide: GoLiveService, useValue: goLive },
       ],
-    })
-      .overrideComponent(GoLiveWizardComponent, {
-        set: {
-          template: `<div data-testid="wizard">step {{ activeStep() }}</div>`,
-          imports: [],
-          styles: [],
-        },
-      })
-      .compileComponents();
-
-    fixture = TestBed.createComponent(GoLiveWizardComponent);
+    });
     component = fixture.componentInstance;
-    fixture.detectChanges();
   });
 
   it('should create', () => {
@@ -75,11 +104,48 @@ describe('GoLiveWizardComponent', () => {
     expect(component.confirming()).toBe(false);
   });
 
-  it('confirmGoLive should navigate to /onboarding with go-live queryParam', async () => {
+  it('ngOnInit seeds profile from GoLiveService.getProfile()', async () => {
+    await component.ngOnInit();
+    expect(goLive.getProfile).toHaveBeenCalled();
+    expect(component.profile()).toEqual(mockProfile);
+    expect(component.goalObjective()).toBe('Growth');
+    expect(component.operatingMode()).toBe('BALANCED');
+  });
+
+  it('mandateAccepted starts false', () => {
+    expect(component.mandateAccepted()).toBe(false);
+  });
+
+  it('confirmGoLive is a no-op when mandateAccepted is false', async () => {
+    component.mandateAccepted.set(false);
     await component.confirmGoLive();
-    expect(router.navigate).toHaveBeenCalledWith(
-      ['/onboarding'],
-      { queryParams: { flowType: 'go-live' } },
-    );
+    expect(goLive.confirmGoLive).not.toHaveBeenCalled();
+    expect(router.navigate).not.toHaveBeenCalled();
+  });
+
+  it('confirmGoLive calls the mutation and navigates to dashboard', async () => {
+    goLive.confirmGoLive.mockResolvedValue({ executionMode: 'live' });
+    component.mandateAccepted.set(true);
+    await component.confirmGoLive();
+    expect(goLive.confirmGoLive).toHaveBeenCalled();
+    expect(router.navigate).toHaveBeenCalledWith(['/dashboard']);
+  });
+
+  it('saveRiskProfile delegates to GoLiveService.updateRiskProfile', async () => {
+    component.toleranceIdx.set(1);
+    await component.saveRiskProfile();
+    expect(goLive.updateRiskProfile).toHaveBeenCalledWith(1, 0);
+  });
+
+  it('saveGoal delegates to GoLiveService.updateGoal', async () => {
+    component.goalObjective.set('Retirement');
+    await component.saveGoal();
+    expect(goLive.updateGoal).toHaveBeenCalledWith({ objective: 'Retirement' });
+  });
+
+  it('saveOperatingMode delegates to GoLiveService.updateOperatingMode', async () => {
+    component.operatingMode.set('AGGRESSIVE');
+    await component.saveOperatingMode();
+    expect(goLive.updateOperatingMode).toHaveBeenCalledWith('AGGRESSIVE');
   });
 });

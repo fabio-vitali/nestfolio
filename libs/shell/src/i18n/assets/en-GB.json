@@ -196,5 +196,71 @@
     "mandate": "Mandate",
     "confirmation": "Confirmation",
     "complete": "Setup Complete!"
+  },
+  "settings": {
+    "goLive": {
+      "wizardTitle": "Go Live",
+      "wizardSubtitle": "Review and confirm your investment settings before activating live trading",
+      "next": "Next",
+      "back": "Back",
+      "steps": {
+        "riskProfile": {
+          "label": "Risk Profile",
+          "title": "Review Risk Profile",
+          "description": "Review and update your risk tolerance and investment experience.",
+          "riskLevel": "Risk Level",
+          "toleranceLabel": "Risk Tolerance",
+          "tolerancePlaceholder": "Select risk tolerance",
+          "toleranceOptions": {
+            "0": "Conservative",
+            "1": "Moderate",
+            "2": "Balanced",
+            "3": "Growth",
+            "4": "Aggressive"
+          },
+          "saveAndContinue": "Save & Continue"
+        },
+        "goals": {
+          "label": "Goals",
+          "title": "Review Investment Goal",
+          "description": "Review and update your primary investment objective.",
+          "investmentGoal": "Investment Goal",
+          "objectiveLabel": "Objective",
+          "objectivePlaceholder": "e.g. Growth, Retirement, Income",
+          "saveAndContinue": "Save & Continue"
+        },
+        "operatingMode": {
+          "label": "Operating Mode",
+          "title": "Review Operating Mode",
+          "description": "Select how aggressively the agent should manage your portfolio.",
+          "modeLabel": "Operating Mode",
+          "modePlaceholder": "Select mode",
+          "saveAndContinue": "Save & Continue"
+        },
+        "mandate": {
+          "label": "Mandate",
+          "title": "Accept Mandate",
+          "description": "Review the investment mandate that governs agent decisions. You must accept it to proceed.",
+          "mandateLevel": "Mandate Level",
+          "guardrailsWarning": "Guardrails defined in your mandate will restrict agent actions during live trading.",
+          "acceptLabel": "I have read and accept the investment mandate",
+          "saveAndContinue": "Continue"
+        },
+        "fund": {
+          "label": "Fund Account",
+          "title": "Fund Account",
+          "description": "Ensure your account is funded before activating live trading.",
+          "note": "Your account must have sufficient funds for the agent to execute trades. You can deposit funds from the Deposit page."
+        },
+        "confirm": {
+          "label": "Confirm",
+          "title": "Activate Live Trading",
+          "summary": "You are about to activate live trading. All settings have been reviewed.",
+          "riskWarning": "Live trading involves real financial risk. Past simulated performance does not guarantee future results.",
+          "irreversibleWarning": "Activating live trading will transition your account from simulation mode.",
+          "confirmButton": "Activate Live Trading"
+        }
+      }
+    }
   }
 }

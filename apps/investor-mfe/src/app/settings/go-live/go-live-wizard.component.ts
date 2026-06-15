@@ -1,22 +1,63 @@
-import { Component, inject, signal, computed } from '@angular/core';
+import { Component, inject, signal, computed, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
+import { FormsModule } from '@angular/forms';
 import { Router } from '@angular/router';
 import { ButtonModule } from 'primeng/button';
 import { CardModule } from 'primeng/card';
+import { CheckboxModule } from 'primeng/checkbox';
 import { MessageModule } from 'primeng/message';
+import { SelectModule } from 'primeng/select';
 import { StepsModule } from 'primeng/steps';
 import { I18nService } from '@nestfolio/shell/i18n';
 import { TranslatePipe } from '@ngx-translate/core';
+import { GoLiveService, InvestorProfile, OperatingMode } from '../../services/go-live.service';
 
 interface WizardStep {
   label: string;
   icon: string;
 }
 
+interface SelectOption<T> {
+  label: string;
+  value: T;
+}
+
+const TOLERANCE_OPTIONS: SelectOption<number>[] = [
+  { label: 'Conservative', value: 0 },
+  { label: 'Moderate', value: 1 },
+  { label: 'Balanced', value: 2 },
+  { label: 'Growth', value: 3 },
+  { label: 'Aggressive', value: 4 },
+];
+
+const TOLERANCE_RESPONSE_TO_IDX: Record<string, number> = {
+  CONSERVATIVE: 0,
+  MODERATE: 1,
+  BALANCED: 2,
+  GROWTH: 3,
+  AGGRESSIVE: 4,
+};
+
+const OPERATING_MODE_OPTIONS: SelectOption<OperatingMode>[] = [
+  { label: 'Conservative', value: 'CONSERVATIVE' },
+  { label: 'Balanced', value: 'BALANCED' },
+  { label: 'Aggressive', value: 'AGGRESSIVE' },
+];
+
 @Component({
   selector: 'app-go-live-wizard',
   standalone: true,
-  imports: [CommonModule, ButtonModule, CardModule, MessageModule, StepsModule, TranslatePipe],
+  imports: [
+    CommonModule,
+    FormsModule,
+    ButtonModule,
+    CardModule,
+    CheckboxModule,
+    MessageModule,
+    SelectModule,
+    StepsModule,
+    TranslatePipe,
+  ],
   template: `
     <div class="go-live-wizard">
       <div class="wizard-header">
@@ -32,43 +73,49 @@ interface WizardStep {
       />
 
       <div class="wizard-body">
-        <!-- Step 1: Review Risk Profile -->
+        <!-- Step 1: Review & Edit Risk Profile -->
         @if (activeStep() === 0) {
           <p-card header="{{ 'settings.goLive.steps.riskProfile.title' | translate }}">
             <p class="step-description">{{ 'settings.goLive.steps.riskProfile.description' | translate }}</p>
-            <div class="review-items">
-              <div class="review-item">
-                <span class="pi pi-shield review-icon"></span>
-                <div>
-                  <div class="review-label">{{ 'settings.goLive.steps.riskProfile.riskLevel' | translate }}</div>
-                  <div class="review-value">{{ 'settings.goLive.steps.riskProfile.reviewedInOnboarding' | translate }}</div>
-                </div>
-              </div>
+            <div class="form-field">
+              <label class="field-label">{{ 'settings.goLive.steps.riskProfile.toleranceLabel' | translate }}</label>
+              <p-select
+                [options]="toleranceOptions"
+                [ngModel]="toleranceIdx()"
+                (ngModelChange)="toleranceIdx.set($event)"
+                optionLabel="label"
+                optionValue="value"
+                [placeholder]="'settings.goLive.steps.riskProfile.tolerancePlaceholder' | translate"
+                styleClass="w-full"
+                data-testid="risk-tolerance-input"
+              />
             </div>
             <div class="step-actions">
               <p-button
-                [label]="'settings.goLive.next' | translate"
+                [label]="'settings.goLive.steps.riskProfile.saveAndContinue' | translate"
                 icon="pi pi-arrow-right"
                 iconPos="right"
-                (onClick)="nextStep()"
+                (onClick)="saveRiskProfile()"
                 data-testid="step-next-btn"
               />
             </div>
           </p-card>
         }
 
-        <!-- Step 2: Review Goals -->
+        <!-- Step 2: Review & Edit Goals -->
         @if (activeStep() === 1) {
           <p-card header="{{ 'settings.goLive.steps.goals.title' | translate }}">
             <p class="step-description">{{ 'settings.goLive.steps.goals.description' | translate }}</p>
-            <div class="review-items">
-              <div class="review-item">
-                <span class="pi pi-flag review-icon"></span>
-                <div>
-                  <div class="review-label">{{ 'settings.goLive.steps.goals.investmentGoal' | translate }}</div>
-                  <div class="review-value">{{ 'settings.goLive.steps.goals.reviewedInOnboarding' | translate }}</div>
-                </div>
-              </div>
+            <div class="form-field">
+              <label class="field-label">{{ 'settings.goLive.steps.goals.objectiveLabel' | translate }}</label>
+              <input
+                type="text"
+                class="p-inputtext w-full"
+                [ngModel]="goalObjective()"
+                (ngModelChange)="goalObjective.set($event)"
+                [placeholder]="'settings.goLive.steps.goals.objectivePlaceholder' | translate"
+                data-testid="goal-objective-input"
+              />
             </div>
             <div class="step-actions">
               <p-button
@@ -79,60 +126,72 @@ interface WizardStep {
                 data-testid="step-back-btn"
               />
               <p-button
-                [label]="'settings.goLive.next' | translate"
+                [label]="'settings.goLive.steps.goals.saveAndContinue' | translate"
                 icon="pi pi-arrow-right"
                 iconPos="right"
-                (onClick)="nextStep()"
+                (onClick)="saveGoal()"
                 data-testid="step-next-btn"
               />
             </div>
           </p-card>
         }
 
-        <!-- Step 3: Review Mandate & Guardrails -->
+        <!-- Step 3: Review & Edit Operating Mode -->
         @if (activeStep() === 2) {
+          <p-card header="{{ 'settings.goLive.steps.operatingMode.title' | translate }}">
+            <p class="step-description">{{ 'settings.goLive.steps.operatingMode.description' | translate }}</p>
+            <div class="form-field">
+              <label class="field-label">{{ 'settings.goLive.steps.operatingMode.modeLabel' | translate }}</label>
+              <p-select
+                [options]="operatingModeOptions"
+                [ngModel]="operatingMode()"
+                (ngModelChange)="operatingMode.set($event)"
+                optionLabel="label"
+                optionValue="value"
+                [placeholder]="'settings.goLive.steps.operatingMode.modePlaceholder' | translate"
+                styleClass="w-full"
+                data-testid="operating-mode-select"
+              />
+            </div>
+            <div class="step-actions">
+              <p-button
+                [label]="'settings.goLive.back' | translate"
+                severity="secondary"
+                [outlined]="true"
+                (onClick)="prevStep()"
+                data-testid="step-back-btn"
+              />
+              <p-button
+                [label]="'settings.goLive.steps.operatingMode.saveAndContinue' | translate"
+                icon="pi pi-arrow-right"
+                iconPos="right"
+                (onClick)="saveOperatingMode()"
+                data-testid="step-next-btn"
+              />
+            </div>
+          </p-card>
+        }
+
+        <!-- Step 4: Accept Mandate -->
+        @if (activeStep() === 3) {
           <p-card header="{{ 'settings.goLive.steps.mandate.title' | translate }}">
             <p class="step-description">{{ 'settings.goLive.steps.mandate.description' | translate }}</p>
-            <div class="review-items">
-              <div class="review-item">
-                <span class="pi pi-lock review-icon"></span>
-                <div>
-                  <div class="review-label">{{ 'settings.goLive.steps.mandate.mandateLevel' | translate }}</div>
-                  <div class="review-value">{{ 'settings.goLive.steps.mandate.reviewedInOnboarding' | translate }}</div>
-                </div>
-              </div>
-            </div>
             <p-message
               severity="warn"
               [text]="'settings.goLive.steps.mandate.guardrailsWarning' | translate"
               styleClass="w-full"
             />
-            <div class="step-actions">
-              <p-button
-                [label]="'settings.goLive.back' | translate"
-                severity="secondary"
-                [outlined]="true"
-                (onClick)="prevStep()"
-                data-testid="step-back-btn"
+            <div class="mandate-accept">
+              <p-checkbox
+                [ngModel]="mandateAccepted()"
+                (ngModelChange)="mandateAccepted.set($event)"
+                [binary]="true"
+                inputId="mandate-accept"
+                data-testid="mandate-accept-checkbox"
               />
-              <p-button
-                [label]="'settings.goLive.next' | translate"
-                icon="pi pi-arrow-right"
-                iconPos="right"
-                (onClick)="nextStep()"
-                data-testid="step-next-btn"
-              />
-            </div>
-          </p-card>
-        }
-
-        <!-- Step 4: Fund Account -->
-        @if (activeStep() === 3) {
-          <p-card header="{{ 'settings.goLive.steps.fund.title' | translate }}">
-            <p class="step-description">{{ 'settings.goLive.steps.fund.description' | translate }}</p>
-            <div class="fund-note">
-              <span class="pi pi-info-circle fund-icon"></span>
-              <p>{{ 'settings.goLive.steps.fund.note' | translate }}</p>
+              <label for="mandate-accept" class="mandate-label">
+                {{ 'settings.goLive.steps.mandate.acceptLabel' | translate }}
+              </label>
             </div>
             <div class="step-actions">
               <p-button
@@ -143,9 +202,10 @@ interface WizardStep {
                 data-testid="step-back-btn"
               />
               <p-button
-                [label]="'settings.goLive.next' | translate"
+                [label]="'settings.goLive.steps.mandate.saveAndContinue' | translate"
                 icon="pi pi-arrow-right"
                 iconPos="right"
+                [disabled]="!mandateAccepted()"
                 (onClick)="nextStep()"
                 data-testid="step-next-btn"
               />
@@ -186,6 +246,7 @@ interface WizardStep {
                 severity="danger"
                 icon="pi pi-check"
                 [loading]="confirming()"
+                [disabled]="confirming() || !mandateAccepted()"
                 (onClick)="confirmGoLive()"
                 data-testid="confirm-go-live-btn"
               />
@@ -235,38 +296,34 @@ interface WizardStep {
       margin-bottom: 1rem;
     }
 
-    .review-items {
+    .form-field {
       display: flex;
       flex-direction: column;
-      gap: 0.75rem;
+      gap: 0.5rem;
       margin-bottom: 1.25rem;
     }
 
-    .review-item {
-      display: flex;
-      align-items: flex-start;
-      gap: 0.75rem;
-      padding: 0.75rem;
-      border-radius: 0.5rem;
-      background: var(--p-surface-50, #f9fafb);
-    }
-
-    .review-icon {
-      font-size: 1.25rem;
-      color: var(--p-blue-500, #3b82f6);
-      flex-shrink: 0;
-    }
-
-    .review-label {
+    .field-label {
       font-size: 0.8125rem;
       color: var(--nf-text-secondary, #6c757d);
       text-transform: uppercase;
       letter-spacing: 0.04em;
     }
 
-    .review-value {
-      font-weight: 600;
+    .mandate-accept {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      padding: 0.75rem;
+      margin: 1rem 0;
+      border-radius: 0.5rem;
+      background: var(--p-surface-50, #f9fafb);
+    }
+
+    .mandate-label {
+      font-size: 0.9375rem;
       color: var(--nf-text-primary, #212529);
+      cursor: pointer;
     }
 
     .fund-note {
@@ -308,21 +365,40 @@ interface WizardStep {
     .w-full { width: 100%; }
   `],
 })
-export class GoLiveWizardComponent {
+export class GoLiveWizardComponent implements OnInit {
   readonly i18n = inject(I18nService);
   private readonly router = inject(Router);
+  private readonly goLive = inject(GoLiveService);
 
   readonly activeStep = signal(0);
   readonly confirming = signal(false);
   readonly totalSteps = 5;
 
+  readonly profile = signal<InvestorProfile | null>(null);
+  readonly mandateAccepted = signal(false);
+  readonly toleranceIdx = signal(0);
+  readonly goalObjective = signal('');
+  readonly operatingMode = signal<OperatingMode>('BALANCED');
+
+  readonly toleranceOptions = TOLERANCE_OPTIONS;
+  readonly operatingModeOptions = OPERATING_MODE_OPTIONS;
+
   readonly steps = computed<WizardStep[]>(() => [
     { label: this.i18n.t('settings.goLive.steps.riskProfile.label'), icon: 'pi pi-shield' },
     { label: this.i18n.t('settings.goLive.steps.goals.label'), icon: 'pi pi-flag' },
+    { label: this.i18n.t('settings.goLive.steps.operatingMode.label'), icon: 'pi pi-sliders-h' },
     { label: this.i18n.t('settings.goLive.steps.mandate.label'), icon: 'pi pi-lock' },
-    { label: this.i18n.t('settings.goLive.steps.fund.label'), icon: 'pi pi-wallet' },
     { label: this.i18n.t('settings.goLive.steps.confirm.label'), icon: 'pi pi-check-circle' },
   ]);
+
+  async ngOnInit(): Promise<void> {
+    const profile = await this.goLive.getProfile();
+    this.profile.set(profile);
+    this.goalObjective.set(profile.goal.objective);
+    this.operatingMode.set(profile.operatingMode);
+    const toleranceResponseKey = profile.riskProfile.toleranceResponse.toUpperCase();
+    this.toleranceIdx.set(TOLERANCE_RESPONSE_TO_IDX[toleranceResponseKey] ?? 0);
+  }
 
   nextStep(): void {
     if (this.activeStep() < this.totalSteps - 1) {
@@ -336,14 +412,27 @@ export class GoLiveWizardComponent {
     }
   }
 
+  async saveRiskProfile(): Promise<void> {
+    await this.goLive.updateRiskProfile(this.toleranceIdx(), 0);
+    this.nextStep();
+  }
+
+  async saveGoal(): Promise<void> {
+    await this.goLive.updateGoal({ objective: this.goalObjective() });
+    this.nextStep();
+  }
+
+  async saveOperatingMode(): Promise<void> {
+    await this.goLive.updateOperatingMode(this.operatingMode());
+    this.nextStep();
+  }
+
   async confirmGoLive(): Promise<void> {
+    if (!this.mandateAccepted()) return;
     this.confirming.set(true);
     try {
-      // Navigate to onboarding-mfe with go-live flowType
-      // The onboarding-bff will receive flowType='go-live' via the session context
-      await this.router.navigate(['/onboarding'], {
-        queryParams: { flowType: 'go-live' },
-      });
+      await this.goLive.confirmGoLive();
+      await this.router.navigate(['/dashboard']);
     } finally {
       this.confirming.set(false);
     }

@@ -196,5 +196,71 @@
     "mandate": "Mandato",
     "confirmation": "Conferma",
     "complete": "Configurazione Completata!"
+  },
+  "settings": {
+    "goLive": {
+      "wizardTitle": "Vai in Produzione",
+      "wizardSubtitle": "Rivedi e conferma le impostazioni prima di attivare il trading reale",
+      "next": "Avanti",
+      "back": "Indietro",
+      "steps": {
+        "riskProfile": {
+          "label": "Profilo di Rischio",
+          "title": "Rivedi il Profilo di Rischio",
+          "description": "Rivedi e aggiorna la tua tolleranza al rischio.",
+          "riskLevel": "Livello di Rischio",
+          "toleranceLabel": "Tolleranza al Rischio",
+          "tolerancePlaceholder": "Seleziona la tolleranza al rischio",
+          "toleranceOptions": {
+            "0": "Conservativo",
+            "1": "Moderato",
+            "2": "Bilanciato",
+            "3": "Crescita",
+            "4": "Aggressivo"
+          },
+          "saveAndContinue": "Salva e Continua"
+        },
+        "goals": {
+          "label": "Obiettivi",
+          "title": "Rivedi l'Obiettivo di Investimento",
+          "description": "Rivedi e aggiorna il tuo obiettivo principale.",
+          "investmentGoal": "Obiettivo di Investimento",
+          "objectiveLabel": "Obiettivo",
+          "objectivePlaceholder": "es. Crescita, Pensione, Reddito",
+          "saveAndContinue": "Salva e Continua"
+        },
+        "operatingMode": {
+          "label": "Modalita Operativa",
+          "title": "Rivedi la Modalita Operativa",
+          "description": "Seleziona l'aggressivita nella gestione del portafoglio.",
+          "modeLabel": "Modalita Operativa",
+          "modePlaceholder": "Seleziona modalita",
+          "saveAndContinue": "Salva e Continua"
+        },
+        "mandate": {
+          "label": "Mandato",
+          "title": "Accetta il Mandato",
+          "description": "Rivedi il mandato di investimento. Devi accettarlo per procedere.",
+          "mandateLevel": "Livello Mandato",
+          "guardrailsWarning": "I vincoli definiti nel mandato limiteranno le azioni dell'agente durante il trading reale.",
+          "acceptLabel": "Ho letto e accetto il mandato di investimento",
+          "saveAndContinue": "Continua"
+        },
+        "fund": {
+          "label": "Fondi",
+          "title": "Fondi il Conto",
+          "description": "Assicurati che il conto sia finanziato prima di attivare il trading reale.",
+          "note": "Il conto deve avere fondi sufficienti per eseguire ordini. Puoi depositare dalla pagina Deposito."
+        },
+        "confirm": {
+          "label": "Conferma",
+          "title": "Attiva il Trading Reale",
+          "summary": "Stai per attivare il trading reale. Tutte le impostazioni sono state revisionate.",
+          "riskWarning": "Il trading reale comporta rischi finanziari reali. Le performance simulate non garantiscono risultati futuri.",
+          "irreversibleWarning": "L'attivazione del trading reale trasferira il conto dalla modalita simulazione.",
+          "confirmButton": "Attiva il Trading Reale"
+        }
+      }
+    }
   }
 }
