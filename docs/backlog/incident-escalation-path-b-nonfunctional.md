@@ -1,6 +1,6 @@
 ---
 id: incident-escalation-path-b-nonfunctional
-status: active
+status: shipped
 type: bug
 notes: "incident-escalation Path B is dead: ESCALATION_TRIGGERED / INCIDENT_DETECTED / INCIDENT_RESOLVED are declared-but-unemitted constants (no producer, no CDC, no PutEvents); compliance-ctrl never escalates and investor-ctrl subscribes to neither escalation event, so investors are never notified of compliance OR order escalations. DECISION (2026-06-15): remove the dead constants (L1→L2 escalation is already realized via compliance-ctrl authority-resolver + decision-workflow taskToken; incident containment via circuit-breaker/reconciliation/order-escalation — investigation confirmed nothing functional is lost) AND wire the real Path C convergence gap (investor-ctrl subscribes to ORDER_ESCALATED → notification). Also removes the co-dead USER_CONFIRMATION_REQUESTED (no producer since Task-1.5 taskToken redesign) + its unreachable dashboard-bff handler. Then refresh incident-escalation.flow.yaml + architecture docs + C4. Surfaced 2026-06-14 by the flows-vs-code audit."
 references: []
@@ -12,7 +12,23 @@ out_of_scope:
 spec: docs/superpowers/specs/2026-06-15-incident-escalation-path-b-design.md
 plan: docs/superpowers/plans/2026-06-15-incident-escalation-path-b.md
 topic_memory: []
-validation_gate: null
+validation_gate: |
+  Shipped 2026-06-16 (branch worktree-incident-escalation-path-b, 11 commits 9c8ffeb0..HEAD).
+  - Unit/lint: `nx run-many -t test,lint` GREEN on the 22 true-affected projects
+    (tools/affected-projects.mjs), incl. investor-ctrl ORDER_ESCALATED→Notification
+    regression (69/69) + dashboard-bff handler-count 13→12 (60/60).
+  - validate-flow incident-escalation: GREEN — broker-ctrl emits ORDER_ESCALATED
+    (service.stack.ts:26) → investor-adpt FromExecution (service.stack.ts:74) →
+    investor-ctrl TriggerIngress (service.stack.ts:31) + handler (event-listener.ts:232)
+    → record('Notification') → NOTIFICATION_CREATED.
+  - service-card-drift gate: OK (0 drift) across the 5 touched cards.
+  - Deploy (dev sandbox 771924376645): `deploy.sh sandbox --prefix=dev
+    --services=investor-ctrl,investor-adpt,dashboard-bff` → ✅ dev-investor-ctrl,
+    ✅ dev-investor-adpt, ✅ dev-dashboard-bff (UPDATE_COMPLETE; TriggerIngress Rule+Handler,
+    InvestorIngress-FromAdvisory, Ingress Rule+Handler all updated).
+  - Live confirmation: deployed investor-ctrl EB rule (dev-investor-event-bus) now carries
+    16 detail-types incl. ORDER_ESCALATED; ESCALATION_TRIGGERED absent.
+  - No e2e: the ORDER_ESCALATED path is a 300s broker-SF timeout, not e2e-triggerable.
 ---
 
 # Incident-escalation Path B is a dead event path
