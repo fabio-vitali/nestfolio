@@ -70,21 +70,23 @@ Records AlpacaOrderResult (status=REJECTED, rejectionReason=BROKER_UNAVAILABLE).
 ### Step 2: broker-alpaca-adpt
 
 - **Receives:** `BROKER_CIRCUIT_OPEN`
-- **Via:** ExecutionBus -> Orchestration EB rule -> broker-alpaca-adpt HealStateMachine (no executionName set — SF auto-generates a unique name per start, no singleton dedup; 2h timeout)
+- **Via:** ExecutionBus -> Orchestration EB rule -> broker-alpaca-adpt HealStateMachine (idempotent; entry GetItem+Choice on the global breaker row short-circuits non-OPEN; 2h timeout)
 - **State change:** HealStateMachine (CircuitBreakerHealDefinition construct) runs:
-  InitAttemptCount (Pass: attemptCount=0)
-    → HealthCheck (HTTP:Invoke GET /v2/account via EB Connection with Alpaca auth,
-                   10s timeout, 3 retries 5/10/20s backoff)
-      on success → CloseBreaker (DDB UpdateItem: CircuitBreaker#alpaca state=CLOSED,
-                     closedAt=timestamp)
-        → EmitBreakerClosed (DDB PutItem: NormalizedEvent sk=BROKER_CIRCUIT_CLOSED#{timestamp})
-          → EndHealed (Succeed)
-      on catch → IncrementAttempt (Pass: attemptCount+1)
-        → CheckAttemptLimit (Choice)
-            < maxAttempts (default 10) → WaitForRetry (Wait 60s) → HealthCheck (loop)
-            >= maxAttempts → EscalateHealFailure (DDB PutItem: NormalizedEvent
-                             sk=BROKER_HEAL_ESCALATED#{timestamp})
-              → EndEscalated (Fail)
+  InitAttemptCount (Pass: extract context, attemptCount=0)
+    → CheckBreakerState (GetItem global CircuitBreaker#alpaca)
+      → EvaluateBreakerState (Choice)
+          breaker not OPEN → EndAlreadyHealthy (Succeed, no-op)
+          breaker OPEN → HealthCheck (HTTP:Invoke GET /v2/account, 10s, 3 retries 5/10/20s)
+            on success → CloseBreaker (CONDITIONAL DDB UpdateItem on the GLOBAL
+                           CircuitBreaker#alpaca: SET state=CLOSED IF state=OPEN)
+              on condition-fail (lost race) → EndAlreadyHealthy (skip emit)
+              on success → EmitBreakerClosed (PutItem NormalizedEvent
+                             sk=BROKER_CIRCUIT_CLOSED#{ts}) → EndHealed
+            on catch → IncrementAttempt (preserves tenantId/region/adapter,
+                          attemptCount+1) → CheckAttemptLimit (Choice)
+                < maxAttempts (10) → WaitForRetry (60s) → HealthCheck
+                >= maxAttempts → EscalateHealFailure (PutItem
+                                 sk=BROKER_HEAL_ESCALATED#{ts}) → EndEscalated (Fail)
 
 - **Emits:** `BROKER_CIRCUIT_CLOSED or BROKER_HEAL_ESCALATED (CDC from NormalizedEvent:INSERT, sk passthrough)`
 - **Idempotent:** yes
@@ -215,7 +217,7 @@ working on it — we'll update you as soon as it's resolved.")
 
 - broker-alpaca-adpt writes CircuitBreaker#alpaca (state=OPEN) only after health check confirms broker is globally down (not on first transient failure)
 - BROKER_CIRCUIT_OPEN emitted via CDC from NormalizedEvent INSERT within seconds of detection
-- HealStateMachine starts on BROKER_CIRCUIT_OPEN with an SF auto-generated execution name (no executionName set, no singleton dedup); the conditional breaker-open write limits, but does not eliminate, concurrent heals
+- HealStateMachine is idempotent — an entry Choice on the GLOBAL CircuitBreaker#alpaca row no-ops a redelivered/late BROKER_CIRCUIT_OPEN, and CloseBreaker conditionally closes that global row so only the OPEN->CLOSED transition emits BROKER_CIRCUIT_CLOSED
 - HealStateMachine CloseBreaker updates CircuitBreaker#alpaca to state=CLOSED and emits BROKER_CIRCUIT_CLOSED via CDC
 - BROKER_CIRCUIT_OPEN, BROKER_CIRCUIT_CLOSED, BROKER_HEAL_ESCALATED all forwarded ExecutionBus → InvestorBus via investor-adpt
 - investor-bff disables confirmDecision + initiateDeposit + requestWithdrawal flags on OPEN; re-enables them on CLOSED
@@ -227,9 +229,9 @@ working on it — we'll update you as soon as it's resolved.")
 ## Failure Modes
 
 - **Detection fails:** isBrokerDown() call itself times out or throws → breaker not opened; handler falls through to existing error path; no BROKER_CIRCUIT_OPEN emitted; per-order failures continue accumulating
-- **Open race:** two concurrent handlers both pass isOpen=false check; conditional DDB write ensures only first succeeds; second write is silently rejected (condition failed); one NormalizedEvent written, one heal SM started
+- **Open race:** two concurrent handlers both pass isOpen=false check; conditional DDB write ensures only first succeeds; second write is silently rejected (condition failed); one NormalizedEvent written; redelivery may start extra heals but they no-op (idempotent heal)
 - **CDC pipeline:** DynamoDB Streams event delivery delayed or Lambda throttled → BROKER_CIRCUIT_OPEN reaches ExecutionBus late; heal SM starts late; investor visibility delayed
-- **Heal SM concurrency:** no singleton guard exists (the Orchestration sets no executionName, so SF auto-generates a unique name per start). If multiple BROKER_CIRCUIT_OPEN events fire, multiple HealStateMachine executions can run concurrently; the conditional breaker-open DDB write (attribute_not_exists(pk) OR state=CLOSED) limits this by rejecting the second open, but does not deduplicate executions started from already-emitted OPEN events
+- **Heal SM concurrency:** the HealStateMachine has no execution-name lock; instead it is idempotent. Concurrent/redelivered BROKER_CIRCUIT_OPEN events may start multiple executions, but the entry Choice (breaker not OPEN -> no-op) plus the conditional CloseBreaker (close + emit only on the OPEN->CLOSED transition) collapse them to ONE effective close + one BROKER_CIRCUIT_CLOSED. Residual is that if the broker stays down through the full retry loop, multiple concurrent heals can each escalate (tracked separately).
 - **HealthCheck HTTP:Invoke:** EB Connection secret rotation mid-execution → auth failure → SF retries will re-fetch credentials; no special handling needed
 - **Heal SM exhausts maxAttempts:** BROKER_HEAL_ESCALATED emitted; CircuitBreaker record remains OPEN; all subsequent ALPACA_ORDER_REQUESTED continue to reject immediately; manual intervention required to reset
 - **investor-adpt DLQ:** InvestorIngress-FromExecution rule target throttled → BROKER_CIRCUIT_OPEN/CLOSED/HEAL_ESCALATED land in FromExecutionDLQ (14-day retention); feature flags and notifications delayed until DLQ redriven
