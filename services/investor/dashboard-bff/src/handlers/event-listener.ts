@@ -30,8 +30,6 @@ export function createHandlers() {
       portfolioSummary(toUow(payload, ctx)),
     [AdvisoryCrossDomainEventTypes.DECISION_PACKET_CREATED]: (payload: EventPayload, ctx: EventContext) =>
       recentActivity(toUow(payload, ctx)),
-    [AdvisoryCrossDomainEventTypes.USER_CONFIRMATION_REQUESTED]: (payload: EventPayload, ctx: EventContext) =>
-      recentActivity(toUow(payload, ctx)),
     [AdvisoryCrossDomainEventTypes.DECISION_APPROVED]: (payload: EventPayload, ctx: EventContext) =>
       recentActivity(toUow(payload, ctx)),
     [AdvisoryCrossDomainEventTypes.DECISION_BLOCKED]: (payload: EventPayload, ctx: EventContext) =>

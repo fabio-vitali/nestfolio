@@ -26,7 +26,6 @@ export class DashboardBffStack extends ServiceStack {
         InvestorIngestEventTypes.PORTFOLIO_UPDATED,
         InvestorIngestEventTypes.RECONCILIATION_COMPLETED,
         InvestorIngestEventTypes.DECISION_PACKET_CREATED,
-        InvestorIngestEventTypes.USER_CONFIRMATION_REQUESTED,
         InvestorIngestEventTypes.DECISION_APPROVED,
         InvestorIngestEventTypes.DECISION_BLOCKED,
         InvestorIngestEventTypes.LEDGER_ENTRY_RECORDED,

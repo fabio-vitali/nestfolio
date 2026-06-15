@@ -37,13 +37,9 @@ export class InvestorAdptStack extends ServiceStack {
     });
     const fromAdvisoryEvents = [
       InvestorIngestEventTypes.DECISION_PACKET_CREATED,
-      InvestorIngestEventTypes.USER_CONFIRMATION_REQUESTED,
       InvestorIngestEventTypes.EXPLANATION_GENERATED,
       InvestorIngestEventTypes.DECISION_APPROVED,
       InvestorIngestEventTypes.DECISION_BLOCKED,
-      InvestorIngestEventTypes.ESCALATION_TRIGGERED,
-      InvestorIngestEventTypes.INCIDENT_DETECTED,
-      InvestorIngestEventTypes.INCIDENT_RESOLVED,
       InvestorIngestEventTypes.ADVISORY_STATUS_UPDATED,
     ];
     const fromAdvisoryRule = new Rule(this, 'InvestorIngress-FromAdvisory', {

@@ -5,10 +5,10 @@ import { InvestorBffEventTypes } from '@nestfolio/investor-bff/events';
 import { InvestorIngestEventTypes } from '@nestfolio/investor-adpt/domain';
 
 describe('dashboard-bff event-listener', () => {
-  it('should export handlers for all 13 event types', () => {
+  it('should export handlers for all 12 event types', () => {
     const handlers = createHandlers();
 
-    expect(Object.keys(handlers)).toHaveLength(13);
+    expect(Object.keys(handlers)).toHaveLength(12);
 
     // Ledger events
     expect(handlers).toHaveProperty(LedgerCrossDomainEventTypes.BALANCE_UPDATED);
@@ -18,7 +18,6 @@ describe('dashboard-bff event-listener', () => {
 
     // Advisory events
     expect(handlers).toHaveProperty(AdvisoryCrossDomainEventTypes.DECISION_PACKET_CREATED);
-    expect(handlers).toHaveProperty(AdvisoryCrossDomainEventTypes.USER_CONFIRMATION_REQUESTED);
     expect(handlers).toHaveProperty(AdvisoryCrossDomainEventTypes.DECISION_APPROVED);
     expect(handlers).toHaveProperty(AdvisoryCrossDomainEventTypes.DECISION_BLOCKED);
 
