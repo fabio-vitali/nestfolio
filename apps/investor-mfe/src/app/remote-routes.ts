@@ -2,11 +2,12 @@ import { Routes } from '@angular/router';
 import { NotificationService } from './services/notification.service';
 import { NotificationStore } from './stores/notification.store';
 import { DepositService } from './services/deposit.service';
+import { GoLiveService } from './services/go-live.service';
 
 export const remoteRoutes: Routes = [
   {
     path: '',
-    providers: [NotificationService, NotificationStore, DepositService],
+    providers: [NotificationService, NotificationStore, DepositService, GoLiveService],
     children: [
       {
         path: 'notifications',
