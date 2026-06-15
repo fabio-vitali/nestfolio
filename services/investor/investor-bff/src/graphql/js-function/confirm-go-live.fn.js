@@ -1,8 +1,9 @@
 import { util } from '@aws-appsync/utils';
 
-// Deterministic go-live commit. P1 scope: flip executionMode simulation→live atomically
-// with a write-once ExecutionModeChange audit row (CDC → EXECUTION_MODE_CHANGED → broker-ctrl).
-// A later phase adds a third transactItem re-affirming the Mandate row.
+// Deterministic go-live commit: one atomic TransactWriteItems with 3 items —
+//   1. write-once ExecutionModeChange audit row  (CDC → EXECUTION_MODE_CHANGED → broker-ctrl)
+//   2. flip InvestorProfile executionMode simulation→live (CDC → INVESTOR_PROFILE_UPDATED → dashboard-bff live badge)
+//   3. re-affirm the ACTIVE Mandate row (effectiveDate bump) (CDC → MANDATE_REAFFIRMED → compliance-ctrl MandateSnapshot)
 export function request(ctx) {
   const { tenantId, userId, region, tableName } = ctx.stash;
   const now = util.time.nowISO8601();
