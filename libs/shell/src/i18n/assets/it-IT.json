@@ -201,14 +201,12 @@
     "goLive": {
       "wizardTitle": "Vai in Produzione",
       "wizardSubtitle": "Rivedi e conferma le impostazioni prima di attivare il trading reale",
-      "next": "Avanti",
       "back": "Indietro",
       "steps": {
         "riskProfile": {
           "label": "Profilo di Rischio",
           "title": "Rivedi il Profilo di Rischio",
           "description": "Rivedi e aggiorna la tua tolleranza al rischio.",
-          "riskLevel": "Livello di Rischio",
           "toleranceLabel": "Tolleranza al Rischio",
           "tolerancePlaceholder": "Seleziona la tolleranza al rischio",
           "saveAndContinue": "Salva e Continua",
@@ -219,7 +217,6 @@
           "label": "Obiettivi",
           "title": "Rivedi l'Obiettivo di Investimento",
           "description": "Rivedi e aggiorna il tuo obiettivo principale.",
-          "investmentGoal": "Obiettivo di Investimento",
           "objectiveLabel": "Obiettivo",
           "objectivePlaceholder": "es. Crescita, Pensione, Reddito",
           "saveAndContinue": "Salva e Continua"
@@ -236,7 +233,6 @@
           "label": "Mandato",
           "title": "Accetta il Mandato",
           "description": "Rivedi il mandato di investimento. Devi accettarlo per procedere.",
-          "mandateLevel": "Livello Mandato",
           "guardrailsWarning": "I vincoli definiti nel mandato limiteranno le azioni dell'agente durante il trading reale.",
           "acceptLabel": "Ho letto e accetto il mandato di investimento",
           "saveAndContinue": "Continua"
@@ -257,6 +253,11 @@
           "irreversibleWarning": "L'attivazione del trading reale trasferira il conto dalla modalita simulazione.",
           "confirmButton": "Attiva il Trading Reale"
         }
+      },
+      "errors": {
+        "seedFailed": "Impossibile caricare il profilo. Riprova.",
+        "saveFailed": "Impossibile salvare le modifiche. Riprova.",
+        "confirmFailed": "Impossibile attivare il trading reale. Riprova."
       }
     }
   }

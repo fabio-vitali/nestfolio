@@ -87,6 +87,15 @@ const OPERATING_MODE_OPTIONS: SelectOption<OperatingMode>[] = [
       />
 
       <div class="wizard-body">
+        @if (seedError(); as err) {
+          <p-message
+            severity="error"
+            [text]="err"
+            styleClass="w-full wizard-error"
+            data-testid="seed-error"
+          />
+        }
+
         <!-- Step 1: Review & Edit Risk Profile -->
         @if (activeStep() === 0) {
           <p-card header="{{ 'settings.goLive.steps.riskProfile.title' | translate }}">
@@ -117,6 +126,9 @@ const OPERATING_MODE_OPTIONS: SelectOption<OperatingMode>[] = [
                 data-testid="risk-experience-input"
               />
             </div>
+            @if (saveError(); as err) {
+              <p-message severity="error" [text]="err" styleClass="w-full wizard-error" data-testid="save-error" />
+            }
             <div class="step-actions">
               <p-button
                 [label]="'settings.goLive.steps.riskProfile.saveAndContinue' | translate"
@@ -144,6 +156,9 @@ const OPERATING_MODE_OPTIONS: SelectOption<OperatingMode>[] = [
                 data-testid="goal-objective-input"
               />
             </div>
+            @if (saveError(); as err) {
+              <p-message severity="error" [text]="err" styleClass="w-full wizard-error" data-testid="save-error" />
+            }
             <div class="step-actions">
               <p-button
                 [label]="'settings.goLive.back' | translate"
@@ -180,6 +195,9 @@ const OPERATING_MODE_OPTIONS: SelectOption<OperatingMode>[] = [
                 data-testid="operating-mode-select"
               />
             </div>
+            @if (saveError(); as err) {
+              <p-message severity="error" [text]="err" styleClass="w-full wizard-error" data-testid="save-error" />
+            }
             <div class="step-actions">
               <p-button
                 [label]="'settings.goLive.back' | translate"
@@ -291,6 +309,15 @@ const OPERATING_MODE_OPTIONS: SelectOption<OperatingMode>[] = [
                 [text]="'settings.goLive.steps.confirm.irreversibleWarning' | translate"
                 styleClass="w-full confirm-warning"
               />
+
+              @if (confirmError(); as err) {
+                <p-message
+                  severity="error"
+                  [text]="err"
+                  styleClass="w-full confirm-warning wizard-error"
+                  data-testid="confirm-error"
+                />
+              }
             </div>
 
             <div class="step-actions">
@@ -414,6 +441,10 @@ const OPERATING_MODE_OPTIONS: SelectOption<OperatingMode>[] = [
       margin-bottom: 0;
     }
 
+    .wizard-error {
+      margin: 0.75rem 0;
+    }
+
     .step-actions {
       display: flex;
       justify-content: flex-end;
@@ -443,6 +474,14 @@ export class GoLiveWizardComponent implements OnInit {
   readonly goalObjective = signal('');
   readonly operatingMode = signal<OperatingMode>('BALANCED');
 
+  // Error signals (mirror deposit-pending-page's `failureReason` + p-message pattern):
+  //  - seedError:    ngOnInit getProfile() failed — show on the active step.
+  //  - saveError:    shared across the three per-step save mutations.
+  //  - confirmError: the highest-stakes confirm — surfaced on the confirm step.
+  readonly seedError = signal<string | null>(null);
+  readonly saveError = signal<string | null>(null);
+  readonly confirmError = signal<string | null>(null);
+
   readonly toleranceOptions = TOLERANCE_OPTIONS;
   readonly experienceOptions = EXPERIENCE_OPTIONS;
   readonly operatingModeOptions = OPERATING_MODE_OPTIONS;
@@ -456,18 +495,29 @@ export class GoLiveWizardComponent implements OnInit {
     { label: this.i18n.t('settings.goLive.steps.confirm.label'), icon: 'pi pi-check-circle' },
   ]);
 
+  /** Prefer a thrown Error's message (clean resolver messages surface verbatim). */
+  private messageOf(err: unknown, fallbackKey: string): string {
+    return err instanceof Error && err.message ? err.message : this.i18n.t(fallbackKey);
+  }
+
   async ngOnInit(): Promise<void> {
-    const profile = await this.goLive.getProfile();
-    this.profile.set(profile);
-    this.goalObjective.set(profile.goal.objective);
-    this.operatingMode.set(profile.operatingMode);
-    // Reverse-seed from the actual stored label strings (lowercased to match
-    // the canonical TOLERANCE_LABELS/EXPERIENCE_LABELS); fall back to 0 only if
-    // a stored value is genuinely unrecognised.
-    const toleranceKey = profile.riskProfile.toleranceResponse.toLowerCase();
-    const experienceKey = profile.riskProfile.experienceLevel.toLowerCase();
-    this.toleranceIdx.set(TOLERANCE_RESPONSE_TO_IDX[toleranceKey] ?? 0);
-    this.experienceIdx.set(EXPERIENCE_LEVEL_TO_IDX[experienceKey] ?? 0);
+    this.seedError.set(null);
+    try {
+      const profile = await this.goLive.getProfile();
+      this.profile.set(profile);
+      this.goalObjective.set(profile.goal.objective);
+      this.operatingMode.set(profile.operatingMode);
+      // Reverse-seed from the actual stored label strings (lowercased to match
+      // the canonical TOLERANCE_LABELS/EXPERIENCE_LABELS); fall back to 0 only if
+      // a stored value is genuinely unrecognised.
+      const toleranceKey = profile.riskProfile.toleranceResponse.toLowerCase();
+      const experienceKey = profile.riskProfile.experienceLevel.toLowerCase();
+      this.toleranceIdx.set(TOLERANCE_RESPONSE_TO_IDX[toleranceKey] ?? 0);
+      this.experienceIdx.set(EXPERIENCE_LEVEL_TO_IDX[experienceKey] ?? 0);
+    } catch (err) {
+      // Surface a seed failure rather than silently rendering default values.
+      this.seedError.set(this.messageOf(err, 'settings.goLive.errors.seedFailed'));
+    }
   }
 
   nextStep(): void {
@@ -483,32 +533,53 @@ export class GoLiveWizardComponent implements OnInit {
   }
 
   async saveRiskProfile(): Promise<void> {
-    await this.goLive.updateRiskProfile(this.toleranceIdx(), this.experienceIdx());
-    this.nextStep();
+    this.saveError.set(null);
+    try {
+      await this.goLive.updateRiskProfile(this.toleranceIdx(), this.experienceIdx());
+      this.nextStep();
+    } catch (err) {
+      this.saveError.set(this.messageOf(err, 'settings.goLive.errors.saveFailed'));
+    }
   }
 
   async saveGoal(): Promise<void> {
-    await this.goLive.updateGoal({ objective: this.goalObjective() });
-    this.nextStep();
+    this.saveError.set(null);
+    try {
+      await this.goLive.updateGoal({ objective: this.goalObjective() });
+      this.nextStep();
+    } catch (err) {
+      this.saveError.set(this.messageOf(err, 'settings.goLive.errors.saveFailed'));
+    }
   }
 
   async saveOperatingMode(): Promise<void> {
-    await this.goLive.updateOperatingMode(this.operatingMode());
-    this.nextStep();
+    this.saveError.set(null);
+    try {
+      await this.goLive.updateOperatingMode(this.operatingMode());
+      this.nextStep();
+    } catch (err) {
+      this.saveError.set(this.messageOf(err, 'settings.goLive.errors.saveFailed'));
+    }
   }
 
   // Funding is optional and reuses the existing deposit flow (design D6).
   // It does NOT gate confirm — it simply links the user to the deposit route.
+  // Fire-and-forget is intentional: the user leaves the wizard entirely (unlike
+  // confirmGoLive below, which awaits its navigation inside a guarded flow).
   goToFund(): void {
     void this.router.navigate(['/deposit']);
   }
 
   async confirmGoLive(): Promise<void> {
     if (!this.mandateAccepted()) return;
+    this.confirmError.set(null);
     this.confirming.set(true);
     try {
       await this.goLive.confirmGoLive();
       await this.router.navigate(['/dashboard']);
+    } catch (err) {
+      // Highest-stakes step: surface the failure (do NOT navigate on error).
+      this.confirmError.set(this.messageOf(err, 'settings.goLive.errors.confirmFailed'));
     } finally {
       this.confirming.set(false);
     }

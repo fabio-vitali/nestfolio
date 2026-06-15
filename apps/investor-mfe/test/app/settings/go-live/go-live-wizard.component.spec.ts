@@ -174,4 +174,62 @@ describe('GoLiveWizardComponent', () => {
     expect(router.navigate).toHaveBeenCalledWith(['/deposit']);
     expect(goLive.confirmGoLive).not.toHaveBeenCalled();
   });
+
+  it('confirmGoLive rejection surfaces confirmError and does NOT navigate', async () => {
+    goLive.confirmGoLive.mockRejectedValue(
+      new Error('Cannot confirm go-live (profile missing or already live)'),
+    );
+    component.mandateAccepted.set(true);
+    await component.confirmGoLive();
+    expect(component.confirmError()).toBe(
+      'Cannot confirm go-live (profile missing or already live)',
+    );
+    expect(router.navigate).not.toHaveBeenCalled();
+    expect(component.confirming()).toBe(false);
+  });
+
+  it('confirmGoLive clears a prior confirmError on a new attempt', async () => {
+    component.confirmError.set('stale error');
+    component.mandateAccepted.set(true);
+    await component.confirmGoLive();
+    expect(component.confirmError()).toBeNull();
+    expect(router.navigate).toHaveBeenCalledWith(['/dashboard']);
+  });
+
+  it('saveRiskProfile rejection sets saveError and does NOT advance', async () => {
+    goLive.updateRiskProfile.mockRejectedValue(new Error('risk update failed'));
+    expect(component.activeStep()).toBe(0);
+    await component.saveRiskProfile();
+    expect(component.saveError()).toBe('risk update failed');
+    expect(component.activeStep()).toBe(0);
+  });
+
+  it('saveGoal rejection sets saveError and does NOT advance', async () => {
+    component.activeStep.set(1);
+    goLive.updateGoal.mockRejectedValue(new Error('goal update failed'));
+    await component.saveGoal();
+    expect(component.saveError()).toBe('goal update failed');
+    expect(component.activeStep()).toBe(1);
+  });
+
+  it('saveOperatingMode rejection sets saveError and does NOT advance', async () => {
+    component.activeStep.set(2);
+    goLive.updateOperatingMode.mockRejectedValue(new Error('mode update failed'));
+    await component.saveOperatingMode();
+    expect(component.saveError()).toBe('mode update failed');
+    expect(component.activeStep()).toBe(2);
+  });
+
+  it('a successful save clears a prior saveError and advances', async () => {
+    component.saveError.set('stale error');
+    await component.saveRiskProfile();
+    expect(component.saveError()).toBeNull();
+    expect(component.activeStep()).toBe(1);
+  });
+
+  it('ngOnInit getProfile rejection surfaces seedError instead of silent defaults', async () => {
+    goLive.getProfile.mockRejectedValue(new Error('could not load profile'));
+    await component.ngOnInit();
+    expect(component.seedError()).toBe('could not load profile');
+  });
 });

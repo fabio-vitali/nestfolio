@@ -201,14 +201,12 @@
     "goLive": {
       "wizardTitle": "Go Live",
       "wizardSubtitle": "Review and confirm your investment settings before activating live trading",
-      "next": "Next",
       "back": "Back",
       "steps": {
         "riskProfile": {
           "label": "Risk Profile",
           "title": "Review Risk Profile",
           "description": "Review and update your risk tolerance and investment experience.",
-          "riskLevel": "Risk Level",
           "toleranceLabel": "Risk Tolerance",
           "tolerancePlaceholder": "Select risk tolerance",
           "saveAndContinue": "Save & Continue",
@@ -219,7 +217,6 @@
           "label": "Goals",
           "title": "Review Investment Goal",
           "description": "Review and update your primary investment objective.",
-          "investmentGoal": "Investment Goal",
           "objectiveLabel": "Objective",
           "objectivePlaceholder": "e.g. Growth, Retirement, Income",
           "saveAndContinue": "Save & Continue"
@@ -236,7 +233,6 @@
           "label": "Mandate",
           "title": "Accept Mandate",
           "description": "Review the investment mandate that governs agent decisions. You must accept it to proceed.",
-          "mandateLevel": "Mandate Level",
           "guardrailsWarning": "Guardrails defined in your mandate will restrict agent actions during live trading.",
           "acceptLabel": "I have read and accept the investment mandate",
           "saveAndContinue": "Continue"
@@ -257,6 +253,11 @@
           "irreversibleWarning": "Activating live trading will transition your account from simulation mode.",
           "confirmButton": "Activate Live Trading"
         }
+      },
+      "errors": {
+        "seedFailed": "Could not load your profile. Please try again.",
+        "saveFailed": "Could not save your changes. Please try again.",
+        "confirmFailed": "Could not activate live trading. Please try again."
       }
     }
   }
