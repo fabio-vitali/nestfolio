@@ -1,6 +1,6 @@
 ---
 id: broker-circuit-breaker-heal-singleton-guard
-status: active
+status: shipped
 type: bug
 rank: 2
 notes: "Heal-workflow dedup. Investigation 2026-06-15 found the filed fix ('add executionName') unimplementable as written: Orchestration's executionName DISABLES the EB trigger (programmatic StartExecution only) AND a static name hits the SF 90-day name-reuse limit (one heal per 90 days). User chose (2026-06-15) the IDEMPOTENT-HEAL approach over a singleton lock: rewrite CircuitBreakerHealDefinition so the heal is idempotent (entry Choice on the correct GLOBAL breaker row -> Succeed-noop if not OPEN; conditional CloseBreaker UpdateItem on state=OPEN so only the OPEN->CLOSED transition emits BROKER_CIRCUIT_CLOSED). Concurrent/redelivered heals become harmless no-ops. FOLDS IN a separate latent bug found in the same construct: CloseBreaker keys CircuitBreaker#alpaca#<tenantId> (per-tenant) but the repo opens/reads the GLOBAL CircuitBreaker#alpaca, so heals never actually closed the gated row. Then refresh broker-circuit-breaker.flow.yaml + regenerate docs/data-flows + validate-flow. Surfaced 2026-06-14 by the flows-vs-code audit."
@@ -14,7 +14,31 @@ out_of_scope:
 spec: null
 plan: docs/superpowers/plans/2026-06-15-broker-circuit-breaker-idempotent-heal.md
 topic_memory: []
-validation_gate: null
+validation_gate: |
+  Shipped 2026-06-15 via idempotent-heal rewrite (NOT the originally-filed executionName lock,
+  which is unimplementable — Orchestration.executionName disables the EB trigger + 90-day SF
+  name-reuse). Commits on the worktree branch:
+    - 781ee82c fix(cdk-constructs): idempotent heal + global-row close (entry GetItem/Choice,
+      conditional CloseBreaker on global CircuitBreaker#alpaca, IncrementAttempt field threading)
+    - 85e01d72 refactor: drop dead userId threading + harden breakerSk fallback
+    - 061d25e6 docs(flows): idempotent-heal narrative + regen docs/data-flows
+  Tests: cdk-constructs CircuitBreakerHealDefinition 17/17 green (4 new/updated assertions:
+  global GetItem entry, EvaluateBreakerState Choice→EndAlreadyHealthy, conditional global
+  CloseBreaker + ConditionalCheckFailedException catch, IncrementAttempt region/adapter
+  threading). Affected gate `nx run-many -t test,lint` GREEN for 35 projects.
+  Deploy: dev-broker-alpaca-adpt deployed 2026-06-15 (43s, DEPLOY_EXIT=0).
+  Deployed-SM inspection (describe-state-machine): CheckBreakerState + EvaluateBreakerState +
+  EndAlreadyHealthy present; ConditionExpression `#st = :open` present; CloseBreaker.Key.pk AND
+  CheckBreakerState.Key.pk = {"S":"CircuitBreaker#alpaca"} (GLOBAL, no tenant suffix → wrong-row
+  bug fixed in the deployed artifact).
+  Synthetic SF execution (States.Runtime-uncatchable rule — only synthetic proves the guard
+  fires): seeded GLOBAL breaker CLOSED, started heal → SUCCEEDED via path
+  InitAttemptCount→CheckBreakerState→EvaluateBreakerState→EndAlreadyHealthy; HealthCheck/
+  CloseBreaker NEVER entered (no Alpaca call); breaker row unchanged; 0 BROKER_CIRCUIT_CLOSED
+  emitted for the synthetic tenant. Synthetic row cleaned up. Happy-path close (health-check-
+  dependent on real paper-api) covered by unit assertion + deployed-definition inspection +
+  existing circuit-breaker integration/e2e coverage. Residual (concurrent total-failure double
+  escalation) filed: broker-circuit-breaker-concurrent-escalation-duplicate.
 ---
 
 # Heal Step Function: make the heal idempotent (and fix the wrong-row close)
