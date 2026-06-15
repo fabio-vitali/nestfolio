@@ -9,7 +9,7 @@ out_of_scope:
   - "The order-execution SF input-contract gap (parked: broker-ctrl-order-sf-input-contract-gap) — whether ORDER_ESCALATED actually fires in prod is a separate concern; the investor notification is wired regardless."
   - "Whether dashboard-bff recent-activity should source an 'awaiting confirmation' item from the DecisionPacket AWAITING_CONFIRMATION CDC path (the intent of the dead USER_CONFIRMATION_REQUESTED handler) — filed as a separate parking finding."
   - "adapter-event-name redeclare-vs-reexport hardening (parked) — this slice follows the existing eventName() redeclare convention."
-spec: null
+spec: docs/superpowers/specs/2026-06-15-incident-escalation-path-b-design.md
 plan: null
 topic_memory: []
 validation_gate: null
