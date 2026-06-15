@@ -12,7 +12,7 @@ out_of_scope:
   - "broker-sim circuit-breaker path — this fix is the broker-alpaca-adpt heal construct."
   - "New e2e scenarios for the circuit-breaker flow — validation is via synthetic SF execution + existing integration/unit coverage."
 spec: null
-plan: null
+plan: docs/superpowers/plans/2026-06-15-broker-circuit-breaker-idempotent-heal.md
 topic_memory: []
 validation_gate: null
 ---
