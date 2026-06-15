@@ -53,10 +53,15 @@ export interface CircuitBreakerHealDefinitionProps {
  * a circuit breaker healing workflow.
  *
  * Flow:
- * 1. InitAttemptCount (Pass) → set attemptCount=0
- * 2. HealthCheck (HTTP:Invoke via EventBridge Connection) → with retry on 5XX/TaskFailed/Timeout
- * 3. Success → CloseBreaker (DDB UpdateItem) → EmitBreakerClosed (DDB PutItem NormalizedEvent) → EndHealed
- * 4. Failure → IncrementAttempt → CheckAttemptLimit
+ * 1. InitAttemptCount (Pass) → extract RequestContext + adapter, set attemptCount=0
+ * 2. CheckBreakerState (DDB GetItem on the GLOBAL breaker row) → idempotency gate
+ * 3. EvaluateBreakerState (Choice) → breaker not OPEN ⇒ EndAlreadyHealthy (no-op);
+ *    OPEN ⇒ HealthCheck. Choice-on-isPresent, NOT a Catch (States.Runtime is uncatchable).
+ * 4. HealthCheck (HTTP:Invoke via EventBridge Connection) → with retry on 5XX/TaskFailed/Timeout
+ * 5. Success → CloseBreaker (CONDITIONAL DDB UpdateItem #st=:open on the GLOBAL row) →
+ *    EmitBreakerClosed (DDB PutItem NormalizedEvent) → EndHealed. A lost race
+ *    (ConditionalCheckFailedException) → EndAlreadyHealthy, skipping the emit.
+ * 6. Failure → IncrementAttempt (preserves region/adapter) → CheckAttemptLimit
  *    - < maxAttempts → WaitForRetry → loop to HealthCheck
  *    - >= maxAttempts → EscalateHealFailure (DDB PutItem NormalizedEvent) → EndEscalated
  *
@@ -70,6 +75,9 @@ export class CircuitBreakerHealDefinition extends Construct {
 
     const { table, breakerKey, events: eventNames, healthCheck } = props;
     const tableName = table.tableName;
+    // Global breaker row key (e.g. pk='CircuitBreaker#alpaca', sk='CircuitBreaker').
+    // NOTE: static — the breaker is global per adapter, NOT per-tenant.
+    const breakerSk = breakerKey.split('#')[0] ?? 'CircuitBreaker';
 
     const maxAttempts = props.retry?.maxAttempts ?? 10;
     const intervalSeconds = props.retry?.intervalSeconds ?? 60;
@@ -80,10 +88,8 @@ export class CircuitBreakerHealDefinition extends Construct {
     const hcTimeout = healthCheck.timeoutSeconds ?? 10;
 
     // ---------------------------------------------------------------
-    // 1. InitAttemptCount — initialize counter
+    // 1. InitAttemptCount — extract RequestContext + adapter, attemptCount=0
     // ---------------------------------------------------------------
-    // Extract RequestContext fields from the EventBridge event detail structure
-    // ($.context.tenantId, $.context.userId, $.context.region, $.subject.adapter)
     const initAttemptCount = new sfn.Pass(this, 'InitAttemptCount', {
       parameters: {
         'tenantId.$': '$.context.tenantId',
@@ -95,7 +101,32 @@ export class CircuitBreakerHealDefinition extends Construct {
     });
 
     // ---------------------------------------------------------------
-    // 2. HealthCheck — HTTP:Invoke via EventBridge Connection
+    // 2. CheckBreakerState — GetItem the GLOBAL breaker row (idempotency gate)
+    // ---------------------------------------------------------------
+    const checkBreakerState = new sfn.CustomState(this, 'CheckBreakerState', {
+      stateJson: {
+        Type: 'Task',
+        Resource: 'arn:aws:states:::dynamodb:getItem',
+        Parameters: {
+          TableName: tableName,
+          Key: {
+            pk: { S: breakerKey },
+            sk: { S: breakerSk },
+          },
+        },
+        ResultPath: '$.breaker',
+      },
+    });
+
+    // ---------------------------------------------------------------
+    // 3. EvaluateBreakerState — short-circuit when the breaker is not OPEN
+    //    (redelivered / late BROKER_CIRCUIT_OPEN after a prior heal closed it).
+    //    Choice-on-isPresent (NOT a Catch) per the States.Runtime-uncatchable rule.
+    // ---------------------------------------------------------------
+    const evaluateBreakerState = new sfn.Choice(this, 'EvaluateBreakerState');
+
+    // ---------------------------------------------------------------
+    // 4. HealthCheck — HTTP:Invoke via EventBridge Connection
     // ---------------------------------------------------------------
     const healthCheckState = new tasks.HttpInvoke(this, 'HealthCheck', {
       connection: healthCheck.connection,
@@ -105,8 +136,6 @@ export class CircuitBreakerHealDefinition extends Construct {
       resultPath: '$.healthCheckResult',
       taskTimeout: sfn.Timeout.duration(Duration.seconds(hcTimeout)),
     });
-
-    // Add retry for transient HTTP errors
     healthCheckState.addRetry({
       errors: ['States.TaskFailed', 'States.Timeout'],
       maxAttempts: hcRetryMaxAttempts,
@@ -115,7 +144,9 @@ export class CircuitBreakerHealDefinition extends Construct {
     });
 
     // ---------------------------------------------------------------
-    // 3. CloseBreaker — DDB UpdateItem (set state=CLOSED)
+    // 5. CloseBreaker — CONDITIONAL UpdateItem on the GLOBAL row.
+    //    Only the OPEN→CLOSED transition proceeds to emit; a lost race
+    //    (already CLOSED by a concurrent heal) is caught → EndAlreadyHealthy.
     // ---------------------------------------------------------------
     const closeBreaker = new sfn.CustomState(this, 'CloseBreaker', {
       stateJson: {
@@ -124,22 +155,33 @@ export class CircuitBreakerHealDefinition extends Construct {
         Parameters: {
           TableName: tableName,
           Key: {
-            pk: { 'S.$': `States.Format('${breakerKey}#{}', $.tenantId)` },
-            sk: { S: breakerKey.split('#')[0] ?? 'CircuitBreaker' },
+            pk: { S: breakerKey },
+            sk: { S: breakerSk },
           },
           UpdateExpression: 'SET #st = :st, closedAt = :ca',
+          ConditionExpression: '#st = :open',
           ExpressionAttributeNames: { '#st': 'state' },
           ExpressionAttributeValues: {
             ':st': { S: 'CLOSED' },
             ':ca': { 'S.$': '$$.State.EnteredTime' },
+            ':open': { S: 'OPEN' },
           },
         },
         ResultPath: null,
+        Catch: [
+          {
+            ErrorEquals: ['DynamoDB.ConditionalCheckFailedException'],
+            Next: 'EndAlreadyHealthy',
+            ResultPath: '$.closeError',
+          },
+        ],
       },
     });
 
     // ---------------------------------------------------------------
-    // 4. EmitBreakerClosed — DDB PutItem (NormalizedEvent for CDC)
+    // 6. EmitBreakerClosed — DDB PutItem (NormalizedEvent for CDC).
+    //    Reached ONLY after a successful conditional close → emits exactly
+    //    once per open episode.
     // ---------------------------------------------------------------
     const emitBreakerClosed = new sfn.CustomState(this, 'EmitBreakerClosed', {
       stateJson: {
@@ -163,31 +205,37 @@ export class CircuitBreakerHealDefinition extends Construct {
     });
 
     const endHealed = new sfn.Succeed(this, 'EndHealed');
+    // No-op terminal: breaker already not-OPEN at entry, OR lost the close race.
+    const endAlreadyHealthy = new sfn.Succeed(this, 'EndAlreadyHealthy');
 
     // ---------------------------------------------------------------
-    // 5. IncrementAttempt — Pass state with counter increment
+    // 7. IncrementAttempt — preserve ALL context fields (region/adapter are
+    //    read by EmitBreakerClosed/EscalateHealFailure on the post-retry paths).
     // ---------------------------------------------------------------
     const incrementAttempt = new sfn.Pass(this, 'IncrementAttempt', {
       parameters: {
         'tenantId.$': '$.tenantId',
+        'userId.$': '$.userId',
+        'region.$': '$.region',
+        'adapter.$': '$.adapter',
         'attemptCount.$': 'States.MathAdd($.attemptCount, 1)',
       },
     });
 
     // ---------------------------------------------------------------
-    // 6. CheckAttemptLimit — Choice: attemptCount < maxAttempts?
+    // 8. CheckAttemptLimit — Choice: attemptCount < maxAttempts?
     // ---------------------------------------------------------------
     const checkAttemptLimit = new sfn.Choice(this, 'CheckAttemptLimit');
 
     // ---------------------------------------------------------------
-    // 7. WaitForRetry — Wait before next attempt
+    // 9. WaitForRetry — Wait before next attempt
     // ---------------------------------------------------------------
     const waitForRetry = new sfn.Wait(this, 'WaitForRetry', {
       time: sfn.WaitTime.duration(Duration.seconds(intervalSeconds)),
     });
 
     // ---------------------------------------------------------------
-    // 8. EscalateHealFailure — DDB PutItem (NormalizedEvent for CDC)
+    // 10. EscalateHealFailure — DDB PutItem (NormalizedEvent for CDC)
     // ---------------------------------------------------------------
     const escalateHealFailure = new sfn.CustomState(this, 'EscalateHealFailure', {
       stateJson: {
@@ -247,8 +295,21 @@ export class CircuitBreakerHealDefinition extends Construct {
     // Happy path: HealthCheck → CloseBreaker
     healthCheckState.next(closeBreaker);
 
-    // Main chain: Init → HealthCheck
-    const definition = initAttemptCount.next(healthCheckState);
+    // Idempotency gate: proceed to heal only when the breaker is OPEN.
+    // `endAlreadyHealthy` is added to the graph here (Choice otherwise edge),
+    // which also resolves the CloseBreaker raw-JSON Catch `Next` reference.
+    evaluateBreakerState
+      .when(
+        sfn.Condition.and(
+          sfn.Condition.isPresent('$.breaker.Item.state.S'),
+          sfn.Condition.stringEquals('$.breaker.Item.state.S', 'OPEN'),
+        ),
+        healthCheckState,
+      )
+      .otherwise(endAlreadyHealthy);
+
+    // Main chain: Init → CheckBreakerState → EvaluateBreakerState
+    const definition = initAttemptCount.next(checkBreakerState).next(evaluateBreakerState);
 
     // ---------------------------------------------------------------
     // Definition Body — consumed by Orchestration construct

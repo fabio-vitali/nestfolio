@@ -125,6 +125,15 @@ describe('CircuitBreakerHealDefinition', () => {
 
     expect(states['EndEscalated']).toBeDefined();
     expect(states['EndEscalated'].Type).toBe('Fail');
+
+    expect(states['CheckBreakerState']).toBeDefined();
+    expect(states['CheckBreakerState'].Type).toBe('Task');
+
+    expect(states['EvaluateBreakerState']).toBeDefined();
+    expect(states['EvaluateBreakerState'].Type).toBe('Choice');
+
+    expect(states['EndAlreadyHealthy']).toBeDefined();
+    expect(states['EndAlreadyHealthy'].Type).toBe('Succeed');
   });
 
   it('should start with InitAttemptCount', () => {
@@ -236,15 +245,70 @@ describe('CircuitBreakerHealDefinition', () => {
     expect(choices.some(c => c.NumericLessThan === 5)).toBe(true);
   });
 
-  it('should wire the full happy path: Init → HealthCheck → CloseBreaker → EmitBreakerClosed → EndHealed', () => {
+  it('should wire the full happy path: Init → CheckBreakerState → EvaluateBreakerState → HealthCheck → CloseBreaker → EmitBreakerClosed → EndHealed', () => {
     const { stack } = createDefinition();
     const def = extractDefinition(stack);
     const states = def.States as Record<string, Record<string, unknown>>;
 
-    expect(states['InitAttemptCount'].Next).toBe('HealthCheck');
+    expect(states['InitAttemptCount'].Next).toBe('CheckBreakerState');
+    expect(states['CheckBreakerState'].Next).toBe('EvaluateBreakerState');
     expect(states['HealthCheck'].Next).toBe('CloseBreaker');
     expect(states['CloseBreaker'].Next).toBe('EmitBreakerClosed');
     expect(states['EmitBreakerClosed'].Next).toBe('EndHealed');
+  });
+
+  it('should GetItem the GLOBAL breaker row at entry and short-circuit when not OPEN', () => {
+    const { stack } = createDefinition();
+    const def = extractDefinition(stack);
+    const states = def.States as Record<string, Record<string, unknown>>;
+
+    const check = states['CheckBreakerState'];
+    expect(check.Type).toBe('Task');
+    expect(check.Resource).toBe('arn:aws:states:::dynamodb:getItem');
+    expect(check.ResultPath).toBe('$.breaker');
+    const key = (check.Parameters as Record<string, Record<string, Record<string, string>>>).Key;
+    expect(key.pk.S).toBe('CircuitBreaker#alpaca'); // GLOBAL, static — no States.Format/tenantId
+    expect(key.pk['S.$']).toBeUndefined();
+
+    const evalState = states['EvaluateBreakerState'];
+    expect(evalState.Type).toBe('Choice');
+    const choices = evalState.Choices as Array<Record<string, unknown>>;
+    expect(choices.some(c => c.Next === 'HealthCheck')).toBe(true);
+    expect(evalState.Default).toBe('EndAlreadyHealthy');
+    expect(states['EndAlreadyHealthy'].Type).toBe('Succeed');
+  });
+
+  it('should close the GLOBAL breaker row CONDITIONALLY (state=OPEN) and skip emit on a lost race', () => {
+    const { stack } = createDefinition();
+    const def = extractDefinition(stack);
+    const states = def.States as Record<string, Record<string, unknown>>;
+    const close = states['CloseBreaker'];
+    const params = close.Parameters as Record<string, unknown>;
+
+    const key = params.Key as Record<string, Record<string, string>>;
+    expect(key.pk.S).toBe('CircuitBreaker#alpaca'); // GLOBAL, static — fixes the wrong-row bug
+    expect(key.pk['S.$']).toBeUndefined();
+    expect(params.ConditionExpression).toBe('#st = :open');
+    const exprValues = params.ExpressionAttributeValues as Record<string, Record<string, string>>;
+    expect(exprValues[':open'].S).toBe('OPEN');
+
+    const catches = close.Catch as Array<Record<string, unknown>>;
+    expect(catches.some(c =>
+      (c.ErrorEquals as string[]).includes('DynamoDB.ConditionalCheckFailedException') &&
+      c.Next === 'EndAlreadyHealthy',
+    )).toBe(true);
+  });
+
+  it('should preserve context fields (region, adapter, tenantId) across IncrementAttempt', () => {
+    const { stack } = createDefinition();
+    const def = extractDefinition(stack);
+    const states = def.States as Record<string, Record<string, unknown>>;
+    const params = states['IncrementAttempt'].Parameters as Record<string, string>;
+
+    expect(params['tenantId.$']).toBe('$.tenantId');
+    expect(params['region.$']).toBe('$.region');
+    expect(params['adapter.$']).toBe('$.adapter');
+    expect(params['attemptCount.$']).toBe('States.MathAdd($.attemptCount, 1)');
   });
 
   it('should wire the failure/retry flow: IncrementAttempt → CheckAttemptLimit → WaitForRetry → HealthCheck', () => {
