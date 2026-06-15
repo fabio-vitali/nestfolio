@@ -211,14 +211,9 @@
           "riskLevel": "Risk Level",
           "toleranceLabel": "Risk Tolerance",
           "tolerancePlaceholder": "Select risk tolerance",
-          "toleranceOptions": {
-            "0": "Conservative",
-            "1": "Moderate",
-            "2": "Balanced",
-            "3": "Growth",
-            "4": "Aggressive"
-          },
-          "saveAndContinue": "Save & Continue"
+          "saveAndContinue": "Save & Continue",
+          "experienceLabel": "Investment Experience",
+          "experiencePlaceholder": "Select experience"
         },
         "goals": {
           "label": "Goals",
@@ -250,7 +245,9 @@
           "label": "Fund Account",
           "title": "Fund Account",
           "description": "Ensure your account is funded before activating live trading.",
-          "note": "Your account must have sufficient funds for the agent to execute trades. You can deposit funds from the Deposit page."
+          "note": "Your account must have sufficient funds for the agent to execute trades. You can deposit funds from the Deposit page.",
+          "fundAccount": "Fund Account",
+          "continue": "Continue"
         },
         "confirm": {
           "label": "Confirm",

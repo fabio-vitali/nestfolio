@@ -211,14 +211,9 @@
           "riskLevel": "Livello di Rischio",
           "toleranceLabel": "Tolleranza al Rischio",
           "tolerancePlaceholder": "Seleziona la tolleranza al rischio",
-          "toleranceOptions": {
-            "0": "Conservativo",
-            "1": "Moderato",
-            "2": "Bilanciato",
-            "3": "Crescita",
-            "4": "Aggressivo"
-          },
-          "saveAndContinue": "Salva e Continua"
+          "saveAndContinue": "Salva e Continua",
+          "experienceLabel": "Esperienza di Investimento",
+          "experiencePlaceholder": "Seleziona esperienza"
         },
         "goals": {
           "label": "Obiettivi",
@@ -250,7 +245,9 @@
           "label": "Fondi",
           "title": "Fondi il Conto",
           "description": "Assicurati che il conto sia finanziato prima di attivare il trading reale.",
-          "note": "Il conto deve avere fondi sufficienti per eseguire ordini. Puoi depositare dalla pagina Deposito."
+          "note": "Il conto deve avere fondi sufficienti per eseguire ordini. Puoi depositare dalla pagina Deposito.",
+          "fundAccount": "Fondi il Conto",
+          "continue": "Continua"
         },
         "confirm": {
           "label": "Conferma",

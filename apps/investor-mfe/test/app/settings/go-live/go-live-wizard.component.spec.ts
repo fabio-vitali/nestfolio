@@ -9,6 +9,11 @@ import {
 import { GoLiveWizardComponent } from '../../../../src/app/settings/go-live/go-live-wizard.component';
 import { GoLiveService, InvestorProfile } from '../../../../src/app/services/go-live.service';
 
+// toleranceResponse/experienceLevel are the REAL lowercase strings written by
+// investor-bff's computeRiskProfile (risk-profile.service.ts):
+//   TOLERANCE_LABELS  = ['hold','cautious','selective','aggressive']  -> idx 0..3
+//   EXPERIENCE_LABELS = ['novice','beginner','intermediate','expert'] -> idx 0..3
+// 'selective' -> toleranceIdx 2 ; 'intermediate' -> experienceIdx 2.
 const mockProfile: InvestorProfile = {
   operatingMode: 'BALANCED',
   executionMode: 'simulation',
@@ -22,8 +27,8 @@ const mockProfile: InvestorProfile = {
   riskProfile: {
     score: 2,
     band: { minEquity: 40, maxEquity: 70 },
-    toleranceResponse: 'MODERATE',
-    experienceLevel: 'INTERMEDIATE',
+    toleranceResponse: 'selective',
+    experienceLevel: 'intermediate',
   },
   mandate: {
     mandateId: 'mandate-1',
@@ -73,9 +78,9 @@ describe('GoLiveWizardComponent', () => {
     expect(component.activeStep()).toBe(0);
   });
 
-  it('should have 5 steps', () => {
-    expect(component.totalSteps).toBe(5);
-    expect(component.steps().length).toBe(5);
+  it('should have 6 steps', () => {
+    expect(component.totalSteps).toBe(6);
+    expect(component.steps().length).toBe(6);
   });
 
   it('nextStep should advance activeStep', () => {
@@ -85,7 +90,7 @@ describe('GoLiveWizardComponent', () => {
 
   it('nextStep should not advance beyond last step', () => {
     for (let i = 0; i < 10; i++) component.nextStep();
-    expect(component.activeStep()).toBe(4);
+    expect(component.activeStep()).toBe(5);
   });
 
   it('prevStep should go back', () => {
@@ -112,6 +117,13 @@ describe('GoLiveWizardComponent', () => {
     expect(component.operatingMode()).toBe('BALANCED');
   });
 
+  it('ngOnInit reverse-maps the stored tolerance/experience strings to indices', async () => {
+    await component.ngOnInit();
+    // 'selective' -> 2, 'intermediate' -> 2 (derived from the canonical label arrays)
+    expect(component.toleranceIdx()).toBe(2);
+    expect(component.experienceIdx()).toBe(2);
+  });
+
   it('mandateAccepted starts false', () => {
     expect(component.mandateAccepted()).toBe(false);
   });
@@ -131,10 +143,18 @@ describe('GoLiveWizardComponent', () => {
     expect(router.navigate).toHaveBeenCalledWith(['/dashboard']);
   });
 
-  it('saveRiskProfile delegates to GoLiveService.updateRiskProfile', async () => {
-    component.toleranceIdx.set(1);
+  it('saveRiskProfile passes the seeded tolerance + experience indices', async () => {
+    await component.ngOnInit();
+    // seeded from 'selective'/'intermediate' -> (2, 2)
     await component.saveRiskProfile();
-    expect(goLive.updateRiskProfile).toHaveBeenCalledWith(1, 0);
+    expect(goLive.updateRiskProfile).toHaveBeenCalledWith(2, 2);
+  });
+
+  it('saveRiskProfile passes edited tolerance + experience indices', async () => {
+    component.toleranceIdx.set(3);
+    component.experienceIdx.set(1);
+    await component.saveRiskProfile();
+    expect(goLive.updateRiskProfile).toHaveBeenCalledWith(3, 1);
   });
 
   it('saveGoal delegates to GoLiveService.updateGoal', async () => {
@@ -147,5 +167,11 @@ describe('GoLiveWizardComponent', () => {
     component.operatingMode.set('AGGRESSIVE');
     await component.saveOperatingMode();
     expect(goLive.updateOperatingMode).toHaveBeenCalledWith('AGGRESSIVE');
+  });
+
+  it('goToFund navigates to the deposit route (funding is optional, does not confirm)', () => {
+    component.goToFund();
+    expect(router.navigate).toHaveBeenCalledWith(['/deposit']);
+    expect(goLive.confirmGoLive).not.toHaveBeenCalled();
   });
 });

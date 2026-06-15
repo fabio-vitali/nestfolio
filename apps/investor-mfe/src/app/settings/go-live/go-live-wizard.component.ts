@@ -22,21 +22,35 @@ interface SelectOption<T> {
   value: T;
 }
 
-const TOLERANCE_OPTIONS: SelectOption<number>[] = [
-  { label: 'Conservative', value: 0 },
-  { label: 'Moderate', value: 1 },
-  { label: 'Balanced', value: 2 },
-  { label: 'Growth', value: 3 },
-  { label: 'Aggressive', value: 4 },
-];
+// Canonical risk domains owned by investor-bff
+// (services/investor/investor-bff/src/domain/risk-profile.service.ts).
+// We CANNOT import that backend module across the frontend/backend boundary
+// (same constraint as the OperatingMode union in go-live.service.ts), so we
+// restate the two label arrays here. `computeRiskProfile` clamps each index to
+// [0,3] and writes the lowercase label string back onto the profile, so these
+// are also the exact strings getProfile() returns for reverse-seeding.
+const TOLERANCE_LABELS = ['hold', 'cautious', 'selective', 'aggressive'] as const;
+const EXPERIENCE_LABELS = ['novice', 'beginner', 'intermediate', 'expert'] as const;
 
-const TOLERANCE_RESPONSE_TO_IDX: Record<string, number> = {
-  CONSERVATIVE: 0,
-  MODERATE: 1,
-  BALANCED: 2,
-  GROWTH: 3,
-  AGGRESSIVE: 4,
-};
+// Display options are DERIVED from the canonical label arrays (values 0..3),
+// so the select can never diverge from the backend domain.
+const TOLERANCE_OPTIONS: SelectOption<number>[] = TOLERANCE_LABELS.map((label, value) => ({
+  label,
+  value,
+}));
+const EXPERIENCE_OPTIONS: SelectOption<number>[] = EXPERIENCE_LABELS.map((label, value) => ({
+  label,
+  value,
+}));
+
+// Reverse-seeding maps keyed on the ACTUAL stored label strings (lowercased),
+// so a returning user who has saved before seeds back to the right index.
+const TOLERANCE_RESPONSE_TO_IDX: Record<string, number> = Object.fromEntries(
+  TOLERANCE_LABELS.map((label, value) => [label, value]),
+);
+const EXPERIENCE_LEVEL_TO_IDX: Record<string, number> = Object.fromEntries(
+  EXPERIENCE_LABELS.map((label, value) => [label, value]),
+);
 
 const OPERATING_MODE_OPTIONS: SelectOption<OperatingMode>[] = [
   { label: 'Conservative', value: 'CONSERVATIVE' },
@@ -88,6 +102,19 @@ const OPERATING_MODE_OPTIONS: SelectOption<OperatingMode>[] = [
                 [placeholder]="'settings.goLive.steps.riskProfile.tolerancePlaceholder' | translate"
                 styleClass="w-full"
                 data-testid="risk-tolerance-input"
+              />
+            </div>
+            <div class="form-field">
+              <label class="field-label">{{ 'settings.goLive.steps.riskProfile.experienceLabel' | translate }}</label>
+              <p-select
+                [options]="experienceOptions"
+                [ngModel]="experienceIdx()"
+                (ngModelChange)="experienceIdx.set($event)"
+                optionLabel="label"
+                optionValue="value"
+                [placeholder]="'settings.goLive.steps.riskProfile.experiencePlaceholder' | translate"
+                styleClass="w-full"
+                data-testid="risk-experience-input"
               />
             </div>
             <div class="step-actions">
@@ -213,8 +240,42 @@ const OPERATING_MODE_OPTIONS: SelectOption<OperatingMode>[] = [
           </p-card>
         }
 
-        <!-- Step 5: Confirmation -->
+        <!-- Step 5: Fund Account (optional — link to existing deposit flow, does NOT gate confirm) -->
         @if (activeStep() === 4) {
+          <p-card header="{{ 'settings.goLive.steps.fund.title' | translate }}">
+            <p class="step-description">{{ 'settings.goLive.steps.fund.description' | translate }}</p>
+            <div class="fund-note">
+              <i class="pi pi-info-circle fund-icon"></i>
+              <span>{{ 'settings.goLive.steps.fund.note' | translate }}</span>
+            </div>
+            <div class="step-actions">
+              <p-button
+                [label]="'settings.goLive.back' | translate"
+                severity="secondary"
+                [outlined]="true"
+                (onClick)="prevStep()"
+                data-testid="step-back-btn"
+              />
+              <p-button
+                [label]="'settings.goLive.steps.fund.fundAccount' | translate"
+                severity="secondary"
+                icon="pi pi-wallet"
+                (onClick)="goToFund()"
+                data-testid="fund-account-link"
+              />
+              <p-button
+                [label]="'settings.goLive.steps.fund.continue' | translate"
+                icon="pi pi-arrow-right"
+                iconPos="right"
+                (onClick)="nextStep()"
+                data-testid="step-next-btn"
+              />
+            </div>
+          </p-card>
+        }
+
+        <!-- Step 6: Confirmation -->
+        @if (activeStep() === 5) {
           <p-card header="{{ 'settings.goLive.steps.confirm.title' | translate }}">
             <div class="confirmation-summary">
               <p class="step-description">{{ 'settings.goLive.steps.confirm.summary' | translate }}</p>
@@ -372,15 +433,18 @@ export class GoLiveWizardComponent implements OnInit {
 
   readonly activeStep = signal(0);
   readonly confirming = signal(false);
-  readonly totalSteps = 5;
+  // Risk(0) -> Goals(1) -> OperatingMode(2) -> Mandate(3) -> Fund(4) -> Confirm(5)
+  readonly totalSteps = 6;
 
   readonly profile = signal<InvestorProfile | null>(null);
   readonly mandateAccepted = signal(false);
   readonly toleranceIdx = signal(0);
+  readonly experienceIdx = signal(0);
   readonly goalObjective = signal('');
   readonly operatingMode = signal<OperatingMode>('BALANCED');
 
   readonly toleranceOptions = TOLERANCE_OPTIONS;
+  readonly experienceOptions = EXPERIENCE_OPTIONS;
   readonly operatingModeOptions = OPERATING_MODE_OPTIONS;
 
   readonly steps = computed<WizardStep[]>(() => [
@@ -388,6 +452,7 @@ export class GoLiveWizardComponent implements OnInit {
     { label: this.i18n.t('settings.goLive.steps.goals.label'), icon: 'pi pi-flag' },
     { label: this.i18n.t('settings.goLive.steps.operatingMode.label'), icon: 'pi pi-sliders-h' },
     { label: this.i18n.t('settings.goLive.steps.mandate.label'), icon: 'pi pi-lock' },
+    { label: this.i18n.t('settings.goLive.steps.fund.label'), icon: 'pi pi-wallet' },
     { label: this.i18n.t('settings.goLive.steps.confirm.label'), icon: 'pi pi-check-circle' },
   ]);
 
@@ -396,8 +461,13 @@ export class GoLiveWizardComponent implements OnInit {
     this.profile.set(profile);
     this.goalObjective.set(profile.goal.objective);
     this.operatingMode.set(profile.operatingMode);
-    const toleranceResponseKey = profile.riskProfile.toleranceResponse.toUpperCase();
-    this.toleranceIdx.set(TOLERANCE_RESPONSE_TO_IDX[toleranceResponseKey] ?? 0);
+    // Reverse-seed from the actual stored label strings (lowercased to match
+    // the canonical TOLERANCE_LABELS/EXPERIENCE_LABELS); fall back to 0 only if
+    // a stored value is genuinely unrecognised.
+    const toleranceKey = profile.riskProfile.toleranceResponse.toLowerCase();
+    const experienceKey = profile.riskProfile.experienceLevel.toLowerCase();
+    this.toleranceIdx.set(TOLERANCE_RESPONSE_TO_IDX[toleranceKey] ?? 0);
+    this.experienceIdx.set(EXPERIENCE_LEVEL_TO_IDX[experienceKey] ?? 0);
   }
 
   nextStep(): void {
@@ -413,7 +483,7 @@ export class GoLiveWizardComponent implements OnInit {
   }
 
   async saveRiskProfile(): Promise<void> {
-    await this.goLive.updateRiskProfile(this.toleranceIdx(), 0);
+    await this.goLive.updateRiskProfile(this.toleranceIdx(), this.experienceIdx());
     this.nextStep();
   }
 
@@ -425,6 +495,12 @@ export class GoLiveWizardComponent implements OnInit {
   async saveOperatingMode(): Promise<void> {
     await this.goLive.updateOperatingMode(this.operatingMode());
     this.nextStep();
+  }
+
+  // Funding is optional and reuses the existing deposit flow (design D6).
+  // It does NOT gate confirm — it simply links the user to the deposit route.
+  goToFund(): void {
+    void this.router.navigate(['/deposit']);
   }
 
   async confirmGoLive(): Promise<void> {
