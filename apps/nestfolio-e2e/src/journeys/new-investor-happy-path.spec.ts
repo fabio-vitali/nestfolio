@@ -4,6 +4,7 @@ import { OnboardingChatPage, type OperatingMode } from '../pages/onboarding.page
 import { DashboardPage } from '../pages/dashboard.page';
 import { InvestorPage } from '../pages/investor.page';
 import { AdvisoryPage } from '../pages/advisory.page';
+import { GoLivePage } from '../pages/go-live.page';
 import { HostPage } from '../pages/host.page';
 import { injectDepositDetected } from '../fixtures/inject-advisory-update';
 import { waitForAdvisoryDecisionRow } from '../fixtures/wait-for-advisory-projection';
@@ -12,7 +13,7 @@ import { waitForAdvisoryDecisionRow } from '../fixtures/wait-for-advisory-projec
 // uncomment only if a future regression flips that default to disabled.
 // import { enableDepositFlag } from '../fixtures/enable-deposit-flag';
 
-test('new-investor-happy-path: onboarding → deposit → decision → logout', async ({
+test('new-investor-happy-path: onboarding → deposit → decision → go-live → logout', async ({
   ctx,
   tenant,
   authedPage,
@@ -21,6 +22,7 @@ test('new-investor-happy-path: onboarding → deposit → decision → logout', 
   const dashboard = new DashboardPage(authedPage);
   const investor = new InvestorPage(authedPage);
   const advisory = new AdvisoryPage(authedPage);
+  const goLive = new GoLivePage(authedPage);
   const host = new HostPage(authedPage);
 
   // Step 1 — arm AgentTraceTrap for onboarding BEFORE any agent-triggering action.
@@ -178,7 +180,33 @@ test('new-investor-happy-path: onboarding → deposit → decision → logout', 
     await advisory.waitForConfirmed();
   });
 
-  // Step 11 — logout.
+  // Step 11 — go live from simulation mode.
+  //
+  // The investor is post-onboarding with an ACTIVE Mandate row; confirmGoLive
+  // requires that mandate to be ACTIVE, which onboarding guarantees.
+  //
+  // After confirm, the wizard navigates to /dashboard. The execution-mode badge
+  // flips from `execution-mode-sim` to `execution-mode-live` once the CDC chain
+  // lands: InvestorProfile MODIFY → INVESTOR_PROFILE_UPDATED → dashboard-bff
+  // InvestorSnapshot.executionMode='live' → subscription push.
+  // 60s covers the DDB CDC → EventBridge → Lambda → DDB → AppSync latency;
+  // investor.page.ts' waitForDetected uses 120s for a comparable chain, so 60s
+  // is within the established norm (not a band-aid — the chain is real pipeline
+  // latency, not a UX bug).
+  await test.step('investor goes live from simulation', async () => {
+    await goLive.goto();
+    await goLive.completeAndGoLive();
+
+    // Wizard navigates to /dashboard on success.
+    await expect(authedPage).toHaveURL(/\/dashboard$/, { timeout: 30_000 });
+
+    // UI-truth: the execution-mode badge flips to LIVE after the CDC chain completes.
+    await expect(authedPage.locator('[data-testid="execution-mode-live"]')).toBeVisible({
+      timeout: 60_000,
+    });
+  });
+
+  // Step 12 — logout.
   await test.step('logout', async () => {
     await host.logout();
     await host.waitForLogin();
