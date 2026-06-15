@@ -1,11 +1,10 @@
 import * as path from 'path';
 import { Construct } from 'constructs';
 import { StringParameter } from 'aws-cdk-lib/aws-ssm';
-import { NodejsFunction } from 'aws-cdk-lib/aws-lambda-nodejs';
 import { Duration, Stack } from 'aws-cdk-lib';
 import { PolicyStatement } from 'aws-cdk-lib/aws-iam';
 import { UserPool, UserPoolClient } from 'aws-cdk-lib/aws-cognito';
-import { ServiceStack, ServiceStackProps, State, Egress } from '@nestfolio/cdk-constructs/core';
+import { ServiceStack, ServiceStackProps, State, Egress, ManagedNodejsFunction } from '@nestfolio/cdk-constructs/core';
 import { ONBOARDING_COMPLETED } from './domain/events';
 import { defaultLambdaProps, NamingService } from '@nestfolio/cdk-constructs/utils';
 import {
@@ -41,7 +40,7 @@ export class OnboardingBffStack extends ServiceStack {
     });
 
     // Lambda handler for RAG search tool
-    const searchKbFn = new NodejsFunction(this, 'SearchKbFn', {
+    const searchKbFn = new ManagedNodejsFunction(this, 'SearchKbFn', {
       ...defaultLambdaProps(this),
       entry: path.join(__dirname, 'agent/tools/search-kb.handler.ts'),
       handler: 'handler',

@@ -9,3 +9,5 @@ export { Orchestration, OrchestrationProps } from './orchestration';
 export { Broadcaster, BroadcasterProps } from './broadcaster';
 export { CircuitBreakerHealDefinition } from './circuit-breaker-heal';
 export type { CircuitBreakerHealDefinitionProps } from './circuit-breaker-heal';
+export { NonProdAutoDeleteAspect } from './non-prod-auto-delete';
+export { ManagedNodejsFunction } from './managed-function';

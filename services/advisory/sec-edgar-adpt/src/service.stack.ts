@@ -3,9 +3,8 @@ import { Duration, Stack } from 'aws-cdk-lib';
 import { Construct } from 'constructs';
 import { EventBus } from 'aws-cdk-lib/aws-events';
 import { PolicyStatement } from 'aws-cdk-lib/aws-iam';
-import { NodejsFunction } from 'aws-cdk-lib/aws-lambda-nodejs';
 import { StringParameter } from 'aws-cdk-lib/aws-ssm';
-import { ServiceStack, ServiceStackProps, State, Ingress, Egress } from '@nestfolio/cdk-constructs/core';
+import { ServiceStack, ServiceStackProps, State, Ingress, Egress, ManagedNodejsFunction } from '@nestfolio/cdk-constructs/core';
 import { AdapterSchedule, getDomainAccounts, resolveBusArn } from '@nestfolio/cdk-constructs/extensions';
 import { adapterProps, defaultLambdaProps } from '@nestfolio/cdk-constructs/utils';
 import { SecEdgarAdptEventTypes } from './domain/events';
@@ -80,7 +79,7 @@ export class SecEdgarAdptStack extends ServiceStack {
     });
 
     // Trigger Lambda: invoked by EventBridge Scheduler, publishes FETCH_SEC_EDGAR_REQUESTED to bus
-    const fetchTrigger = new NodejsFunction(this, 'FetchTrigger', {
+    const fetchTrigger = new ManagedNodejsFunction(this, 'FetchTrigger', {
       ...defaultLambdaProps(this),
       entry: join(__dirname, 'handlers', 'fetch-trigger.ts'),
       handler: 'handler',

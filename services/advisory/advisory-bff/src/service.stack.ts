@@ -1,10 +1,9 @@
 import { join } from 'path';
 import { Construct } from 'constructs';
 import { PolicyStatement } from 'aws-cdk-lib/aws-iam';
-import { NodejsFunction } from 'aws-cdk-lib/aws-lambda-nodejs';
 import { StartingPosition } from 'aws-cdk-lib/aws-lambda';
 import { DynamoEventSource } from 'aws-cdk-lib/aws-lambda-event-sources';
-import { ServiceStack, ServiceStackProps, State, Ingress, Egress, Facade, discoverJsResolvers } from '@nestfolio/cdk-constructs/core';
+import { ServiceStack, ServiceStackProps, State, Ingress, Egress, Facade, discoverJsResolvers, ManagedNodejsFunction } from '@nestfolio/cdk-constructs/core';
 import { MfeBucket } from '@nestfolio/cdk-constructs/extensions';
 import { defaultLambdaProps } from '@nestfolio/cdk-constructs/utils';
 import { AdvisoryBffEventTypes } from './domain/events';
@@ -75,7 +74,7 @@ export class AdvisoryBffStack extends ServiceStack {
 
     new MfeBucket(this, 'MfeBucket', { mfeKey: 'advisory' });
 
-    const decisionPublisher = new NodejsFunction(this, 'DecisionPublisher', {
+    const decisionPublisher = new ManagedNodejsFunction(this, 'DecisionPublisher', {
       ...defaultLambdaProps(this),
       entry: join(__dirname, 'handlers', 'decision-publisher.ts'),
       environment: facade.graphqlUrl ? { APPSYNC_URL: facade.graphqlUrl } : {},
@@ -97,7 +96,7 @@ export class AdvisoryBffStack extends ServiceStack {
     // counting non-terminal DecisionReadModel rows. A second DDB-stream consumer
     // (alongside DecisionPublisher) so the count is always a pure function of the
     // projected rows — replacing the prior two-writer accumulate() race.
-    const advisoryStatusProjector = new NodejsFunction(this, 'AdvisoryStatusProjector', {
+    const advisoryStatusProjector = new ManagedNodejsFunction(this, 'AdvisoryStatusProjector', {
       ...defaultLambdaProps(this),
       entry: join(__dirname, 'handlers', 'advisory-status-projector.ts'),
       environment: { TABLE_NAME: state.getTable().tableName },

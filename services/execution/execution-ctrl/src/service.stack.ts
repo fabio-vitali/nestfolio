@@ -1,8 +1,7 @@
 import { join } from 'path';
 import { Duration } from 'aws-cdk-lib';
 import { Construct } from 'constructs';
-import { NodejsFunction } from 'aws-cdk-lib/aws-lambda-nodejs';
-import { ServiceStack, ServiceStackProps, State, Ingress, Egress } from '@nestfolio/cdk-constructs/core';
+import { ServiceStack, ServiceStackProps, State, Ingress, Egress, ManagedNodejsFunction } from '@nestfolio/cdk-constructs/core';
 import { ExecutionCtrlEventTypes } from './domain/events';
 import { ExecutionIngestEventTypes } from '@nestfolio/execution-adpt/domain';
 import { AdapterSchedule } from '@nestfolio/cdk-constructs/extensions';
@@ -45,7 +44,7 @@ export class ExecutionCtrlStack extends ServiceStack {
     });
 
     // Staged-order processor: runs at US market open (9:30 AM ET = 14:30 UTC, weekdays)
-    const stagedOrderProcessor = new NodejsFunction(this, 'StagedOrderProcessor', {
+    const stagedOrderProcessor = new ManagedNodejsFunction(this, 'StagedOrderProcessor', {
       ...defaultLambdaProps(this),
       entry: join(__dirname, 'handlers', 'staged-order-processor.ts'),
       handler: 'handler',

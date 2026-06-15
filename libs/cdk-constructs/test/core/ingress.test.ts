@@ -56,6 +56,20 @@ describe('Ingress construct', () => {
       });
     });
 
+    it('owns an explicit CFN-managed LogGroup (not the deprecated logRetention custom resource)', () => {
+      const { template } = createIngress();
+      // No logRetention custom resource — the group is a first-class CFN resource now.
+      template.resourceCountIs('Custom::LogRetention', 0);
+      // Explicit LogGroup with the standard 90-day (THREE_MONTHS) retention...
+      template.hasResourceProperties('AWS::Logs::LogGroup', { RetentionInDays: 90 });
+      // ...wired into the function via Lambda Advanced Logging Controls.
+      template.hasResourceProperties('AWS::Lambda::Function', {
+        LoggingConfig: Match.objectLike({ LogGroup: Match.anyValue() }),
+      });
+      // Non-prod stack (prefix 'test') ⇒ the Aspect makes that LogGroup auto-delete.
+      template.hasResource('AWS::Logs::LogGroup', { DeletionPolicy: 'Delete' });
+    });
+
     it('sets TABLE_NAME when state has a table', () => {
       const { template } = createIngress();
       template.hasResourceProperties('AWS::Lambda::Function', {

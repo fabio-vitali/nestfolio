@@ -7,6 +7,7 @@ import { StartingPosition, FilterCriteria, FilterRule } from 'aws-cdk-lib/aws-la
 import { PolicyStatement } from 'aws-cdk-lib/aws-iam';
 import { Queue, QueueEncryption } from 'aws-cdk-lib/aws-sqs';
 import { ServiceStack } from './service-stack';
+import { ManagedNodejsFunction } from './managed-function';
 import { State } from './state';
 import { defaultLambdaProps } from '../utils/default-lambda-props';
 import type { EventTypesMap } from './event-types';
@@ -77,7 +78,7 @@ export class Egress extends Construct {
 
     // Publisher Lambda — precedence: explicit lambdaProps > profile.lambdaProps > defaultLambdaProps
     const profileLambdaProps = props.profile?.lambdaProps ?? {};
-    this.handler = new NodejsFunction(this, 'Publisher', {
+    this.handler = new ManagedNodejsFunction(this, 'Publisher', {
       ...defaultLambdaProps(this),
       ...profileLambdaProps,
       ...props.lambdaProps,

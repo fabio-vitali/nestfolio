@@ -116,6 +116,20 @@ export function getPrefix(scope: Construct): string {
 }
 
 /**
+ * Single source of truth for "does this deploy prefix denote a production
+ * environment". Production environments KEEP RemovalPolicy.RETAIN on stateful
+ * resources; every other environment (dev/sandbox/staging) gets DESTROY so
+ * replaced resources clean up instead of orphaning.
+ *
+ * Used by {@link ServiceStack} (to default the `production` flag) and by
+ * `resolvePipelineConfig` (to surface `production` in the resolved config).
+ * Matches `detectTier`'s production detection.
+ */
+export function isProductionPrefix(prefix: string): boolean {
+  return prefix === 'prod' || prefix === 'production';
+}
+
+/**
  * Factory function that creates a NamingService, reading the prefix from CDK context.
  * Usage: const naming = createNamingService(scope, { subsystem: 'investor', service: 'investor-bff' });
  */

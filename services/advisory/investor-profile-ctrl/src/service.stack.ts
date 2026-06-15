@@ -1,10 +1,9 @@
 import { Duration } from 'aws-cdk-lib';
 import { PolicyStatement, Effect } from 'aws-cdk-lib/aws-iam';
 import { StringParameter } from 'aws-cdk-lib/aws-ssm';
-import { NodejsFunction } from 'aws-cdk-lib/aws-lambda-nodejs';
 import { Construct } from 'constructs';
 import { join } from 'path';
-import { ServiceStack, ServiceStackProps, State, Ingress, Egress } from '@nestfolio/cdk-constructs/core';
+import { ServiceStack, ServiceStackProps, State, Ingress, Egress, ManagedNodejsFunction } from '@nestfolio/cdk-constructs/core';
 import { InvestorProfileEventTypes } from './domain/events';
 import { ComplianceEventTypes } from '@nestfolio/compliance-ctrl/events';
 import { InvestorCrossDomainEventTypes } from '@nestfolio/investor-adpt/domain';
@@ -63,7 +62,7 @@ export class InvestorProfileCtrlStack extends ServiceStack {
     });
 
     // KB ingestion Lambda (separate from event-listener)
-    const kbIngestionFn = new NodejsFunction(this, 'KBIngestion', {
+    const kbIngestionFn = new ManagedNodejsFunction(this, 'KBIngestion', {
       ...defaultLambdaProps(this),
       entry: join(__dirname, 'handlers', 'kb-ingestion-handler.ts'),
       environment: {

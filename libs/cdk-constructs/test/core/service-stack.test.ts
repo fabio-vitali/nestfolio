@@ -1,9 +1,11 @@
 import { App, Stack } from 'aws-cdk-lib';
 import { Template } from 'aws-cdk-lib/assertions';
 import { EventBus } from 'aws-cdk-lib/aws-events';
+import { LogGroup } from 'aws-cdk-lib/aws-logs';
 import { Construct } from 'constructs';
 import * as os from 'os';
 import { ServiceStack } from '../../src/core/service-stack';
+import { State } from '../../src/core/state';
 
 describe('ServiceStack', () => {
   function createStack(overrides: Record<string, unknown> = {}) {
@@ -106,5 +108,54 @@ describe('ServiceStack', () => {
     stack.addObservability({});
     const template = Template.fromStack(stack);
     template.resourceCountIs('AWS::CloudWatch::Dashboard', 1);
+  });
+
+  describe('production flag', () => {
+    it('defaults to false for a non-prod prefix', () => {
+      expect(createStack({ prefix: 'dev' }).production).toBe(false);
+      expect(createStack({ prefix: 'sandbox-pr-7' }).production).toBe(false);
+    });
+
+    it('defaults to true for prod prefixes', () => {
+      expect(createStack({ prefix: 'prod' }).production).toBe(true);
+      expect(createStack({ prefix: 'production' }).production).toBe(true);
+    });
+
+    it('honors an explicit production override over the prefix default', () => {
+      expect(createStack({ prefix: 'dev', production: true }).production).toBe(true);
+      expect(createStack({ prefix: 'prod', production: false }).production).toBe(false);
+    });
+
+    it('productionOf returns the enclosing ServiceStack flag', () => {
+      const stack = createStack({ prefix: 'prod' });
+      const child = new Construct(stack, 'Child');
+      expect(ServiceStack.productionOf(child)).toBe(true);
+    });
+
+    it('productionOf returns false outside a ServiceStack', () => {
+      const app = new App();
+      const plain = new Stack(app, 'PlainStack');
+      expect(ServiceStack.productionOf(new Construct(plain, 'Child'))).toBe(false);
+    });
+  });
+
+  describe('non-prod auto-delete Aspect', () => {
+    it('forces DESTROY on DynamoDB tables and log groups in non-prod', () => {
+      const stack = createStack({ prefix: 'dev' });
+      new State(stack, 'State');
+      new LogGroup(stack, 'SomeLogGroup');
+      const template = Template.fromStack(stack);
+      template.hasResource('AWS::DynamoDB::Table', { DeletionPolicy: 'Delete', UpdateReplacePolicy: 'Delete' });
+      template.hasResource('AWS::Logs::LogGroup', { DeletionPolicy: 'Delete', UpdateReplacePolicy: 'Delete' });
+    });
+
+    it('keeps RETAIN on stateful resources in production', () => {
+      const stack = createStack({ prefix: 'prod' });
+      new State(stack, 'State');
+      new LogGroup(stack, 'SomeLogGroup');
+      const template = Template.fromStack(stack);
+      template.hasResource('AWS::DynamoDB::Table', { DeletionPolicy: 'Retain', UpdateReplacePolicy: 'Retain' });
+      template.hasResource('AWS::Logs::LogGroup', { DeletionPolicy: 'Retain', UpdateReplacePolicy: 'Retain' });
+    });
   });
 });

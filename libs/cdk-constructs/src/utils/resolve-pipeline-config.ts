@@ -1,7 +1,7 @@
 import { Construct } from 'constructs';
 import * as fs from 'fs';
 import * as path from 'path';
-import { getPrefix, discoverSubsystem } from './naming-service';
+import { getPrefix, discoverSubsystem, isProductionPrefix } from './naming-service';
 
 // ── Types ──────────────────────────────────────────────────────────────────
 
@@ -25,6 +25,9 @@ export interface ResolvedPipelineConfig {
   region?: string;
   environment?: string;
   prefix: string;
+  /** True only for production deploy prefixes. Drives env-aware RemovalPolicy
+   *  (production RETAINs stateful resources; non-prod DESTROYs them). */
+  production: boolean;
   schedule?: ScheduleConfig;
 }
 
@@ -159,7 +162,7 @@ function loadServiceOverrides(
 function detectTier(prefix: string): Tier {
   if (prefix.startsWith('sandbox')) return 'sandbox';
   if (prefix === 'staging') return 'staging';
-  if (prefix === 'prod' || prefix === 'production') return 'production';
+  if (isProductionPrefix(prefix)) return 'production';
   return 'sandbox'; // safe default
 }
 
@@ -176,6 +179,7 @@ export function mergeConfigs(
     ...inferred,
     ...HARDCODED_FALLBACKS,
     prefix,
+    production: isProductionPrefix(prefix),
   };
 
   // Layer 2: tier defaults override fallbacks (scalars only)

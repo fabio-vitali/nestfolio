@@ -1,9 +1,8 @@
 import { EventBus } from 'aws-cdk-lib/aws-events';
 import { PolicyStatement } from 'aws-cdk-lib/aws-iam';
-import { NodejsFunction } from 'aws-cdk-lib/aws-lambda-nodejs';
 import { Construct } from 'constructs';
 import { join } from 'path';
-import { ServiceStack, ServiceStackProps, State, Ingress, Facade, discoverJsResolvers } from '@nestfolio/cdk-constructs/core';
+import { ServiceStack, ServiceStackProps, State, Ingress, Facade, discoverJsResolvers, ManagedNodejsFunction } from '@nestfolio/cdk-constructs/core';
 import { getDomainAccounts, resolveBusArn, MfeBucket } from '@nestfolio/cdk-constructs/extensions';
 import { LedgerCtrlEventTypes } from '@nestfolio/ledger-ctrl/events';
 import { defaultLambdaProps } from '@nestfolio/cdk-constructs/utils';
@@ -31,7 +30,7 @@ export class LedgerBffStack extends ServiceStack {
     });
 
     // GraphQL resolver Lambda (handles getPortfolioAt + getSimulationComparison)
-    const resolver = new NodejsFunction(this, 'GraphqlResolver', {
+    const resolver = new ManagedNodejsFunction(this, 'GraphqlResolver', {
       ...defaultLambdaProps(this),
       entry: join(__dirname, 'handlers', 'graphql-resolver.ts'),
       environment: {

@@ -9,6 +9,7 @@ import { NodejsFunction, NodejsFunctionProps } from 'aws-cdk-lib/aws-lambda-node
 import { SqsEventSource } from 'aws-cdk-lib/aws-lambda-event-sources';
 import type { EventName } from '@nestfolio/event-types';
 import { ServiceStack } from './service-stack';
+import { ManagedNodejsFunction } from './managed-function';
 import { State } from './state';
 import { defaultLambdaProps } from '../utils/default-lambda-props';
 import type { LambdaProfile } from '../utils/lambda-profiles';
@@ -87,7 +88,7 @@ export class Ingress extends Construct {
     const lambdaTimeoutOverride: Partial<NodejsFunctionProps> = props.lambdaTimeout
       ? { timeout: props.lambdaTimeout }
       : {};
-    this.handler = new NodejsFunction(this, 'Handler', {
+    this.handler = new ManagedNodejsFunction(this, 'Handler', {
       ...defaultLambdaProps(this),
       ...profileLambdaProps,
       ...props.lambdaProps,

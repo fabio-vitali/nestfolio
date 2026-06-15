@@ -7,18 +7,22 @@ import {
   Tracing,
 } from 'aws-cdk-lib/aws-lambda';
 import { NodejsFunctionProps } from 'aws-cdk-lib/aws-lambda-nodejs';
-import { RetentionDays } from 'aws-cdk-lib/aws-logs';
 
 /**
  * Shared bundling + runtime config inherited by every profile.
  * Matches the historical defaults from `defaultLambdaProps` — runtime,
- * architecture, tracing, log retention, and esbuild externals.
+ * architecture, tracing, and esbuild externals.
+ *
+ * NOTE: log retention is intentionally NOT set here. Functions are created via
+ * `ManagedNodejsFunction`, which owns an explicit CFN-managed LogGroup (retention
+ * THREE_MONTHS) so the group shares the function lifecycle and is cleaned up by
+ * the non-prod auto-delete Aspect. `logGroup` + `logRetention` are mutually
+ * exclusive in CDK.
  */
 export const BASE_LAMBDA_PROPS = {
   runtime: Runtime.NODEJS_24_X,
   architecture: Architecture.ARM_64,
   tracing: Tracing.ACTIVE,
-  logRetention: RetentionDays.THREE_MONTHS,
   bundling: {
     minify: true,
     sourceMap: true,

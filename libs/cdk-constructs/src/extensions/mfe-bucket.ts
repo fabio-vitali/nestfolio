@@ -33,7 +33,7 @@ export class MfeBucket extends Construct {
     const account = serviceStack.account;
     this.mfeKey = props.mfeKey;
 
-    const isProd = prefix === 'prod';
+    const isProd = serviceStack.production;
 
     this.bucket = new Bucket(this, 'Bucket', {
       bucketName: naming.mfeBucketName(account, props.mfeKey),

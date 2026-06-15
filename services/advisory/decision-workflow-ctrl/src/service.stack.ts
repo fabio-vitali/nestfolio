@@ -3,10 +3,9 @@ import { Construct } from 'constructs';
 import { Duration } from 'aws-cdk-lib';
 import { PolicyStatement, Effect } from 'aws-cdk-lib/aws-iam';
 import { StringParameter } from 'aws-cdk-lib/aws-ssm';
-import { NodejsFunction } from 'aws-cdk-lib/aws-lambda-nodejs';
 import * as agentcore from '@aws-cdk/aws-bedrock-agentcore-alpha';
 import { BedrockFoundationModel } from '@aws-cdk/aws-bedrock-alpha';
-import { ServiceStack, ServiceStackProps, State, Ingress, Egress, Orchestration } from '@nestfolio/cdk-constructs/core';
+import { ServiceStack, ServiceStackProps, State, Ingress, Egress, Orchestration, ManagedNodejsFunction } from '@nestfolio/cdk-constructs/core';
 import {
   TRIGGER_EVENT_TYPES,
   ALL_INBOUND_EVENT_TYPES,
@@ -146,7 +145,7 @@ export class DecisionWorkflowCtrlStack extends ServiceStack {
     // AssemblePacket Lambda — reads agent outputs from the SF state Parameters
     // payload (post-Phase-A 2026-05-14). No Memory reads, no eventual-consistency
     // retry loop. See docs/backlog/inter-agent-state-handoff-sf-vs-memory.md.
-    const assemblePacketFn = new NodejsFunction(this, 'AssemblePacket', {
+    const assemblePacketFn = new ManagedNodejsFunction(this, 'AssemblePacket', {
       ...defaultLambdaProps(this),
       entry: join(__dirname, 'handlers', 'assemble-packet.ts'),
       environment: {

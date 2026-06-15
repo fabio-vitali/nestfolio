@@ -178,7 +178,7 @@ describe('loadTierDefaults', () => {
 describe('mergeConfigs', () => {
   it('applies hardcoded fallbacks when no tier defaults or overrides', () => {
     const inferred = { service: 'investor-hub', subsystem: 'investor', deploymentPhase: 1 as const, dependencies: [] };
-    expect(mergeConfigs(inferred, {}, {}, 'staging')).toEqual({ ...inferred, ...HARDCODED_FALLBACKS, prefix: 'staging' });
+    expect(mergeConfigs(inferred, {}, {}, 'staging')).toEqual({ ...inferred, ...HARDCODED_FALLBACKS, prefix: 'staging', production: false });
   });
 
   it('tier defaults override hardcoded fallbacks', () => {
@@ -245,7 +245,7 @@ describe('resolvePipelineConfig (integration)', () => {
     expect(config).toEqual({
       service: 'investor-hub', subsystem: 'investor', deploymentPhase: 1, dependencies: [],
       observability: false, waf: false, logRetention: 7, protectedResources: false, parallelDeploy: true, alarmActions: [],
-      prefix: 'sandbox-pr-42',
+      prefix: 'sandbox-pr-42', production: false,
     });
   });
 

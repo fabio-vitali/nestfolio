@@ -1,12 +1,11 @@
 import { join } from 'path';
 import { Duration, SecretValue, Stack } from 'aws-cdk-lib';
 import { Construct } from 'constructs';
-import { NodejsFunction } from 'aws-cdk-lib/aws-lambda-nodejs';
 import { PolicyStatement } from 'aws-cdk-lib/aws-iam';
 import * as events from 'aws-cdk-lib/aws-events';
 import * as sfn from 'aws-cdk-lib/aws-stepfunctions';
 import { StringParameter } from 'aws-cdk-lib/aws-ssm';
-import { CircuitBreakerHealDefinition, Egress, Ingress, Orchestration, ServiceStack, ServiceStackProps, State } from '@nestfolio/cdk-constructs/core';
+import { CircuitBreakerHealDefinition, Egress, Ingress, ManagedNodejsFunction, Orchestration, ServiceStack, ServiceStackProps, State } from '@nestfolio/cdk-constructs/core';
 import { adapterProps, defaultLambdaProps, PARAMS_AND_SECRETS_LAYER } from '@nestfolio/cdk-constructs/utils';
 import { AlpacaAdptEventTypes } from './domain/events';
 import { OrderPollingDefinition } from './constructs/order-polling-definition';
@@ -139,7 +138,7 @@ export class BrokerAlpacaAdptStack extends ServiceStack {
     });
 
     // --- Order Poll Handler Lambda (invoked by SF, not via Ingress) ---
-    const orderPollFn = new NodejsFunction(this, 'OrderPollFn', {
+    const orderPollFn = new ManagedNodejsFunction(this, 'OrderPollFn', {
       ...defaultLambdaProps(this),
       entry: join(__dirname, 'handlers', 'order-poll-handler.ts'),
       environment: {
@@ -155,7 +154,7 @@ export class BrokerAlpacaAdptStack extends ServiceStack {
     ssmSecretsPolicy.forEach(p => orderPollFn.addToRolePolicy(p));
 
     // --- Transfer Poll Handler Lambda (invoked by SF, not via Ingress) ---
-    const transferPollFn = new NodejsFunction(this, 'TransferPollFn', {
+    const transferPollFn = new ManagedNodejsFunction(this, 'TransferPollFn', {
       ...defaultLambdaProps(this),
       entry: join(__dirname, 'handlers', 'transfer-poll-handler.ts'),
       environment: {

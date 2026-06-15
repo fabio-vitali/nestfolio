@@ -1,5 +1,4 @@
 import { App, Stack, Duration } from 'aws-cdk-lib';
-import { RetentionDays } from 'aws-cdk-lib/aws-logs';
 import { defaultLambdaProps } from '../../src/utils/default-lambda-props';
 
 describe('defaultLambdaProps', () => {
@@ -30,8 +29,10 @@ describe('defaultLambdaProps', () => {
     expect(props.bundling?.externalModules).toEqual(['@aws-sdk/*']);
   });
 
-  it('sets 90-day log retention', () => {
+  it('does NOT set logRetention (log groups are owned by ManagedNodejsFunction)', () => {
     const props = defaultLambdaProps(stack);
-    expect(props.logRetention).toBe(RetentionDays.THREE_MONTHS);
+    // logRetention is mutually exclusive with the explicit, CFN-managed LogGroup
+    // that ManagedNodejsFunction attaches; retention lives on that LogGroup now.
+    expect(props.logRetention).toBeUndefined();
   });
 });

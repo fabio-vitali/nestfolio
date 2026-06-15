@@ -1,12 +1,11 @@
 import { PolicyStatement, Effect } from 'aws-cdk-lib/aws-iam';
 import { StringParameter } from 'aws-cdk-lib/aws-ssm';
-import { NodejsFunction } from 'aws-cdk-lib/aws-lambda-nodejs';
 import { Rule, Schedule, RuleTargetInput } from 'aws-cdk-lib/aws-events';
 import { LambdaFunction } from 'aws-cdk-lib/aws-events-targets';
 import { Duration } from 'aws-cdk-lib';
 import { Construct } from 'constructs';
 import { join } from 'path';
-import { ServiceStack, ServiceStackProps, State, Ingress, Egress } from '@nestfolio/cdk-constructs/core';
+import { ServiceStack, ServiceStackProps, State, Ingress, Egress, ManagedNodejsFunction } from '@nestfolio/cdk-constructs/core';
 import { MarketIntelligenceEventTypes } from './domain/events';
 import { YahooFinanceAdptEventTypes } from '@nestfolio/yahoo-finance-adpt/events';
 import { MarketwatchAdptEventTypes } from '@nestfolio/marketwatch-adpt/events';
@@ -74,7 +73,7 @@ export class MarketIntelligenceCtrlStack extends ServiceStack {
     // above subscribes to it. We use a tiny Lambda emitter because the CDK
     // EventBridge `EventBus` target forwards the originating event verbatim
     // and can't construct a structured event-processor envelope inline.
-    const scheduledEmitter = new NodejsFunction(this, 'ScheduledEmitter', {
+    const scheduledEmitter = new ManagedNodejsFunction(this, 'ScheduledEmitter', {
       ...defaultLambdaProps(this),
       entry: join(__dirname, 'handlers', 'scheduled-emitter.ts'),
       timeout: Duration.seconds(30),
@@ -98,7 +97,7 @@ export class MarketIntelligenceCtrlStack extends ServiceStack {
     });
 
     // KB ingestion Lambda (separate from event-listener)
-    const kbIngestionFn = new NodejsFunction(this, 'KBIngestion', {
+    const kbIngestionFn = new ManagedNodejsFunction(this, 'KBIngestion', {
       ...defaultLambdaProps(this),
       entry: join(__dirname, 'handlers', 'kb-ingestion-handler.ts'),
       environment: {

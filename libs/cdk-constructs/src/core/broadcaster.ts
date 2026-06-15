@@ -6,6 +6,7 @@ import { StartingPosition } from 'aws-cdk-lib/aws-lambda';
 import { PolicyStatement } from 'aws-cdk-lib/aws-iam';
 import { Queue, QueueEncryption } from 'aws-cdk-lib/aws-sqs';
 import { defaultLambdaProps } from '../utils/default-lambda-props';
+import { ManagedNodejsFunction } from './managed-function';
 import { State } from './state';
 import { Facade } from './facade';
 
@@ -66,7 +67,7 @@ export class Broadcaster extends Construct {
       Object.assign(env, props.environment);
     }
 
-    this.handler = new NodejsFunction(this, 'Publisher', {
+    this.handler = new ManagedNodejsFunction(this, 'Publisher', {
       ...defaultLambdaProps(this),
       ...props.lambdaProps,
       entry: props.entry,

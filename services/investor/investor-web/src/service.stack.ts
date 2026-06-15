@@ -1,6 +1,5 @@
 import { RemovalPolicy, Duration, Fn } from 'aws-cdk-lib';
 import { UserPool, AccountRecovery, Mfa, StringAttribute } from 'aws-cdk-lib/aws-cognito';
-import { NodejsFunction } from 'aws-cdk-lib/aws-lambda-nodejs';
 import { Bucket, BucketEncryption, BlockPublicAccess } from 'aws-cdk-lib/aws-s3';
 import {
   Distribution, ViewerProtocolPolicy, OriginAccessIdentity,
@@ -15,7 +14,7 @@ import { S3Origin, S3BucketOrigin, HttpOrigin } from 'aws-cdk-lib/aws-cloudfront
 import { StringParameter } from 'aws-cdk-lib/aws-ssm';
 import { PolicyStatement } from 'aws-cdk-lib/aws-iam';
 import { Construct } from 'constructs';
-import { ServiceStack, ServiceStackProps } from '@nestfolio/cdk-constructs/core';
+import { ServiceStack, ServiceStackProps, ManagedNodejsFunction } from '@nestfolio/cdk-constructs/core';
 import { defaultLambdaProps } from '@nestfolio/cdk-constructs/utils';
 import { readFileSync } from 'fs';
 import { join } from 'path';
@@ -108,7 +107,7 @@ export class InvestorWebStack extends ServiceStack {
     // Cognito trigger atomically.
 
     // PostConfirmation Lambda
-    const postConfirmation = new NodejsFunction(this, 'PostConfirmation', {
+    const postConfirmation = new ManagedNodejsFunction(this, 'PostConfirmation', {
       ...defaultLambdaProps(this),
       entry: join(__dirname, 'handlers', 'post-confirmation.ts'),
       environment: {
@@ -122,7 +121,7 @@ export class InvestorWebStack extends ServiceStack {
     }));
 
     // PostAuthentication Lambda
-    const postAuthentication = new NodejsFunction(this, 'PostAuthentication', {
+    const postAuthentication = new ManagedNodejsFunction(this, 'PostAuthentication', {
       ...defaultLambdaProps(this),
       entry: join(__dirname, 'handlers', 'post-authentication.ts'),
       environment: {
@@ -157,7 +156,7 @@ export class InvestorWebStack extends ServiceStack {
         postConfirmation,
         postAuthentication,
       },
-      removalPolicy: this.prefix === 'prod' ? RemovalPolicy.RETAIN : RemovalPolicy.DESTROY,
+      removalPolicy: this.production ? RemovalPolicy.RETAIN : RemovalPolicy.DESTROY,
     });
 
     const client = userPool.addClient('WebClient', {

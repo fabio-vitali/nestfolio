@@ -1,8 +1,7 @@
 import { join } from 'path';
 import { Duration } from 'aws-cdk-lib';
 import { Construct } from 'constructs';
-import { NodejsFunction } from 'aws-cdk-lib/aws-lambda-nodejs';
-import { ServiceStack, ServiceStackProps, State, Ingress, Egress, Orchestration } from '@nestfolio/cdk-constructs/core';
+import { ServiceStack, ServiceStackProps, State, Ingress, Egress, Orchestration, ManagedNodejsFunction } from '@nestfolio/cdk-constructs/core';
 import { defaultLambdaProps } from '@nestfolio/cdk-constructs/utils';
 import { BrokerCtrlInboundEventTypes, BrokerCtrlEventTypes } from './domain/events';
 import { OrderWorkflowDefinition } from './state-machine/order-state-machine';
@@ -69,7 +68,7 @@ export class BrokerCtrlStack extends ServiceStack {
     });
 
     // --- RouteOrder Lambda — invoked by Step Functions, not via Ingress ---
-    const routeOrderFn = new NodejsFunction(this, 'RouteOrderFn', {
+    const routeOrderFn = new ManagedNodejsFunction(this, 'RouteOrderFn', {
       ...defaultLambdaProps(this),
       entry: join(__dirname, 'handlers', 'route-order.ts'),
       environment: {

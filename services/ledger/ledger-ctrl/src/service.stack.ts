@@ -1,10 +1,9 @@
 import { EventBus } from 'aws-cdk-lib/aws-events';
 import { StartingPosition, FilterCriteria, FilterRule } from 'aws-cdk-lib/aws-lambda';
 import { DynamoEventSource } from 'aws-cdk-lib/aws-lambda-event-sources';
-import { NodejsFunction } from 'aws-cdk-lib/aws-lambda-nodejs';
 import { Construct } from 'constructs';
 import { join } from 'path';
-import { ServiceStack, ServiceStackProps, State, Ingress, Egress } from '@nestfolio/cdk-constructs/core';
+import { ServiceStack, ServiceStackProps, State, Ingress, Egress, ManagedNodejsFunction } from '@nestfolio/cdk-constructs/core';
 import { LedgerCtrlEventTypes } from './domain/events';
 import { getDomainAccounts, resolveBusArn } from '@nestfolio/cdk-constructs/extensions';
 import { LedgerIngestEventTypes } from '@nestfolio/ledger-adpt/domain';
@@ -36,7 +35,7 @@ export class LedgerCtrlStack extends ServiceStack {
 
     // Reducer: DDB Stream consumer that materializes account snapshots.
     // Shape comes from reducerProps (512 MB, 60s, batch 100, window 5s, parallelization 1).
-    const reducerFn = new NodejsFunction(this, 'ReducerFn', {
+    const reducerFn = new ManagedNodejsFunction(this, 'ReducerFn', {
       ...reducerProps.lambdaProps,
       entry: join(__dirname, 'handlers', 'reducer.ts'),
       environment: {
@@ -69,7 +68,7 @@ export class LedgerCtrlStack extends ServiceStack {
     // Snapshot Publisher: DDB Stream consumer that writes derived events
     // (BalanceEvent, PortfolioEvent, LedgerEntryEvent, SnapshotHistory)
     // from AccountSnapshot INSERT/MODIFY events.
-    const snapshotPublisherFn = new NodejsFunction(this, 'SnapshotPublisherFn', {
+    const snapshotPublisherFn = new ManagedNodejsFunction(this, 'SnapshotPublisherFn', {
       ...reducerProps.lambdaProps,
       entry: join(__dirname, 'handlers', 'snapshot-publisher.ts'),
       environment: {

@@ -4,6 +4,7 @@ import { Bucket, BucketEncryption, BlockPublicAccess } from 'aws-cdk-lib/aws-s3'
 import { Role, ServicePrincipal, PolicyStatement } from 'aws-cdk-lib/aws-iam';
 import { CfnKnowledgeBase, CfnDataSource } from 'aws-cdk-lib/aws-bedrock';
 import { CfnVectorBucket, CfnIndex } from 'aws-cdk-lib/aws-s3vectors';
+import { ServiceStack } from '../core/service-stack';
 
 export interface KnowledgeBaseProps {
   /** Short name for the KB (e.g. 'regulatory', 'market', 'fund') */
@@ -16,7 +17,7 @@ export interface KnowledgeBaseProps {
   readonly embeddingDimension?: number;
   /** Override bucket name (default: auto-generated from naming convention) */
   readonly bucketName?: string;
-  /** Removal policy (default: RETAIN) */
+  /** Removal policy (default: env-aware — RETAIN on production, DESTROY otherwise) */
   readonly removalPolicy?: RemovalPolicy;
 }
 
@@ -31,7 +32,9 @@ export class KnowledgeBase extends Construct {
   constructor(scope: Construct, id: string, props: KnowledgeBaseProps) {
     super(scope, id);
 
-    const removalPolicy = props.removalPolicy ?? RemovalPolicy.RETAIN;
+    const removalPolicy =
+      props.removalPolicy ??
+      (ServiceStack.productionOf(this) ? RemovalPolicy.RETAIN : RemovalPolicy.DESTROY);
     const embeddingModelId = props.embeddingModelId ?? 'amazon.titan-embed-text-v2:0';
     const embeddingDimension = props.embeddingDimension ?? 1024;
 

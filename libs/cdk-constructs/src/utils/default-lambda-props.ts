@@ -1,7 +1,6 @@
 import { Construct } from 'constructs';
 import { Runtime, Architecture, Tracing } from 'aws-cdk-lib/aws-lambda';
 import { Duration } from 'aws-cdk-lib';
-import { RetentionDays } from 'aws-cdk-lib/aws-logs';
 import { NodejsFunctionProps } from 'aws-cdk-lib/aws-lambda-nodejs';
 
 /**
@@ -11,6 +10,10 @@ import { NodejsFunctionProps } from 'aws-cdk-lib/aws-lambda-nodejs';
  * For richer workload-specific defaults, prefer the `LambdaProfile`
  * system in `./lambda-profiles.ts` (`handlerProps`, `adapterProps`,
  * `reducerProps`, `agentProps`).
+ *
+ * NOTE: log retention is intentionally NOT set — create functions via
+ * `ManagedNodejsFunction`, which owns an explicit CFN-managed LogGroup so the
+ * group is cleaned up with the function by the non-prod auto-delete Aspect.
  */
 export const defaultLambdaProps = (_scope: Construct): Partial<NodejsFunctionProps> => ({
   runtime: Runtime.NODEJS_24_X,
@@ -18,7 +21,6 @@ export const defaultLambdaProps = (_scope: Construct): Partial<NodejsFunctionPro
   memorySize: 256,
   timeout: Duration.seconds(30),
   tracing: Tracing.ACTIVE,
-  logRetention: RetentionDays.THREE_MONTHS,
   bundling: {
     minify: true,
     sourceMap: true,
