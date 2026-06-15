@@ -183,6 +183,12 @@ describe('investor-ctrl event-listener', () => {
       expect(t.channel).toBe('email,push');
     });
 
+    it('returns correct template for ORDER_ESCALATED', () => {
+      const t = getNotificationTemplate('ORDER_ESCALATED');
+      expect(t.title).toBe('Order Needs Review');
+      expect(t.channel).toBe('email,push');
+    });
+
     it('returns fallback template for unknown event type', () => {
       const t = getNotificationTemplate('UNKNOWN_TYPE');
       expect(t.title).toBe('Notification');
@@ -455,6 +461,37 @@ describe('investor-ctrl event-listener', () => {
           channel: 'email',
         }),
       });
+    });
+  });
+
+  describe('WriteIntents — ORDER_ESCALATED', () => {
+    it('creates a Notification for ORDER_ESCALATED with ORDER entity + email,push channel', async () => {
+      const result = await harness.process([
+        fakeSqsRecord('ORDER_ESCALATED', normalizedOrderSubject({ orderId: 'ord-esc-1' }), { tenantId: 'tenant-1', eventId: 'evt-esc-1' }),
+      ]);
+      expect(result.errors).toHaveLength(0);
+      expect(result.intents).toHaveLength(1);
+      expect(result.intents[0]).toMatchObject({
+        _tag: 'record',
+        typename: 'Notification',
+        fields: expect.objectContaining({
+          type: 'ORDER_ESCALATED',
+          title: 'Order Needs Review',
+          channel: 'email,push',
+          status: 'DELIVERED',
+          relatedEntityType: 'ORDER',
+          relatedEntityId: 'ord-esc-1',
+          tenantId: 'tenant-1',
+        }),
+      });
+    });
+
+    it('ORDER_ESCALATED with empty subject throws ZodError (contract enforcement)', async () => {
+      const result = await harness.process([
+        fakeSqsRecord('ORDER_ESCALATED', {}, { tenantId: 't-zod', eventId: 'evt-zod-esc' }),
+      ]);
+      expect(result.errors).toHaveLength(1);
+      expect(result.errors[0].error).toBeInstanceOf(ZodError);
     });
   });
 

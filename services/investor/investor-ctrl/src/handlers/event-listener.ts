@@ -80,6 +80,11 @@ const NOTIFICATION_TEMPLATES: Record<string, NotificationTemplate> = {
     body: 'A trade order has been rejected. Check your dashboard for details.',
     channel: 'push',
   },
+  ORDER_ESCALATED: {
+    title: 'Order Needs Review',
+    body: 'A trade order could not be completed automatically and has been escalated for review. Check your dashboard for details.',
+    channel: 'email,push',
+  },
   DECISION_BLOCKED: {
     title: 'Decision Blocked',
     body: 'An investment decision was blocked by compliance. Review required.',
@@ -214,6 +219,17 @@ export const createHandlers = (_deps: EventListenerDeps) => ({
   },
 
   [ExecutionCrossDomainEventTypes.ORDER_REJECTED]: async (
+    payload: EventPayload,
+    ctx: EventContext,
+  ): Promise<WriteIntent> => {
+    const subject = parseSubject(payload, NormalizedOrderEventSchema);
+    return buildNotificationRecord(ctx.tenantId, ctx, 'ORDER', subject.orderId);
+  },
+
+  // ORDER_ESCALATED — broker order SF timeout escalation (broker-ctrl HandleTimeout).
+  // Same NormalizedOrderEventSchema subject as ORDER_REJECTED; investor is notified
+  // their order needs review (the previously-missing Path C convergence hop).
+  [ExecutionCrossDomainEventTypes.ORDER_ESCALATED]: async (
     payload: EventPayload,
     ctx: EventContext,
   ): Promise<WriteIntent> => {
