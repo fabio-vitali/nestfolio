@@ -249,7 +249,9 @@ function* walk(dir) {
 // All handler filenames declared via `entry:` across constructs in the stack.
 export function extractHandlers(sf) {
   const out = new Set();
-  for (const ctor of ['Ingress', 'Egress', 'NodejsFunction']) {
+  // ManagedNodejsFunction is the drop-in NodejsFunction subclass (owns an explicit
+  // CFN-managed LogGroup) that all service stacks now instantiate instead of NodejsFunction.
+  for (const ctor of ['Ingress', 'Egress', 'NodejsFunction', 'ManagedNodejsFunction']) {
     for (const ne of findNewExprs(sf, ctor)) {
       const f = entryFilename(getProp(configObjOf(ne), 'entry'));
       if (f) out.add(f);
