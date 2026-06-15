@@ -82,3 +82,15 @@ export const GET_DEPOSIT = `
   }
   ${DEPOSIT_FIELDS}
 `;
+
+export const GET_PROFILE = `
+  query GetProfile {
+    getProfile {
+      operatingMode
+      executionMode
+      goal { objective targetAmountCents currency timeHorizonMonths targetReturn }
+      riskProfile { score band { minEquity maxEquity } toleranceResponse experienceLevel }
+      mandate { mandateId level status effectiveDate }
+    }
+  }
+`;
