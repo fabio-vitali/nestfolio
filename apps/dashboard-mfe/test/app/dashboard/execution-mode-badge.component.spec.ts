@@ -44,7 +44,7 @@ describe('ExecutionModeBadgeComponent', () => {
 
 });
 
-describe('ExecutionModeBadgeComponent (real template — testid-state)', () => {
+describe('ExecutionModeBadgeComponent (real template — dynamic testid)', () => {
   let component: ExecutionModeBadgeComponent;
   let fixture: ComponentFixture<ExecutionModeBadgeComponent>;
 
@@ -56,17 +56,25 @@ describe('ExecutionModeBadgeComponent (real template — testid-state)', () => {
     component = fixture.componentInstance;
   });
 
-  it('data-testid-state reflects execution-mode-live when isLive is true', () => {
+  it('exposes data-testid="execution-mode-live" when isLive is true', () => {
     component.executionMode = 'live';
     fixture.detectChanges();
-    const span = fixture.nativeElement.querySelector('[data-testid="execution-mode-badge"]');
-    expect(span?.getAttribute('data-testid-state')).toBe('execution-mode-live');
+    expect(
+      fixture.nativeElement.querySelector('[data-testid="execution-mode-live"]'),
+    ).toBeTruthy();
+    expect(
+      fixture.nativeElement.querySelector('[data-testid="execution-mode-sim"]'),
+    ).toBeNull();
   });
 
-  it('data-testid-state reflects execution-mode-sim when not live', () => {
+  it('exposes data-testid="execution-mode-sim" when not live', () => {
     component.executionMode = 'simulation';
     fixture.detectChanges();
-    const span = fixture.nativeElement.querySelector('[data-testid="execution-mode-badge"]');
-    expect(span?.getAttribute('data-testid-state')).toBe('execution-mode-sim');
+    expect(
+      fixture.nativeElement.querySelector('[data-testid="execution-mode-sim"]'),
+    ).toBeTruthy();
+    expect(
+      fixture.nativeElement.querySelector('[data-testid="execution-mode-live"]'),
+    ).toBeNull();
   });
 });

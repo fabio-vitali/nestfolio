@@ -15,8 +15,7 @@ export type ExecutionMode = 'simulation' | 'live' | string | null;
         [class.mode-badge--live]="isLive"
         [class.mode-badge--sim]="!isLive"
         [attr.aria-label]="i18n.t(isLive ? 'dashboard.badge.live' : 'dashboard.badge.sim')"
-        data-testid="execution-mode-badge"
-        [attr.data-testid-state]="isLive ? 'execution-mode-live' : 'execution-mode-sim'"
+        [attr.data-testid]="isLive ? 'execution-mode-live' : 'execution-mode-sim'"
       >
         @if (isLive) {
           <span class="mode-dot mode-dot--live"></span>
