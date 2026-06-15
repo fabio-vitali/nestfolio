@@ -22,6 +22,21 @@
 
 ---
 
+## Progress (resume here)
+
+**Worktree:** `.claude/worktrees/go-live-agent-wiring` (branch `worktree-go-live-agent-wiring`). Backlog item `go-live-agent-wiring-and-emission` is `status: active`. Resume with `/backlog-next` (it resumes the ACTIVE workstream into this worktree). Execution mode: subagent-driven-development (fresh subagent per task + spec & quality review). Pause at each phase boundary (user cadence).
+
+- ✅ **P1 DONE + e2e-green on dev.** `confirmGoLive` mutation (double-confirm + write-once guards), `GO_LIVE_CONFIRMED` removed from investor-bff, onboarding-bff go-live dead code removed, deterministic Jest e2e `apps/e2e-feature-tests/src/account/go-live-switch.e2e.test.ts`. Closes the filed bug. e2e-found fixes folded in: `InvestorProfile.executionMode` GraphQL field (`e1047e30`), `region` on the ExecutionModeChange row so `EXECUTION_MODE_CHANGED` carries full context (`4d590fbf`).
+- ✅ **P2 DONE + bundled resolver AppSync-deployed.** esbuild `.fn.ts` bundling in `cdk-constructs` Facade (`7bb2709e`, opt-in; existing `.fn.js` untouched), `updateRiskProfile.fn.ts` importing `computeRiskProfile` (`f27ef4f8`).
+- ✅ **P3 DONE + e2e-green.** `MANDATE_REAFFIRMED` producer (`6266d6f2`) + advisory-adpt forward + compliance-ctrl project (`38e85659`), e2e asserts re-affirm + `MandateSnapshot` v2 (`bec690e6`). e2e-found fix folded in: `projectMandateSnapshot` was keying `MandateSnapshot` by `tenantId` instead of `ctx.userId` (DRY subject lacks userId) — broke compliance authority lookups; fixed (`c043f043`).
+- ⏳ **P4 NEXT** (frontend + UI-truth + docs) — Tasks 4.1–4.6 below.
+
+**Folded-in / filed this workstream (NOT in original plan):** advisory jest `@nestfolio/investor-adpt/domain` resolution bug fixed + shipped (`1d3a87bd`, backlog `advisory-stack-tests-investor-adpt-domain-resolution`); dev orphaned-CFN-resource sprawl QUEUED rank 1 (`dev-orphaned-cfn-resources-cleanup`). `facade-esbuild-bundle-js-resolvers` parking item was deleted (folded into P2). Net new parking from this workstream: zero.
+
+**Closing reminders (for the final ship after P4):** the `validation_gate` must cite the 3 e2e-found fixes above + the folded advisory fix; the closing verify gate (`nx run-many test,lint` on affected) should now be fully green (advisory jest fix landed); P4 deploys investor-bff + investor-mfe + runs the Playwright journey.
+
+---
+
 ## PHASE 1 — sim→live switch works (closes the bug)
 
 ### Task 1.1: `confirmGoLive` mutation + resolver (executionMode switch only)
