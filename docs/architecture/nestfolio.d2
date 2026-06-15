@@ -248,9 +248,9 @@ nestfolio: "" {
   }
   investor-domain -> investor-to-execution {style.stroke: "#999999"; style.stroke-width: 3; style.stroke-dash: 3}
   investor-to-execution -> execution-domain {style.stroke: "#999999"; style.stroke-width: 3; style.stroke-dash: 3}
-  advisory-to-investor: "9 Events" {
+  advisory-to-investor: "5 Events" {
     class: flow-label
-    tooltip: "DECISION_PACKET_CREATED\nUSER_CONFIRMATION_REQUESTED\nEXPLANATION_GENERATED\nDECISION_APPROVED\nDECISION_BLOCKED\nESCALATION_TRIGGERED\nINCIDENT_DETECTED\nINCIDENT_RESOLVED\nADVISORY_STATUS_UPDATED"
+    tooltip: "DECISION_PACKET_CREATED\nEXPLANATION_GENERATED\nDECISION_APPROVED\nDECISION_BLOCKED\nADVISORY_STATUS_UPDATED"
   }
   advisory-domain -> advisory-to-investor {style.stroke: "#999999"; style.stroke-width: 3; style.stroke-dash: 3}
   advisory-to-investor -> investor-domain {style.stroke: "#999999"; style.stroke-width: 3; style.stroke-dash: 3}
@@ -535,7 +535,7 @@ layers: {
     dashboard-mfe -> dashboard-bff: "GraphQL" {style.stroke: "#4CAF50"; style.stroke-width: 2}
 
     ext-advisory: "Advisory Domain" {style: { fill: "#8B8B8B"; stroke: "#666666"; font-color: "#ffffff"; font-size: 26; border-radius: 10; stroke-width: 1; stroke-dash: 5 }}
-    advisory-to-investor-adpt: "9 Events" {style: { fill: "#F5F5F5"; stroke: "#999999"; font-color: "#666666"; font-size: 22; border-radius: 20; stroke-width: 1 }; tooltip: "DECISION_PACKET_CREATED\nUSER_CONFIRMATION_REQUESTED\nEXPLANATION_GENERATED\nDECISION_APPROVED\nDECISION_BLOCKED\nESCALATION_TRIGGERED\nINCIDENT_DETECTED\nINCIDENT_RESOLVED\nADVISORY_STATUS_UPDATED"}
+    advisory-to-investor-adpt: "5 Events" {style: { fill: "#F5F5F5"; stroke: "#999999"; font-color: "#666666"; font-size: 22; border-radius: 20; stroke-width: 1 }; tooltip: "DECISION_PACKET_CREATED\nEXPLANATION_GENERATED\nDECISION_APPROVED\nDECISION_BLOCKED\nADVISORY_STATUS_UPDATED"}
     ext-advisory -> advisory-to-investor-adpt {style.stroke: "#999999"; style.stroke-width: 3; style.stroke-dash: 3}
     advisory-to-investor-adpt -> investor-adpt {style.stroke: "#999999"; style.stroke-width: 3; style.stroke-dash: 3}
     ext-execution: "Execution Domain" {style: { fill: "#8B8B8B"; stroke: "#666666"; font-color: "#ffffff"; font-size: 26; border-radius: 10; stroke-width: 1; stroke-dash: 5 }}
@@ -546,13 +546,13 @@ layers: {
     ledger-to-investor-adpt: "6 Events" {style: { fill: "#F5F5F5"; stroke: "#999999"; font-color: "#666666"; font-size: 22; border-radius: 20; stroke-width: 1 }; tooltip: "BALANCE_UPDATED\nPORTFOLIO_UPDATED\nLEDGER_ENTRY_RECORDED\nRECONCILIATION_COMPLETED\nLEDGER_PROCESSING_FAILED\nPORTFOLIO_DRIFT_DETECTED"}
     ext-ledger -> ledger-to-investor-adpt {style.stroke: "#999999"; style.stroke-width: 3; style.stroke-dash: 3}
     ledger-to-investor-adpt -> investor-adpt {style.stroke: "#999999"; style.stroke-width: 3; style.stroke-dash: 3}
-    investor-adpt-to-dashboard-bff: "11 Events" {style: { fill: "#F5F5F5"; stroke: "#999999"; font-color: "#666666"; font-size: 22; border-radius: 20; stroke-width: 1 }; tooltip: "DECISION_PACKET_CREATED\nUSER_CONFIRMATION_REQUESTED\nDECISION_APPROVED\nDECISION_BLOCKED\nADVISORY_STATUS_UPDATED\nDEPOSIT_DETECTED\nWITHDRAWAL_SETTLED\nBALANCE_UPDATED\nPORTFOLIO_UPDATED\nLEDGER_ENTRY_RECORDED\nRECONCILIATION_COMPLETED"}
+    investor-adpt-to-dashboard-bff: "10 Events" {style: { fill: "#F5F5F5"; stroke: "#999999"; font-color: "#666666"; font-size: 22; border-radius: 20; stroke-width: 1 }; tooltip: "DECISION_PACKET_CREATED\nDECISION_APPROVED\nDECISION_BLOCKED\nADVISORY_STATUS_UPDATED\nDEPOSIT_DETECTED\nWITHDRAWAL_SETTLED\nBALANCE_UPDATED\nPORTFOLIO_UPDATED\nLEDGER_ENTRY_RECORDED\nRECONCILIATION_COMPLETED"}
     investor-adpt -> investor-adpt-to-dashboard-bff {style.stroke: "#999999"; style.stroke-width: 3; style.stroke-dash: 3}
     investor-adpt-to-dashboard-bff -> dashboard-bff {style.stroke: "#999999"; style.stroke-width: 3; style.stroke-dash: 3}
     investor-adpt-to-investor-bff: "10 Events" {style: { fill: "#F5F5F5"; stroke: "#999999"; font-color: "#666666"; font-size: 22; border-radius: 20; stroke-width: 1 }; tooltip: "DEPOSIT_REQUESTED\nDEPOSIT_DETECTED\nDEPOSIT_SETTLED\nDEPOSIT_FAILED\nWITHDRAWAL_REQUESTED\nWITHDRAWAL_SETTLED\nWITHDRAWAL_FAILED\nBROKER_CIRCUIT_OPEN\nBROKER_CIRCUIT_CLOSED\nBALANCE_UPDATED"}
     investor-adpt -> investor-adpt-to-investor-bff {style.stroke: "#999999"; style.stroke-width: 3; style.stroke-dash: 3}
     investor-adpt-to-investor-bff -> investor-bff {style.stroke: "#999999"; style.stroke-width: 3; style.stroke-dash: 3}
-    investor-adpt-to-investor-ctrl: "9 Events" {style: { fill: "#F5F5F5"; stroke: "#999999"; font-color: "#666666"; font-size: 22; border-radius: 20; stroke-width: 1 }; tooltip: "DECISION_APPROVED\nDECISION_BLOCKED\nORDER_FILLED\nORDER_REJECTED\nWITHDRAWAL_SETTLED\nBROKER_CIRCUIT_OPEN\nBROKER_CIRCUIT_CLOSED\nBROKER_HEAL_ESCALATED\nBALANCE_UPDATED"}
+    investor-adpt-to-investor-ctrl: "10 Events" {style: { fill: "#F5F5F5"; stroke: "#999999"; font-color: "#666666"; font-size: 22; border-radius: 20; stroke-width: 1 }; tooltip: "DECISION_APPROVED\nDECISION_BLOCKED\nORDER_FILLED\nORDER_REJECTED\nWITHDRAWAL_SETTLED\nORDER_ESCALATED\nBROKER_CIRCUIT_OPEN\nBROKER_CIRCUIT_CLOSED\nBROKER_HEAL_ESCALATED\nBALANCE_UPDATED"}
     investor-adpt -> investor-adpt-to-investor-ctrl {style.stroke: "#999999"; style.stroke-width: 3; style.stroke-dash: 3}
     investor-adpt-to-investor-ctrl -> investor-ctrl {style.stroke: "#999999"; style.stroke-width: 3; style.stroke-dash: 3}
 
