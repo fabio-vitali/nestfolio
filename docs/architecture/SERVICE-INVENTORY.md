@@ -150,11 +150,11 @@ Each entry below uses the same structure:
 
 **Responsibilities.** Investor registration; identity write side; notification fan-out (system → user channels) via NOTIFICATION_TEMPLATES. Each notification template maps directly to the triggering event — no diff detection needed because the 3-tier topology produces one semantic event per change type.
 
-**Key events consumed (15).** `ONBOARDING_COMPLETED`, `MANDATE_ISSUED`, `MANDATE_REVOKED`, `OPERATING_MODE_CHANGED`, `GOAL_UPDATED`, `DEPOSIT_INITIATED`, `DECISION_APPROVED`, `ORDER_FILLED`, `BALANCE_UPDATED`, `ORDER_REJECTED`, `DECISION_BLOCKED`, `WITHDRAWAL_COMPLETED`, `BROKER_CIRCUIT_OPEN`, `BROKER_CIRCUIT_CLOSED`, `BROKER_HEAL_ESCALATED`.
+**Key events consumed (16).** `ONBOARDING_COMPLETED`, `MANDATE_ISSUED`, `MANDATE_REVOKED`, `OPERATING_MODE_CHANGED`, `GOAL_UPDATED`, `DEPOSIT_INITIATED`, `DECISION_APPROVED`, `ORDER_FILLED`, `BALANCE_UPDATED`, `ORDER_REJECTED`, `ORDER_ESCALATED`, `DECISION_BLOCKED`, `WITHDRAWAL_COMPLETED`, `BROKER_CIRCUIT_OPEN`, `BROKER_CIRCUIT_CLOSED`, `BROKER_HEAL_ESCALATED`.
 
 **Key events emitted.** `Notification` → `NOTIFICATION_CREATED` / `NOTIFICATION_UPDATED`; `MonthlyReport` → `MONTHLY_REPORT_CREATED` / `MONTHLY_REPORT_UPDATED`.
 
-**Architectural Evolution.** Notification-lifecycle resplit 2026-05-08: legacy `INVESTOR_PROFILE_UPDATED` diff-detect handler removed. Now subscribes directly to semantic events (`OPERATING_MODE_CHANGED`, `GOAL_UPDATED`) and lifecycle events (`MANDATE_ISSUED`, `MANDATE_REVOKED`). 14 → 15 subscriptions (net: dropped `INVESTOR_PROFILE_UPDATED`, added `OPERATING_MODE_CHANGED` + `GOAL_UPDATED`).
+**Architectural Evolution.** Notification-lifecycle resplit 2026-05-08: legacy `INVESTOR_PROFILE_UPDATED` diff-detect handler removed. Now subscribes directly to semantic events (`OPERATING_MODE_CHANGED`, `GOAL_UPDATED`) and lifecycle events (`MANDATE_ISSUED`, `MANDATE_REVOKED`). 14 → 15 subscriptions (net: dropped `INVESTOR_PROFILE_UPDATED`, added `OPERATING_MODE_CHANGED` + `GOAL_UPDATED`). 15 → 16 (2026-06-15, `incident-escalation-path-b-nonfunctional`): added `ORDER_ESCALATED` → "Order Needs Review" notification, closing the order-escalation convergence gap.
 
 **Health.** canonical.
 
@@ -171,7 +171,7 @@ Each entry below uses the same structure:
 
 **Responsibilities.** Dashboard projection table; WebSocket subscription broadcasts on AppSync (mind the subscription-filter pitfall — every `@aws_subscribe` filter arg must be on the return type, resolver response, AND the publisher's mutation selection per user-memory `feedback_appsync_subscribe_filter_args.md`).
 
-**Key events consumed.** `BALANCE_UPDATED`, `PORTFOLIO_UPDATED`, `RECONCILIATION_COMPLETED`, `DECISION_PACKET_CREATED`, `USER_CONFIRMATION_REQUESTED`, `DECISION_APPROVED`, `DECISION_BLOCKED`, `LEDGER_ENTRY_RECORDED`, `INVESTOR_PROFILE_CREATED`, `INVESTOR_PROFILE_UPDATED`. Post-collapse: the 6 legacy per-entity events (GOAL_*, RISK_PROFILE_*, OPERATING_MODE_*) replaced by the 2 composite events; the investor-snapshot transform reads goal, riskProfile, operatingMode from the composite payload.
+**Key events consumed.** `BALANCE_UPDATED`, `PORTFOLIO_UPDATED`, `RECONCILIATION_COMPLETED`, `DECISION_PACKET_CREATED`, `DECISION_APPROVED`, `DECISION_BLOCKED`, `LEDGER_ENTRY_RECORDED`, `INVESTOR_PROFILE_CREATED`, `INVESTOR_PROFILE_UPDATED`. Post-collapse: the 6 legacy per-entity events (GOAL_*, RISK_PROFILE_*, OPERATING_MODE_*) replaced by the 2 composite events; the investor-snapshot transform reads goal, riskProfile, operatingMode from the composite payload.
 
 **State.** DDB projection table; AppSync GraphQL with WSS.
 
