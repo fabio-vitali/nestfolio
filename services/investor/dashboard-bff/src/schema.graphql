@@ -101,6 +101,7 @@ type InvestorSnapshot @aws_cognito_user_pools @aws_iam {
   goalType: String
   riskLevel: String
   operatingMode: String
+  executionMode: String
   mandateLevel: String
   onboardedAt: String
   updatedAt: String!

@@ -60,6 +60,7 @@ export interface InvestorSnapshot {
   goalType: string | null;
   riskLevel: string | null;
   operatingMode: string | null;
+  executionMode: string | null;
   mandateLevel: string | null;
   onboardedAt: string | null;
   updatedAt: string;

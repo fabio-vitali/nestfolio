@@ -41,4 +41,32 @@ describe('ExecutionModeBadgeComponent', () => {
     component.executionMode = 'AUTO';
     expect(component.isLive).toBe(false);
   });
+
+});
+
+describe('ExecutionModeBadgeComponent (real template — testid-state)', () => {
+  let component: ExecutionModeBadgeComponent;
+  let fixture: ComponentFixture<ExecutionModeBadgeComponent>;
+
+  beforeEach(async () => {
+    fixture = await setupComponentTest(ExecutionModeBadgeComponent, {
+      providers: [{ provide: I18nService, useValue: createMockI18nService() }],
+      overrideTemplate: null,
+    });
+    component = fixture.componentInstance;
+  });
+
+  it('data-testid-state reflects execution-mode-live when isLive is true', () => {
+    component.executionMode = 'live';
+    fixture.detectChanges();
+    const span = fixture.nativeElement.querySelector('[data-testid="execution-mode-badge"]');
+    expect(span?.getAttribute('data-testid-state')).toBe('execution-mode-live');
+  });
+
+  it('data-testid-state reflects execution-mode-sim when not live', () => {
+    component.executionMode = 'simulation';
+    fixture.detectChanges();
+    const span = fixture.nativeElement.querySelector('[data-testid="execution-mode-badge"]');
+    expect(span?.getAttribute('data-testid-state')).toBe('execution-mode-sim');
+  });
 });

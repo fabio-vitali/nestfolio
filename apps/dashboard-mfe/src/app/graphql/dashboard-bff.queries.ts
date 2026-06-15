@@ -48,6 +48,7 @@ const INVESTOR_SNAPSHOT_FIELDS = `
     goalType
     riskLevel
     operatingMode
+    executionMode
     mandateLevel
     onboardedAt
     updatedAt

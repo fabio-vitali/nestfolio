@@ -50,7 +50,7 @@ const POSITIONS_RECONNECT_BACKOFF_MS = 2_000;
         <div class="kpi-row">
           <div class="kpi-row-header">
             <app-execution-mode-badge
-              [executionMode]="store.investorSnapshot()?.operatingMode ?? null"
+              [executionMode]="store.investorSnapshot()?.executionMode ?? null"
             />
           </div>
           <app-kpi-cards

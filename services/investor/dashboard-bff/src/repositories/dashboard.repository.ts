@@ -253,6 +253,7 @@ export class DashboardRepository extends TableRepository {
         goalType?: string;
         riskLevel?: string;
         operatingMode?: string;
+        executionMode?: string;
         mandateLevel?: string;
         onboardedAt?: string;
       },

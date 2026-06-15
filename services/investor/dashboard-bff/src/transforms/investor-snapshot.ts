@@ -36,6 +36,7 @@ export const investorSnapshot = (
   if (goal?.objective !== undefined) fields.goalType = goal.objective;
   if (riskProfile?.score !== undefined) fields.riskLevel = String(riskProfile.score);
   if (payload.operatingMode !== undefined) fields.operatingMode = payload.operatingMode;
+  if (payload.executionMode !== undefined) fields.executionMode = payload.executionMode;
   if (payload.onboardingCompletedAt !== undefined) fields.onboardedAt = payload.onboardingCompletedAt;
 
   return projectVersioned('InvestorSnapshot', fields, {

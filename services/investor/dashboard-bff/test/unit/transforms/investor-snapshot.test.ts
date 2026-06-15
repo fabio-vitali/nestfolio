@@ -8,6 +8,7 @@ const makeUow = (over: Record<string, unknown> = {}, type = 'INVESTOR_PROFILE_UP
     timestamp: '2026-02-02T00:00:00.000Z',
     subject: {
       operatingMode: 'BALANCED',
+      executionMode: 'simulation',
       goal: { objective: 'RETIREMENT' },
       riskProfile: { score: 7 },
       onboardingCompletedAt: '2026-01-01T00:00:00.000Z',
@@ -30,6 +31,7 @@ describe('investorSnapshot transform', () => {
         goalType: 'RETIREMENT',
         riskLevel: '7',
         operatingMode: 'BALANCED',
+        executionMode: 'simulation',
         onboardedAt: '2026-01-01T00:00:00.000Z',
       }, {
         version: 5,
@@ -43,6 +45,20 @@ describe('investorSnapshot transform', () => {
       makeUow({}, 'INVESTOR_PROFILE_UPDATED') as Parameters<typeof investorSnapshot>[0],
     ) as { fields: Record<string, unknown> };
     expect(intent.fields.onboardedAt).toBe('2026-01-01T00:00:00.000Z');
+  });
+
+  it('projects executionMode as live when the investor has gone live', () => {
+    const intent = investorSnapshot(
+      makeUow({ executionMode: 'live' }) as Parameters<typeof investorSnapshot>[0],
+    ) as { fields: Record<string, unknown> };
+    expect(intent.fields.executionMode).toBe('live');
+  });
+
+  it('omits executionMode from the intent when absent from the payload (pre-go-live producer)', () => {
+    const intent = investorSnapshot(
+      makeUow({ executionMode: undefined }) as Parameters<typeof investorSnapshot>[0],
+    ) as { fields: Record<string, unknown> };
+    expect(intent.fields.executionMode).toBeUndefined();
   });
 
   it('returns undefined when the producer has not stamped a __version', () => {
