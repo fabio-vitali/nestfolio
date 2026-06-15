@@ -36,7 +36,7 @@ Post-resplit (2026-05-08): subscribes to semantic/lifecycle events directly inst
 
 ## Event Types (domain/events.ts)
 <!-- card-drift:event-types (generated — `nx run event-processor:card-drift -- --fix`) -->
-- ComplianceEventTypes: AUDIT_ARTIFACT_CREATED, AUDIT_ARTIFACT_UPDATED, COMPLIANCE_APPROVAL_GRANTED, DECISION_APPROVED, DECISION_BLOCKED, ESCALATION_TRIGGERED, GUARDRAIL_VIOLATION_DETECTED, SUITABILITY_CHECK_FAILED, SUITABILITY_CHECK_PASSED
+- ComplianceEventTypes: AUDIT_ARTIFACT_CREATED, AUDIT_ARTIFACT_UPDATED, COMPLIANCE_APPROVAL_GRANTED, DECISION_APPROVED, DECISION_BLOCKED, GUARDRAIL_VIOLATION_DETECTED, SUITABILITY_CHECK_FAILED, SUITABILITY_CHECK_PASSED
 <!-- /card-drift:event-types -->
 ## Event Payload Contracts (domain/contracts.ts → @nestfolio/compliance-ctrl/contracts)
 Producer-owned zod CDC subject contracts, exported via `@nestfolio/compliance-ctrl/contracts`. DRY domain subjects — identity travels in the event context (RequestContext), not on the subject. The old `domain/schemas.ts` (dead `DecisionApprovedSchema`/`DecisionBlockedSchema` — structurally wrong, unimported) was deleted and replaced by this contract.
