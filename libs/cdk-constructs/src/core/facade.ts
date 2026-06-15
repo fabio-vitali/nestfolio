@@ -1,5 +1,6 @@
-import { readFileSync } from 'fs';
+import { readFileSync, existsSync } from 'fs';
 import { join } from 'path';
+import { buildSync } from 'esbuild';
 import { Construct } from 'constructs';
 import {
   GraphqlApi,
@@ -21,6 +22,36 @@ import { CfnWebACL, CfnWebACLAssociation } from 'aws-cdk-lib/aws-wafv2';
 import { parse, visit } from 'graphql';
 import { ServiceStack } from './service-stack';
 import { State } from './state';
+
+/**
+ * Load resolver code for an AppSync JS function file.
+ *
+ * Accepts the full path to a `.fn.js` file. If a `.fn.ts` sibling with the same
+ * base name exists, esbuild bundles it (inlining local imports, keeping
+ * `@aws-appsync/utils` as an external — it is provided by the APPSYNC_JS runtime).
+ * Falls back to reading the `.fn.js` file as plain text when no `.fn.ts` exists,
+ * preserving the exact existing behaviour for all current resolvers.
+ *
+ * @param jsFnPath Full path to the `.fn.js` file (e.g. `/…/graphql/js-function/my-resolver.fn.js`).
+ * @returns Resolver source code as a string ready to pass to `Code.fromInline()`.
+ */
+export function loadResolverCode(jsFnPath: string): string {
+  const tsPath = jsFnPath.replace(/\.fn\.js$/, '.fn.ts');
+  if (existsSync(tsPath)) {
+    const result = buildSync({
+      entryPoints: [tsPath],
+      bundle: true,
+      write: false,
+      format: 'esm',
+      target: 'es2020',
+      platform: 'neutral',
+      external: ['@aws-appsync/utils'],
+      legalComments: 'none',
+    });
+    return result.outputFiles[0].text;
+  }
+  return readFileSync(jsFnPath, 'utf-8');
+}
 
 export interface JsResolverConfig {
   typeName: 'Query' | 'Mutation';
@@ -159,11 +190,17 @@ export class Facade extends Construct {
             continue;
           }
 
+          // Use esbuild bundling when a .fn.ts sibling exists; keep Code.fromAsset for plain .fn.js files.
+          const tsSiblingPath = fnPath.replace(/\.fn\.js$/, '.fn.ts');
+          const resolverCode = existsSync(tsSiblingPath)
+            ? Code.fromInline(loadResolverCode(fnPath))
+            : Code.fromAsset(fnPath);
+
           const fn = new AppsyncFunction(this, fnName, {
             name: fnName,
             api: this.api,
             dataSource: isNone ? noneDs : ddbDs,
-            code: Code.fromAsset(fnPath),
+            code: resolverCode,
             runtime: FunctionRuntime.JS_1_0_0,
           });
 

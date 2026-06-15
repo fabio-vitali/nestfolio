@@ -2,7 +2,7 @@ import { App } from 'aws-cdk-lib';
 import { Template, Match } from 'aws-cdk-lib/assertions';
 import { UserPool } from 'aws-cdk-lib/aws-cognito';
 import { Function, Runtime, Code } from 'aws-cdk-lib/aws-lambda';
-import { Facade, parseSchemaFields, discoverJsResolvers } from '../../src/core/facade';
+import { Facade, parseSchemaFields, discoverJsResolvers, loadResolverCode } from '../../src/core/facade';
 import { ServiceStack } from '../../src/core/service-stack';
 import { State } from '../../src/core/state';
 import * as path from 'path';
@@ -548,5 +548,46 @@ describe('parseSchemaFields', () => {
 
   it('throws descriptive error for invalid schema', () => {
     expect(() => parseSchemaFields('invalid { schema }')).toThrow('Failed to parse GraphQL schema');
+  });
+});
+
+describe('loadResolverCode', () => {
+  it('bundles a .fn.ts resolver, inlining local imports (external @aws-appsync/utils)', () => {
+    const dir = fs.mkdtempSync(join(os.tmpdir(), 'facade-bundle-'));
+    const jsFnDir = join(dir, 'js-function');
+    const domainDir = join(dir, 'domain');
+    fs.mkdirSync(jsFnDir, { recursive: true });
+    fs.mkdirSync(domainDir, { recursive: true });
+
+    fs.writeFileSync(join(domainDir, 'calc.ts'), 'export const answer = () => 42;');
+    fs.writeFileSync(
+      join(jsFnDir, 'do-thing.fn.ts'),
+      [
+        `import { util } from '@aws-appsync/utils';`,
+        `import { answer } from '../domain/calc';`,
+        `export function request(ctx) { util.error; return { payload: answer() }; }`,
+        `export function response(ctx) { return ctx.result; }`,
+      ].join('\n'),
+    );
+
+    const code = loadResolverCode(join(jsFnDir, 'do-thing.fn.js'));
+
+    // Local import inlined: the literal value 42 must appear in the bundle
+    expect(code).toContain('42');
+    // Runtime import preserved as external (not inlined away)
+    expect(code).toMatch(/@aws-appsync\/utils/);
+    // Local relative import resolved away
+    expect(code).not.toMatch(/from ['"]\.\.\/domain/);
+  });
+
+  it('reads a .fn.js file as-is when no .fn.ts sibling exists', () => {
+    const dir = fs.mkdtempSync(join(os.tmpdir(), 'facade-js-'));
+    fs.mkdirSync(join(dir, 'js-function'), { recursive: true });
+    const content = 'export function request(ctx) { return {}; }\nexport function response(ctx) { return ctx.result; }';
+    fs.writeFileSync(join(dir, 'js-function', 'plain.fn.js'), content);
+
+    const code = loadResolverCode(join(dir, 'js-function', 'plain.fn.js'));
+
+    expect(code).toBe(content);
   });
 });
