@@ -490,6 +490,49 @@ describe('event-listener handler', () => {
       });
     });
 
+    it('DRY subject (no userId) → MandateSnapshot keyed by ctx.userId, NOT tenantId (regression: DRY mandate events lacked subject.userId, causing pk collision)', async () => {
+      // Mandate events are DRY: identity travels in the event CONTEXT, not the subject.
+      // Before the fix, `userId` fell back to `tenantId` when subject.userId was absent,
+      // so every projection wrote pk=GuardrailPolicy#t-1#t-1.
+      // The reader (getMandateSnapshot) always queries by the real userId → miss.
+      // This test pins the correct behaviour: context userId 'u-real' ≠ tenantId 't-1'.
+      const drySubject = {
+        // No userId field — simulates the production DRY mandate subject
+        mandateId: 'm-dry',
+        level: 'ADVISORY',
+        status: 'ACTIVE',
+        operatingMode: 'CONSERVATIVE',
+        effectiveDate: '2025-06-01T00:00:00.000Z',
+        __version: 5,
+      };
+
+      const harness = makeHarness();
+      const result = await harness.process([
+        fakeSqsRecord('MANDATE_ISSUED', drySubject, { tenantId: 't-1', userId: 'u-real' }),
+      ]);
+
+      expect(result.batchItemFailures).toHaveLength(0);
+      expect(result.intents).toHaveLength(1);
+      // pk must use ctx.userId ('u-real'), NOT ctx.tenantId ('t-1')
+      expect(result.intents[0]).toMatchObject({
+        _tag: 'projectVersioned',
+        typename: 'MandateSnapshot',
+        version: 5,
+        fields: expect.objectContaining({
+          tenantId: 't-1',
+          userId: 'u-real',
+          mandateId: 'm-dry',
+          level: 'ADVISORY',
+          status: 'ACTIVE',
+          operatingMode: 'CONSERVATIVE',
+        }),
+        overrides: {
+          pk: 'GuardrailPolicy#t-1#u-real',  // NOT 'GuardrailPolicy#t-1#t-1'
+          sk: 'MandateSnapshot',
+        },
+      });
+    });
+
     it('Mandate event missing operatingMode → batch item failure (NotRetryableError)', async () => {
       const harness = makeHarness();
       const result = await harness.process([
