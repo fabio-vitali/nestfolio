@@ -472,6 +472,24 @@ describe('event-listener handler', () => {
       });
     });
 
+    it('MANDATE_REAFFIRMED → projectVersioned(MandateSnapshot) full row keyed on __version', async () => {
+      const harness = makeHarness();
+      const result = await harness.process([
+        fakeSqsRecord('MANDATE_REAFFIRMED', fullMandate({ status: 'ACTIVE', __version: 2, effectiveDate: '2026-06-15T00:00:00.000Z' }), { tenantId: 't-1' }),
+      ]);
+      expect(result.batchItemFailures).toHaveLength(0);
+      expect(result.intents).toHaveLength(1);
+      expect(result.intents[0]).toMatchObject({
+        _tag: 'projectVersioned', typename: 'MandateSnapshot', version: 2,
+        fields: expect.objectContaining({
+          tenantId: 't-1', userId: 'u-1', mandateId: 'm-1',
+          level: 'DISCRETIONARY', status: 'ACTIVE', operatingMode: 'BALANCED',
+          effectiveDate: '2026-06-15T00:00:00.000Z',
+        }),
+        overrides: { pk: 'GuardrailPolicy#t-1#u-1', sk: 'MandateSnapshot' },
+      });
+    });
+
     it('Mandate event missing operatingMode → batch item failure (NotRetryableError)', async () => {
       const harness = makeHarness();
       const result = await harness.process([

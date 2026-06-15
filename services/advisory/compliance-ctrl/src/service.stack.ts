@@ -17,6 +17,7 @@ export class ComplianceCtrlStack extends ServiceStack {
         InvestorCrossDomainEventTypes.MANDATE_ISSUED,
         InvestorCrossDomainEventTypes.OPERATING_MODE_CHANGED,
         InvestorCrossDomainEventTypes.MANDATE_REVOKED,
+        InvestorCrossDomainEventTypes.MANDATE_REAFFIRMED,
       ],
     });
 

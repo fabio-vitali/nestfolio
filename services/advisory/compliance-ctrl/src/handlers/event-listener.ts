@@ -203,6 +203,8 @@ export const createHandlers = (deps: EventListenerDeps) => {
     projectMandateSnapshot(payload, ctx);
   handlers[InvestorCrossDomainEventTypes.MANDATE_REVOKED] = (payload, ctx) =>
     projectMandateSnapshot(payload, ctx);
+  handlers[InvestorCrossDomainEventTypes.MANDATE_REAFFIRMED] = (payload, ctx) =>
+    projectMandateSnapshot(payload, ctx);
 
   return handlers;
 };

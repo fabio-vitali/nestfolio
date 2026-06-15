@@ -27,6 +27,7 @@ describe('AdvisoryAdptStack', () => {
           'MANDATE_ISSUED',
           'MANDATE_REVOKED',
           'OPERATING_MODE_CHANGED',
+          'MANDATE_REAFFIRMED',
         ]),
       }),
     });
