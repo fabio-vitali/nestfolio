@@ -6,14 +6,12 @@
 
 ## ACTIVE
 
-_(none)_
-
+- [incident-escalation-path-b-nonfunctional](backlog/incident-escalation-path-b-nonfunctional.md) [bug] — incident-escalation Path B is dead: ESCALATION_TRIGGERED / INCIDENT_DETECTED / INCIDENT_RESOLVED are declared-but-unemitted constants (no producer, no CDC, no PutEvents); compliance-ctrl never escalates and investor-ctrl subscribes to neither escalation event, so investors are never notified of compliance OR order escalations. DECISION (2026-06-15): remove the dead constants (L1→L2 escalation is already realized via compliance-ctrl authority-resolver + decision-workflow taskToken; incident containment via circuit-breaker/reconciliation/order-escalation — investigation confirmed nothing functional is lost) AND wire the real Path C convergence gap (investor-ctrl subscribes to ORDER_ESCALATED → notification). Also removes the co-dead USER_CONFIRMATION_REQUESTED (no producer since Task-1.5 taskToken redesign) + its unreachable dashboard-bff handler. Then refresh incident-escalation.flow.yaml + architecture docs + C4. Surfaced 2026-06-14 by the flows-vs-code audit.
 
 ## QUEUED
 
-1. [incident-escalation-path-b-nonfunctional](backlog/incident-escalation-path-b-nonfunctional.md) [bug] — incident-escalation Path B is dead: ESCALATION_TRIGGERED / INCIDENT_DETECTED / INCIDENT_RESOLVED are declared-but-unemitted constants (no producer, no CDC, no PutEvents); compliance-ctrl never escalates and investor-ctrl subscribes to neither escalation event, so investors are never notified of compliance OR order escalations. Decide implement-vs-remove; then refresh incident-escalation.flow.yaml. Surfaced 2026-06-14 by the flows-vs-code audit.
-2. [flow-audit-stale-refs-advisory-ctrl-and-handler-names](backlog/flow-audit-stale-refs-advisory-ctrl-and-handler-names.md) [refactor] — Stale references surfaced by the 2026-06-14 flows-vs-code audit (orthogonal to the flow specs themselves — touches test comments + a service card only): 2 e2e tests still comment 'advisory-ctrl' (removed Spec 2) for what is now decision-workflow-ctrl; reconciliation-ctrl CLAUDE.md card names removed handlers reconcileHandler/alpacaSnapshotHandler (real code is a createHandlers factory). Doc/comment cleanup; likely partly auto-caught by service-card-drift-gate.
-3. [happy-path-decision-sf-waitfortasktoken-wedge](backlog/happy-path-decision-sf-waitfortasktoken-wedge.md) [bug] — new-investor-happy-path e2e red at decision step: decision-workflow SF wedged at .waitForTaskToken (callback never fires), recurs post maxVms/backlog-trap fixes. Blocks nestfolio-e2e green.
+1. [flow-audit-stale-refs-advisory-ctrl-and-handler-names](backlog/flow-audit-stale-refs-advisory-ctrl-and-handler-names.md) [refactor] — Stale references surfaced by the 2026-06-14 flows-vs-code audit (orthogonal to the flow specs themselves — touches test comments + a service card only): 2 e2e tests still comment 'advisory-ctrl' (removed Spec 2) for what is now decision-workflow-ctrl; reconciliation-ctrl CLAUDE.md card names removed handlers reconcileHandler/alpacaSnapshotHandler (real code is a createHandlers factory). Doc/comment cleanup; likely partly auto-caught by service-card-drift-gate.
+2. [happy-path-decision-sf-waitfortasktoken-wedge](backlog/happy-path-decision-sf-waitfortasktoken-wedge.md) [bug] — new-investor-happy-path e2e red at decision step: decision-workflow SF wedged at .waitForTaskToken (callback never fires), recurs post maxVms/backlog-trap fixes. Blocks nestfolio-e2e green.
 
 ## LATER
 
