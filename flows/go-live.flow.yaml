@@ -1,51 +1,84 @@
 schema_version: 1
 flow: go-live
-description: Investor transitions from simulation to live trading by completing Go Live wizard, switching execution mode from simulation to live
-domains: [investor, execution]
+description: Investor transitions from simulation to live trading. The investor-bff confirmGoLive mutation atomically flips executionMode, re-affirms the Mandate effectiveDate, and writes an audit row — CDC then fans out to execution (broker-ctrl mode cache), advisory (compliance-ctrl MandateSnapshot re-affirmation), and the dashboard UI (InvestorSnapshot live badge).
+domains: [investor, execution, advisory]
 
-# NOTE: confirmGoLive() + GoLiveConfirmed CDC mapping + the frontend go-live wizard all exist, but the
-# onboarding AGENT runtime never reaches them: PHASE_ORDER (src/agent/state.ts) has no go-live phases,
-# commit_phase only calls completeSession on mandate_consent, and flowType='go-live' is read nowhere in
-# src/agent. GO_LIVE_CONFIRMED is therefore NOT emitted today (confirmGoLive has no runtime caller).
-trigger: onboarding-bff WOULD emit GO_LIVE_CONFIRMED (CDC from GoLiveConfirmed:INSERT) — emission path NOT wired in agent
+trigger: investor-bff confirmGoLive AppSync mutation (authenticated investor)
 
 steps:
-  # Phase 1: Onboarding agent completes go-live wizard
-  - service: onboarding-bff
-    action: "Investor completes Go Live wizard (flowType='go-live', phases review_risk -> review_goals -> review_mandate -> fund_account -> go_live_confirmation). NOTE: these phases exist only as zod schema (src/domain/schemas.ts); the agent graph (src/agent/state.ts PHASE_ORDER) does not run them."
-    state_change: "confirmGoLive() (onboarding.repository.ts:121) WOULD TransactWrite OnboardingSession (status='completed', currentPhase='go_live_confirmation') + put GoLiveConfirmed CDC record — but confirmGoLive() has no runtime caller, so this state change does not occur today."
-    emits: GO_LIVE_CONFIRMED (CDC from GoLiveConfirmed:INSERT)
-    idempotent: true
-
-  # Phase 2: investor-bff materializes execution mode change
+  # -- Step 1: Atomic go-live commit in investor-bff --
+  # confirm-go-live.fn.js resolver issues a single TransactWriteItems with 3 items:
+  #   (1) PUT ExecutionModeChange (write-once audit row, fromMode='simulation', toMode='live')
+  #   (2) UPDATE InvestorProfile composite row (executionMode='live', __version++)
+  #       condition: attribute_exists(pk) AND executionMode = 'simulation'
+  #   (3) UPDATE Mandate sibling row (effectiveDate re-affirm, __version++)
+  #       condition: attribute_exists(pk) AND status = 'ACTIVE'
+  # All three writes land atomically; any failure rolls back the whole transaction
+  # (returns DynamoDB:TransactionCanceledException → InvalidState error to the caller).
+  # The Egress CDC map drives 3 distinct event emissions from those row changes:
+  #   ExecutionModeChange:INSERT → EXECUTION_MODE_CHANGED
+  #   InvestorProfile:MODIFY (always carrier) → INVESTOR_PROFILE_UPDATED
+  #   Mandate:MODIFY onFieldChange effectiveDate → MANDATE_REAFFIRMED
   - service: investor-bff
-    receives: GO_LIVE_CONFIRMED
-    via: InvestorBus -> SQS -> investor-bff-Ingress
-    state_change: event-listener calls profileRepo.setExecutionMode(reqCtx, 'simulation', 'live') which TransactWrites ExecutionModeChange record (__typename='ExecutionModeChange', fromMode='simulation', toMode='live') and updates InvestorProfile (executionMode='live')
-    emits: EXECUTION_MODE_CHANGED (CDC from ExecutionModeChange:INSERT)
+    action: confirmGoLive AppSync mutation → confirm-go-live.fn.js → TransactWriteItems (3 items); get-profile.fn.js readback (extraSteps) returns the updated InvestorProfile to the caller
+    state_change: "ExecutionModeChange row written (pk=InvestorProfile#<tenantId>#<userId>, sk=ExecutionModeChange#<changeId>, __typename='ExecutionModeChange', fromMode='simulation', toMode='live'); InvestorProfile row updated (executionMode='live', __version++); Mandate sibling row updated (effectiveDate re-affirmed to now, __version++) — only when Mandate status='ACTIVE'"
+    emits: >
+      EXECUTION_MODE_CHANGED (CDC, ExecutionModeChange:INSERT),
+      INVESTOR_PROFILE_UPDATED (CDC, InvestorProfile:MODIFY — always carrier),
+      MANDATE_REAFFIRMED (CDC, Mandate:MODIFY onFieldChange effectiveDate)
     idempotent: true
 
-  # Phase 3: Cross-domain forwarding to execution
+  # -- Step 2: Cross-domain: EXECUTION_MODE_CHANGED → Execution domain --
   - cross_domain: EXECUTION_MODE_CHANGED
     from: InvestorBus
     to: ExecutionBus
     via: execution-adpt EB rule (ExecutionIngress-FromInvestor)
 
-  # Phase 4: broker-ctrl caches execution mode for future routing decisions
+  # -- Step 2a: broker-ctrl caches execution mode for future routing decisions --
   - service: broker-ctrl
     receives: EXECUTION_MODE_CHANGED
     via: ExecutionBus -> SQS -> broker-ctrl-ModeIngress
-    state_change: mode-listener records ExecutionMode (__typename='ExecutionMode', pk='ExecutionMode#{tenantId}', mode='live'); future deposit/withdrawal/order routing uses Alpaca adapters instead of simulators
+    state_change: "mode-listener records ExecutionMode row (pk='ExecutionMode#<tenantId>', sk='ExecutionMode', __typename='ExecutionMode', mode='live') via record(); future order/deposit/withdrawal routing reads this row via Direct DDB GetItem and dispatches to broker-alpaca-adpt instead of broker-sim-adpt"
+    idempotent: true
+
+  # -- Step 3: Cross-domain: MANDATE_REAFFIRMED → Advisory domain --
+  - cross_domain: MANDATE_REAFFIRMED
+    from: InvestorBus
+    to: AdvisoryBus
+    via: advisory-adpt EB rule (AdvisoryIngress-FromInvestor)
+
+  # -- Step 3a: compliance-ctrl re-affirms MandateSnapshot --
+  - service: compliance-ctrl
+    receives: MANDATE_REAFFIRMED
+    via: AdvisoryBus -> SQS -> compliance-ctrl-Ingress
+    handler: event-listener.ts (projectMandateSnapshot)
+    state_change: "projectMandateSnapshot writes (or overwrites) MandateSnapshot row via projectVersioned (pk=GuardrailPolicy#<tenantId>#<userId>, sk='MandateSnapshot'), carrying the full Mandate image (level, status, operatingMode, effectiveDate) keyed on Mandate's __version; the version guard prevents a stale re-affirmation from clobbering a newer MANDATE_REVOKED"
+    idempotent: true
+
+  # -- Step 4: Intra-domain: INVESTOR_PROFILE_UPDATED → dashboard-bff UI-truth --
+  # INVESTOR_PROFILE_UPDATED is intra-domain (InvestorBus); dashboard-bff subscribes
+  # directly with no cross-domain adapter hop. The investor-snapshot.ts transform
+  # is a version-guarded P1 projectVersioned projection keyed on InvestorProfile.__version.
+  - service: dashboard-bff
+    receives: INVESTOR_PROFILE_UPDATED
+    via: InvestorBus -> SQS -> dashboard-bff-Ingress
+    handler: event-listener.ts (investorSnapshot transform)
+    state_change: "investor-snapshot.ts projects InvestorSnapshot row via projectVersioned, carrying executionMode='live' (plus goal, riskProfile, operatingMode, onboardedAt from the full InvestorProfile CDC payload), keyed on __version; the version guard prevents out-of-order CDC from clobbering a newer snapshot. dashboard-bff DDB-stream publisher then broadcasts the updated InvestorSnapshot to AppSync @aws_subscribe clients — the dashboard execution-mode badge switches to LIVE and survives a page refresh."
     idempotent: true
 
 success_criteria:
-  - ExecutionMode record materialized in broker-ctrl with mode='live'
+  - ExecutionMode row materialised in broker-ctrl DDB with mode='live' (pk='ExecutionMode#<tenantId>', sk='ExecutionMode')
+  - compliance-ctrl MandateSnapshot row re-affirmed (__version bumped, effectiveDate updated) — next compliance check uses the refreshed effectiveDate
+  - dashboard-bff InvestorSnapshot row carries executionMode='live' — live badge visible on dashboard and survives refresh
   - Future ORDER_SUBMITTED events routed to broker-alpaca-adpt instead of broker-sim-adpt
   - Future DEPOSIT_INITIATED events routed to ALPACA_TRANSFER_REQUESTED instead of SIM_DEPOSIT_INITIATED
   - Future WITHDRAWAL_REQUESTED events routed to ALPACA_TRANSFER_REQUESTED instead of SIM_WITHDRAWAL_REQUESTED
 
 failure_modes:
-  - step 1 fails: onboarding-bff CDC not emitted; go-live not triggered
-  - step 2 fails: investor-bff Ingress DLQ; ExecutionModeChange not written, execution mode unchanged
-  - step 3 fails: execution-adpt FromInvestorDLQ; EXECUTION_MODE_CHANGED not forwarded to ExecutionBus
-  - step 4 fails: broker-ctrl ModeIngress DLQ; ExecutionMode not materialized, orders still route to simulator adapters
+  - step 1 fails (TransactionCanceledException): TransactWriteItems is atomic; if InvestorProfile is missing or already live (executionMode != 'simulation'), or Mandate is not ACTIVE, the resolver returns InvalidState — no rows written, no CDC emitted, caller sees the error
+  - step 1 DLQ (CDC publish): if Egress CDC lambda fails after the row is committed, EXECUTION_MODE_CHANGED / INVESTOR_PROFILE_UPDATED / MANDATE_REAFFIRMED are not emitted; rows are written (execution mode IS live at the DDB level) but downstream read-models lag until manual DLQ replay
+  - step 2 fails (execution-adpt DLQ): EXECUTION_MODE_CHANGED not forwarded to ExecutionBus (FromInvestorDLQ); broker-ctrl never materialises ExecutionMode row; orders still route to simulator adapters until DLQ is replayed
+  - step 2a fails (broker-ctrl ModeIngress DLQ): ExecutionMode row not materialised; routing remains in simulation mode
+  - step 3 fails (advisory-adpt DLQ): MANDATE_REAFFIRMED not forwarded to AdvisoryBus (FromInvestorDLQ); compliance-ctrl MandateSnapshot not re-affirmed; the old effectiveDate remains until DLQ is replayed
+  - step 3a fails (compliance-ctrl Ingress DLQ): MandateSnapshot not updated; compliance checks use stale effectiveDate
+  - step 4 fails (dashboard-bff Ingress DLQ): InvestorSnapshot not updated; dashboard still shows SIMULATION badge until DLQ is replayed
