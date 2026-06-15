@@ -218,9 +218,9 @@ nestfolio: "" {
     tooltip: "The Ledger domain maintains the authoritative record of all portfolio positions, transactions, and valuations. It reconciles broker-reported activity with internal records and provides the financial source of truth for the entire platform."
   }
 
-  investor-to-advisory: "4 Events" {
+  investor-to-advisory: "5 Events" {
     class: flow-label
-    tooltip: "INVESTOR_PROFILE_UPDATED\nMANDATE_ISSUED\nMANDATE_REVOKED\nOPERATING_MODE_CHANGED"
+    tooltip: "INVESTOR_PROFILE_UPDATED\nMANDATE_ISSUED\nMANDATE_REVOKED\nOPERATING_MODE_CHANGED\nMANDATE_REAFFIRMED"
   }
   investor-domain -> investor-to-advisory {style.stroke: "#999999"; style.stroke-width: 3; style.stroke-dash: 3}
   investor-to-advisory -> advisory-domain {style.stroke: "#999999"; style.stroke-width: 3; style.stroke-dash: 3}
@@ -369,7 +369,7 @@ layers: {
     advisory-mfe -> advisory-bff: "GraphQL" {style.stroke: "#4CAF50"; style.stroke-width: 2}
 
     ext-investor: "Investor Domain" {style: { fill: "#8B8B8B"; stroke: "#666666"; font-color: "#ffffff"; font-size: 26; border-radius: 10; stroke-width: 1; stroke-dash: 5 }}
-    investor-to-advisory-adpt: "4 Events" {style: { fill: "#F5F5F5"; stroke: "#999999"; font-color: "#666666"; font-size: 22; border-radius: 20; stroke-width: 1 }; tooltip: "INVESTOR_PROFILE_UPDATED\nMANDATE_ISSUED\nMANDATE_REVOKED\nOPERATING_MODE_CHANGED"}
+    investor-to-advisory-adpt: "5 Events" {style: { fill: "#F5F5F5"; stroke: "#999999"; font-color: "#666666"; font-size: 22; border-radius: 20; stroke-width: 1 }; tooltip: "INVESTOR_PROFILE_UPDATED\nMANDATE_ISSUED\nMANDATE_REVOKED\nOPERATING_MODE_CHANGED\nMANDATE_REAFFIRMED"}
     ext-investor -> investor-to-advisory-adpt {style.stroke: "#999999"; style.stroke-width: 3; style.stroke-dash: 3}
     investor-to-advisory-adpt -> advisory-adpt {style.stroke: "#999999"; style.stroke-width: 3; style.stroke-dash: 3}
     ext-execution: "Execution Domain" {style: { fill: "#8B8B8B"; stroke: "#666666"; font-color: "#ffffff"; font-size: 26; border-radius: 10; stroke-width: 1; stroke-dash: 5 }}
@@ -380,7 +380,7 @@ layers: {
     ledger-to-advisory-adpt: "2 Events" {style: { fill: "#F5F5F5"; stroke: "#999999"; font-color: "#666666"; font-size: 22; border-radius: 20; stroke-width: 1 }; tooltip: "PORTFOLIO_UPDATED\nPORTFOLIO_DRIFT_DETECTED"}
     ext-ledger -> ledger-to-advisory-adpt {style.stroke: "#999999"; style.stroke-width: 3; style.stroke-dash: 3}
     ledger-to-advisory-adpt -> advisory-adpt {style.stroke: "#999999"; style.stroke-width: 3; style.stroke-dash: 3}
-    advisory-adpt-to-compliance-ctrl: "3 Events" {style: { fill: "#F5F5F5"; stroke: "#999999"; font-color: "#666666"; font-size: 22; border-radius: 20; stroke-width: 1 }; tooltip: "MANDATE_ISSUED\nMANDATE_REVOKED\nOPERATING_MODE_CHANGED"}
+    advisory-adpt-to-compliance-ctrl: "4 Events" {style: { fill: "#F5F5F5"; stroke: "#999999"; font-color: "#666666"; font-size: 22; border-radius: 20; stroke-width: 1 }; tooltip: "MANDATE_ISSUED\nMANDATE_REVOKED\nOPERATING_MODE_CHANGED\nMANDATE_REAFFIRMED"}
     advisory-adpt -> advisory-adpt-to-compliance-ctrl {style.stroke: "#999999"; style.stroke-width: 3; style.stroke-dash: 3}
     advisory-adpt-to-compliance-ctrl -> compliance-ctrl {style.stroke: "#999999"; style.stroke-width: 3; style.stroke-dash: 3}
     advisory-adpt-to-decision-workflow-ctrl: "1 Events" {style: { fill: "#F5F5F5"; stroke: "#999999"; font-color: "#666666"; font-size: 22; border-radius: 20; stroke-width: 1 }; tooltip: "PORTFOLIO_UPDATED"}
