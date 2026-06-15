@@ -86,6 +86,7 @@ export class InvestorBffStack extends ServiceStack {
             onFieldChange: {
               status: InvestorBffEventTypes.MANDATE_REVOKED,
               operatingMode: InvestorBffEventTypes.OPERATING_MODE_CHANGED,
+              effectiveDate: InvestorBffEventTypes.MANDATE_REAFFIRMED,
             },
           },
         },

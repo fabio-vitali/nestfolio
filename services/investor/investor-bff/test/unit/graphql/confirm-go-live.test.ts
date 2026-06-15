@@ -7,11 +7,10 @@ const baseCtx = {
 };
 
 describe('confirmGoLive resolver (sim→live switch)', () => {
-  it('TransactWriteItems: puts ExecutionModeChange + flips InvestorProfile executionMode to live', () => {
+  it('TransactWriteItems: puts ExecutionModeChange + flips InvestorProfile executionMode to live + re-affirms Mandate', () => {
     const req = request(baseCtx as any);
     expect(req.operation).toBe('TransactWriteItems');
-    // P1: two items (ExecutionModeChange Put + InvestorProfile Update). A later phase adds the Mandate item.
-    expect(req.transactItems).toHaveLength(2);
+    expect(req.transactItems).toHaveLength(3);
 
     const put = req.transactItems.find((i: any) => i.operation === 'PutItem');
     expect(put.table).toBe('investor-bff-table');
@@ -28,7 +27,7 @@ describe('confirmGoLive resolver (sim→live switch)', () => {
     expect(put.attributeValues.userId.S).toBe('u1');
     expect(put.attributeValues.region.S).toBe('us-east-1');
 
-    const upd = req.transactItems.find((i: any) => i.operation === 'UpdateItem');
+    const upd = req.transactItems.find((i: any) => i.operation === 'UpdateItem' && i.key.sk.S === 'InvestorProfile');
     expect(upd.key.pk.S).toBe('InvestorProfile#t1#u1');
     expect(upd.key.sk.S).toBe('InvestorProfile');
     // audit row shares the profile's pk (same item collection)
@@ -40,6 +39,15 @@ describe('confirmGoLive resolver (sim→live switch)', () => {
     expect(upd.condition.expression).toContain('attribute_exists(pk)');
     // double-confirm guard: only flips when still in simulation
     expect(upd.condition.expression).toContain('executionMode = :simulation');
+
+    const mandate = req.transactItems.find((i: any) => i.operation === 'UpdateItem' && i.key.sk.S === 'Mandate');
+    expect(mandate).toBeDefined();
+    expect(mandate.update.expression).toContain('effectiveDate = :now');
+    expect(mandate.update.expression).toContain('#v = if_not_exists(#v, :zero) + :one');
+    // must NOT touch status / operatingMode (those fire other events)
+    expect(mandate.update.expression).not.toContain('#status =');
+    expect(mandate.update.expression.toLowerCase()).not.toContain('operatingmode');
+    expect(mandate.condition.expression).toContain('#status = :active'); // only re-affirm an ACTIVE mandate
   });
 
   it('maps a cancelled transaction to a clean InvalidState error', () => {

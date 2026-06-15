@@ -39,6 +39,21 @@ export function request(ctx) {
         },
         condition: { expression: 'attribute_exists(pk) AND executionMode = :simulation' },
       },
+      {
+        table: tableName,
+        operation: 'UpdateItem',
+        key: util.dynamodb.toMapValues({ pk, sk: 'Mandate' }),
+        update: {
+          expression: 'SET effectiveDate = :now, updatedAt = :now, #ts = :now, #v = if_not_exists(#v, :zero) + :one',
+          expressionNames: { '#ts': 'timestamp', '#v': '__version' },
+          expressionValues: util.dynamodb.toMapValues({ ':now': now, ':zero': 0, ':one': 1 }),
+        },
+        condition: {
+          expression: 'attribute_exists(pk) AND #status = :active',
+          expressionNames: { '#status': 'status' },
+          expressionValues: util.dynamodb.toMapValues({ ':active': 'ACTIVE' }),
+        },
+      },
     ],
   };
 }
