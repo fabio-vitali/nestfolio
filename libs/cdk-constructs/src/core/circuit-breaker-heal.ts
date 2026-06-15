@@ -77,7 +77,7 @@ export class CircuitBreakerHealDefinition extends Construct {
     const tableName = table.tableName;
     // Global breaker row key (e.g. pk='CircuitBreaker#alpaca', sk='CircuitBreaker').
     // NOTE: static — the breaker is global per adapter, NOT per-tenant.
-    const breakerSk = breakerKey.split('#')[0] ?? 'CircuitBreaker';
+    const breakerSk = breakerKey.split('#')[0] || 'CircuitBreaker';
 
     const maxAttempts = props.retry?.maxAttempts ?? 10;
     const intervalSeconds = props.retry?.intervalSeconds ?? 60;
@@ -93,7 +93,6 @@ export class CircuitBreakerHealDefinition extends Construct {
     const initAttemptCount = new sfn.Pass(this, 'InitAttemptCount', {
       parameters: {
         'tenantId.$': '$.context.tenantId',
-        'userId.$': '$.context.userId',
         'region.$': '$.context.region',
         'adapter.$': '$.subject.adapter',
         attemptCount: 0,
@@ -209,13 +208,12 @@ export class CircuitBreakerHealDefinition extends Construct {
     const endAlreadyHealthy = new sfn.Succeed(this, 'EndAlreadyHealthy');
 
     // ---------------------------------------------------------------
-    // 7. IncrementAttempt — preserve ALL context fields (region/adapter are
+    // 7. IncrementAttempt — preserve context fields (region/adapter are
     //    read by EmitBreakerClosed/EscalateHealFailure on the post-retry paths).
     // ---------------------------------------------------------------
     const incrementAttempt = new sfn.Pass(this, 'IncrementAttempt', {
       parameters: {
         'tenantId.$': '$.tenantId',
-        'userId.$': '$.userId',
         'region.$': '$.region',
         'adapter.$': '$.adapter',
         'attemptCount.$': 'States.MathAdd($.attemptCount, 1)',
