@@ -64,6 +64,28 @@ describe('Decision SF state machine (post-precomputation rewire)', () => {
     expect(state.Default).toBe('LookupInvestorProfileSnapshot');
   });
 
+  // Regression (2026-06-16): the hoist Pass reads riskProfile.{score,category} +
+  // goal.timeHorizonMonths via bare JSONPath, which raise UNCATCHABLE States.Runtime
+  // when absent. The Choice predicate MUST require all four leaves before routing to
+  // the hoist, so a trigger carrying `goal` but no `riskProfile` (INVESTOR_PROFILE_UPDATED)
+  // falls through to the fault-tolerant snapshot lookup instead of crashing the cycle.
+  it('ResolveInvestorProfile only enters the hoist when goal + goal.timeHorizonMonths + riskProfile.{score,category} are ALL present', () => {
+    const branchStates = definition.States.ParallelProjections.Branches[0].States;
+    const choice = branchStates.ResolveInvestorProfile.Choices[0];
+    expect(choice.Next).toBe('HoistInvestorProfileFromTrigger');
+    const present = (choice.And as Array<{ Variable: string; IsPresent: boolean }>)
+      .filter((c) => c.IsPresent === true)
+      .map((c) => c.Variable);
+    expect(present).toEqual(
+      expect.arrayContaining([
+        '$.triggerContext.goal',
+        '$.triggerContext.goal.timeHorizonMonths',
+        '$.triggerContext.riskProfile.score',
+        '$.triggerContext.riskProfile.category',
+      ]),
+    );
+  });
+
   it('adds HoistInvestorProfileFromTrigger as a Pass state', () => {
     const branchStates = definition.States.ParallelProjections.Branches[0].States;
     const state = branchStates.HoistInvestorProfileFromTrigger;

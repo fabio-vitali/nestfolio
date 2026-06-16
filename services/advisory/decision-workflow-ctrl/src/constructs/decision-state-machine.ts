@@ -460,14 +460,13 @@ export class DecisionWorkflowDefinition extends Construct {
           'timeHorizon.$': '$.triggerContext.goal.timeHorizonMonths',
           'riskWillingness': 'inline',
           'riskScore.$': '$.triggerContext.riskProfile.score',
-          // Safety: `riskCategory.$: '$.triggerContext.riskProfile.category'` only
-          // executes when ResolveInvestorProfile routes here via
-          // isPresent('$.triggerContext.goal'). Today, only INVESTOR_PROFILE_UPDATED
-          // triggers carry both `goal` AND `riskProfile.category`, so the JSONPath is
-          // safe. If a future trigger type satisfies isPresent($.triggerContext.goal)
-          // but lacks riskProfile.category, States.Runtime would raise (uncatchable —
-          // see feedback_states_runtime_uncatchable). Tighten the Choice predicate if a
-          // new trigger needs to enter this path without a full riskProfile.
+          // These two JSONPath reads (riskProfile.score + riskProfile.category) are
+          // why ResolveInvestorProfile now requires riskProfile.{score,category} to be
+          // present before routing here — a bare reference raises uncatchable
+          // States.Runtime if absent (feedback_states_runtime_uncatchable). No trigger
+          // today actually carries a full riskProfile (INVESTOR_PROFILE_UPDATED has
+          // `goal` only), so this path is reserved for a future trigger that does; all
+          // current triggers take the fault-tolerant snapshot-lookup branch instead.
           'riskCategory.$': '$.triggerContext.riskProfile.category',
           'regulatoryFlags': [],
           'suitabilityAssessment': 'inline-from-trigger',
@@ -476,8 +475,27 @@ export class DecisionWorkflowDefinition extends Construct {
       },
     });
 
+    // The hoist Pass reads FOUR JSONPath leaves off the trigger payload (goal,
+    // goal.timeHorizonMonths, riskProfile.score, riskProfile.category). A bare field
+    // reference in a Pass raises UNCATCHABLE States.Runtime if ANY is absent
+    // (feedback_states_runtime_uncatchable), so the predicate must require ALL of them
+    // before routing here — otherwise fall through to the fault-tolerant snapshot
+    // lookup. INVESTOR_PROFILE_UPDATED carries `goal` but NO `riskProfile` (verified
+    // 2026-06-16 from a wedged dev execution: the old isPresent($.triggerContext.goal)
+    // predicate routed it into the hoist, which then crashed on
+    // $.triggerContext.riskProfile.category → ExecutionFailed → no DecisionPacket).
+    // It now correctly takes the snapshot-lookup path. isPresent on a nested path is
+    // safe — it returns false (never raises) when an ancestor is missing.
     const resolveInvestorProfile = new sfn.Choice(this, 'ResolveInvestorProfile')
-      .when(sfn.Condition.isPresent('$.triggerContext.goal'), hoistInvestorProfileFromTrigger)
+      .when(
+        sfn.Condition.and(
+          sfn.Condition.isPresent('$.triggerContext.goal'),
+          sfn.Condition.isPresent('$.triggerContext.goal.timeHorizonMonths'),
+          sfn.Condition.isPresent('$.triggerContext.riskProfile.score'),
+          sfn.Condition.isPresent('$.triggerContext.riskProfile.category'),
+        ),
+        hoistInvestorProfileFromTrigger,
+      )
       .otherwise(lookupInvestorProfileSnapshot.next(checkInvestorProfileSnapshotPresent));
 
     // (B) LookupMarketSnapshot — always GetItem. Market signals are a global
