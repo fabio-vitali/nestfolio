@@ -40,32 +40,32 @@ export class TableAssertions {
     this.client.destroy();
   }
 
-  async waitForItem(params: {
+  async waitForItem<T extends Record<string, unknown> = Record<string, unknown>>(params: {
     table: string;
     pk: string;
     sk?: string;
     timeoutMs?: number;
     pollIntervalMs?: number;
-    match?: Record<string, unknown>;
-    predicate?: (item: Record<string, unknown>) => boolean;
+    match?: Partial<T>;
+    predicate?: (item: T) => boolean;
     description?: string;
-  }): Promise<Record<string, unknown>> {
+  }): Promise<T> {
     const timeout = params.timeoutMs ?? this.ctx.timings.eventTimeout;
     const pollInterval = params.pollIntervalMs ?? this.ctx.timings.pollInterval;
     const deadline = Date.now() + timeout;
     const tableName = await this.ctx.ssm.tableName(params.table);
 
-    let lastObserved: Record<string, unknown> | undefined;
+    let lastObserved: T | undefined;
 
     while (Date.now() < deadline) {
-      let item: Record<string, unknown> | undefined;
+      let item: T | undefined;
 
       if (params.sk) {
         const result = await this.client.send(new GetItemCommand({
           TableName: tableName,
           Key: marshall({ pk: params.pk, sk: params.sk }),
         }));
-        if (result.Item) item = unmarshall(result.Item);
+        if (result.Item) item = unmarshall(result.Item) as T;
       } else {
         const result = await this.client.send(new QueryCommand({
           TableName: tableName,
@@ -73,12 +73,12 @@ export class TableAssertions {
           ExpressionAttributeValues: marshall({ ':pk': params.pk }),
           Limit: 1,
         }));
-        if (result.Items?.length) item = unmarshall(result.Items[0]);
+        if (result.Items?.length) item = unmarshall(result.Items[0]) as T;
       }
 
       if (item) {
         lastObserved = item;
-        const matchOk = !params.match || Object.entries(params.match).every(([k, v]) => item![k] === v);
+        const matchOk = !params.match || Object.entries(params.match as Record<string, unknown>).every(([k, v]) => item![k] === v);
         const predicateOk = !params.predicate || params.predicate(item);
         if (matchOk && predicateOk) {
           this.observed.push({ tableName, pk: item['pk'] as string, sk: item['sk'] as string });
