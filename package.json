@@ -16,7 +16,8 @@
     "lint": "nx run-many -t lint",
     "deploy": "bash infrastructure/scripts/deploy.sh",
     "destroy": "bash infrastructure/scripts/teardown.sh",
-    "cf-smoke": "node tools/probes/cf-smoke.mjs"
+    "cf-smoke": "node tools/probes/cf-smoke.mjs",
+    "check:typed-fixtures": "node tools/check-typed-fixtures.mjs"
   },
   "dependencies": {
     "@ag-ui/client": "^0.0.47",
