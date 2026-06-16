@@ -6,13 +6,6 @@
 
 ## EPICS
 
-### [typed-subject-consumer-contract-gaps](backlog/typed-subject-consumer-contract-gaps.md) `[epic · active]` — Consumers read event-subject fields the producer contract never codifies — codify/align the producer contract per hop. Promoted to active delivery epic 2026-06-16. Triaged on adoption: alpaca-transfer-request DROPPED (verified already resolved — AlpacaTransferRequestSchema codifies the compound shape, both sides typed); dwc-sfn-callback RE-HOMED out (its typed-subject gap is closed; only a behavioral blockReason-from-violations residual remains). 2 open core members remain: compliance-ctrl-mandate-snapshot-parse-subject (clean parseSubject conversion) + ledger-ctrl-live-tax-lot-missing-order-fields (genuine live-money latent bug, needs a producer-vs-consumer fork).
-done_when: Each member's producer contract codifies the fields its consumer reads (typed, no casts) and the co-wrong unit fixtures are corrected; every core member shipped or dropped.
-rollup: core 2/3 done · captured 0/0 done
-- core · parking · [ledger-ctrl-live-tax-lot-missing-order-fields](backlog/ledger-ctrl-live-tax-lot-missing-order-fields.md)
-- core · shipped · [compliance-ctrl-mandate-snapshot-parse-subject](backlog/compliance-ctrl-mandate-snapshot-parse-subject.md)
-- core · dropped · [alpaca-transfer-request-compound-subject-no-contract](backlog/alpaca-transfer-request-compound-subject-no-contract.md)
-
 ### [ci-pipeline](backlog/ci-pipeline.md) `[epic · parking]` — CI has never run green; bring the pipeline up end-to-end (umbrella + its rehearsal last-step). Theme epic, 2 members.
 done_when: The PR + post-merge CI pipeline runs green end-to-end at least once (the bring-up is real, not theatre); both members shipped or dropped.
 rollup: core 0/2 done · captured 0/0 done
@@ -37,6 +30,13 @@ rollup: core 0/2 done · captured 0/0 done
 - core · parking · [e2e-contract-emission-bytypename-helper-extract](backlog/e2e-contract-emission-bytypename-helper-extract.md)
 - core · parking · [generalise-appsync-iam-publisher-lib](backlog/generalise-appsync-iam-publisher-lib.md)
 
+### [typed-subject-consumer-contract-gaps](backlog/typed-subject-consumer-contract-gaps.md) `[epic · parking]` — Consumers read event-subject fields the producer contract never codifies — codify/align the producer contract per hop. Theme epic. Promoted to active 2026-06-16 to ship compliance-ctrl-mandate-snapshot-parse-subject, then DEMOTED back to parking once that shipped (member 2 done). Triaged on adoption: alpaca-transfer-request DROPPED (already resolved); dwc-sfn-callback RE-HOMED out (typed-subject gap closed). compliance-ctrl-mandate-snapshot-parse-subject SHIPPED 2026-06-16 (ca14120a). 1 open core member remains: ledger-ctrl-live-tax-lot-missing-order-fields (genuine live-money latent bug, needs a producer-vs-consumer fork — its own future workstream). Promote when starting the ledger tax-lot fork. NOTE: the co-wrong-fixture class this epic kept hitting is now owned by the typed-test-fixtures epic.
+done_when: Each member's producer contract codifies the fields its consumer reads (typed, no casts) and the co-wrong unit fixtures are corrected; every core member shipped or dropped.
+rollup: core 2/3 done · captured 0/0 done
+- core · parking · [ledger-ctrl-live-tax-lot-missing-order-fields](backlog/ledger-ctrl-live-tax-lot-missing-order-fields.md)
+- core · shipped · [compliance-ctrl-mandate-snapshot-parse-subject](backlog/compliance-ctrl-mandate-snapshot-parse-subject.md)
+- core · dropped · [alpaca-transfer-request-compound-subject-no-contract](backlog/alpaca-transfer-request-compound-subject-no-contract.md)
+
 ### [typed-test-fixtures](backlog/typed-test-fixtures.md) `[epic · parking]` — Type-check every test fixture (unit/integration/e2e) against the producer-owned zod contracts so co-wrong fixtures are COMPILE errors (+ a runtime parse backstop), closing the [[event-subject-contracts]] 'fixture passed, real producer differed' gap workspace-wide. New delivery epic (awaiting promotion). Design: docs/superpowers/specs/2026-06-16-typed-test-fixtures-design.md. Motivated by two pre-existing co-wrong fixtures surfaced validating compliance-ctrl-mandate-snapshot-parse-subject (Bug A: identity-in-subject integration fixtures; Bug B: e2e RECOMMENDATION_PROPOSED missing required fields).
 done_when: Mechanism shipped (producer event->schema maps + composed registry + typed putEvent with per-call context override + runtime parse backstop + typed TableAssertions); all ~290 putEvent call-sites across the 4 domains migrated to the typed API; every surfaced co-wrong fixture fixed or its latent contract bug filed; regression gate forbids untyped putEvent in migrated domains. Every core member shipped or dropped.
 rollup: core 0/1 done · captured 0/0 done
@@ -48,7 +48,7 @@ rollup: core 0/2 done · captured 0/0 done
 - core · parking · [playwright-rebalance-after-weight-drift-detector](backlog/playwright-rebalance-after-weight-drift-detector.md)
 - core · parking · [weight-drift-detector](backlog/weight-drift-detector.md)
 
-**Parking health:** 6 theme epic(s), 53 orphan(s) — drive orphans → 0 with `/backlog-themes`
+**Parking health:** 7 theme epic(s), 53 orphan(s) — drive orphans → 0 with `/backlog-themes`
 
 ## ACTIVE
 

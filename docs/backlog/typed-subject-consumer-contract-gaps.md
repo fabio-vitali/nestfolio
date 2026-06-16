@@ -1,8 +1,8 @@
 ---
 id: typed-subject-consumer-contract-gaps
-status: active
+status: parking
 type: epic
-notes: "Consumers read event-subject fields the producer contract never codifies — codify/align the producer contract per hop. Promoted to active delivery epic 2026-06-16. Triaged on adoption: alpaca-transfer-request DROPPED (verified already resolved — AlpacaTransferRequestSchema codifies the compound shape, both sides typed); dwc-sfn-callback RE-HOMED out (its typed-subject gap is closed; only a behavioral blockReason-from-violations residual remains). 2 open core members remain: compliance-ctrl-mandate-snapshot-parse-subject (clean parseSubject conversion) + ledger-ctrl-live-tax-lot-missing-order-fields (genuine live-money latent bug, needs a producer-vs-consumer fork)."
+notes: "Consumers read event-subject fields the producer contract never codifies — codify/align the producer contract per hop. Theme epic. Promoted to active 2026-06-16 to ship compliance-ctrl-mandate-snapshot-parse-subject, then DEMOTED back to parking once that shipped (member 2 done). Triaged on adoption: alpaca-transfer-request DROPPED (already resolved); dwc-sfn-callback RE-HOMED out (typed-subject gap closed). compliance-ctrl-mandate-snapshot-parse-subject SHIPPED 2026-06-16 (ca14120a). 1 open core member remains: ledger-ctrl-live-tax-lot-missing-order-fields (genuine live-money latent bug, needs a producer-vs-consumer fork — its own future workstream). Promote when starting the ledger tax-lot fork. NOTE: the co-wrong-fixture class this epic kept hitting is now owned by the typed-test-fixtures epic."
 done_when: "Each member's producer contract codifies the fields its consumer reads (typed, no casts) and the co-wrong unit fixtures are corrected; every core member shipped or dropped."
 scope: "Cross-domain producer↔consumer contract-shape gaps surfaced by the typed-subject parse-subject conversion — a consumer reads a subject/payload field absent from the producer's codified schema."
 out_of_scope:
