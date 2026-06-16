@@ -5,8 +5,8 @@ import { broadcastFromStream } from '@nestfolio/event-processor';
 // RESPONSE (not input args). Without selecting tenantId, the filter never
 // matches and the broadcast silently drops on the server side.
 const PUBLISH_DASHBOARD_UPDATE = `
-  mutation PublishDashboardUpdate($tenantId: ID!, $advisoryStatus: AdvisoryStatusInput, $portfolioSummary: PortfolioSummaryInput) {
-    publishDashboardUpdate(tenantId: $tenantId, advisoryStatus: $advisoryStatus, portfolioSummary: $portfolioSummary) {
+  mutation PublishDashboardUpdate($tenantId: ID!, $advisoryStatus: AdvisoryStatusInput, $portfolioSummary: PortfolioSummaryInput, $investorSnapshot: InvestorSnapshotInput) {
+    publishDashboardUpdate(tenantId: $tenantId, advisoryStatus: $advisoryStatus, portfolioSummary: $portfolioSummary, investorSnapshot: $investorSnapshot) {
       tenantId
       portfolioSummary {
         totalValueCents
@@ -19,6 +19,15 @@ const PUBLISH_DASHBOARD_UPDATE = `
         generatingCount
         failedCount
         oldestGeneratingAt
+        updatedAt
+      }
+      investorSnapshot {
+        goalType
+        riskLevel
+        operatingMode
+        executionMode
+        mandateLevel
+        onboardedAt
         updatedAt
       }
     }
@@ -151,6 +160,30 @@ export const handler = broadcastFromStream({
             marketValueCents: Number(item['marketValueCents'] ?? 0),
             weightPercent: Number(item['weightPercent'] ?? 0),
             unrealizedPnlCents: Number(item['unrealizedPnlCents'] ?? 0),
+            updatedAt: String(item['updatedAt'] ?? new Date().toISOString()),
+          },
+        };
+      },
+    },
+    InvestorSnapshot: {
+      mutation: PUBLISH_DASHBOARD_UPDATE,
+      // skipInsert default false — first materialisation also broadcasts (matches
+      // AdvisoryStatus / PortfolioSummary). Gate MODIFY on the user-visible display
+      // fields only (NOT updatedAt/__version, which change on every projectVersioned
+      // write) so a go-live executionMode flip broadcasts but a no-op rewrite does not.
+      whenChanged: ['executionMode', 'operatingMode', 'goalType', 'riskLevel', 'mandateLevel'],
+      mapImage: (item) => {
+        const tenantId = String(item['pk'] ?? '').slice(2); // 'T#<tenantId>' → '<tenantId>'
+        const s = (k: string) => (item[k] != null ? String(item[k]) : null);
+        return {
+          tenantId,
+          investorSnapshot: {
+            goalType: s('goalType'),
+            riskLevel: s('riskLevel'),
+            operatingMode: s('operatingMode'),
+            executionMode: s('executionMode'),
+            mandateLevel: s('mandateLevel'),
+            onboardedAt: s('onboardedAt'),
             updatedAt: String(item['updatedAt'] ?? new Date().toISOString()),
           },
         };

@@ -131,7 +131,7 @@ describe('dashboard-publisher', () => {
   it('skips records whose typename has no broadcast entry', async () => {
     await handler(streamEvent({
       eventName: 'INSERT',
-      newImage: { pk: 'T#tenant1', sk: 'InvestorSnapshot', __typename: 'InvestorSnapshot', goalType: 'GROWTH' },
+      newImage: { pk: 'T#tenant1', sk: 'TimeTravelAvailability', __typename: 'TimeTravelAvailability', available: 1 },
     }), {} as never, () => {});
     expect(postAppSyncMutation).not.toHaveBeenCalled();
   });
@@ -290,5 +290,49 @@ describe('dashboard-publisher', () => {
     expect(postAppSyncMutation).toHaveBeenCalledTimes(1);
     const call = (postAppSyncMutation as jest.Mock).mock.calls[0][0];
     expect(call.variables.position.assetClass).toBeNull();
+  });
+
+  describe('InvestorSnapshot broadcast (shared Dashboard channel)', () => {
+    const baseRow = {
+      pk: 'T#tenant1', sk: 'InvestorSnapshot', __typename: 'InvestorSnapshot',
+      goalType: 'GROWTH', riskLevel: '7', operatingMode: 'BALANCED',
+      mandateLevel: 'STANDARD',
+    };
+
+    it('broadcasts publishDashboardUpdate with the investorSnapshot surface on the go-live flip (MODIFY)', async () => {
+      await handler(streamEvent({
+        eventName: 'MODIFY',
+        oldImage: { ...baseRow, executionMode: 'simulation', __version: 1, updatedAt: '2026-06-16T00:00:00Z' },
+        newImage: { ...baseRow, executionMode: 'live', __version: 2, updatedAt: '2026-06-16T12:00:00Z' },
+      }), {} as never, () => {});
+      expect(postAppSyncMutation).toHaveBeenCalledTimes(1);
+      const call = (postAppSyncMutation as jest.Mock).mock.calls[0][0];
+      expect(call.variables).toMatchObject({
+        tenantId: 'tenant1',
+        investorSnapshot: {
+          executionMode: 'live', operatingMode: 'BALANCED', goalType: 'GROWTH',
+          riskLevel: '7', mandateLevel: 'STANDARD', updatedAt: '2026-06-16T12:00:00Z',
+        },
+      });
+    });
+
+    it('broadcasts on INSERT (first InvestorSnapshot materialisation)', async () => {
+      await handler(streamEvent({
+        eventName: 'INSERT',
+        newImage: { ...baseRow, executionMode: 'simulation', __version: 1, updatedAt: '2026-06-16T00:00:00Z' },
+      }), {} as never, () => {});
+      expect(postAppSyncMutation).toHaveBeenCalledTimes(1);
+      const call = (postAppSyncMutation as jest.Mock).mock.calls[0][0];
+      expect(call.variables.investorSnapshot).toMatchObject({ executionMode: 'simulation' });
+    });
+
+    it('skips a MODIFY when no display field changed (only updatedAt/__version bumped)', async () => {
+      await handler(streamEvent({
+        eventName: 'MODIFY',
+        oldImage: { ...baseRow, executionMode: 'live', __version: 2, updatedAt: '2026-06-16T12:00:00Z' },
+        newImage: { ...baseRow, executionMode: 'live', __version: 3, updatedAt: '2026-06-16T12:05:00Z' },
+      }), {} as never, () => {});
+      expect(postAppSyncMutation).not.toHaveBeenCalled();
+    });
   });
 });

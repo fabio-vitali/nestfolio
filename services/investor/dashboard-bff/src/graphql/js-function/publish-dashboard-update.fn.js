@@ -9,11 +9,11 @@ export function request(ctx) {
 }
 
 export function response(ctx) {
-  const { tenantId, advisoryStatus, portfolioSummary } = ctx.arguments;
+  const { tenantId, advisoryStatus, portfolioSummary, investorSnapshot } = ctx.arguments;
   return {
     tenantId,
     portfolioSummary: portfolioSummary ?? null,
     advisoryStatus: advisoryStatus ?? null,
-    investorSnapshot: null,
+    investorSnapshot: investorSnapshot ?? null,
   };
 }

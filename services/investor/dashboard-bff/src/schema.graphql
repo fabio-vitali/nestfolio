@@ -11,6 +11,7 @@ type Mutation {
     tenantId: ID!
     advisoryStatus: AdvisoryStatusInput
     portfolioSummary: PortfolioSummaryInput
+    investorSnapshot: InvestorSnapshotInput
   ): Dashboard!
     @aws_iam
   publishActivityUpdate(
@@ -46,6 +47,16 @@ input PortfolioSummaryInput {
   totalValueCents: Int!
   cashBalanceCents: Int!
   positionCount: Int!
+  updatedAt: String!
+}
+
+input InvestorSnapshotInput {
+  goalType: String
+  riskLevel: String
+  operatingMode: String
+  executionMode: String
+  mandateLevel: String
+  onboardedAt: String
   updatedAt: String!
 }
 
