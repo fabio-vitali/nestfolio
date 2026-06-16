@@ -1,6 +1,6 @@
 ---
 id: happy-path-go-live-badge-stuck-sim
-status: active
+status: shipped
 type: bug
 notes: "new-investor-happy-path e2e now red at the go-live step (step 11): after confirmGoLive the dashboard execution-mode badge stays 'sim' (dashboard.badge.sim) — execution-mode-live never appears within 60s. Unmasked 2026-06-16 by the decision-wedge fix (step was previously unreachable). Separate subsystem (dashboard-bff InvestorSnapshot.executionMode → badge / WSS), NOT caused by the decision fix. Now the top blocker for nestfolio-e2e green."
 references:
@@ -17,7 +17,23 @@ spec: docs/superpowers/specs/2026-06-16-investor-snapshot-live-push-design.md
 plan: docs/superpowers/plans/2026-06-16-investor-snapshot-live-push.md
 topic_memory:
   - project_decision_workflow_stuck.md
-validation_gate: null
+validation_gate: |
+  Shipped 2026-06-16 (worktree branch worktree-happy-path-go-live-badge-stuck-sim).
+  Fix: InvestorSnapshot rides the shared publishDashboardUpdate/onDashboardUpdate
+  channel (Approach A — singleton summary surface). Commits: 03f48aa6 (dashboard-bff
+  broadcaster + resolver + schema), 0899a128 (store guarded setInvestorSnapshot),
+  3157b7b7 (mfe subscription + service + container onFrame), 75ccaadc (service card).
+  - Unit: dashboard-publisher 19/19, dashboard.store 42/42, dashboard-container 13/13;
+    affected `nx run-many -t test,lint -p dashboard-bff,dashboard-mfe` GREEN (63 tests).
+  - Deploy: dev-dashboard-bff UPDATE_COMPLETE — AppSync GraphQLSchema (new
+    InvestorSnapshotInput + investorSnapshot arg), publishDashboardUpdateFn resolver,
+    DashboardBroadcaster/Publisher Lambda; investor-web shell redeployed (new
+    dashboard-mfe bundle). Log /tmp/deploy-dashboard-bff-2.log.
+  - Integration: dashboard-bff 21/21 GREEN against deployed dev.
+  - E2E (the headline gate): nestfolio-e2e new-investor-happy-path 1 passed (3.3m),
+    step 11 "investor goes live from simulation" → execution-mode-live visible (badge
+    flips sim→live via real AppSync @aws_subscribe, no reload). Run ×1 per user choice
+    (anti-flake 2nd pass not run — note for future regressions).
 ---
 
 # new-investor-happy-path go-live step: execution-mode badge stuck on `sim`
