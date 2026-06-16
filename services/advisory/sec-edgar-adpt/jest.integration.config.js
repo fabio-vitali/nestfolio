@@ -5,6 +5,7 @@ module.exports = {
   testEnvironment: 'node',
   testMatch: ['<rootDir>/test/integration/**/*.integration.test.ts'],
   moduleNameMapper: {
+    ...preset.moduleNameMapper,
     '^@nestfolio/test-support$': '<rootDir>/../../../libs/test-support/src/index.ts',
     '^@nestfolio/test-support/(.*)$': '<rootDir>/../../../libs/test-support/src/$1',
     '^@nestfolio/integration-testing$': '<rootDir>/../../../libs/integration-testing/src/index.ts',

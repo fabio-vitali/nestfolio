@@ -13,6 +13,8 @@
  */
 const path = require('node:path');
 const os = require('node:os');
+const { pathsToModuleNameMapper } = require('ts-jest');
+const { compilerOptions } = require('./tsconfig.base.json');
 
 const preset = {
   cacheDirectory: path.join(os.tmpdir(), 'jest-nestfolio'),
@@ -22,6 +24,14 @@ const preset = {
   moduleFileExtensions: ['ts', 'js', 'json'],
   testMatch: ['**/*.test.ts', '**/*.spec.ts'],
   testEnvironment: 'node',
+  // Generic @nestfolio/* alias resolution for all backend projects. Absolute prefix
+  // (__dirname = workspace root) makes the mappings depth-independent, so every project
+  // extending this preset resolves every @nestfolio/* alias to its src without a
+  // per-project moduleNameMapper entry. Per-project configs may still override specific
+  // keys by spreading `...preset.moduleNameMapper` and adding their own entries AFTER it.
+  moduleNameMapper: pathsToModuleNameMapper(compilerOptions.paths, {
+    prefix: `${__dirname}/`,
+  }),
   maxWorkers: '50%',
   collectCoverageFrom: [
     'src/**/*.ts',
