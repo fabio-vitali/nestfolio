@@ -6,6 +6,11 @@
 
 ## EPICS
 
+### [typed-test-fixtures](backlog/typed-test-fixtures.md) `[epic · active]` — Type-check every test fixture (unit/integration/e2e) against the producer-owned zod contracts so co-wrong fixtures are COMPILE errors (+ a runtime parse backstop), closing the [[event-subject-contracts]] 'fixture passed, real producer differed' gap workspace-wide. Promoted to active delivery epic 2026-06-16; first member typed-test-fixtures-phase0 in flight. Design: docs/superpowers/specs/2026-06-16-typed-test-fixtures-design.md. Motivated by two pre-existing co-wrong fixtures surfaced validating compliance-ctrl-mandate-snapshot-parse-subject (Bug A: identity-in-subject integration fixtures; Bug B: e2e RECOMMENDATION_PROPOSED missing required fields).
+done_when: Mechanism shipped (producer event->schema maps + composed registry + typed putEvent with per-call context override + runtime parse backstop + typed TableAssertions); all ~290 putEvent call-sites across the 4 domains migrated to the typed API; every surfaced co-wrong fixture fixed or its latent contract bug filed; regression gate forbids untyped putEvent in migrated domains. Every core member shipped or dropped.
+rollup: core 0/1 done · captured 0/0 done
+- core · parking · [typed-test-fixtures-phase0](backlog/typed-test-fixtures-phase0.md)
+
 ### [ci-pipeline](backlog/ci-pipeline.md) `[epic · parking]` — CI has never run green; bring the pipeline up end-to-end (umbrella + its rehearsal last-step). Theme epic, 2 members.
 done_when: The PR + post-merge CI pipeline runs green end-to-end at least once (the bring-up is real, not theatre); both members shipped or dropped.
 rollup: core 0/2 done · captured 0/0 done
@@ -37,18 +42,13 @@ rollup: core 2/3 done · captured 0/0 done
 - core · shipped · [compliance-ctrl-mandate-snapshot-parse-subject](backlog/compliance-ctrl-mandate-snapshot-parse-subject.md)
 - core · dropped · [alpaca-transfer-request-compound-subject-no-contract](backlog/alpaca-transfer-request-compound-subject-no-contract.md)
 
-### [typed-test-fixtures](backlog/typed-test-fixtures.md) `[epic · parking]` — Type-check every test fixture (unit/integration/e2e) against the producer-owned zod contracts so co-wrong fixtures are COMPILE errors (+ a runtime parse backstop), closing the [[event-subject-contracts]] 'fixture passed, real producer differed' gap workspace-wide. New delivery epic (awaiting promotion). Design: docs/superpowers/specs/2026-06-16-typed-test-fixtures-design.md. Motivated by two pre-existing co-wrong fixtures surfaced validating compliance-ctrl-mandate-snapshot-parse-subject (Bug A: identity-in-subject integration fixtures; Bug B: e2e RECOMMENDATION_PROPOSED missing required fields).
-done_when: Mechanism shipped (producer event->schema maps + composed registry + typed putEvent with per-call context override + runtime parse backstop + typed TableAssertions); all ~290 putEvent call-sites across the 4 domains migrated to the typed API; every surfaced co-wrong fixture fixed or its latent contract bug filed; regression gate forbids untyped putEvent in migrated domains. Every core member shipped or dropped.
-rollup: core 0/1 done · captured 0/0 done
-- core · parking · [typed-test-fixtures-phase0](backlog/typed-test-fixtures-phase0.md)
-
 ### [weight-drift-rebalance](backlog/weight-drift-rebalance.md) `[epic · parking]` — No producer emits PORTFOLIO_DRIFT_DETECTED on the weight-deviation axis; the rebalance path + its e2e are blocked on it. Feature + dependent test. Theme epic, 2 members.
 done_when: A producer emits PORTFOLIO_DRIFT_DETECTED on weight deviation and the organic-rebalance e2e covers it; both members shipped or dropped.
 rollup: core 0/2 done · captured 0/0 done
 - core · parking · [playwright-rebalance-after-weight-drift-detector](backlog/playwright-rebalance-after-weight-drift-detector.md)
 - core · parking · [weight-drift-detector](backlog/weight-drift-detector.md)
 
-**Parking health:** 7 theme epic(s), 53 orphan(s) — drive orphans → 0 with `/backlog-themes`
+**Parking health:** 6 theme epic(s), 53 orphan(s) — drive orphans → 0 with `/backlog-themes`
 
 ## ACTIVE
 
