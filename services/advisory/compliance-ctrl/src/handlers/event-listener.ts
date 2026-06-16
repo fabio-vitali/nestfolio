@@ -1,11 +1,11 @@
 import { DynamoDBClient } from '@aws-sdk/client-dynamodb';
 import { materializeToTable, record, projectVersioned, skip, parseSubject, type WriteIntent, type EventPayload, type EventContext } from '@nestfolio/event-processor';
-import { requireEnv, NotRetryableError } from '@nestfolio/event-processor';
+import { requireEnv } from '@nestfolio/event-processor';
 import { logger } from '@nestfolio/event-processor';
 import '../read-model-ownership';
 import { DecisionWorkflowEventTypes } from '@nestfolio/decision-workflow-ctrl/events';
 import { RecommendationProposedSchema } from '@nestfolio/decision-workflow-ctrl/contracts';
-import { InvestorCrossDomainEventTypes } from '@nestfolio/investor-adpt/domain';
+import { InvestorCrossDomainEventTypes, MandateSchema } from '@nestfolio/investor-adpt/domain';
 import type { ComplianceCheck } from '../domain/contracts';
 import { ComplianceRepository } from '../repositories/compliance.repository';
 import { RuleEngine, type ComplianceInput, type MandateSnapshot } from '../rules/rule-engine';
@@ -145,17 +145,14 @@ async function processDecisionPacket(
 }
 
 function projectMandateSnapshot(payload: EventPayload, ctx: EventContext): WriteIntent {
-  const subject = payload.subject ?? {};
+  // parseSubject validates the Mandate event against the producer's own MandateSchema
+  // (investor-bff emits MandateSchema.parse(row) for all four mandate events). A contract
+  // violation throws ZodError → poison-pill/DLQ, subsuming the old hand-rolled
+  // NotRetryableError guard for a missing operatingMode.
+  const subject = parseSubject(payload, MandateSchema);
   // Identity is DRY — read tenantId/userId from the event context, not the subject.
   const tenantId = ctx.tenantId;
   const userId = ctx.userId ?? tenantId;
-  const operatingMode = subject.operatingMode as MandateSnapshot['operatingMode'];
-
-  if (!operatingMode) {
-    throw new NotRetryableError(
-      `Mandate event ${ctx.eventType} missing operatingMode for tenant=${tenantId} user=${userId}`,
-    );
-  }
 
   const version = subject.__version;
   if (typeof version !== 'number') {
@@ -174,12 +171,12 @@ function projectMandateSnapshot(payload: EventPayload, ctx: EventContext): Write
     {
       tenantId,
       userId,
-      mandateId: subject.mandateId as string,
-      level: subject.level as MandateSnapshot['level'],
-      status: (subject.status as 'ACTIVE' | 'REVOKED' | undefined) ?? 'ACTIVE',
-      operatingMode,
-      effectiveDate: subject.effectiveDate as string,
-      revokedAt: (subject.revokedAt as string | null) ?? null,
+      mandateId: subject.mandateId,
+      level: subject.level,
+      status: subject.status,
+      operatingMode: subject.operatingMode,
+      effectiveDate: subject.effectiveDate,
+      revokedAt: subject.revokedAt ?? null,
     },
     { version, overrides: { pk: guardrailPolicyPk(tenantId, userId), sk: 'MandateSnapshot' } },
   );

@@ -537,7 +537,7 @@ describe('event-listener handler', () => {
       });
     });
 
-    it('Mandate event missing operatingMode → batch item failure (NotRetryableError)', async () => {
+    it('Mandate event missing operatingMode → batch item failure (parseSubject contract rejection)', async () => {
       const harness = makeHarness();
       const result = await harness.process([
         fakeSqsRecord('MANDATE_ISSUED', { tenantId: 't-1', userId: 'u-1', mandateId: 'm-1', level: 'DISCRETIONARY', __version: 1 }, { tenantId: 't-1' }),
@@ -548,13 +548,25 @@ describe('event-listener handler', () => {
     it('Mandate event missing __version → no MandateSnapshot write, no failure (skip)', async () => {
       const harness = makeHarness();
       const result = await harness.process([
-        fakeSqsRecord('MANDATE_ISSUED', { tenantId: 't-1', userId: 'u-1', mandateId: 'm-1', level: 'DISCRETIONARY', operatingMode: 'BALANCED' }, { tenantId: 't-1' }),
+        fakeSqsRecord('MANDATE_ISSUED', fullMandate({ __version: undefined }), { tenantId: 't-1' }),
       ]);
       expect(result.batchItemFailures).toHaveLength(0);
       // No projectVersioned MandateSnapshot write — the handler returned skip().
       // The harness pushes the skip intent into result.intents.
       expect(result.intents.some((i) => i._tag === 'projectVersioned')).toBe(false);
       expect(result.intents[0]._tag).toBe('skip');
+    });
+
+    it('rejects a Mandate event whose operatingMode is not a valid enum value (parseSubject contract validation, not a silent cast)', async () => {
+      // Pre-conversion: `subject.operatingMode as MandateSnapshot['operatingMode']` cast this
+      // invalid value through unchecked and PROJECTED it verbatim (batchItemFailures: 0).
+      // parseSubject(MandateSchema) now rejects the contract violation → poison-pill/DLQ.
+      const harness = makeHarness();
+      const result = await harness.process([
+        fakeSqsRecord('MANDATE_ISSUED', fullMandate({ operatingMode: 'TURBO' }), { tenantId: 't-1', userId: 'u-1' }),
+      ]);
+      expect(result.batchItemFailures).toHaveLength(1);
+      expect(result.intents.some((i) => i._tag === 'projectVersioned')).toBe(false);
     });
   });
 });
