@@ -1,5 +1,6 @@
 import { execSync } from 'node:child_process';
 import { readFileSync, existsSync } from 'node:fs';
+import { isEpic, epicRole, TERMINAL } from './rules.mjs';
 
 const HEADER = `# Nestfolio Backlog
 
@@ -8,10 +9,14 @@ const HEADER = `# Nestfolio Backlog
 
 `;
 
+const STATUS_ORDER = { active: 0, queued: 1, parking: 2, shipped: 3, dropped: 4 };
+const statusRank = (f) => STATUS_ORDER[f.frontmatter?.status] ?? 9;
+
 function lineFor(f) {
   const type = f.frontmatter.type ? `[${f.frontmatter.type}]` : '';
   const notes = f.frontmatter.notes?.trim() ? ` — ${f.frontmatter.notes.trim()}` : '';
-  return `[${f.id}](backlog/${f.id}.md) ${type}${notes}`.trim();
+  const epicTag = f.frontmatter.epic ? ` \`[epic:${f.frontmatter.epic} · ${epicRole(f)}]\`` : '';
+  return `[${f.id}](backlog/${f.id}.md) ${type}${notes}`.trim() + epicTag;
 }
 
 function gitClosedDate(path) {
@@ -20,19 +25,63 @@ function gitClosedDate(path) {
   } catch { return null; }
 }
 
+// One rollup block per live epic: done_when + core/captured progress + member list.
+function renderEpicBlock(epic, files) {
+  const members = files.filter(f => f.frontmatter?.epic === epic.id);
+  const core = members.filter(m => epicRole(m) === 'core');
+  const captured = members.filter(m => epicRole(m) === 'captured');
+  const done = (arr) => arr.filter(m => TERMINAL.has(m.frontmatter?.status)).length;
+
+  const status = epic.frontmatter?.status;
+  const notes = epic.frontmatter?.notes?.trim() ? ` — ${epic.frontmatter.notes.trim()}` : '';
+  const lines = [`### [${epic.id}](backlog/${epic.id}.md) \`[epic · ${status}]\`${notes}`];
+  if (epic.frontmatter?.done_when?.trim()) lines.push(`done_when: ${epic.frontmatter.done_when.trim()}`);
+  lines.push(`rollup: core ${done(core)}/${core.length} done · captured ${done(captured)}/${captured.length} done`);
+
+  const ordered = [...members].sort((a, b) =>
+    statusRank(a) - statusRank(b) || a.id.localeCompare(b.id));
+  const byRole = [
+    ...ordered.filter(m => epicRole(m) === 'core'),
+    ...ordered.filter(m => epicRole(m) === 'captured'),
+  ];
+  if (byRole.length === 0) lines.push('_(no members)_');
+  for (const m of byRole) {
+    lines.push(`- ${epicRole(m)} · ${m.frontmatter?.status} · [${m.id}](backlog/${m.id}.md)`);
+  }
+  return lines.join('\n');
+}
+
 export function renderIndex(files) {
-  const active = files.filter(f => f.frontmatter?.status === 'active');
-  const queued = files.filter(f => f.frontmatter?.status === 'queued')
+  const epics = files.filter(isEpic);
+  const nonEpic = files.filter(f => !isEpic(f));
+
+  const liveEpics = epics
+    .filter(e => ['active', 'queued', 'parking'].includes(e.frontmatter?.status))
+    .sort((a, b) =>
+      statusRank(a) - statusRank(b)
+      || (a.frontmatter?.rank ?? 0) - (b.frontmatter?.rank ?? 0)
+      || a.id.localeCompare(b.id));
+
+  const active = nonEpic.filter(f => f.frontmatter?.status === 'active');
+  const queued = nonEpic.filter(f => f.frontmatter?.status === 'queued')
     .sort((a, b) => (a.frontmatter.rank ?? 0) - (b.frontmatter.rank ?? 0));
-  const parking = files.filter(f => f.frontmatter?.status === 'parking');
-  const shippedAll = files.filter(f => f.frontmatter?.status === 'shipped');
+  const parking = nonEpic.filter(f => f.frontmatter?.status === 'parking');
+  const shippedAll = files.filter(f => f.frontmatter?.status === 'shipped'); // incl. shipped epics
   const shippedRecent = shippedAll
     .map(f => ({ f, date: f.frontmatter.closed ?? gitClosedDate(f.path) ?? '0000-00-00' }))
     .sort((a, b) => b.date.localeCompare(a.date))
     .slice(0, 10);
 
+  // Parking health: the bounded tracking surface. Theme epics are durable
+  // root-cause buckets; orphans are un-clustered standalone parking items to drive → 0.
+  const themeEpics = epics.filter(e => e.frontmatter?.status === 'parking').length;
+  const orphans = parking.filter(f => f.frontmatter?.epic == null).length;
+
   const lines = [HEADER];
-  lines.push('## ACTIVE\n');
+  lines.push('## EPICS\n');
+  lines.push(liveEpics.length ? liveEpics.map(e => renderEpicBlock(e, files)).join('\n\n') : '_(none)_');
+  lines.push(`\n**Parking health:** ${themeEpics} theme epic(s), ${orphans} orphan(s) — drive orphans → 0 with \`/backlog-themes\``);
+  lines.push('\n## ACTIVE\n');
   if (active.length === 0) lines.push('_(none)_\n');
   for (const f of active) lines.push(`- ${lineFor(f)}`);
   lines.push('\n## QUEUED\n');

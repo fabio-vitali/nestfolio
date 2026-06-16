@@ -41,7 +41,7 @@ test('rule 2: at most one active — fail with two', () => {
   ];
   const violations = ruleSingleActive(files);
   assert.equal(violations.length, 1);
-  assert.match(violations[0].message, /multiple files with status: active/i);
+  assert.match(violations[0].message, /multiple non-epic files with status: active/i);
 });
 
 test('rule 6: queued ⇒ rank set + unique', () => {

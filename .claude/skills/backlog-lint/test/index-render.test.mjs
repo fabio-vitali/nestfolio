@@ -60,3 +60,36 @@ test('renderIndex caps Recently Shipped at 10', () => {
   const matches = section.match(/\[s-\d+\]/g) ?? [];
   assert.ok(matches.length <= 10, `expected ≤10, got ${matches.length}`);
 });
+
+test('renderIndex shows EPICS block with rollup, and tags members in LATER', () => {
+  const files = [
+    file('e1', { type: 'epic', status: 'active', notes: 'cleanup',
+      done_when: 'all core shipped', scope: 'tsc', out_of_scope: ['x'] }),
+    file('m1', { status: 'shipped', epic: 'e1', epic_role: 'core', validation_gate: 'ok', notes: 'fix a' }),
+    file('m2', { status: 'parking', epic: 'e1', epic_role: 'captured', notes: 'fix b' }),
+    file('orphan', { status: 'parking', notes: 'lonely' }),
+  ];
+  const out = renderIndex(files);
+  assert.match(out, /## EPICS/);
+  assert.match(out, /\[e1\]\(backlog\/e1\.md\) `\[epic · active\]`/);
+  assert.match(out, /done_when: all core shipped/);
+  assert.match(out, /rollup: core 1\/1 done · captured 0\/1 done/);
+  // health line: e1 is active (not a parking theme epic) → 0 theme epics, 1 orphan
+  assert.match(out, /Parking health:\*\* 0 theme epic\(s\), 1 orphan\(s\)/);
+  // captured member carries an epic tag in its LATER listing
+  assert.match(out, /\[epic:e1 · captured\]/);
+  // the epic file itself is NOT duplicated into ACTIVE (lives only in EPICS)
+  const activeSection = out.split('## ACTIVE')[1].split('## QUEUED')[0];
+  assert.ok(!activeSection.includes('(backlog/e1.md)'));
+});
+
+test('renderIndex counts parking theme epics and orphans in health line', () => {
+  const files = [
+    file('theme', { type: 'epic', status: 'parking', notes: 'bucket' }),
+    file('member', { status: 'parking', epic: 'theme', epic_role: 'core', notes: '' }),
+    file('orphan', { status: 'parking', notes: '' }),
+  ];
+  const out = renderIndex(files);
+  // 1 parking theme epic; orphan count excludes the member that belongs to the theme
+  assert.match(out, /Parking health:\*\* 1 theme epic\(s\), 1 orphan\(s\)/);
+});

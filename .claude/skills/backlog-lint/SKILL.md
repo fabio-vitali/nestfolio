@@ -1,6 +1,6 @@
 ---
 name: backlog-lint
-description: Validate docs/backlog/ frontmatter against the 8 invariants and (with --fix) regenerate docs/BACKLOG.md from frontmatter and related_workstreams in topic dossiers. Use at every workstream ship and on demand.
+description: Validate docs/backlog/ frontmatter against the 11 invariants (incl. epic closure / pointer / single-active-epic) and (with --fix) regenerate docs/BACKLOG.md from frontmatter and related_workstreams in topic dossiers. Use at every workstream ship and on demand.
 ---
 
 ## When this skill applies
@@ -14,16 +14,24 @@ Invoke when:
 
 ## What it enforces
 
-8 rules over `docs/backlog/<id>.md`:
+11 rules over `docs/backlog/<id>.md`:
 
 1. `id` matches filename.
-2. At most one file has `status: active` (zero is allowed between workstreams).
+2. At most one **non-epic** file has `status: active` (zero is allowed between workstreams).
 3. `type ∈ {design, spec}` ⇒ `references:` non-empty + paths exist + `#anchors` resolve.
-4. `status: active` ⇒ `out_of_scope:` non-empty.
+4. `status: active` ⇒ `out_of_scope:` non-empty. **Active `type: epic`** additionally ⇒ `done_when:` + `scope:` non-empty.
 5. `status: shipped` ⇒ `validation_gate` non-empty.
 6. `status: queued` ⇒ `rank` set + unique among queued.
 7. `docs/BACKLOG.md` matches the auto-generated rendering of frontmatter.
 8. `status: queued` ⇒ body must NOT contain "Promote when/on/once/until/after/only" trigger language. If a promotion trigger remains unmet, item belongs in `parking`. To promote: remove the trigger sentence and document in body why the trigger fired.
+9. **Epic closure:** `type: epic` + `status: shipped` ⇒ no member (a file whose `epic:` equals this id) is in a non-terminal status. Core members must be `shipped`/`dropped`; captured members must be resolved/dropped **or** re-homed (e.g. to `<epic>-leftovers`).
+10. **Epic pointer integrity:** a member's `epic:` references an existing `type: epic` file; an epic file must NOT carry an `epic:` pointer (1-level tree, no nesting); `epic_role`, when set, ∈ {`core`, `captured`}.
+11. **Single active epic:** at most one `type: epic` with `status: active` (the one delivery epic in flight). Theme epics (`status: parking`) and scheduled epics (`status: queued`) are unbounded.
+
+## Epic schema (frontmatter)
+
+- **Members** add: `epic: <epic-id>` (the parent pointer) + `epic_role: core | captured` (default `core`). `core` drives closure (rule 9); `captured` rides along and never blocks closure.
+- **Epic files** (`type: epic`) add: `done_when:` (closure narrative), `scope:` (what folds in as `core`), `out_of_scope:` (the scope-creep guard). No `epic:` pointer. Membership is **derived** from children — never hand-listed on the epic.
 
 ## What `--fix` does
 

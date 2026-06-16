@@ -68,21 +68,23 @@ Before starting any task below, invoke the corresponding skill FIRST:
 | Document a flow from code           | `generate-flow-spec`                               |
 | Regenerate C4 architecture diagrams | `generate-c4-diagrams`                             |
 | Validate backlog state              | `backlog-lint`                                     |
+| File an out-of-scope side-finding   | `backlog-add`                                      |
+| Cluster the parking lot into epics  | `backlog-themes`                                   |
 | Rebuild all docs from code          | `/init-docs` (user command only)                   |
 
 ## Backlog Discipline (MANDATORY)
 
-The canonical record for every workstream is `docs/backlog/<id>.md`. `docs/BACKLOG.md` is an auto-generated thin index — **never hand-edit it**. The `backlog-lint` skill enforces 7 invariants; the `backlog-add` skill creates new entries.
+The canonical record for every workstream is `docs/backlog/<id>.md`. `docs/BACKLOG.md` is an auto-generated thin index — **never hand-edit it**. The `backlog-lint` skill enforces 11 invariants; the `backlog-add` skill files new entries via the epic-aware router; the `backlog-themes` skill clusters the parking lot into theme epics.
 
 **Storage:**
 
 - `docs/backlog/<id>.md` — one file per workstream, ever. `status: active|queued|parking|shipped|dropped` distinguishes lifecycle. Files never move folder on close.
-- `docs/BACKLOG.md` — auto-generated index. Sections: ACTIVE / QUEUED / LATER / Recently Shipped (last 10).
+- `docs/BACKLOG.md` — auto-generated index. Sections: EPICS (with a **Parking health** line: _N theme epics, M orphans_) / ACTIVE / QUEUED / LATER / Recently Shipped (last 10).
 - Cross-references everywhere are by `id`, never file path.
 
-**The 8 rules** (enforced by `backlog-lint`):
+**The 11 rules** (enforced by `backlog-lint`):
 
-1. `id` matches filename. 2. At most one `status: active` (zero allowed between workstreams). 3. `type ∈ {design, spec}` ⇒ `references:` non-empty + paths exist + anchors resolve. 4. `status: active` ⇒ `out_of_scope:` non-empty. 5. `status: shipped` ⇒ `validation_gate` non-empty. 6. `status: queued` ⇒ `rank` set + unique. 7. `BACKLOG.md` matches files. 8. `status: queued` ⇒ body must NOT contain "Promote when/on/once/until/after/only" trigger language. Items with unmet triggers belong in `parking`. To promote: remove the trigger sentence and document why it fired.
+1. `id` matches filename. 2. At most one **non-epic** `status: active` (zero allowed between workstreams). 3. `type ∈ {design, spec}` ⇒ `references:` non-empty + paths exist + anchors resolve. 4. `status: active` ⇒ `out_of_scope:` non-empty; active `type: epic` ALSO ⇒ `done_when:` + `scope:` non-empty. 5. `status: shipped` ⇒ `validation_gate` non-empty. 6. `status: queued` ⇒ `rank` set + unique. 7. `BACKLOG.md` matches files. 8. `status: queued` ⇒ body must NOT contain "Promote when/on/once/until/after/only" trigger language. Items with unmet triggers belong in `parking`. To promote: remove the trigger sentence and document why it fired. 9. **Epic closure** — shipped `type: epic` ⇒ no member in a non-terminal status (core: resolve/drop; captured: resolve/drop **or** re-home). 10. **Epic pointer integrity** — a member's `epic:` resolves to a real `type: epic` file; epics carry no `epic:` pointer (1-level tree); `epic_role ∈ {core, captured}`. 11. **Single active epic** — at most one `type: epic` with `status: active`.
 
 **Before starting any spec/plan/implementation:** confirm the active workstream is reflected in `docs/backlog/<id>.md` with `status: active`. If it isn't, create or promote first.
 
@@ -90,21 +92,25 @@ The canonical record for every workstream is `docs/backlog/<id>.md`. `docs/BACKL
 
 **Every spec or plan MUST have an explicit § "Out of scope" section** before execution begins. The backlog file's `out_of_scope:` frontmatter mirrors this.
 
-**When an out-of-scope finding surfaces during execution**, default to _file-and-continue_:
+**When an out-of-scope finding surfaces during execution**, default to _file-and-continue_ via the `backlog-add` skill's **epic-aware router** (don't just dump to parking):
 
-1. Invoke the `backlog-add` skill — it creates `docs/backlog/<id>.md` and runs `backlog-lint --fix`.
-2. State briefly in chat what was filed.
+1. Invoke `backlog-add` — it routes the finding (see Epics below), writes `docs/backlog/<id>.md`, runs `backlog-lint --fix`.
+2. State briefly in chat which router branch fired (folded / joined a theme / minted aggregation / orphan).
 3. Continue executing the active workstream.
 
 Do NOT pivot mid-flight unless the finding actually blocks the active workstream's done-definition.
 
-**Refactoring-completeness exception to file-and-continue (do NOT lose pieces).** file-and-continue defaults to PARKING (`status: parking`, LATER). BUT when the active workstream is one slice of an in-flight **multi-workstream refactoring** whose QUEUED set is curated so that "draining QUEUED = the refactoring is fully complete/clean/enforced", a side-finding that must be fixed for that refactoring to count as complete does NOT go to LATER. **Fold it into the relevant QUEUED umbrella item** (add it as a new lettered part + update that item's `notes:` + set the standalone finding to `status: dropped` with a `[SUPERSEDED -> <umbrella>]` note) — mirroring how `ledger-bff-readmodel-fixes` part (B) folded `ledger-bff-latent-tsc-errors`. Parking such a finding silently drops it from the refactoring's drainable scope; folding keeps "drain QUEUED ⇒ done" true. Litmus: _is this finding required before the refactoring can be called complete?_ Yes → fold into QUEUED. No (genuinely unrelated) → park. The read-model-ownership refactoring is the live instance of this (QUEUED is scoped to be EXACTLY that refactoring); its QUEUED items carry a ⚠ banner pointing here.
+**Epics — bound the parking lot by collapsing findings into themes.** (Supersedes the old read-model-specific "refactoring-completeness exception"; generalizes it to every program.) An **epic** is a `type: epic` file; members point at it via `epic: <epic-id>` (single-parent tree). Two **roles** (`status`): a **delivery epic** (`status: active`, one at a time — rule 11) is on a closure clock; a **theme epic** (`status: parking`, unbounded) is a durable root-cause bucket. Two **member kinds** (`epic_role`, default `core`): **core** members (in the epic's `scope:`) drive closure — rule 9 drains them; **captured** members (thematically near but out of scope) ride along to keep session context unified and **never block closure**.
+
+- **Hot path (mid-workstream, in `backlog-add`)** — route the finding cheaply: (1) thematically near the active epic → fold in (`epic_role: core` if in `scope:`, else `captured` — be **generous**, a unified session beats a crisp boundary); (2) else matches an existing theme epic → join it; (3) else shares a root cause with ≥1 parking orphans → **suggest** minting a new theme epic that aggregates them; (4) else → parking **orphan** (the residue). Filing finding N is an organizing opportunity, not just growth.
+- **Cold path (on demand, `backlog-themes`)** — the heavy all-vs-all clustering: scans orphans + `*-leftovers`, mints/extends theme epics by shared root cause, drives the **orphan count → 0**.
+- **Closure & close ritual** — a delivery epic ships when its **core** members are all terminal (rule 9). At close, still-open **captured** members auto-spin-out into a single `<epic>-leftovers` theme epic (`status: parking`), re-clustered later by `backlog-themes` — no per-item triage. Escape hatch: removing a member's `epic:` pointer returns it to standalone parking.
 
 **At each workstream ship:**
 
-1. Set `status: shipped`, fill `validation_gate:` in the active file.
+1. Set `status: shipped`, fill `validation_gate:` in the active file. **If shipping a delivery epic:** verify every `core` member is terminal and auto-spin-out any open `captured` members into `<epic>-leftovers` (rule 9 will block the ship otherwise).
 2. Run `node .claude/skills/backlog-lint/lint.mjs --fix` — regenerates `BACKLOG.md` and `related_workstreams:` in topic dossiers.
-3. Spend 5 minutes on a boundary review of `docs/BACKLOG.md` — re-rank LATER, promote items to QUEUED, drop items that have aged out.
+3. Spend 5 minutes on a boundary review of `docs/BACKLOG.md` — re-rank LATER, promote items to QUEUED, drop items that have aged out, and check the **Parking health** line (run `backlog-themes` if orphans have crept up).
 
 **BACKLOG ↔ MEMORY contract** (see spec `docs/superpowers/specs/2026-05-07-backlog-redesign-design.md`):
 

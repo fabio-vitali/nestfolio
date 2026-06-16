@@ -1,0 +1,87 @@
+---
+name: backlog-themes
+description: Cluster the parking lot by shared root cause and mint/extend theme epics. Scans every parking orphan + *-leftovers item, proposes root-cause/debt/inconsistency clusters with their blast radius, and on approval aggregates each cluster into a type:epic bucket. Use on demand to clean up the backlog and drive the orphan count toward zero.
+---
+
+## When this skill applies
+
+Invoke when:
+- The user wants to **clean up / triage the backlog** ("organize parking", "what themes are in the backlog", "/backlog-themes").
+- The orphan count in `docs/BACKLOG.md`'s **Parking health** line has grown and you want to drive it down.
+- After closing a delivery epic (its `<epic>-leftovers` theme should be re-clustered into proper themes).
+
+This is the **cold path** — the deliberate, all-vs-all clustering pass. The cheap per-finding
+routing happens in `backlog-add` mid-workstream. Read `CLAUDE.md` § "Backlog Discipline" → Epics
+for the model (delivery vs theme epics, core vs captured members) before running.
+
+## The goal
+
+Bound the tracking surface. The parking lot should trend toward a small set of **theme epics**
+(durable root-cause buckets) plus a shrinking residue of **orphans**. This skill collapses
+heterogeneous orphans into themes so one architectural refactoring later drains many at once.
+Success metric: **orphan count ↓** (ideally → 0); every remaining orphan is genuinely singular.
+
+## Procedure
+
+1. **Gather the parking surface.** List every `status: parking` file that is NOT itself a
+   `type: epic` and has NO `epic:` pointer (the orphans), plus any `*-leftovers` theme members.
+   Read each one's `id`, `type`, `notes`, and body (root-cause evidence).
+
+   ```bash
+   for f in docs/backlog/*.md; do
+     grep -q '^status: parking' "$f" || continue
+     grep -q '^type: epic' "$f" && continue        # skip theme epics themselves
+     grep -q '^epic:' "$f" && continue              # skip items already in an epic
+     echo "=== $f ==="; sed -n '1,12p' "$f"
+   done
+   ```
+
+2. **Also load existing theme epics** (`type: epic`, `status: parking`) so clusters can EXTEND
+   an existing bucket rather than mint a duplicate. Read their `scope:` / `out_of_scope:`.
+
+3. **Cluster by root cause** — group orphans that share a *cause*, not merely a symptom or a
+   service. A good cluster: "all caused by `ts-jest diagnostics:false` masking tsc errors", not
+   "all touch the ledger domain". Aim for clusters of ≥2; a singleton stays an orphan. Be honest
+   about which items are genuinely heterogeneous and leave them un-clustered.
+
+4. **Present each proposed cluster** for approval, with its **blast radius** (what it absorbs):
+
+   ```
+   THEME: typecheck-cleanup   (root cause: ts-jest diagnostics:false masks tsc errors)
+     absorbs 6 orphans -> advisory-bff-latent-tsc-errors, broker-alpaca-adpt-latent-tsc-errors,
+       investor-bff-13-latent-tsc-errors, ledger-bff-latent-tsc-errors,
+       ledger-ctrl-2-latent-tsc-errors, <...>
+     fix pattern: flip diagnostics + add a `tsc --noEmit` typecheck target per service
+     -> mint theme epic `typecheck-cleanup`?   [extend existing | mint new | skip]
+   ```
+
+   Use the `AskUserQuestion` widget when there are several clusters to confirm at once.
+
+5. **On approval, aggregate:**
+   - **Mint** a new theme epic (`type: epic`, `status: parking`) via the `backlog-add` theme-epic
+     template — fill `done_when:`, `scope:` (the shared root cause), `out_of_scope:` (the
+     scope-creep guard), and list the absorbed members by id in the body. OR **extend** an
+     existing theme epic (no new file).
+   - On each absorbed orphan, set `epic: <theme-epic-id>` + `epic_role: core` (theme-epic members
+     are core to that theme's done-definition).
+   - Leave genuinely heterogeneous items as orphans — do not force a fit.
+
+6. **Refresh + verify:** `node .claude/skills/backlog-lint/lint.mjs --fix`. The EPICS section and
+   the **Parking health** line update; confirm the orphan count dropped and rule 10 (every
+   `epic:` pointer resolves) passes.
+
+7. **Commit.** Stage only the touched files (new epic file(s), repointed member files,
+   `docs/BACKLOG.md`). Commit `docs(backlog): cluster parking into theme epics (<n> orphans → <m>)`.
+
+8. **Report:** the themes minted/extended, how many orphans each absorbed, and the new orphan
+   count (e.g. "66 → 41 orphans; 4 theme epics now cover the typecheck / broker-router /
+   advisory-latency / event-name clusters").
+
+## What NOT to do
+
+- Don't cluster by domain/service/symptom — only by **shared root cause / debt / inconsistency**.
+- Don't promote a theme epic to `active` here — that's a deliberate "I'm tackling this theme now"
+  decision (and only one delivery epic may be active, rule 11). This skill only *organizes*.
+- Don't force singletons into a theme to make the orphan count look better. An honest orphan is
+  fine; report it as residue.
+- Don't hand-edit `docs/BACKLOG.md` — it's regenerated by `backlog-lint --fix`.

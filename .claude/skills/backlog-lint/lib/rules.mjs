@@ -3,6 +3,16 @@ import { join, isAbsolute } from 'node:path';
 
 const v = (rule, file, message) => ({ rule, file: file?.filename ?? null, message });
 
+// ── Epic helpers ──────────────────────────────────────────────────────────
+// An epic is a `type: epic` file. Members point at it via `epic: <epic-id>`
+// (single-parent tree). A member's `epic_role` is `core` (drives closure) or
+// `captured` (rides along, never blocks closure). Default role is `core`.
+export const TERMINAL = new Set(['shipped', 'dropped']);
+export const isEpic = (f) => f.frontmatter?.type === 'epic';
+export const epicRole = (f) => f.frontmatter?.epic_role ?? 'core';
+export const membersOf = (epicId, files) =>
+  files.filter(f => f.frontmatter?.epic === epicId);
+
 export function ruleIdMatchesFilename(file) {
   const expected = file.filename.replace(/\.md$/, '');
   if (file.frontmatter?.id !== expected) {
@@ -13,10 +23,13 @@ export function ruleIdMatchesFilename(file) {
 }
 
 export function ruleSingleActive(files) {
-  const active = files.filter(f => f.frontmatter?.status === 'active');
+  // Rule 2: at most one active *executable* (non-epic) workstream. Epics have
+  // their own single-active rule (rule 11) so a delivery epic + the one member
+  // being worked inside it are both allowed.
+  const active = files.filter(f => f.frontmatter?.status === 'active' && !isEpic(f));
   if (active.length > 1) {
     const ids = active.map(f => f.id).join(', ');
-    return [v('single-active', null, `multiple files with status: active — ${ids}`)];
+    return [v('single-active', null, `multiple non-epic files with status: active — ${ids}`)];
   }
   return [];
 }
@@ -100,4 +113,81 @@ export function ruleReferencesValid(file, repoRoot) {
     }
   }
   return violations;
+}
+
+// Rule 4 (epic variant): an active delivery epic must declare its closure and
+// absorption boundaries — done_when (closure narrative) + scope (what folds in
+// as core). out_of_scope is enforced for all active items by ruleActiveOutOfScope.
+export function ruleActiveEpicFields(file) {
+  if (!isEpic(file) || file.frontmatter?.status !== 'active') return [];
+  const violations = [];
+  const nonEmpty = (s) => typeof s === 'string' && s.trim() !== '';
+  if (!nonEmpty(file.frontmatter?.done_when)) {
+    violations.push(v('active-epic-fields', file,
+      `${file.id}: active epic — done_when is empty (rule 4)`));
+  }
+  if (!nonEmpty(file.frontmatter?.scope)) {
+    violations.push(v('active-epic-fields', file,
+      `${file.id}: active epic — scope is empty (rule 4)`));
+  }
+  return violations;
+}
+
+// Rule 9 (closure): a shipped epic must have no member still pointing at it in a
+// non-terminal state. Core members must be resolved/dropped (they define done);
+// captured members must be resolved/dropped OR re-homed (e.g. to <epic>-leftovers).
+// Terminal members may keep pointing at the closed epic as provenance.
+export function ruleEpicClosure(file, files) {
+  if (!isEpic(file) || file.frontmatter?.status !== 'shipped') return [];
+  const violations = [];
+  for (const m of membersOf(file.id, files)) {
+    if (TERMINAL.has(m.frontmatter?.status)) continue;
+    const role = epicRole(m);
+    const remedy = role === 'captured'
+      ? `re-home it (e.g. to ${file.id}-leftovers) or resolve/drop it`
+      : `resolve or drop it`;
+    violations.push(v('epic-closure', file,
+      `${file.id}: shipped epic has non-terminal ${role} member ${m.id} (status: ${m.frontmatter?.status}) — ${remedy} (rule 9)`));
+  }
+  return violations;
+}
+
+// Rule 10 (pointer integrity): epic relational fields are well-formed.
+//  - a member's `epic:` must reference an existing `type: epic` file
+//  - an epic file must NOT carry an `epic:` pointer (1-level tree, no nesting)
+//  - `epic_role`, when set, must be `core` or `captured`
+export function ruleEpicPointerIntegrity(file, files) {
+  const violations = [];
+  const ep = file.frontmatter?.epic;
+  if (isEpic(file) && ep != null) {
+    violations.push(v('epic-pointer', file,
+      `${file.id}: epic file must not carry an epic: pointer — no nested epics (rule 10)`));
+  }
+  if (ep != null && !isEpic(file)) {
+    const target = files.find(f => f.id === ep);
+    if (!target) {
+      violations.push(v('epic-pointer', file,
+        `${file.id}: epic: "${ep}" references a non-existent backlog file (rule 10)`));
+    } else if (!isEpic(target)) {
+      violations.push(v('epic-pointer', file,
+        `${file.id}: epic: "${ep}" points at a non-epic file (type: ${target.frontmatter?.type ?? 'none'}) (rule 10)`));
+    }
+  }
+  const role = file.frontmatter?.epic_role;
+  if (role != null && !['core', 'captured'].includes(role)) {
+    violations.push(v('epic-pointer', file,
+      `${file.id}: epic_role "${role}" must be "core" or "captured" (rule 10)`));
+  }
+  return violations;
+}
+
+// Rule 11 (single active epic): at most one delivery epic in flight at a time.
+// Theme epics (status: parking) and scheduled epics (status: queued) are unbounded.
+export function ruleSingleActiveEpic(files) {
+  const active = files.filter(f => isEpic(f) && f.frontmatter?.status === 'active');
+  if (active.length > 1) {
+    return [v('single-active-epic', null,
+      `multiple active epics — ${active.map(f => f.id).join(', ')} (rule 11)`)];
+  }
+  return [];
 }

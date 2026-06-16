@@ -4,6 +4,12 @@
 > Do not hand-edit. Discipline rules: see `CLAUDE.md` § "Backlog Discipline".
 
 
+## EPICS
+
+_(none)_
+
+**Parking health:** 0 theme epic(s), 66 orphan(s) — drive orphans → 0 with `/backlog-themes`
+
 ## ACTIVE
 
 _(none)_

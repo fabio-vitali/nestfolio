@@ -6,7 +6,8 @@ import { loadBacklogFiles } from './lib/frontmatter.mjs';
 import {
   ruleIdMatchesFilename, ruleSingleActive, ruleQueuedRanks,
   ruleActiveOutOfScope, ruleShippedValidationGate, ruleReferencesValid,
-  rulePromotionTriggerGated,
+  rulePromotionTriggerGated, ruleActiveEpicFields, ruleEpicClosure,
+  ruleEpicPointerIntegrity, ruleSingleActiveEpic,
 } from './lib/rules.mjs';
 import { renderIndex, ruleIndexMatches } from './lib/index-render.mjs';
 import { syncDossiers } from './lib/dossier-sync.mjs';
@@ -41,9 +42,13 @@ function main() {
     violations.push(...ruleShippedValidationGate(f));
     violations.push(...ruleReferencesValid(f, REPO_ROOT));
     violations.push(...rulePromotionTriggerGated(f));
+    violations.push(...ruleActiveEpicFields(f));
+    violations.push(...ruleEpicClosure(f, files));
+    violations.push(...ruleEpicPointerIntegrity(f, files));
   }
   violations.push(...ruleSingleActive(files));
   violations.push(...ruleQueuedRanks(files));
+  violations.push(...ruleSingleActiveEpic(files));
   violations.push(...ruleIndexMatches(files, BACKLOG_INDEX));
 
   if (violations.length > 0) {
@@ -51,7 +56,7 @@ function main() {
     for (const v of violations) console.error(`  [${v.rule}] ${v.message}`);
     process.exit(1);
   }
-  console.log(`✓ ${files.length} backlog files; all 8 rules pass${fix ? ' (with --fix applied)' : ''}`);
+  console.log(`✓ ${files.length} backlog files; all 11 rules pass${fix ? ' (with --fix applied)' : ''}`);
 }
 
 main();
