@@ -1,6 +1,8 @@
 ---
 id: dwc-sfn-callback-reason-blockreason-gap
 status: parking
+epic: typed-subject-consumer-contract-gaps
+epic_role: core
 type: bug
 notes: "Surfaced 2026-06-10 by typed-subject-contracts-advisory (Task 2 code-quality review + the e2e gate codifying the real ComplianceCheck shape). decision-workflow-ctrl/src/handlers/sfn-callback.ts reads `subject.reason` off the DECISION_APPROVED/DECISION_BLOCKED event to set DecisionPacket.blockReason — but the real ComplianceCheck row (now codified by compliance-ctrl/contracts ComplianceCheckSchema) carries `violations: [{rule, description, severity}]` and NO `reason` string. So `subject.reason` is always undefined → DecisionPacket.blockReason is never written in production on the blocked path. The DWC sfn-callback unit test fixture FAKES a `reason` field, masking the gap (the [[event-subject-contracts]] co-wrong-fixture anti-pattern). CONSUMER-side drift (WS-3 territory) — the typed-subject-contracts-advisory slice only authored the producer contract that makes it provable; it did not retype the consumer read. Fix: derive blockReason from `violations` (e.g. the first BLOCKING violation's description, or a joined summary), update the sfn-callback unit fixture to the real ComplianceCheck shape (no fake `reason`), and add an assertion that blockReason is populated on a real blocked decision."
 references: []

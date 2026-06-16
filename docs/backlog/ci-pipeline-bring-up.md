@@ -1,6 +1,8 @@
 ---
 id: ci-pipeline-bring-up
 status: parking
+epic: ci-pipeline
+epic_role: core
 type: infra
 notes: "Bring all 5 GitHub workflows green for the first time — OIDC role deploy, secrets, charter check, security policy, no-Pro gating model."
 references:

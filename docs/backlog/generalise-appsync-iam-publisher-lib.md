@@ -1,6 +1,8 @@
 ---
 id: generalise-appsync-iam-publisher-lib
 status: parking
+epic: rule-of-three-lib-extractions
+epic_role: core
 type: refactor
 references: []
 out_of_scope: []

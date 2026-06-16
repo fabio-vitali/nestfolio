@@ -1,6 +1,8 @@
 ---
 id: pr-pipeline-required-status-check
 status: parking
+epic: ci-pipeline
+epic_role: core
 type: infra
 notes: "Throwaway-PR rehearsal + branch-protection toggle. BLOCKED on ci-pipeline-bring-up — pipeline has never produced a green run."
 references:

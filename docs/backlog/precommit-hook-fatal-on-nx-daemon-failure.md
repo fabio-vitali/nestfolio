@@ -1,6 +1,8 @@
 ---
 id: precommit-hook-fatal-on-nx-daemon-failure
 status: parking
+epic: nx-daemon-instability
+epic_role: core
 type: tooling
 notes: "Pre-commit hook (scripts/verify-structure.sh, copied to .git/hooks/pre-commit by the npm `prepare` step) Check 7 runs `pnpm nx affected` under `set -euo pipefail`. When the nx DAEMON is unhealthy it errors 'Failed to process project graph' → set -e fatally aborts the commit, despite Check 7 being documented 'non-blocking'. Blocks EVERY services/** commit until the daemon recovers. NX_DAEMON=false makes nx succeed; the hook does not set it."
 references: []

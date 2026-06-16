@@ -1,6 +1,8 @@
 ---
 id: advisory-services-jest-mapper-investor-adpt-domain
 status: parking
+epic: jest-module-resolution-debt
+epic_role: core
 type: bug
 notes: "Pre-existing: advisory service.stack jest tests can't resolve @nestfolio/investor-adpt/domain (missing static moduleNameMapper entry); masked by nx cache / absent CI. Not caused by + unrelated to broker-funding-completed-normalization-drift."
 references: []

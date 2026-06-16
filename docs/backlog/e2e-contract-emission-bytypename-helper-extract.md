@@ -1,6 +1,8 @@
 ---
 id: e2e-contract-emission-bytypename-helper-extract
 status: parking
+epic: rule-of-three-lib-extractions
+epic_role: core
 type: refactor
 notes: "Rule-of-three: the GSI byTypename(tenantId-index) query helper is now duplicated across the ledger + investor contract-emission e2e gates; extract to a shared e2e helper when the execution slice adds a third."
 references: []

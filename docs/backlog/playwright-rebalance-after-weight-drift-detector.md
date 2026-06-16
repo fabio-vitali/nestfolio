@@ -1,6 +1,8 @@
 ---
 id: playwright-rebalance-after-weight-drift-detector
 status: parking
+epic: weight-drift-rebalance
+epic_role: core
 type: tooling
 notes: "Re-add Playwright rebalance coverage on top of a real organic trigger once weight-drift-detector ships. Deleted 2026-05-27 in playwright-rebalance-real-agents-maxvms-remediation as speculative coverage of a not-yet-built production feature."
 references:

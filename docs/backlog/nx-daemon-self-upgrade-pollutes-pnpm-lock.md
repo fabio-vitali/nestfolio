@@ -1,6 +1,8 @@
 ---
 id: nx-daemon-self-upgrade-pollutes-pnpm-lock
 status: parking
+epic: nx-daemon-instability
+epic_role: core
 type: bug
 notes: "nx daemon respawn (triggered by nx-console / nx-mcp polling) runs `pnpm add -D nx@latest --ignore-scripts`, which scans the repo root, finds leaked tmp-* dirs, registers them as pnpm workspace importers in pnpm-lock.yaml. Every IDE/MCP poll = new pnpm-lock drift."
 references:
