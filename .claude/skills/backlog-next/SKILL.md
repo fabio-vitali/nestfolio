@@ -24,7 +24,25 @@ Hard-fails if: working tree is dirty, local `main` is ahead of `origin/main`, `b
 
 ### 1. Pick the item
 
-**Default (no argument).** Read `docs/BACKLOG.md`. If a **non-epic** item is `status: active`, resume it (the in-flight member or standalone workstream). Else if an **epic** is `status: active`, run Step 1a on it to pick its next open core member (the delivery epic is in flight but no slice is active). Otherwise pick the top-ranked QUEUED item. Read `docs/backlog/<id>.md`.
+**Default (no argument).** Read `docs/BACKLOG.md` and pick in this order:
+
+1. A **non-epic** item with `status: active` → resume it (the in-flight member or standalone workstream).
+2. Else an **epic** with `status: active` → run Step 1a on it to pick its next open core member (the delivery epic is in flight but no slice is active).
+3. Else the **top-ranked QUEUED item** (lowest `rank`). Read `docs/backlog/<id>.md`; **if it is `type: epic`, route to Step 1a** (same as the named-id path) — otherwise proceed by status.
+4. Else **nothing is active and QUEUED is empty** → do NOT auto-promote (promotion is a manual boundary-review call — see Common mistakes). Report the landscape and stop for the user to choose: print that QUEUED is empty, the **Parking health** line (`N theme epics, M orphans`), and the parking theme epics each with their open-core-member count, then tell the user to either name one (`/backlog-next <epic>`) or promote an item into QUEUED first.
+
+   ```bash
+   # parking theme epics + open core-member counts
+   for e in $(grep -rl '^type: epic' docs/backlog/ | xargs grep -l '^status: parking'); do
+     id=$(basename "$e" .md); open=0
+     for f in docs/backlog/*.md; do
+       grep -q "^epic: $id$" "$f" || continue
+       [ "$(grep -m1 '^epic_role:' "$f" | cut -d' ' -f2)" = captured ] && continue
+       grep -qE '^status: (shipped|dropped)' "$f" || open=$((open+1))
+     done
+     echo "$id  ($open open core)"
+   done
+   ```
 
 **With `<id>` argument (`/backlog-next <id>`).** The argument overrides the rank pick. Locate `docs/backlog/<id>.md`. **If it is `type: epic`, skip this table and use Step 1a (Epic dispatch).** Otherwise dispatch by status:
 
