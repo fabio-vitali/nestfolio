@@ -78,7 +78,7 @@ export class EventBridgeClient {
     if ('subject' in params && params.subject !== undefined) {
       const schema = EventSubjects[params.detailType as RegisteredEventName];
       if (!schema) {
-        throw new Error(`putEvent: no registered subject schema for detailType "${params.detailType}"`);
+        throw new Error(`putEvent: no registered subject schema for detailType "${params.detailType}" (registered: ${Object.keys(EventSubjects).join(', ')})`);
       }
       subject = schema.parse(params.subject);
     } else {

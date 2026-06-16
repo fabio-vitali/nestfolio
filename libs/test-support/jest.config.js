@@ -11,6 +11,7 @@ module.exports = {
     '^@nestfolio/investor-adpt/domain$': '<rootDir>/../../services/investor/investor-adpt/src/domain/index.ts',
     '^@nestfolio/investor-bff/contracts$': '<rootDir>/../../services/investor/investor-bff/src/domain/contracts.ts',
     '^@nestfolio/decision-workflow-ctrl/contracts$': '<rootDir>/../../services/advisory/decision-workflow-ctrl/src/domain/contracts.ts',
+    // transitive: test-contracts → investor-adpt/domain → events.ts → event-types
     '^@nestfolio/event-types$': '<rootDir>/../event-types/src/index.ts',
   },
 };

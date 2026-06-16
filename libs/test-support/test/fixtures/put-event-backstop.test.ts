@@ -45,4 +45,10 @@ it('runtime backstop: accepts a valid typed subject and sends exactly one event'
     context: { userId: 'per-test-user' },
   });
   expect(ebMock.commandCalls(PutEventsCommand)).toHaveLength(1);
+
+  const sent = ebMock.commandCalls(PutEventsCommand)[0].args[0].input.Entries![0].Detail!;
+  const parsed = JSON.parse(sent);
+  expect(parsed.context.userId).toBe('per-test-user');
+  expect(parsed.context.tenantId).toBe('integ-tenant'); // defaulted from ctx
+  expect(parsed.subject).not.toHaveProperty('userId');   // DRY subject: identity is NOT in the subject
 });
