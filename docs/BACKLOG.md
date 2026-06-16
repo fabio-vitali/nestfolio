@@ -37,13 +37,18 @@ rollup: core 0/2 done · captured 0/0 done
 - core · parking · [e2e-contract-emission-bytypename-helper-extract](backlog/e2e-contract-emission-bytypename-helper-extract.md)
 - core · parking · [generalise-appsync-iam-publisher-lib](backlog/generalise-appsync-iam-publisher-lib.md)
 
+### [typed-test-fixtures](backlog/typed-test-fixtures.md) `[epic · parking]` — Type-check every test fixture (unit/integration/e2e) against the producer-owned zod contracts so co-wrong fixtures are COMPILE errors (+ a runtime parse backstop), closing the [[event-subject-contracts]] 'fixture passed, real producer differed' gap workspace-wide. New delivery epic (awaiting promotion). Design: docs/superpowers/specs/2026-06-16-typed-test-fixtures-design.md. Motivated by two pre-existing co-wrong fixtures surfaced validating compliance-ctrl-mandate-snapshot-parse-subject (Bug A: identity-in-subject integration fixtures; Bug B: e2e RECOMMENDATION_PROPOSED missing required fields).
+done_when: Mechanism shipped (producer event->schema maps + composed registry + typed putEvent with per-call context override + runtime parse backstop + typed TableAssertions); all ~290 putEvent call-sites across the 4 domains migrated to the typed API; every surfaced co-wrong fixture fixed or its latent contract bug filed; regression gate forbids untyped putEvent in migrated domains. Every core member shipped or dropped.
+rollup: core 0/1 done · captured 0/0 done
+- core · parking · [typed-test-fixtures-phase0](backlog/typed-test-fixtures-phase0.md)
+
 ### [weight-drift-rebalance](backlog/weight-drift-rebalance.md) `[epic · parking]` — No producer emits PORTFOLIO_DRIFT_DETECTED on the weight-deviation axis; the rebalance path + its e2e are blocked on it. Feature + dependent test. Theme epic, 2 members.
 done_when: A producer emits PORTFOLIO_DRIFT_DETECTED on weight deviation and the organic-rebalance e2e covers it; both members shipped or dropped.
 rollup: core 0/2 done · captured 0/0 done
 - core · parking · [playwright-rebalance-after-weight-drift-detector](backlog/playwright-rebalance-after-weight-drift-detector.md)
 - core · parking · [weight-drift-detector](backlog/weight-drift-detector.md)
 
-**Parking health:** 5 theme epic(s), 53 orphan(s) — drive orphans → 0 with `/backlog-themes`
+**Parking health:** 6 theme epic(s), 53 orphan(s) — drive orphans → 0 with `/backlog-themes`
 
 ## ACTIVE
 
@@ -118,6 +123,7 @@ _(none)_
 - [sf-start-idempotency-at-least-once-redelivery](backlog/sf-start-idempotency-at-least-once-redelivery.md) [refactor] — LOW priority post-collapse — defer until EB redelivery is observed empirically.
 - [stale-memory-write-comments-phase-a-cleanup](backlog/stale-memory-write-comments-phase-a-cleanup.md) [refactor] — 6 stale comments in decision-workflow-ctrl + cdk-constructs reference writeAgentOutput / BatchCreate / ListMemoryRecords
 - [test-infrastructure-polling-audit](backlog/test-infrastructure-polling-audit.md) [refactor] — App code clean; test infra has 98 justified + 12 should-replace + 126 lower-priority polls.
+- [typed-test-fixtures-phase0](backlog/typed-test-fixtures-phase0.md) [feature] — Phase 0 of the typed-test-fixtures epic: build the reusable mechanism AND retrofit compliance-ctrl's fixtures as the proof, fixing the two pre-existing co-wrong fixtures that motivated the program. Mechanism (spec §3): producer-owned event->schema maps (extend publisher-schemas to event-name level), a composed registry lib (libs/test-contracts), a generic typed putEvent({ detailType, subject: SubjectOf<K>, context? }) with a runtime parse backstop, and typed TableAssertions matchers. Proof: migrate compliance-ctrl integration + e2e fixtures to the typed API. Bug A (integration mandate fixtures put per-test userId in the subject; handler keys by ctx.userId) becomes a compile error fixed via the typed context param. Bug B (update-operating-mode e2e RECOMMENDATION_PROPOSED omits isInitialBuild/riskCategory required by RecommendationProposedSchema) becomes a missing-field compile error. If Bug B's fields are also absent from the REAL decision-workflow-ctrl emission, file that as a separate latent contract bug (spec §7 triage). `[epic:typed-test-fixtures · core]`
 - [unified-ingress-refactoring](backlog/unified-ingress-refactoring.md) [refactor] — Single event-listener with ResumeIntent + PublishIntent (planned, not started).
 - [weight-drift-detector](backlog/weight-drift-detector.md) [design] — Production-feature gap: no service emits PORTFOLIO_DRIFT_DETECTED on the weight-vs-target axis (the kind that motivates a rebalance). reconciliation-ctrl only handles Intent-vs-Settlement drift (broker errors). DWC SF reacts to the event correctly but no producer exists on the user-driven path. Surfaced 2026-05-27 during playwright-rebalance-real-agents-maxvms-remediation brainstorming. `[epic:weight-drift-rebalance · core]`
 - [wss-subscription-test-harness-test-support](backlog/wss-subscription-test-harness-test-support.md) [tooling] — For integration tests that need to assert AppSync @aws_subscribe broadcasts deliver.
