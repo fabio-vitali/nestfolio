@@ -1,6 +1,6 @@
 ---
 id: typed-test-fixtures-phase0
-status: parking
+status: active
 epic: typed-test-fixtures
 epic_role: core
 type: feature
