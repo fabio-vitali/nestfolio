@@ -199,9 +199,7 @@ describe('scenario — investor switches operatingMode CONSERVATIVE → AGGRESSI
       bus: 'advisory',
       targetService: 'compliance-ctrl',
       detailType: DecisionWorkflowEventTypes.RECOMMENDATION_PROPOSED,
-      detail: {
-        tenantId: tenant.tenantId,
-        userId: tenant.userId,
+      subject: {
         decisionId,
         taskToken: `e2e-fake-token-${decisionId}`,
         awaitingCompliance: true,
@@ -216,9 +214,11 @@ describe('scenario — investor switches operatingMode CONSERVATIVE → AGGRESSI
           },
         ],
         portfolioValueCents: CAPITAL_AMOUNT,
-        riskScore: 5,
+        isInitialBuild: false,
+        riskCategory: 'BALANCED',
         currentPositions: [],
       },
+      context: { tenantId: tenant.tenantId, userId: tenant.userId },
     });
 
     const check = await waitForComplianceCheck(
