@@ -1,6 +1,6 @@
 ---
 id: alpaca-transfer-request-compound-subject-no-contract
-status: parking
+status: dropped
 epic: typed-subject-consumer-contract-gaps
 epic_role: core
 rank: null
@@ -15,6 +15,20 @@ validation_gate: null
 ---
 
 # ALPACA_TRANSFER_REQUESTED compound subject has no producer contract
+
+> **DROPPED 2026-06-16 — already resolved by prior typed-subject work; verified against code.**
+> A dedicated `AlpacaTransferRequestSchema` now codifies the exact compound shape the consumer
+> reads: `{ transferId, amountCents, currency, direction: INCOMING|OUTGOING, relationshipId }`
+> (`services/execution/execution-adpt/src/domain/contracts.ts:46`). The producer
+> (`broker-ctrl/src/handlers/deposit-withdrawal-router.ts:33,71`) builds a typed
+> `const req: AlpacaTransferRequest` in its live branch and emits it; the consumer
+> (`broker-alpaca-adpt/src/handlers/event-listener.ts:210`) does
+> `parseSubject(payload, AlpacaTransferRequestSchema)` and reads `req.transferId` /
+> `req.direction` / `req.amountCents` / `req.relationshipId` — typed, zero casts. The unit
+> fixtures use the correct field names (not co-wrong). The only divergence from this item's
+> original prescription — the contract lives in `execution-adpt/domain` rather than
+> `broker-ctrl/contracts` — was a deliberate choice to break the broker-ctrl ↔ broker-alpaca-adpt
+> mutual import cycle (documented in both service cards). The boundary is removed; nothing left to do.
 
 Surfaced by the WS-3 typed-subject consumer conversion.
 
