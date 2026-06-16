@@ -6,12 +6,12 @@
 
 ## ACTIVE
 
-_(none)_
-
+- [happy-path-go-live-badge-stuck-sim](backlog/happy-path-go-live-badge-stuck-sim.md) [bug] — new-investor-happy-path e2e now red at the go-live step (step 11): after confirmGoLive the dashboard execution-mode badge stays 'sim' (dashboard.badge.sim) — execution-mode-live never appears within 60s. Unmasked 2026-06-16 by the decision-wedge fix (step was previously unreachable). Separate subsystem (dashboard-bff InvestorSnapshot.executionMode → badge / WSS), NOT caused by the decision fix. Now the top blocker for nestfolio-e2e green.
 
 ## QUEUED
 
-1. [happy-path-go-live-badge-stuck-sim](backlog/happy-path-go-live-badge-stuck-sim.md) [bug] — new-investor-happy-path e2e now red at the go-live step (step 11): after confirmGoLive the dashboard execution-mode badge stays 'sim' (dashboard.badge.sim) — execution-mode-live never appears within 60s. Unmasked 2026-06-16 by the decision-wedge fix (step was previously unreachable). Separate subsystem (dashboard-bff InvestorSnapshot.executionMode → badge / WSS), NOT caused by the decision fix. Now the top blocker for nestfolio-e2e green.
+_(none)_
+
 
 ## LATER
 

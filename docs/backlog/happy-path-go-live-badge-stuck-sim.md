@@ -1,15 +1,19 @@
 ---
 id: happy-path-go-live-badge-stuck-sim
-status: queued
+status: active
 type: bug
-rank: 5
 notes: "new-investor-happy-path e2e now red at the go-live step (step 11): after confirmGoLive the dashboard execution-mode badge stays 'sim' (dashboard.badge.sim) — execution-mode-live never appears within 60s. Unmasked 2026-06-16 by the decision-wedge fix (step was previously unreachable). Separate subsystem (dashboard-bff InvestorSnapshot.executionMode → badge / WSS), NOT caused by the decision fix. Now the top blocker for nestfolio-e2e green."
 references:
   - apps/nestfolio-e2e/src/journeys/new-investor-happy-path.spec.ts
   - apps/nestfolio-e2e/src/pages/go-live.page.ts
   - services/investor/dashboard-bff/src/transforms/investor-snapshot.ts
-out_of_scope: []
-spec: null
+out_of_scope:
+  - "A live-delivery WSS e2e harness that asserts the @aws_subscribe broadcast reaches the badge without a reload — no WSS test harness exists (same gap as portfolio-summary; tracked by wss-subscription-test-harness-test-support / dashboard-portfolio-summary-live-push-e2e-scenario). Validation here is the existing nestfolio-e2e step-11 Playwright assertion + dashboard-bff/dashboard-mfe/ui unit + scoped integration + deploy-schema smoke."
+  - "Other dashboard surfaces' live-push (AdvisoryStatus / PortfolioSummary / Activity / PositionSnapshot) — already shipped."
+  - "Re-litigating the channel topology — settled by Approach A (2026-05-29 brainstorming, reaffirmed in the 2026-06-13 position-snapshots design): scalar/singleton summary surfaces ride the shared Dashboard channel; keyed collections get dedicated channels. InvestorSnapshot is a singleton, so it rides the shared publishDashboardUpdate/onDashboardUpdate channel — NOT a new dedicated channel."
+  - "Amending the stale Out-of-scope claim in 2026-06-13-dashboard-live-push-position-snapshots-design.md ('InvestorSnapshot … already shipped on the Dashboard channel') — historical design doc; the false assumption is the root cause but the doc is not rewritten here."
+  - "dashboard-bff-awaiting-confirmation-activity-gap — separate dashboard-bff activity-feed item."
+spec: docs/superpowers/specs/2026-06-16-investor-snapshot-live-push-design.md
 plan: null
 topic_memory:
   - project_decision_workflow_stuck.md
@@ -44,26 +48,53 @@ So after `confirmGoLive`, the dashboard execution-mode badge stays **SIM** and n
 - **Not** (evidence-wise) a 60s-timing flake: the badge is definitively `sim` at the timeout, and
   the step has no prior green run to regress from.
 
-## Likely root cause (to confirm)
+## ROOT CAUSE — CONFIRMED (2026-06-16, code-traced end-to-end)
 
-The CDC/push chain the test comments assert:
-`InvestorProfile MODIFY → INVESTOR_PROFILE_UPDATED → dashboard-bff InvestorSnapshot.executionMode='live'
-→ onDashboardUpdate WSS push → badge re-render`. The break is somewhere in:
-1. dashboard-bff's `investor-snapshot.ts` not projecting `executionMode='live'` from the go-live
-   `INVESTOR_PROFILE_UPDATED` (does that event carry the new mode?), OR
-2. the `@aws_subscribe` broadcast not delivering the executionMode change to the mounted dashboard
-   (the [[feedback-appsync-subscribe-filter-args]] class — filter arg must be on the mutation
-   response + publisher selection), OR
-3. the badge component not re-binding on the pushed InvestorSnapshot.
+The backend correctly flips the value; **there is no live-delivery path of `InvestorSnapshot`
+to the mounted dashboard.** Both halves of the WSS surface (option 2 above) are simply absent.
 
-## Cheapest next steps
+Layer-by-layer evidence:
 
-1. Read the page snapshot / trace from the failing run, then check the dashboard-bff
-   `InvestorSnapshot` row for a go-live tenant on dev: did `executionMode` flip to `live` in DDB?
-   - flipped in DDB but badge stayed sim → WSS-push / badge-binding gap (UI side).
-   - stayed `sim` in DDB → the `INVESTOR_PROFILE_UPDATED` go-live projection never set it (producer/projection side).
-2. Confirm whether the go-live `INVESTOR_PROFILE_UPDATED` subject/context actually carries the new
-   `executionMode`, and whether dashboard-bff's investor-snapshot transform reads it.
+| Layer | Verdict |
+| --- | --- |
+| `confirmGoLive` → atomic `TransactWriteItems` flips `InvestorProfile.executionMode='live'` + bumps `__version` | ✅ works |
+| Egress (`investor-bff/service.stack.ts`): `InvestorProfile` modify → `always: INVESTOR_PROFILE_UPDATED`; DRY subject `schema.parse(row)` carries `executionMode` (in `InvestorProfileUpdatedSchema`) + `__version` | ✅ works |
+| `dashboard-bff/transforms/investor-snapshot.ts` → `projectVersioned('InvestorSnapshot', { executionMode:'live' })` into DDB | ✅ works |
+| `getDashboard` query + `schema.graphql` return `executionMode`; badge (`dashboard-mfe/.../execution-mode-badge.component.ts`) binds `store.investorSnapshot()?.executionMode` | ✅ works |
+| `dashboard-publisher.ts` broadcasters: `AdvisoryStatus`, `PortfolioSummary`, `Activity`, `PositionSnapshot` — **`InvestorSnapshot` ABSENT** | ❌ no broadcast |
+| `ON_DASHBOARD_UPDATE` subscription selection: `portfolioSummary` + `advisoryStatus` only — **no `investorSnapshot`** (store comment: *"investorSnapshot has no live channel"*) | ❌ no client channel |
+| Frontend `getDashboard` is `cache-first`, run **once** on mount, no poll/refetch | ❌ no refetch |
 
-Related: `dashboard-portfolio-summary-live-push-e2e-scenario`, `dashboard-bff-awaiting-confirmation-activity-gap`
-(both dashboard-bff live-push coverage). Likely sibling to whatever those reveal.
+At go-live the dashboard mounts, runs its single `getDashboard` query which **races the CDC chain
+and loses** (returns `simulation`), caches it 60s, and nothing pushes or refetches the flipped row.
+The badge is frozen on `sim`. Genuine production UX bug (a real user staying on the dashboard sees
+`sim` until a hard refresh) — the class E2E-UI assertions exist to catch
+([[feedback-e2e-ui-assertions-only]], [[feedback-bff-state-completeness]]). Fix is the wiring, **not**
+the POM timeout.
+
+## Decision (recovered, not re-litigated): shared Dashboard channel
+
+The user asked to stay consistent with the prior live-push channel-split refactoring. Recovered
+**Approach A** from `2026-06-13-dashboard-live-push-position-snapshots-design.md` (lines 31–34,
+carried forward from 2026-05-29 brainstorming):
+
+> *scalars share the `Dashboard` channel; keyed collections get dedicated channels, mirroring `Activity`.*
+
+`InvestorSnapshot` is a singleton per-tenant summary row (exactly like `PortfolioSummary` /
+`AdvisoryStatus`, which already ride `publishDashboardUpdate` / `onDashboardUpdate`) → it rides the
+**shared Dashboard channel**, NOT a new dedicated channel. This follows the `PortfolioSummary`
+shared-channel template (`ed603eb2`→`dc1591df`) precisely.
+
+Root irony: that same position-snapshots design's Out-of-scope claims *"InvestorSnapshot … already
+shipped on the Dashboard channel"* — **false**; it never was, which is why this gap shipped silently.
+
+## Fix shape (detail in the design + plan)
+
+- **dashboard-bff:** `InvestorSnapshotInput` + `investorSnapshot` arg on `publishDashboardUpdate`
+  (+ on the `DashboardUpdate` response type & resolver); register an `InvestorSnapshot` broadcaster
+  in `dashboard-publisher.ts` gated `whenChanged` on the display fields (incl. `executionMode`),
+  `mapImage` → `{ tenantId, investorSnapshot }`.
+- **dashboard-mfe:** add `investorSnapshot { ...InvestorSnapshotFields }` to `ON_DASHBOARD_UPDATE`;
+  merge the frame into the store's `investorSnapshot` signal in `subscribeToDashboardUpdates`.
+
+Related: `dashboard-portfolio-summary-live-push-e2e-scenario`, `dashboard-bff-awaiting-confirmation-activity-gap`.
