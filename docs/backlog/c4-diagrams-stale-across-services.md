@@ -1,45 +1,53 @@
 ---
 id: c4-diagrams-stale-across-services
-status: parking
+status: shipped
 type: tooling
 references: []
 out_of_scope: []
 spec: null
 plan: null
 topic_memory: []
-validation_gate: null
-notes: "Pre-existing C4 diagram drift: regenerating from current code changes 16 services' c3 .d2 (e.g. broker-ctrl stale RouteOrderFn, fred-adpt stale fetch-trigger) — committed diagrams lag the CDK stacks. Surfaced 2026-06-15 by incident-escalation-path-b (whose own C4 regen was isolated to investor-ctrl/dashboard-bff/nestfolio.d2 to avoid bundling)."
+validation_gate: |
+  Shipped 2026-06-16 (main 9b5f018f). MISDIAGNOSED as stale diagrams — the
+  committed diagrams were actually CORRECT. Root cause: tools/generate-c4-sources.mjs
+  parsed standalone Lambdas via `new NodejsFunction(...)` only, so after the
+  2026-06-15 orphan-cleanup ManagedNodejsFunction migration the parser stopped
+  detecting 14 live Lambdas — a regen would DELETE them (42-line, deletion-only
+  diff across 16 c3 files), making the diagrams LESS accurate. Fix: regex now
+  matches `new (Managed)?NodejsFunction(...)`. Validation: generator unit test
+  48/48 (node --test test/tools/generate-c4-sources.test.mjs); full two-stage
+  regen now a CLEAN NO-OP (0 c3/0 nestfolio.d2/0 svg diff) with RouteOrderFn +
+  FetchTrigger retained. Deferred (not done here): a `check-c4-drift` nx gate
+  mirroring check-service-card-drift.mjs to catch future silent drift.
+notes: "MISDIAGNOSIS corrected: committed C4 diagrams were correct; the real bug was generate-c4-sources.mjs not detecting ManagedNodejsFunction (post 2026-06-15 orphan-cleanup migration), so a regen would DELETE 14 live Lambdas. Fixed the parser regex (main 9b5f018f); regen is now a clean no-op. Surfaced 2026-06-15 by incident-escalation-path-b."
 ---
 
-# C4 diagrams are stale across ~16 services
+# C4 regen would DELETE live Lambdas — generator could not parse ManagedNodejsFunction
 
-## Evidence
+## What actually happened
 
-Running `node tools/generate-c4-sources.mjs` from a clean tree on 2026-06-15 rewrote 18
-`docs/architecture/c3/*.d2` files, but only 2 (investor-ctrl, dashboard-bff) corresponded to
-the active workstream's code change. The other 16 changed because the committed diagrams lag
-their service.stack.ts:
+Filed 2026-06-15 believing the committed C4 diagrams were stale (a regen produced a
+42-line, deletion-only diff across 16 `c3/*.d2` files — e.g. `route-order-fn: Lambda
+[RouteOrderFn]`, `fetch-trigger: Lambda [FetchTrigger]`). On investigation (2026-06-16,
+prompted by "can you simply regenerate?") the opposite was true:
 
-- `c3/broker-ctrl.d2` — still renders a `route-order-fn: Lambda [RouteOrderFn]` node that no
-  longer exists in the stack.
-- `c3/fred-adpt.d2` — still renders a `fetch-trigger: Lambda [FetchTrigger]` + `schedule -> fetch-trigger`
-  edge that no longer exists.
-- 14 others: advisory-bff, alpha-vantage-adpt, broker-alpaca-adpt, decision-workflow-ctrl,
-  execution-ctrl, investor-profile-ctrl, ledger-bff, ledger-ctrl, market-intelligence-ctrl,
-  marketwatch-adpt, onboarding-bff, portfolio-engine-ctrl, sec-edgar-adpt, yahoo-finance-adpt.
+- `RouteOrderFn` (broker-ctrl `service.stack.ts:71`), `FetchTrigger` (fred-adpt `:79`) and
+  12 others **still exist in code** — as `ManagedNodejsFunction`.
+- `tools/generate-c4-sources.mjs:304` detected standalone Lambdas with a regex matching
+  `new NodejsFunction(...)` **only**. The 2026-06-15 orphan-cleanup workstream migrated these
+  to `ManagedNodejsFunction`, which the regex missed → the parser dropped the nodes → a regen
+  would have DELETED 14 live Lambdas from the diagrams.
 
-## Why parking (not folded)
+So the committed diagrams were the MORE accurate artifact; the generator had a silent parsing
+regression.
 
-`incident-escalation-path-b` deliberately isolated its own C4 regen (kept only `nestfolio.d2` +
-`c3/investor-ctrl.d2` + `c3/dashboard-bff.d2` + the 4 derived SVGs; reverted the 16 unrelated
-files) to avoid bundling unrelated drift into a single-concern workstream. This drift is prior
-unshipped diagram debt from other services' code changes — genuinely unrelated.
+## Fix (shipped)
 
-## Done
+- `generate-c4-sources.mjs` regex → `new (?:Managed)?NodejsFunction(...)`.
+- Generator unit test 48/48; full regen is now a clean no-op (the diagrams already matched code).
 
-- Run both C4 stages (`generate-c4-sources.mjs` + `generate-c4-diagrams.mjs`) from a clean tree,
-  commit the full regenerated set, visually verify the SVGs.
-- Consider a `check-c4-drift` gate (mirroring `check-service-card-drift.mjs`) so the diagrams
-  can't silently drift again.
+## Deferred follow-up
 
-Promote during an architecture-doc freshness sweep, or when next regenerating C4 for a feature.
+- A `check-c4-drift` nx gate (mirroring `tools/check-service-card-drift.mjs`) would catch this
+  class of silent drift — both real code drift AND generator-parsing gaps — at commit time.
+  File separately if/when a C4-freshness gate is wanted.
