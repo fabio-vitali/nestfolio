@@ -13,7 +13,7 @@ out_of_scope:
   - "Retrofitting other services' fixtures (Phases 1-4)"
   - "Production contract/producer/consumer changes (test layer only)"
 spec: docs/superpowers/specs/2026-06-16-typed-test-fixtures-design.md
-plan: null
+plan: docs/superpowers/plans/2026-06-16-typed-test-fixtures-phase0.md
 topic_memory: [project_event_subject_contracts.md]
 validation_gate: null
 ---
