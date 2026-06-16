@@ -64,9 +64,7 @@ describe('compliance-ctrl resilience: idempotency', () => {
       const userId = `idemp-user-${randomUUID()}`;
       const mandateId = `idemp-mandate-${randomUUID()}`;
       const eventId = `idemp-mandate-issued-${randomUUID()}`;
-      const detail = {
-        tenantId: ctx.tenantId,
-        userId,
+      const subject = {
         ...baseMandateIssued(mandateId),
         status: 'ACTIVE',
         __version: 1,
@@ -77,7 +75,8 @@ describe('compliance-ctrl resilience: idempotency', () => {
         bus: 'advisory',
         targetService: 'compliance-ctrl',
         detailType: 'MANDATE_ISSUED',
-        detail,
+        subject,
+        context: { userId },
         eventId,
       });
 
@@ -92,7 +91,8 @@ describe('compliance-ctrl resilience: idempotency', () => {
         bus: 'advisory',
         targetService: 'compliance-ctrl',
         detailType: 'MANDATE_ISSUED',
-        detail,
+        subject,
+        context: { userId },
         eventId,
       });
 
@@ -127,22 +127,19 @@ describe('compliance-ctrl resilience: idempotency', () => {
         bus: 'advisory',
         targetService: 'compliance-ctrl',
         detailType: 'MANDATE_ISSUED',
-        detail: {
-          tenantId: ctx.tenantId,
-          userId,
+        subject: {
           ...baseMandateIssued(mandateId),
           status: 'ACTIVE',
           __version: 1,
         },
+        context: { userId },
       });
       await pollForMandateSnapshot(table, ctx.tenantId, userId, (i) => i['mandateId'] === mandateId);
 
       // First revoke — full image at __version:2 so projectVersioned version guard accepts it
       const revokedAt = '2026-04-01T12:00:00.000Z';
       const revokeEventId = `idemp-revoke-evt-${randomUUID()}`;
-      const revokeDetail = {
-        tenantId: ctx.tenantId,
-        userId,
+      const revokeSubject = {
         ...baseMandateIssued(mandateId),
         status: 'REVOKED',
         revokedAt,
@@ -152,7 +149,8 @@ describe('compliance-ctrl resilience: idempotency', () => {
         bus: 'advisory',
         targetService: 'compliance-ctrl',
         detailType: 'MANDATE_REVOKED',
-        detail: revokeDetail,
+        subject: revokeSubject,
+        context: { userId },
         eventId: revokeEventId,
       });
       await pollForMandateSnapshot(table, ctx.tenantId, userId, (i) => i['status'] === 'REVOKED');
@@ -162,7 +160,8 @@ describe('compliance-ctrl resilience: idempotency', () => {
         bus: 'advisory',
         targetService: 'compliance-ctrl',
         detailType: 'MANDATE_REVOKED',
-        detail: revokeDetail,
+        subject: revokeSubject,
+        context: { userId },
         eventId: revokeEventId,
       });
 
@@ -214,9 +213,7 @@ describe('compliance-ctrl resilience: order-agnostic (SQS redelivery)', () => {
       // __version:1 — the original issue; redelivered late MANDATE_ISSUED reuses
       // the same version so the version guard (current __version:2 >= :version 1)
       // drops it and REVOKED is preserved.
-      const issueDetail = {
-        tenantId: ctx.tenantId,
-        userId,
+      const issueSubject = {
         ...baseMandateIssued(mandateId),
         status: 'ACTIVE',
         __version: 1,
@@ -227,7 +224,8 @@ describe('compliance-ctrl resilience: order-agnostic (SQS redelivery)', () => {
         bus: 'advisory',
         targetService: 'compliance-ctrl',
         detailType: 'MANDATE_ISSUED',
-        detail: issueDetail,
+        subject: issueSubject,
+        context: { userId },
         eventId: issueEventId,
       });
       const projected = await pollForMandateSnapshot(
@@ -243,14 +241,13 @@ describe('compliance-ctrl resilience: order-agnostic (SQS redelivery)', () => {
         bus: 'advisory',
         targetService: 'compliance-ctrl',
         detailType: 'MANDATE_REVOKED',
-        detail: {
-          tenantId: ctx.tenantId,
-          userId,
+        subject: {
           ...baseMandateIssued(mandateId),
           status: 'REVOKED',
           revokedAt,
           __version: 2,
         },
+        context: { userId },
       });
       const revoked = await pollForMandateSnapshot(
         table, ctx.tenantId, userId, (i) => i['status'] === 'REVOKED',
@@ -265,7 +262,8 @@ describe('compliance-ctrl resilience: order-agnostic (SQS redelivery)', () => {
         bus: 'advisory',
         targetService: 'compliance-ctrl',
         detailType: 'MANDATE_ISSUED',
-        detail: issueDetail,
+        subject: issueSubject,
+        context: { userId },
         eventId: issueEventId,
       });
 
