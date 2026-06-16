@@ -297,6 +297,42 @@ describe('DashboardStore', () => {
       });
       expect(store.portfolioSummary()?.totalValueCents).toBe(200);
     });
+
+    const snapshotAt = (
+      updatedAt: string,
+      executionMode: string,
+    ): import('../../../src/app/stores/dashboard.store').InvestorSnapshot => ({
+      goalType: 'GROWTH', riskLevel: '7', operatingMode: 'BALANCED',
+      executionMode, mandateLevel: 'STANDARD', onboardedAt: '2026-06-01T00:00:00Z', updatedAt,
+    });
+
+    it('setInvestorSnapshot applies a newer frame (sim→live)', () => {
+      store.setInvestorSnapshot(snapshotAt('2026-06-16T00:00:00Z', 'simulation'));
+      store.setInvestorSnapshot(snapshotAt('2026-06-16T12:00:00Z', 'live'));
+      expect(store.investorSnapshot()?.executionMode).toBe('live');
+    });
+
+    it('setInvestorSnapshot drops a strictly-older frame', () => {
+      store.setInvestorSnapshot(snapshotAt('2026-06-16T12:00:00Z', 'live'));
+      store.setInvestorSnapshot(snapshotAt('2026-06-16T00:00:00Z', 'simulation')); // older
+      expect(store.investorSnapshot()?.executionMode).toBe('live');
+    });
+
+    it('setInvestorSnapshot never clobbers a live value with null', () => {
+      store.setInvestorSnapshot(snapshotAt('2026-06-16T12:00:00Z', 'live'));
+      store.setInvestorSnapshot(null);
+      expect(store.investorSnapshot()?.executionMode).toBe('live');
+    });
+
+    it('setDashboard does not clobber a newer live investorSnapshot with an older snapshot', () => {
+      store.setInvestorSnapshot(snapshotAt('2026-06-16T12:00:00Z', 'live')); // live frame
+      store.setDashboard({
+        portfolioSummary: null,
+        advisoryStatus: null,
+        investorSnapshot: snapshotAt('2026-06-16T00:00:00Z', 'simulation'), // older backfill snapshot
+      });
+      expect(store.investorSnapshot()?.executionMode).toBe('live');
+    });
   });
 });
 

@@ -167,11 +167,16 @@ export const DashboardStore = signalStore(
       if (current && incoming.updatedAt < current.updatedAt) return;
       patchState(store, { advisoryStatus: incoming });
     },
+    setInvestorSnapshot(incoming: InvestorSnapshot | null): void {
+      if (!incoming) return;
+      const current = store.investorSnapshot();
+      if (current && incoming.updatedAt < current.updatedAt) return;
+      patchState(store, { investorSnapshot: incoming });
+    },
     setDashboard(data: DashboardData): void {
-      // investorSnapshot has no live channel — apply directly. The two live
-      // surfaces go through the guarded setters so a (re-query) snapshot can't
-      // clobber a newer live frame.
-      patchState(store, { investorSnapshot: data.investorSnapshot });
+      // All three surfaces ride the shared Dashboard channel; route each through
+      // its guarded LWW setter so a (re-query) snapshot can't clobber a newer live frame.
+      this.setInvestorSnapshot(data.investorSnapshot);
       this.setPortfolioSummary(data.portfolioSummary);
       this.setAdvisoryStatus(data.advisoryStatus);
     },
