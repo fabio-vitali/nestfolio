@@ -19,7 +19,7 @@ describe('advisory-bff event-listener', () => {
       { eventType: DecisionWorkflowEventTypes.DECISION_CYCLE_FAILED, status: 'FAILED', version: 1 },
     ];
     for (const c of cases) {
-      const subject = { decisionId: 'd1', tenantId: 't1', status: c.status, __version: c.version };
+      const subject = { decisionId: 'd1', status: c.status, __version: c.version };
       const ctx = { tenantId: 't1', eventId: 'e1', eventType: c.eventType, timestamp: '2026-01-01T00:00:00.000Z' };
       const intent = handlers[c.eventType]({ subject } as never, ctx as never) as {
         _tag: string; typename: string; version: number; fields: Record<string, unknown>;
@@ -34,7 +34,7 @@ describe('advisory-bff event-listener', () => {
   it('both CREATED and UPDATED dispatch the decisionSnapshot transform', () => {
     const handlers = createHandlers();
     const subject = {
-      tenantId: 't1', decisionId: 'd1', trigger: 'rebalance', status: 'PENDING',
+      decisionId: 'd1', trigger: 'rebalance', status: 'PENDING',
       proposedTrades: [{ symbol: 'VTI', side: 'BUY' }], explanation: 'why',
       confirmationRequired: true, __version: 2,
       createdAt: '2026-01-01T00:00:00.000Z', updatedAt: '2026-01-01T00:00:00.000Z',
@@ -56,7 +56,7 @@ describe('advisory-bff event-listener', () => {
 
   it('coerces a degraded snapshot (no explanation, no trades) to a skip intent', () => {
     const handlers = createHandlers();
-    const subject = { tenantId: 't1', decisionId: 'd1', explanation: '', proposedTrades: [], __version: 1 };
+    const subject = { decisionId: 'd1', explanation: '', proposedTrades: [], __version: 1 };
     const ctx = {
       tenantId: 't1', eventId: 'e1',
       eventType: DecisionWorkflowEventTypes.DECISION_PACKET_CREATED,
