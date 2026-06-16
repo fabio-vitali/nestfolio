@@ -14,7 +14,7 @@ out_of_scope:
   - "Amending the stale Out-of-scope claim in 2026-06-13-dashboard-live-push-position-snapshots-design.md ('InvestorSnapshot … already shipped on the Dashboard channel') — historical design doc; the false assumption is the root cause but the doc is not rewritten here."
   - "dashboard-bff-awaiting-confirmation-activity-gap — separate dashboard-bff activity-feed item."
 spec: docs/superpowers/specs/2026-06-16-investor-snapshot-live-push-design.md
-plan: null
+plan: docs/superpowers/plans/2026-06-16-investor-snapshot-live-push.md
 topic_memory:
   - project_decision_workflow_stuck.md
 validation_gate: null
