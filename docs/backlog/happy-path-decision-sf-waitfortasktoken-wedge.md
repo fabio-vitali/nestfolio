@@ -1,6 +1,6 @@
 ---
 id: happy-path-decision-sf-waitfortasktoken-wedge
-status: active
+status: shipped
 type: bug
 rank: 5
 notes: "new-investor-happy-path e2e red at decision step. ROOT CAUSE CONFIRMED 2026-06-16 (NOT the filed .waitForTaskToken/maxVms hypothesis): advisory-bff decision transforms read tenantId from the now-DRY CDC subject → DecisionReadModel written to Decision#undefined#… → decision never advances past GENERATING → pendingDecisions stays 0. Fix: read identity from context; +States.Runtime trigger fix; +systemic guard."
@@ -18,7 +18,21 @@ spec: null
 plan: null
 topic_memory:
   - project_decision_workflow_stuck.md
-validation_gate: null
+validation_gate: |-
+  Root cause (advisory-bff keyed DecisionReadModel off the DRY subject's tenantId → Decision#undefined#…)
+  fixed across 3 commits: c7f361bf (decision-snapshot + decision-cycle-status read tenantId from context;
+  co-wrong fixtures corrected; regression added), 6786b7d7 (DWC ResolveInvestorProfile predicate guards the
+  uncatchable States.Runtime), 84c9e4e1 (subject-identity gate + 4 nestfolio identity-read fixes + 2 boundary
+  exclusions). Unit+lint GREEN for all 20 affected projects (nx run-many -t test,lint); check-typed-subjects
+  gate self-test 20/20 + full-tree scan 0 violations; check-service-card-drift 0 drift. Deployed 5 services to
+  dev (compliance-ctrl/portfolio-engine-ctrl/advisory-narrative-ctrl/advisory-bff/decision-workflow-ctrl, all ✅,
+  Lambda-only); live SF verified to carry the tightened ResolveInvestorProfile predicate (no stale bundle).
+  E2E (apps/nestfolio-e2e new-investor-happy-path, deployed dev): the decision WEDGE IS RESOLVED — step 8
+  (waitForPendingDecisionsAtLeast, the previously-failing gate) + steps 9-10 (open decision, non-empty
+  rationale, confirm) all PASS (all previously unreachable); journey reached go-live (step 11) for the first
+  time. Step 11 (execution-mode-live badge) fails on a SEPARATE, unmasked root cause filed as
+  happy-path-go-live-badge-stuck-sim (queued). Done re-scoped per user direction 2026-06-16: the decision-wedge
+  fix ships here; the go-live badge is split off as its own item.
 ---
 
 # Decision-workflow SF wedged at `.waitForTaskToken` — blocks the happy-path Playwright e2e
