@@ -10,6 +10,12 @@
     },
     "lint": {
       "executor": "@nx/eslint:lint"
+    },
+    "typecheck": {
+      "executor": "nx:run-commands",
+      "options": {
+        "command": "tsc --noEmit -p libs/test-support/tsconfig.type-test.json"
+      }
     }
   },
   "tags": ["scope:platform", "type:lib"]
