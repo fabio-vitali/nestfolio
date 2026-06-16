@@ -24,7 +24,7 @@ Post-resplit (2026-05-08): subscribes to semantic/lifecycle events directly inst
 ## Handlers
 - event-listener.ts — Ingress event handler
   - RECOMMENDATION_PROPOSED: loads GuardrailPolicy (MandateSnapshot) from DDB, runs RuleEngine (MandateValidator + GuardrailEvaluator + SuitabilityChecker + AuthorityResolver), writes ComplianceCheck + AuditArtifact records. Requires `taskToken` on subject (SF callback to decision-workflow-ctrl on DECISION_APPROVED|BLOCKED). Throws NotRetryableError if taskToken missing or required fields absent.
-  - MANDATE_ISSUED / OPERATING_MODE_CHANGED / MANDATE_REVOKED: all three route to a single `projectMandateSnapshot` helper that calls `projectVersioned('MandateSnapshot', fullImage, { version: subject.__version, overrides: { pk, sk } })`. Every Mandate event now carries the full Mandate image + Mandate `__version`; the version guard is the sole idempotency mechanism (the old REVOKED-skip conditional is gone). Missing `operatingMode` throws NotRetryableError; missing `__version` returns `skip()`.
+  - MANDATE_ISSUED / OPERATING_MODE_CHANGED / MANDATE_REVOKED / MANDATE_REAFFIRMED: all four route to a single `projectMandateSnapshot` helper that reads the subject via `parseSubject(payload, MandateSchema)` (`@nestfolio/investor-adpt/domain` — the producer's own contract; investor-bff emits `MandateSchema.parse(row)` for all four events) and calls `projectVersioned('MandateSnapshot', fullImage, { version: subject.__version, overrides: { pk, sk } })`. Every Mandate event carries the full Mandate image + Mandate `__version`; the version guard is the sole idempotency mechanism (the old REVOKED-skip conditional is gone). A subject that violates `MandateSchema` (e.g. missing/invalid `operatingMode`) throws `ZodError` → poison-pill/DLQ; a valid subject missing `__version` returns `skip()`.
 - event-publisher.ts — Egress CDC publisher (changeDataCapture pipeline, typed-subject mode)
 - publisher-schemas.ts — typed-subject registry: maps each emitted __typename → its producer zod contract (subjectSchemas) + exemptTypenames; the publisher emits schema.parse(row) (the DRY subject) for covered types, the fat row for exempt. Exempt: none (every emitted __typename now has a row-level contract — ComplianceCheck → ComplianceCheckSchema).
 
@@ -54,6 +54,7 @@ Producer-owned zod CDC subject contracts, exported via `@nestfolio/compliance-ct
 
 ## Dependencies
 - libs: cdk-constructs (core), event-processor, decision-workflow-ctrl/events, advisory-adpt/domain, investor-adpt/domain
+- `@nestfolio/investor-adpt/domain` — consumes producer contract `MandateSchema` (the `projectMandateSnapshot` `parseSubject` seam for all four mandate events) + `InvestorCrossDomainEventTypes`
 
 ## DDB Entities
 <!-- card-drift:ddb-entities (generated — `nx run event-processor:card-drift -- --fix`) -->
