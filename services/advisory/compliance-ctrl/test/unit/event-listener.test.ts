@@ -425,8 +425,12 @@ describe('event-listener handler', () => {
   });
 
   describe('Mandate projection (projectVersioned)', () => {
+    // DRY subject — tenant/user identity travels in the event CONTEXT, not the subject
+    // (matches the real MANDATE_* producer + DWC mandate-projector, which read ctx.userId).
+    // A tenantId/userId in the subject here was the co-wrong-fixture that masked compliance
+    // reading identity off the subject instead of context.
     const fullMandate = (overrides: Record<string, unknown> = {}) => ({
-      tenantId: 't-1', userId: 'u-1', mandateId: 'm-1',
+      mandateId: 'm-1',
       level: 'DISCRETIONARY', status: 'ACTIVE', operatingMode: 'BALANCED',
       effectiveDate: '2025-01-01T00:00:00.000Z', __version: 1,
       ...overrides,
@@ -435,7 +439,7 @@ describe('event-listener handler', () => {
     it('MANDATE_ISSUED → projectVersioned(MandateSnapshot) full row keyed on __version', async () => {
       const harness = makeHarness();
       const result = await harness.process([
-        fakeSqsRecord('MANDATE_ISSUED', fullMandate(), { tenantId: 't-1' }),
+        fakeSqsRecord('MANDATE_ISSUED', fullMandate(), { tenantId: 't-1', userId: 'u-1' }),
       ]);
       expect(result.batchItemFailures).toHaveLength(0);
       expect(result.intents).toHaveLength(1);
@@ -453,7 +457,7 @@ describe('event-listener handler', () => {
     it('OPERATING_MODE_CHANGED → projectVersioned full row (status/level preserved) at the new __version', async () => {
       const harness = makeHarness();
       const result = await harness.process([
-        fakeSqsRecord('OPERATING_MODE_CHANGED', fullMandate({ operatingMode: 'AGGRESSIVE', __version: 2 }), { tenantId: 't-1' }),
+        fakeSqsRecord('OPERATING_MODE_CHANGED', fullMandate({ operatingMode: 'AGGRESSIVE', __version: 2 }), { tenantId: 't-1', userId: 'u-1' }),
       ]);
       expect(result.intents[0]).toMatchObject({
         _tag: 'projectVersioned', typename: 'MandateSnapshot', version: 2,
@@ -464,7 +468,7 @@ describe('event-listener handler', () => {
     it('MANDATE_REVOKED → projectVersioned full row with status=REVOKED at the new __version', async () => {
       const harness = makeHarness();
       const result = await harness.process([
-        fakeSqsRecord('MANDATE_REVOKED', fullMandate({ status: 'REVOKED', revokedAt: '2026-05-03T12:00:00.000Z', __version: 3 }), { tenantId: 't-1' }),
+        fakeSqsRecord('MANDATE_REVOKED', fullMandate({ status: 'REVOKED', revokedAt: '2026-05-03T12:00:00.000Z', __version: 3 }), { tenantId: 't-1', userId: 'u-1' }),
       ]);
       expect(result.intents[0]).toMatchObject({
         _tag: 'projectVersioned', typename: 'MandateSnapshot', version: 3,
@@ -475,7 +479,7 @@ describe('event-listener handler', () => {
     it('MANDATE_REAFFIRMED → projectVersioned(MandateSnapshot) full row keyed on __version', async () => {
       const harness = makeHarness();
       const result = await harness.process([
-        fakeSqsRecord('MANDATE_REAFFIRMED', fullMandate({ status: 'ACTIVE', __version: 2, effectiveDate: '2026-06-15T00:00:00.000Z' }), { tenantId: 't-1' }),
+        fakeSqsRecord('MANDATE_REAFFIRMED', fullMandate({ status: 'ACTIVE', __version: 2, effectiveDate: '2026-06-15T00:00:00.000Z' }), { tenantId: 't-1', userId: 'u-1' }),
       ]);
       expect(result.batchItemFailures).toHaveLength(0);
       expect(result.intents).toHaveLength(1);

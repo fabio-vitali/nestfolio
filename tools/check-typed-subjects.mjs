@@ -17,6 +17,13 @@
 //   opaque-subject           — the `opaqueSubject` identifier reintroduced anywhere in `src`.
 //   inline-row          (C3) — a top-level interface/type declaring pk + sk + __typename inline
 //                              (not via TableEntry<>). Heuristic regression guard.
+//   subject-identity         — identity (tenantId/userId/region) read off the event SUBJECT
+//                              (chain `.subject.tenantId`, destructure, or alias-then-read).
+//                              Subjects are DRY — identity travels in uow.event.context. Reading
+//                              it from the subject yields undefined post-DRY-migration and keys
+//                              rows at Decision#undefined#… (the 2026-06-16 happy-path wedge).
+//                              Boundary/external events that legitimately carry such a field use
+//                              a documented exclusion.
 //
 // Conventions 3 (full) + 5 (context generic) remain skills/docs only.
 //
@@ -51,6 +58,20 @@ const SUBJECT_RECORD_CAST_RE = /(?<![A-Za-z0-9_])subject\b[^\n;=]*?\bas\s+Record
 const SUBJECT_SUFFIX_RE = /export\s+(?:const\s+([A-Za-z0-9_]+SubjectSchema)\b|type\s+([A-Za-z0-9_]+Subject)\b)/g;
 const OPAQUE_RE = /\bopaqueSubject\b/g;
 const CROSS_DOMAIN_IMPORT_RE = /from\s+['"]@nestfolio\/([a-z0-9-]+)\/(contracts|events)['"]/g;
+
+// subject-identity — identity (tenantId/userId/region) read off the event SUBJECT.
+// DRY subjects EXCLUDE identity; it travels in the event CONTEXT (uow.event.context).
+// Reading it from the subject yields `undefined` post-DRY-migration and keys rows at
+// e.g. Decision#undefined#… (the 2026-06-16 happy-path-decision wedge: decision-snapshot
+// keyed off subject.tenantId). Three shapes are caught:
+//   (a) direct chain:  <…>.subject.tenantId
+//   (b) destructure:    const { tenantId } = <…>.subject
+//   (c) alias + read:   const p = <…>.subject; … p.tenantId
+const IDENTITY_FIELDS = 'tenantId|userId|region';
+const SUBJECT_IDENTITY_CHAIN_RE = new RegExp(`\\.subject\\.(?:${IDENTITY_FIELDS})\\b`, 'g');
+const SUBJECT_IDENTITY_DESTRUCTURE_RE = new RegExp(
+  `(?:const|let|var)\\s*\\{[^}=]*\\b(?:${IDENTITY_FIELDS})\\b[^}=]*\\}\\s*=\\s*[^=;\\n]*\\.subject\\b`, 'g');
+const SUBJECT_ALIAS_RE = /(?:const|let|var)\s+([A-Za-z0-9_]+)\s*=\s*[^=;\n]*\.subject\b/g;
 
 function parseArgs(argv) {
   let root = process.cwd();
@@ -135,6 +156,38 @@ function scanInlineRows(rel, text) {
   return hits;
 }
 
+// subject-identity heuristic: identity fields read off the event subject (see the
+// regex block above). String-scan, no AST — mirrors the rest of this gate.
+export function scanSubjectIdentity(rel, text) {
+  const hits = [];
+  const seenLines = new Set();
+  const push = (index, snippet) => {
+    if (inComment(text, index)) return;
+    const line = lineOf(text, index);
+    if (seenLines.has(line)) return;
+    seenLines.add(line);
+    hits.push({ rule: 'subject-identity', file: rel, line,
+      msg: `identity read off the event subject (\`${snippet.trim()}\`) — subjects are DRY; read tenantId/userId/region from uow.event.context, not the subject` });
+  };
+  let m;
+  SUBJECT_IDENTITY_CHAIN_RE.lastIndex = 0;
+  while ((m = SUBJECT_IDENTITY_CHAIN_RE.exec(text)) !== null) push(m.index, m[0]);
+  SUBJECT_IDENTITY_DESTRUCTURE_RE.lastIndex = 0;
+  while ((m = SUBJECT_IDENTITY_DESTRUCTURE_RE.exec(text)) !== null) push(m.index, m[0]);
+  // alias + read: collect `const p = <…>.subject` aliases, then flag `p.<identity>`.
+  SUBJECT_ALIAS_RE.lastIndex = 0;
+  const aliases = [];
+  while ((m = SUBJECT_ALIAS_RE.exec(text)) !== null) {
+    if (!inComment(text, m.index)) aliases.push(m[1]);
+  }
+  for (const alias of aliases) {
+    const aliasRe = new RegExp(`\\b${alias}\\.(?:${IDENTITY_FIELDS})\\b`, 'g');
+    let am;
+    while ((am = aliasRe.exec(text)) !== null) push(am.index, am[0]);
+  }
+  return hits;
+}
+
 export function scanFile(rel, text) {
   const hits = [];
   // C1 subject-cast: P1 (carrier .subject read with as/??) OR P2 (subject cast to Record<string,unknown>).
@@ -166,6 +219,7 @@ export function scanFile(rel, text) {
       msg: `opaqueSubject reintroduced — every event has a producer schema; use parseSubject(...) (the helper was deleted in WS-3)` });
   }
   hits.push(...scanInlineRows(rel, text));
+  hits.push(...scanSubjectIdentity(rel, text));
   return hits;
 }
 

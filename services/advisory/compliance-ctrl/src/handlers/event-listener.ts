@@ -146,8 +146,9 @@ async function processDecisionPacket(
 
 function projectMandateSnapshot(payload: EventPayload, ctx: EventContext): WriteIntent {
   const subject = payload.subject ?? {};
-  const tenantId = (subject.tenantId as string) ?? ctx.tenantId;
-  const userId = (subject.userId as string) ?? ctx.userId ?? tenantId;
+  // Identity is DRY — read tenantId/userId from the event context, not the subject.
+  const tenantId = ctx.tenantId;
+  const userId = ctx.userId ?? tenantId;
   const operatingMode = subject.operatingMode as MandateSnapshot['operatingMode'];
 
   if (!operatingMode) {

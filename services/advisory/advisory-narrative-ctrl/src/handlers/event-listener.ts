@@ -44,7 +44,8 @@ export const createHandlers = (deps: IngressDeps) => ({
     // PutEvents call with no CDC producer contract. Payload assembled by
     // decision-workflow-ctrl decision-state-machine.ts from SF execution state.
     const subject = payload.subject ?? {};
-    const tenantId = (subject.tenantId as string) ?? (ctx.tenantId as unknown as string);
+    // Identity is DRY — read tenantId from the event context, not the subject.
+    const tenantId = ctx.tenantId as unknown as string;
     const decisionId = subject.decisionId as string;
     const taskToken = subject.taskToken as string | undefined;
 

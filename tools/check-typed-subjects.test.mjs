@@ -115,6 +115,36 @@ test('C3: flags an inline pk/sk/__typename row; not a TableEntry row', () => {
   assert.equal(tableEntryHits.filter(h => h.rule === 'inline-row').length, 0);
 });
 
+test('subject-identity: flags a direct chain `…subject.tenantId`', () => {
+  const hits = scanFile('services/x/x-ctrl/src/transforms/t.ts',
+    `overrides: { pk: \`Decision#\${uow.event.subject.tenantId}#\${id}\` }`);
+  assert.equal(hits.filter(h => h.rule === 'subject-identity').length, 1);
+});
+
+test('subject-identity: flags alias-then-read `const p = …subject; … p.userId`', () => {
+  const hits = scanFile('services/x/x-ctrl/src/transforms/t.ts',
+    `const p = uow.event.subject;\nconst u = p.userId;`);
+  assert.equal(hits.filter(h => h.rule === 'subject-identity').length, 1);
+});
+
+test('subject-identity: flags a destructure off the subject', () => {
+  const hits = scanFile('services/x/x-ctrl/src/transforms/t.ts',
+    `const { region } = event.subject;`);
+  assert.equal(hits.filter(h => h.rule === 'subject-identity').length, 1);
+});
+
+test('subject-identity: does NOT flag reading identity from context', () => {
+  const hits = scanFile('services/x/x-ctrl/src/transforms/t.ts',
+    `const { tenantId } = uow.event.context;\nconst r = uow.event.context.region;`);
+  assert.equal(hits.filter(h => h.rule === 'subject-identity').length, 0);
+});
+
+test('subject-identity: does NOT flag a non-identity subject read', () => {
+  const hits = scanFile('services/x/x-ctrl/src/transforms/t.ts',
+    `const p = uow.event.subject;\nconst d = p.decisionId;\nconst s = p.status;`);
+  assert.equal(hits.filter(h => h.rule === 'subject-identity').length, 0);
+});
+
 test('evaluate: platform seam C1 hits are path-excluded', () => {
   const hits = scanFile('libs/event-processor/src/util/to-uow.ts',
     `subject: payload.subject as Record<string, unknown>,`);
