@@ -1,10 +1,11 @@
 ---
 id: compliance-ctrl-mandate-snapshot-parse-subject
-status: active
+status: shipped
 epic: typed-subject-consumer-contract-gaps
 epic_role: core
 type: refactor
 requires_deploy: true
+validation_gate: "Shipped 2026-06-16 (worktree compliance-mandate-parse-subject, impl 42752f93 + card 4dab9f52). projectMandateSnapshot converted to parseSubject(payload, MandateSchema) (single schema — verified all 4 mandate events share the investor-bff Mandate row + MandateSchema); casts + hand-rolled NotRetryableError guard removed (ZodError → poison-pill/DLQ); compliance-ctrl entry removed from tools/typed-subject-exclusions.json. Validation: unit 85/85 green incl. new parseSubject-rejection regression test; typed-subject gate green WITHOUT the exclusion (0 violations); lint+typecheck+card-drift+read-model-drift green; deployed dev-compliance-ctrl. REAL-PRODUCER e2e (update-operating-mode) projected BOTH the initial CONSERVATIVE MandateSnapshot (real onboarding MANDATE_ISSUED) AND AGGRESSIVE (real OPERATING_MODE_CHANGED) — confirmed in CloudWatch ('MandateSnapshot projected' version:1) + DDB row. Two PRE-EXISTING co-wrong fixtures surfaced during validation (proven identical on origin/main, NOT caused by this change): (A) compliance-ctrl integration mandate fixtures put per-test userId in the subject, but the handler correctly keys by ctx.userId (broken since c043f043); (B) update-operating-mode e2e's synthetic RECOMMENDATION_PROPOSED fixture omits isInitialBuild/riskCategory required by RecommendationProposedSchema since WS-3 6ea8b86b. Both are owned by the new typed-test-fixtures epic (Phase 0); see spec docs/superpowers/specs/2026-06-16-typed-test-fixtures-design.md."
 out_of_scope:
   - "The blockReason-from-violations behavioral fix (dwc-sfn-callback-reason-blockreason-gap — re-homed, separate concern)"
   - "ledger-ctrl live-fill tax-lot producer/consumer fork (sibling epic member, separate workstream)"
@@ -15,7 +16,6 @@ references: []
 spec: null
 plan: null
 topic_memory: ["project_event_subject_contracts.md"]
-validation_gate: null
 ---
 
 # compliance-ctrl projectMandateSnapshot still reads payload.subject raw (WS-3 residual)
