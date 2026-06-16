@@ -198,6 +198,38 @@ describe('DashboardContainerComponent', () => {
     expect(store.portfolioSummary()?.totalValueCents).toBe(999999);
   });
 
+  it('applies a live investorSnapshot frame to the store (go-live badge flip)', async () => {
+    const dashFrame$ = new Subject<{
+      onDashboardUpdate: {
+        advisoryStatus: import('../../../src/app/stores/dashboard.store').AdvisoryStatus | null;
+        portfolioSummary: import('../../../src/app/stores/dashboard.store').PortfolioSummary | null;
+        investorSnapshot: import('../../../src/app/stores/dashboard.store').InvestorSnapshot | null;
+      } | null;
+    }>();
+    mockService.subscribeToDashboardUpdates = jest.fn(() => dashFrame$);
+
+    const authStore = TestBed.inject(AuthStore);
+    authStore.setAuthenticated({
+      userId: 'user-1', username: 'user-1', email: 'user@example.com',
+      tenantId: 'tenant-1', onboardingCompletedAt: '2026-01-01T00:00:00Z',
+    });
+
+    await component.ngOnInit();
+    dashFrame$.next({
+      onDashboardUpdate: {
+        advisoryStatus: null,
+        portfolioSummary: null,
+        investorSnapshot: {
+          goalType: 'GROWTH', riskLevel: '7', operatingMode: 'BALANCED',
+          executionMode: 'live', mandateLevel: 'STANDARD',
+          onboardedAt: '2026-06-01T00:00:00Z', updatedAt: '2026-06-16T12:00:00Z',
+        },
+      },
+    });
+
+    expect(store.investorSnapshot()?.executionMode).toBe('live');
+  });
+
   it('backfills via getDashboard when the dashboard subscription reconnects', async () => {
     const dashFrame$ = new Subject<{
       onDashboardUpdate: {

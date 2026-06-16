@@ -125,10 +125,14 @@ export const ON_DASHBOARD_UPDATE = `
       advisoryStatus {
         ...AdvisoryStatusFields
       }
+      investorSnapshot {
+        ...InvestorSnapshotFields
+      }
     }
   }
   ${PORTFOLIO_SUMMARY_FIELDS}
   ${ADVISORY_STATUS_FIELDS}
+  ${INVESTOR_SNAPSHOT_FIELDS}
 `;
 
 export const ON_ACTIVITY_UPDATE = `

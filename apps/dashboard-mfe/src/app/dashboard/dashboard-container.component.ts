@@ -205,6 +205,9 @@ export class DashboardContainerComponent implements OnInit, OnDestroy {
         if (update?.advisoryStatus) {
           this.store.setAdvisoryStatus(update.advisoryStatus);
         }
+        if (update?.investorSnapshot) {
+          this.store.setInvestorSnapshot(update.investorSnapshot);
+        }
       },
       onReconnect: () => this.backfillDashboard(),
       reconnectBackoffMs: DASHBOARD_RECONNECT_BACKOFF_MS,

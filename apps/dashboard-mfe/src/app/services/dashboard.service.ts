@@ -15,6 +15,7 @@ import type {
   DashboardData,
   AdvisoryStatus,
   PortfolioSummary,
+  InvestorSnapshot,
   PositionSnapshot,
   ActivityEntry,
   SimulationSummary,
@@ -74,11 +75,11 @@ export class DashboardService {
   }
 
   /**
-   * Live updates: dashboard-bff fires `publishDashboardUpdate` IAM-signed from
-   * a DDB-stream-driven Lambda whenever the `AdvisoryStatus` or `PortfolioSummary`
-   * row mutates (each broadcast carries only its own surface; the other is null).
-   * The subscription's `tenantId` argument matches the mutation's `tenantId`
-   * argument, so AppSync only delivers frames for the current tenant.
+   * Live updates: dashboard-bff fires `publishDashboardUpdate` IAM-signed from a
+   * DDB-stream-driven Lambda whenever the `AdvisoryStatus`, `PortfolioSummary`, or
+   * `InvestorSnapshot` row mutates (each broadcast carries only its own surface;
+   * the others are null). The subscription's `tenantId` argument matches the
+   * mutation's `tenantId`, so AppSync only delivers frames for the current tenant.
    */
   subscribeToDashboardUpdates(
     tenantId: string,
@@ -86,6 +87,7 @@ export class DashboardService {
     onDashboardUpdate: {
       advisoryStatus: AdvisoryStatus | null;
       portfolioSummary: PortfolioSummary | null;
+      investorSnapshot: InvestorSnapshot | null;
     } | null;
   }> {
     return this.graphql.subscribe(ON_DASHBOARD_UPDATE, { tenantId });
