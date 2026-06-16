@@ -1,11 +1,19 @@
 ---
 id: happy-path-decision-sf-waitfortasktoken-wedge
-status: queued
+status: active
 type: bug
 rank: 5
-notes: "new-investor-happy-path e2e red at decision step: decision-workflow SF wedged at .waitForTaskToken (callback never fires), recurs post maxVms/backlog-trap fixes. Blocks nestfolio-e2e green."
-references: []
-out_of_scope: []
+notes: "new-investor-happy-path e2e red at decision step. ROOT CAUSE CONFIRMED 2026-06-16 (NOT the filed .waitForTaskToken/maxVms hypothesis): advisory-bff decision transforms read tenantId from the now-DRY CDC subject → DecisionReadModel written to Decision#undefined#… → decision never advances past GENERATING → pendingDecisions stays 0. Fix: read identity from context; +States.Runtime trigger fix; +systemic guard."
+references:
+  - services/advisory/advisory-bff/src/transforms/decision-snapshot.ts
+  - services/advisory/advisory-bff/src/transforms/decision-cycle-status.ts
+  - libs/event-processor/src/pipelines/change-data-capture.ts
+  - services/investor/dashboard-bff/src/transforms/advisory-status.ts
+  - services/advisory/decision-workflow-ctrl/src/constructs/decision-state-machine.ts
+out_of_scope:
+  - "Cleaning up the existing Decision#undefined#… garbage rows + stale RUNNING SF execs in dev (disposable dev data; superseded on next cycle — stale execs stopped only as e2e-run hygiene)"
+  - "The broader read-model-ownership producer-aggregates program (this is a single isolated consumer-identity bug)"
+  - "e2e scenarios beyond new-investor-happy-path"
 spec: null
 plan: null
 topic_memory:
@@ -21,7 +29,34 @@ the advisory cycle never produces a pending decision, so the dashboard stays in
 `dashboard.advisory.generatingTitle` with `pendingDecisions: 0`. This blocks `nestfolio-e2e`
 from being green (e2e-gaps-queued ⇒ queued).
 
-## Evidence (2026-06-15, deployed dev)
+## ⚠ ROOT CAUSE CONFIRMED 2026-06-16 — the filed hypotheses below are DISPROVEN
+
+Traced end-to-end against deployed dev. The wedged SF execs are **not** stuck at an agent-invoke
+`.waitForTaskToken` (those carry a 120s `TimeoutSeconds`); they reach `RequestUserConfirmation`
+(a DynamoDB `updateItem.waitForTaskToken`, 72h timeout, **holds no micro-VM**) — so the "no-timeout"
+and "maxVms-cascade" theories are both wrong. The SF runs perfectly to `AWAITING_CONFIRMATION`.
+
+The real bug: **advisory-bff `decision-snapshot.ts` (and sibling `decision-cycle-status.ts`) build
+the read-model key from the event SUBJECT** — `pk: Decision#${p.tenantId}#…` where `p = uow.event.subject`.
+The 2026-06-08 DRY-subject migration moved `tenantId`/`userId`/`region` out of CDC subjects into the
+envelope **context** (`changeDataCapture` `buildSubject` → `schema.parse(record)` drops identity). So
+`p.tenantId` is now `undefined`, and every `DECISION_PACKET_CREATED/UPDATED` projects to
+**`Decision#undefined#<decisionId>`** (this garbage row exists in dev now with the real content:
+`AWAITING_CONFIRMATION`, 866-char explanation, 6 trades). The real `Decision#<tenant>#<decisionId>` row
+stays frozen at the `GENERATING` v0 stub written by `decision-cycle-status` from `DECISION_CYCLE_STARTED`
+(whose SF-built subject still redundantly carries `tenantId`). → advisory-bff `AdvisoryStatus.inFlightCount=0`
+→ dashboard `pendingDecisions: 0`. Classic co-wrong-fixture bug ([[event-subject-contracts]]): consumer
+type + unit fixtures still claim `tenantId` is in the subject (integration green); only e2e vs the real DRY
+producer exposes it.
+
+**Fix (this workstream):** (1) `decision-snapshot.ts` + `decision-cycle-status.ts` read `tenantId` from
+`uow.event.context` (matching dashboard-bff `advisory-status.ts`); correct the co-wrong fixtures + add a
+regression test asserting the row lands at `Decision#<tenant>#…`. (2) Fix the separate uncatchable
+`States.Runtime` at `HoistInvestorProfileFromTrigger` (an `INVESTOR_PROFILE_UPDATED` trigger with `goal`
+but no `riskProfile.category`). (3) Add a systemic guard so no consumer transform can derive identity
+(tenantId/userId/region) from a DRY subject again. Then deploy advisory-bff + DWC and re-run the e2e.
+
+## Evidence (2026-06-15, deployed dev) — SUPERSEDED, see root-cause section above
 
 - **Symptom is reproducible:** two consecutive Playwright runs failed identically at the decision
   step (~5.1m each), onboarding + deposit succeeding first (dashboard showed cash 9.45M post-deposit).

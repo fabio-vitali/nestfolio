@@ -6,12 +6,12 @@
 
 ## ACTIVE
 
-_(none)_
-
+- [happy-path-decision-sf-waitfortasktoken-wedge](backlog/happy-path-decision-sf-waitfortasktoken-wedge.md) [bug] — new-investor-happy-path e2e red at decision step. ROOT CAUSE CONFIRMED 2026-06-16 (NOT the filed .waitForTaskToken/maxVms hypothesis): advisory-bff decision transforms read tenantId from the now-DRY CDC subject → DecisionReadModel written to Decision#undefined#… → decision never advances past GENERATING → pendingDecisions stays 0. Fix: read identity from context; +States.Runtime trigger fix; +systemic guard.
 
 ## QUEUED
 
-1. [happy-path-decision-sf-waitfortasktoken-wedge](backlog/happy-path-decision-sf-waitfortasktoken-wedge.md) [bug] — new-investor-happy-path e2e red at decision step: decision-workflow SF wedged at .waitForTaskToken (callback never fires), recurs post maxVms/backlog-trap fixes. Blocks nestfolio-e2e green.
+_(none)_
+
 
 ## LATER
 
