@@ -31,7 +31,7 @@ Producer-owned zod payload contracts for the 2 CDC-emitted rows (imports ONLY zo
 - The other declared event names are consumed-only (CORPORATE_ACTION_APPLIED) or declared-but-unused — no contracts (not emitted).
 
 ## Handlers
-- event-listener.ts — materializeToTable pipeline; reconcileHandler processes PORTFOLIO_UPDATED, PORTFOLIO_SNAPSHOT_IMPORTED, CORPORATE_ACTION_APPLIED; alpacaSnapshotHandler processes ALPACA_ACCOUNT_SNAPSHOT; writes ReconciliationResult + DriftRecord items
+- event-listener.ts — materializeToTable pipeline; `createHandlers()` factory builds a handler map with inline per-event registration (cache-and-compare): PORTFOLIO_UPDATED (intra-domain, contract-backed via parseSubject), PORTFOLIO_SNAPSHOT_IMPORTED, and CORPORATE_ACTION_APPLIED cache the 'Intent' side; ALPACA_ACCOUNT_SNAPSHOT caches the 'Settlement' side; each calls cacheAndReconcile → writes ReconciliationResult + DriftRecord items
 - event-publisher.ts — CDC changeDataCapture() pipeline (typed-subject mode)
 - publisher-schemas.ts — typed-subject registry: maps each emitted __typename → its producer zod contract (subjectSchemas) + exemptTypenames; the publisher emits schema.parse(row) (the DRY subject) for covered types, the fat row for exempt.
 

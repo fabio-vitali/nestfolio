@@ -32,8 +32,8 @@ describe('scenario 13 — reconciliation discrepancy surfaces corrective decisio
     tenant = await freshTenant(ctx);
     // Arm before any fixture — drift detection fires asynchronously from
     // ALPACA_ACCOUNT_SNAPSHOT, and the resulting PORTFOLIO_DRIFT_DETECTED
-    // reaches advisory-ctrl's decision-lifecycle AgentRuntime before the
-    // scenario's assertions run.
+    // starts decision-workflow-ctrl's decision Step Function (which drives
+    // the agent pipeline) before the scenario's assertions run.
     advisoryNarrativeTrap = await AgentTraceTrap.arm(ctx, 'advisoryNarrative');
     await applyFixtures(ctx, tenant, [
       onboarded(),
@@ -100,7 +100,7 @@ describe('scenario 13 — reconciliation discrepancy surfaces corrective decisio
     }
     expect(settlementWritten).toBe(true);
 
-    // ASSERT: drift detection → PORTFOLIO_DRIFT_DETECTED → advisory-ctrl →
+    // ASSERT: drift detection → PORTFOLIO_DRIFT_DETECTED → decision-workflow-ctrl →
     // decision surfaces in getDecisionHistory
     const history = await waitForGraphQL<DecisionHistoryResponse>(
       bff.advisory,
@@ -114,10 +114,11 @@ describe('scenario 13 — reconciliation discrepancy surfaces corrective decisio
     expect(decision).toBeDefined();
     expect(decision!.decisionId).toEqual(expect.any(String));
 
-    // decision-lifecycle agent contract — PORTFOLIO_DRIFT_DETECTED drives
-    // advisory-ctrl's Ingress → AgentRuntime. decisionId = triggerEvent.id
-    // matches the envelope's correlationId. Reconciliation may produce
-    // multiple traces across correction cycles; assert on the LAST.
+    // decision-lifecycle agent contract — PORTFOLIO_DRIFT_DETECTED triggers
+    // decision-workflow-ctrl's decision Step Function (direct EB→SF), which
+    // drives the agent pipeline. decisionId = triggerEvent.id matches the
+    // envelope's correlationId. Reconciliation may produce multiple traces
+    // across correction cycles; assert on the LAST.
     const narrativeTraces = await advisoryNarrativeTrap.waitFor({
       correlationId: decision!.decisionId,
       timeoutMs: 240_000,
