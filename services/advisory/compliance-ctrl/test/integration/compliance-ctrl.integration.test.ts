@@ -42,7 +42,7 @@ describe('compliance-ctrl', () => {
       bus: 'advisory',
       targetService: 'compliance-ctrl',
       detailType: 'RECOMMENDATION_PROPOSED',
-      detail: {
+      subject: {
         decisionId,
         taskToken,
         awaitingCompliance: true,
@@ -91,9 +91,7 @@ describe('compliance-ctrl', () => {
       bus: 'advisory',
       targetService: 'compliance-ctrl',
       detailType: 'MANDATE_ISSUED',
-      detail: {
-        tenantId: ctx.tenantId,
-        userId,
+      subject: {
         mandateId,
         level: 'DISCRETIONARY',
         status: 'ACTIVE',
@@ -101,6 +99,7 @@ describe('compliance-ctrl', () => {
         effectiveDate: '2026-01-15T00:00:00.000Z',
         __version: 1,
       },
+      context: { userId },
     });
 
     // Poll for THIS test's mandateId — handler may run multiple times if the
@@ -132,9 +131,7 @@ describe('compliance-ctrl', () => {
       bus: 'advisory',
       targetService: 'compliance-ctrl',
       detailType: 'MANDATE_ISSUED',
-      detail: {
-        tenantId: ctx.tenantId,
-        userId,
+      subject: {
         mandateId,
         level: 'ADVISORY',
         status: 'ACTIVE',
@@ -142,6 +139,7 @@ describe('compliance-ctrl', () => {
         effectiveDate: '2026-01-15T00:00:00.000Z',
         __version: 1,
       },
+      context: { userId },
     });
 
     await table.waitForItem({
@@ -157,9 +155,7 @@ describe('compliance-ctrl', () => {
       bus: 'advisory',
       targetService: 'compliance-ctrl',
       detailType: 'OPERATING_MODE_CHANGED',
-      detail: {
-        tenantId: ctx.tenantId,
-        userId,
+      subject: {
         mandateId,
         level: 'ADVISORY',
         status: 'ACTIVE',
@@ -167,6 +163,7 @@ describe('compliance-ctrl', () => {
         effectiveDate: '2026-01-15T00:00:00.000Z',
         __version: 2,
       },
+      context: { userId },
     });
 
     // Poll until the projection reflects the updated operatingMode
@@ -197,9 +194,7 @@ describe('compliance-ctrl', () => {
       bus: 'advisory',
       targetService: 'compliance-ctrl',
       detailType: 'MANDATE_ISSUED',
-      detail: {
-        tenantId: ctx.tenantId,
-        userId,
+      subject: {
         mandateId,
         level: 'DISCRETIONARY',
         status: 'ACTIVE',
@@ -207,6 +202,7 @@ describe('compliance-ctrl', () => {
         effectiveDate: '2026-01-15T00:00:00.000Z',
         __version: 1,
       },
+      context: { userId },
     });
 
     // Wait for the row to land — MANDATE_ISSUED projection sets status='ACTIVE'.
@@ -225,9 +221,7 @@ describe('compliance-ctrl', () => {
       bus: 'advisory',
       targetService: 'compliance-ctrl',
       detailType: 'MANDATE_REVOKED',
-      detail: {
-        tenantId: ctx.tenantId,
-        userId,
+      subject: {
         mandateId,
         level: 'DISCRETIONARY',
         status: 'REVOKED',
@@ -236,6 +230,7 @@ describe('compliance-ctrl', () => {
         revokedAt,
         __version: 2,
       },
+      context: { userId },
     });
 
     // 3. Poll for status=REVOKED
@@ -271,9 +266,7 @@ describe('compliance-ctrl', () => {
       bus: 'advisory',
       targetService: 'compliance-ctrl',
       detailType: 'MANDATE_ISSUED',
-      detail: {
-        tenantId: ctx.tenantId,
-        userId,
+      subject: {
         mandateId,
         level: 'DISCRETIONARY',
         status: 'ACTIVE',
@@ -281,6 +274,7 @@ describe('compliance-ctrl', () => {
         effectiveDate: '2026-01-15T00:00:00.000Z',
         __version: 1,
       },
+      context: { userId },
     });
 
     // Wait for the seed to land — MANDATE_ISSUED sets status='ACTIVE'.
@@ -298,9 +292,7 @@ describe('compliance-ctrl', () => {
       bus: 'advisory',
       targetService: 'compliance-ctrl',
       detailType: 'MANDATE_REVOKED',
-      detail: {
-        tenantId: ctx.tenantId,
-        userId,
+      subject: {
         mandateId,
         level: 'DISCRETIONARY',
         status: 'REVOKED',
@@ -309,6 +301,7 @@ describe('compliance-ctrl', () => {
         revokedAt,
         __version: 2,
       },
+      context: { userId },
     });
 
     // Wait for REVOKED
@@ -327,13 +320,8 @@ describe('compliance-ctrl', () => {
       bus: 'advisory',
       targetService: 'compliance-ctrl',
       detailType: 'RECOMMENDATION_PROPOSED',
-      detail: {
+      subject: {
         decisionId,
-        // Pin userId so processDecisionPacket reads the same MandateSnapshot
-        // pk this test seeded above — otherwise it falls back to
-        // ctx.tenantId and misses the per-test row.
-        tenantId: ctx.tenantId,
-        userId,
         taskToken: `integ-task-token-${decisionId}`,
         awaitingCompliance: true,
         proposedTrades: [
@@ -351,6 +339,9 @@ describe('compliance-ctrl', () => {
         isInitialBuild: false,
         currentPositions: [{ ticker: 'AAPL', weight: 5 }],
       },
+      // Pin userId so processDecisionPacket reads the same MandateSnapshot
+      // pk this test seeded above — identity now travels in context.
+      context: { userId },
     });
 
     const event = await trap.waitForEvent({
@@ -397,9 +388,7 @@ describe('compliance-ctrl', () => {
       bus: 'advisory',
       targetService: 'compliance-ctrl',
       detailType: 'MANDATE_ISSUED',
-      detail: {
-        tenantId: ctx.tenantId,
-        userId,
+      subject: {
         mandateId,
         level: 'DISCRETIONARY',
         status: 'ACTIVE',
@@ -407,6 +396,7 @@ describe('compliance-ctrl', () => {
         effectiveDate: '2026-01-01T00:00:00.000Z',
         __version: 1,
       },
+      context: { userId },
     });
 
     // Wait for THIS test's mandateId to land.
@@ -426,10 +416,8 @@ describe('compliance-ctrl', () => {
       bus: 'advisory',
       targetService: 'compliance-ctrl',
       detailType: 'RECOMMENDATION_PROPOSED',
-      detail: {
+      subject: {
         decisionId,
-        tenantId: ctx.tenantId,
-        userId,
         taskToken: `integ-task-token-${decisionId}`,
         awaitingCompliance: true,
         proposedTrades: [
@@ -449,6 +437,8 @@ describe('compliance-ctrl', () => {
           { ticker: 'AAPL', weight: 10 },
         ],
       },
+      // Pin userId so processDecisionPacket reads the correct per-test MandateSnapshot.
+      context: { userId },
     });
 
     // Match the trap event by detailType + decisionPacketId. The detailType
@@ -480,9 +470,7 @@ describe('compliance-ctrl', () => {
       bus: 'advisory',
       targetService: 'compliance-ctrl',
       detailType: 'MANDATE_ISSUED',
-      detail: {
-        tenantId: ctx.tenantId,
-        userId,
+      subject: {
         mandateId,
         level: 'DISCRETIONARY',
         status: 'ACTIVE',
@@ -490,6 +478,7 @@ describe('compliance-ctrl', () => {
         effectiveDate: '2026-01-01T00:00:00.000Z',
         __version: 1,
       },
+      context: { userId },
     });
 
     await table.waitForItem({
@@ -508,10 +497,8 @@ describe('compliance-ctrl', () => {
       bus: 'advisory',
       targetService: 'compliance-ctrl',
       detailType: 'RECOMMENDATION_PROPOSED',
-      detail: {
+      subject: {
         decisionId,
-        tenantId: ctx.tenantId,
-        userId,
         taskToken: `integ-task-token-${decisionId}`,
         awaitingCompliance: true,
         proposedTrades: [
@@ -531,6 +518,8 @@ describe('compliance-ctrl', () => {
           { ticker: 'AAPL', weight: 10 },
         ],
       },
+      // Pin userId so processDecisionPacket reads the correct per-test MandateSnapshot.
+      context: { userId },
     });
 
     const event = await trap.waitForEvent({
@@ -573,9 +562,7 @@ describe('compliance-ctrl', () => {
         bus: 'advisory',
         targetService: 'compliance-ctrl',
         detailType: 'MANDATE_ISSUED',
-        detail: {
-          tenantId: ctx.tenantId,
-          userId,
+        subject: {
           mandateId,
           level: 'ADVISORY',
           status: 'ACTIVE',
@@ -583,6 +570,7 @@ describe('compliance-ctrl', () => {
           effectiveDate: '2026-01-01T00:00:00.000Z',
           __version: 1,
         },
+        context: { userId },
       });
 
       // Wait for the compliance-ctrl MandateSnapshot row to land.
@@ -611,10 +599,8 @@ describe('compliance-ctrl', () => {
         bus: 'advisory',
         targetService: 'compliance-ctrl',
         detailType: 'RECOMMENDATION_PROPOSED',
-        detail: {
+        subject: {
           decisionId,
-          tenantId: ctx.tenantId,
-          userId,
           taskToken: `integ-task-token-${decisionId}`,
           awaitingCompliance: true,
           proposedTrades: [
@@ -630,6 +616,8 @@ describe('compliance-ctrl', () => {
           isInitialBuild: true,
           currentPositions: [],
         },
+        // Pin userId so processDecisionPacket reads the correct per-test MandateSnapshot.
+        context: { userId },
       });
 
       // Match on decisionPacketId — the CDC subject carries this from the
@@ -660,9 +648,7 @@ describe('compliance-ctrl', () => {
         bus: 'advisory',
         targetService: 'compliance-ctrl',
         detailType: 'MANDATE_ISSUED',
-        detail: {
-          tenantId: ctx.tenantId,
-          userId,
+        subject: {
           mandateId,
           level: 'ADVISORY',
           status: 'ACTIVE',
@@ -670,6 +656,7 @@ describe('compliance-ctrl', () => {
           effectiveDate: '2026-01-01T00:00:00.000Z',
           __version: 1,
         },
+        context: { userId },
       });
 
       await table.waitForItem({
@@ -692,10 +679,8 @@ describe('compliance-ctrl', () => {
         bus: 'advisory',
         targetService: 'compliance-ctrl',
         detailType: 'RECOMMENDATION_PROPOSED',
-        detail: {
+        subject: {
           decisionId,
-          tenantId: ctx.tenantId,
-          userId,
           taskToken: `integ-task-token-${decisionId}`,
           awaitingCompliance: true,
           proposedTrades: [
@@ -713,6 +698,8 @@ describe('compliance-ctrl', () => {
           isInitialBuild: false,
           currentPositions: [],
         },
+        // Pin userId so processDecisionPacket reads the correct per-test MandateSnapshot.
+        context: { userId },
       });
 
       const event = await trap.waitForEvent({
@@ -763,9 +750,7 @@ describe('compliance-ctrl', () => {
         bus: 'advisory',
         targetService: 'compliance-ctrl',
         detailType: 'MANDATE_ISSUED',
-        detail: {
-          tenantId: ctx.tenantId,
-          userId,
+        subject: {
           mandateId,
           level: 'DISCRETIONARY',
           status: 'ACTIVE',
@@ -773,6 +758,7 @@ describe('compliance-ctrl', () => {
           effectiveDate: '2026-01-01T00:00:00.000Z',
           __version: 1,
         },
+        context: { userId },
       });
 
       await table.waitForItem({
@@ -794,10 +780,8 @@ describe('compliance-ctrl', () => {
         bus: 'advisory',
         targetService: 'compliance-ctrl',
         detailType: 'RECOMMENDATION_PROPOSED',
-        detail: {
+        subject: {
           decisionId,
-          tenantId: ctx.tenantId,
-          userId,
           taskToken: `integ-task-token-${decisionId}`,
           awaitingCompliance: true,
           proposedTrades: [
@@ -817,6 +801,8 @@ describe('compliance-ctrl', () => {
             { ticker: 'VTI', weight: 0 },
           ],
         },
+        // Pin userId so processDecisionPacket reads the correct per-test MandateSnapshot.
+        context: { userId },
       });
 
       const event = await trap.waitForEvent({
@@ -846,9 +832,7 @@ describe('compliance-ctrl', () => {
         bus: 'advisory',
         targetService: 'compliance-ctrl',
         detailType: 'MANDATE_ISSUED',
-        detail: {
-          tenantId: ctx.tenantId,
-          userId,
+        subject: {
           mandateId,
           level: 'DISCRETIONARY',
           status: 'ACTIVE',
@@ -856,6 +840,7 @@ describe('compliance-ctrl', () => {
           effectiveDate: '2026-01-01T00:00:00.000Z',
           __version: 1,
         },
+        context: { userId },
       });
 
       await table.waitForItem({
@@ -877,10 +862,8 @@ describe('compliance-ctrl', () => {
         bus: 'advisory',
         targetService: 'compliance-ctrl',
         detailType: 'RECOMMENDATION_PROPOSED',
-        detail: {
+        subject: {
           decisionId,
-          tenantId: ctx.tenantId,
-          userId,
           taskToken: `integ-task-token-${decisionId}`,
           awaitingCompliance: true,
           proposedTrades: [
@@ -894,6 +877,8 @@ describe('compliance-ctrl', () => {
           isInitialBuild: false,
           currentPositions: [],
         },
+        // Pin userId so processDecisionPacket reads the correct per-test MandateSnapshot.
+        context: { userId },
       });
 
       const event = await trap.waitForEvent({
@@ -923,9 +908,7 @@ describe('compliance-ctrl', () => {
         bus: 'advisory',
         targetService: 'compliance-ctrl',
         detailType: 'MANDATE_ISSUED',
-        detail: {
-          tenantId: ctx.tenantId,
-          userId,
+        subject: {
           mandateId,
           level: 'DISCRETIONARY',
           status: 'ACTIVE',
@@ -933,6 +916,7 @@ describe('compliance-ctrl', () => {
           effectiveDate: '2026-01-01T00:00:00.000Z',
           __version: 1,
         },
+        context: { userId },
       });
 
       await table.waitForItem({
@@ -953,10 +937,8 @@ describe('compliance-ctrl', () => {
         bus: 'advisory',
         targetService: 'compliance-ctrl',
         detailType: 'RECOMMENDATION_PROPOSED',
-        detail: {
+        subject: {
           decisionId,
-          tenantId: ctx.tenantId,
-          userId,
           taskToken: `integ-task-token-${decisionId}`,
           awaitingCompliance: true,
           proposedTrades: [
@@ -974,6 +956,8 @@ describe('compliance-ctrl', () => {
           isInitialBuild: true,
           currentPositions: [],
         },
+        // Pin userId so processDecisionPacket reads the correct per-test MandateSnapshot.
+        context: { userId },
       });
 
       const event = await trap.waitForEvent({
