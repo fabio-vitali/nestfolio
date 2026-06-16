@@ -1,6 +1,7 @@
 // Producer-owned event/row subject contracts for decision-workflow-ctrl. Imports ONLY zod.
 // Dry aggregates — identity (tenantId/userId/region) travels in the event context.
 import { z } from 'zod';
+import type { ZodTypeAny } from 'zod';
 
 /**
  * DecisionPacket subject — the `DecisionPacket` row (sk='DecisionPacket',
@@ -84,3 +85,13 @@ export const DecisionCycleFailedSchema = z.object({
   __version: z.literal(1),
 });
 export type DecisionCycleFailed = z.infer<typeof DecisionCycleFailedSchema>;
+
+/**
+ * Test-fixture event→subject map for decision-workflow-ctrl's SF-direct emissions.
+ * RECOMMENDATION_PROPOSED is putEvents'd from the ASL (decision-state-machine.ts),
+ * not CDC, so it is not in publisher-schemas; this map carries its subject contract
+ * for fixtures. Consumed only by `@nestfolio/test-contracts`.
+ */
+export const decisionWorkflowEventSubjects = {
+  RECOMMENDATION_PROPOSED: RecommendationProposedSchema,
+} as const satisfies Record<string, ZodTypeAny>;

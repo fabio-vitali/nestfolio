@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import type { ZodTypeAny } from 'zod';
 
 /**
  * Subject shape for DEPOSIT_INITIATED.
@@ -77,3 +78,17 @@ export const ExecutionModeChangedSchema = z.object({
   changedAt: z.string(),
 });
 export type ExecutionModeChanged = z.infer<typeof ExecutionModeChangedSchema>;
+
+/**
+ * Test-fixture event→subject map for the Mandate aggregate. One aggregate, four
+ * event names, all carrying the full Mandate image (MandateSchema). Co-located with
+ * the producer-owned contract (single source of truth) and consumed only by the
+ * typed-fixture registry (`@nestfolio/test-contracts`). Bare string-literal keys so
+ * `keyof typeof` is a literal union.
+ */
+export const mandateEventSubjects = {
+  MANDATE_ISSUED: MandateSchema,
+  OPERATING_MODE_CHANGED: MandateSchema,
+  MANDATE_REVOKED: MandateSchema,
+  MANDATE_REAFFIRMED: MandateSchema,
+} as const satisfies Record<string, ZodTypeAny>;
