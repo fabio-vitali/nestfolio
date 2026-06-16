@@ -299,9 +299,12 @@ export function parseStack(src) {
     result.raw.distributions.push({ id: m[1] });
   }
 
-  // Standalone NodejsFunction
+  // Standalone NodejsFunction / ManagedNodejsFunction
+  // (services migrated standalone Lambdas to ManagedNodejsFunction in the
+  // 2026-06-15 orphan-cleanup LG migration; match both so the parser keeps
+  // detecting them — otherwise a regen silently drops the nodes.)
   for (const m of src.matchAll(
-    /(?:const|let)\s+(\w+)\s*=\s*new\s+NodejsFunction\s*\(\s*this\s*,\s*['"](\w+)['"]/g,
+    /(?:const|let)\s+(\w+)\s*=\s*new\s+(?:Managed)?NodejsFunction\s*\(\s*this\s*,\s*['"](\w+)['"]/g,
   )) {
     result.raw.lambdas.push({ id: m[2], varName: m[1] });
   }
