@@ -8,7 +8,7 @@ disable-model-invocation: true
 
 User-triggered via `/backlog-next` only. `disable-model-invocation: true` in the frontmatter mechanically blocks auto-invocation and preloading into subagents — agents cannot trigger this skill from natural phrasing.
 
-Accepts an optional `<id>` argument (`/backlog-next <id>`) that overrides the deterministic rank pick in Step 1. Without an argument, the default rule applies (resume single ACTIVE, else top-ranked QUEUED). The argument does NOT bypass any status rules — see Step 1 for the per-status dispatch.
+Accepts an optional `<id>` argument (`/backlog-next <id>`) that overrides the deterministic rank pick in Step 1. Without an argument, the default rule applies (resume single ACTIVE, else top-ranked QUEUED). The argument does NOT bypass any status rules — see Step 1 for the per-status dispatch. **If `<id>` is a `type: epic`**, it resolves to the epic's top open core member and promotes the epic to the active delivery epic — see Step 1a (Epic dispatch).
 
 If `/backlog-next` fires while an ACTIVE workstream is already in flight, report that state and ask whether to resume or switch — do NOT silently start a second workstream. Side-findings mid-execution go through `backlog-add`, never this skill.
 
@@ -24,9 +24,9 @@ Hard-fails if: working tree is dirty, local `main` is ahead of `origin/main`, `b
 
 ### 1. Pick the item
 
-**Default (no argument).** Read `docs/BACKLOG.md`. If exactly one item is `status: active`, resume it. Otherwise pick the top-ranked QUEUED item. Read `docs/backlog/<id>.md`.
+**Default (no argument).** Read `docs/BACKLOG.md`. If a **non-epic** item is `status: active`, resume it (the in-flight member or standalone workstream). Else if an **epic** is `status: active`, run Step 1a on it to pick its next open core member (the delivery epic is in flight but no slice is active). Otherwise pick the top-ranked QUEUED item. Read `docs/backlog/<id>.md`.
 
-**With `<id>` argument (`/backlog-next <id>`).** The argument overrides the rank pick. Locate `docs/backlog/<id>.md` and dispatch by status:
+**With `<id>` argument (`/backlog-next <id>`).** The argument overrides the rank pick. Locate `docs/backlog/<id>.md`. **If it is `type: epic`, skip this table and use Step 1a (Epic dispatch).** Otherwise dispatch by status:
 
 | Status | Action |
 |---|---|
@@ -37,6 +37,34 @@ Hard-fails if: working tree is dirty, local `main` is ahead of `origin/main`, `b
 | not found | Warn, list close matches from `ls docs/backlog/` (use the closest filename stems), and ask for clarification. Do NOT fall back to the default rank pick. |
 
 Then proceed to Step 1b.
+
+### 1a. Epic dispatch (`<id>` is a `type: epic`)
+
+An epic is a container — you execute one of its **members**, with the epic promoted to the active "delivery epic" for the session (see `CLAUDE.md` § "Backlog Discipline" → Epics). Resolve the work in this order:
+
+1. **Pick the member to work.** Among the epic's **core** members — files whose `epic:` equals `<id>` and whose `epic_role` is `core` (or unset) — that are still **open** (status ∈ {`active`, `queued`, `parking`}):
+   - a core member already `active` → **resume it** (it's the in-flight slice);
+   - else the top-ranked `queued` core member;
+   - else the first `parking` core member, alphabetical by `id` (deterministic).
+   - **Skip `captured` members** — they ride along and don't drive the epic.
+   - **No open core members** → the epic is drainable: rule 9 will pass. Report that, tell the user to **ship the epic** (set `status: shipped` + `validation_gate:`, then `backlog-lint --fix`), and stop. Do NOT pick a member.
+
+   ```bash
+   # core members of <id>, with their status
+   for f in docs/backlog/*.md; do
+     grep -q "^epic: <id>$" "$f" || continue
+     role=$(grep -m1 '^epic_role:' "$f" | cut -d' ' -f2); [ "${role:-core}" = core ] || continue
+     echo "$(grep -m1 '^status:' "$f" | cut -d' ' -f2)  $(grep -m1 '^rank:' "$f" | cut -d' ' -f2 || echo -)  $(basename "$f" .md)"
+   done
+   ```
+
+2. **Guard rule 11 (single active epic).** If a *different* epic is already `status: active`, do NOT promote a second — report that state and ask resume-vs-switch (mirror the `active` row).
+
+3. **Promote the epic to the delivery epic.** Set the target epic `status: active` and ensure `done_when:` + `scope:` + `out_of_scope:` are present (rule 4; theme epics minted by `backlog-themes` already carry them). This is a `docs/backlog/` change → commit on `main` and push (the docs-backlog exception allows main, and it makes the delivery epic visible immediately — see [[feedback-docs-backlog-commits-go-to-main]]). Run `backlog-lint --fix` and commit the regenerated index.
+
+4. **Continue with the chosen member.** Treat the member as the picked item and proceed to Step 1b → Steps 2–6 normally. The member's own flip to `status: active` and its lane (Doc-layer / Simple / Complex) follow the standard flow — for Complex, the member flip lands in the worktree as usual (the epic flip already landed on `main` in step 3 above).
+
+5. **On member ship (Step 6.5):** if the member you just shipped was the epic's last open core member, surface that the epic is now drainable (rule 9 satisfied) and offer to ship the epic. Do NOT auto-ship it.
 
 ### 1b. Honor the effort marker
 
