@@ -8,7 +8,8 @@
 
 ### [typed-test-fixtures](backlog/typed-test-fixtures.md) `[epic · active]` — Type-check every test fixture (unit/integration/e2e) against the producer-owned zod contracts so co-wrong fixtures are COMPILE errors (+ a runtime parse backstop), closing the [[event-subject-contracts]] 'fixture passed, real producer differed' gap workspace-wide. Promoted to active delivery epic 2026-06-16; first member typed-test-fixtures-phase0 in flight. Design: docs/superpowers/specs/2026-06-16-typed-test-fixtures-design.md. Motivated by two pre-existing co-wrong fixtures surfaced validating compliance-ctrl-mandate-snapshot-parse-subject (Bug A: identity-in-subject integration fixtures; Bug B: e2e RECOMMENDATION_PROPOSED missing required fields).
 done_when: Mechanism shipped (producer event->schema maps + composed registry + typed putEvent with per-call context override + runtime parse backstop + typed TableAssertions); all ~290 putEvent call-sites across the 4 domains migrated to the typed API; every surfaced co-wrong fixture fixed or its latent contract bug filed; regression gate forbids untyped putEvent in migrated domains. Every core member shipped or dropped.
-rollup: core 2/2 done · captured 0/0 done
+rollup: core 2/3 done · captured 0/0 done
+- core · queued · [operating-mode-authority-e2e-recommendation-fixture](backlog/operating-mode-authority-e2e-recommendation-fixture.md)
 - core · shipped · [onboarding-mandatelevel-contract-gap](backlog/onboarding-mandatelevel-contract-gap.md)
 - core · shipped · [typed-test-fixtures-phase0](backlog/typed-test-fixtures-phase0.md)
 
@@ -49,7 +50,7 @@ rollup: core 0/2 done · captured 0/0 done
 - core · parking · [playwright-rebalance-after-weight-drift-detector](backlog/playwright-rebalance-after-weight-drift-detector.md)
 - core · parking · [weight-drift-detector](backlog/weight-drift-detector.md)
 
-**Parking health:** 6 theme epic(s), 53 orphan(s) — drive orphans → 0 with `/backlog-themes`
+**Parking health:** 6 theme epic(s), 54 orphan(s) — drive orphans → 0 with `/backlog-themes`
 
 ## ACTIVE
 
@@ -58,8 +59,7 @@ _(none)_
 
 ## QUEUED
 
-_(none)_
-
+1. [operating-mode-authority-e2e-recommendation-fixture](backlog/operating-mode-authority-e2e-recommendation-fixture.md) [bug] — operating-mode-authority e2e RECOMMENDATION_PROPOSED is co-wrong (flat detail, missing isInitialBuild/riskCategory) → compliance-ctrl rejects it → no ComplianceCheck → all 3 cases timeout (blocks e2e green) `[epic:typed-test-fixtures · core]`
 
 ## LATER
 
@@ -105,6 +105,7 @@ _(none)_
 - [generalise-appsync-iam-publisher-lib](backlog/generalise-appsync-iam-publisher-lib.md) [refactor] — Three callers — rule-of-three threshold; copies all do their own SigV4 setup. `[epic:rule-of-three-lib-extractions · core]`
 - [integration-deep-coldstart-flakes-post-trap-hardening](backlog/integration-deep-coldstart-flakes-post-trap-hardening.md) [bug] — Trap-empty hardening reduced lockstep-polling flakes from 5-7/run baseline to ~2/run average. Residual flakes have a different signature: cold-start-bound paths whose tests already use explicit `timeoutMs` overrides of 90-300s, and a Jest VM-teardown race in OrphanReaper. Filed as a single umbrella because the cases share the cold-start cause, not because they share a fix.
 - [integration-suite-lever-5-cdk-bundling](backlog/integration-suite-lever-5-cdk-bundling.md) [refactor] — cdk-constructs:test bundles 57 assets in 32s as it synthesizes per-construct stacks in tests. This sits in the unit suite, not integration. Dossier called out as out-of-scope for integration slowness but worth tracking if unit wall-clock becomes a concern.
+- [investor-bff-updateoperatingmode-integration-seed-flake](backlog/investor-bff-updateoperatingmode-integration-seed-flake.md) [bug] — investor-bff integration updateOperatingMode test flakes (InvalidState: mandate inactive) — fires the mutation with no wait-for-Mandate-ACTIVE guard; depends on a prior test's eventually-consistent seed
 - [investor-mandate-type-layer-cleanup](backlog/investor-mandate-type-layer-cleanup.md) [refactor] — Two pre-existing investor Mandate type-layer cleanups surfaced by typed-subject-contracts-investor review: investor-adpt MandateLevel redundant with MandateSchema.level; investor-bff Mandate interface missing operatingMode.
 - [ip-ctrl-integration-snapshot-userid-mismatch](backlog/ip-ctrl-integration-snapshot-userid-mismatch.md) [bug] — Pre-existing IP-ctrl integration test 'materialises…INVESTOR_PROFILE_UPDATED' fails DETERMINISTICALLY (2/2 runs) reading back the fixture ctx.userId instead of the test's local userId at an exact-pk GetItem. Surfaced during WS-B (read-model-ownership-w-b-version-carriage) validation; proven NOT WS-B-caused. Mechanism unresolved (observed value contradicts the code path).
 - [ip-ctrl-snapshot-agent-fed-trigger-row](backlog/ip-ctrl-snapshot-agent-fed-trigger-row.md) [bug] — IP-ctrl passes the raw CDC trigger row as the agent's investorProfile; MANDATE_ISSUED feeds it a Mandate row (no goal/riskProfile) → degraded snapshot rebuild.
