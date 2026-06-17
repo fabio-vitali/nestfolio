@@ -8,7 +8,7 @@
 
 ### [typed-test-fixtures](backlog/typed-test-fixtures.md) `[epic · active]` — Type-check every test fixture (unit/integration/e2e) against the producer-owned zod contracts so co-wrong fixtures are COMPILE errors (+ a runtime parse backstop), closing the [[event-subject-contracts]] 'fixture passed, real producer differed' gap workspace-wide. Promoted to active delivery epic 2026-06-16; first member typed-test-fixtures-phase0 in flight. Design: docs/superpowers/specs/2026-06-16-typed-test-fixtures-design.md. Motivated by two pre-existing co-wrong fixtures surfaced validating compliance-ctrl-mandate-snapshot-parse-subject (Bug A: identity-in-subject integration fixtures; Bug B: e2e RECOMMENDATION_PROPOSED missing required fields).
 done_when: Mechanism shipped (producer event->schema maps + composed registry + typed putEvent with per-call context override + runtime parse backstop + typed TableAssertions); all ~290 putEvent call-sites across the 4 domains migrated to the typed API; every surfaced co-wrong fixture fixed or its latent contract bug filed; regression gate forbids untyped putEvent in migrated domains. Every core member shipped or dropped.
-rollup: core 4/8 done · captured 1/6 done
+rollup: core 4/8 done · captured 1/8 done
 - core · active · [typed-test-fixtures-phase2-advisory](backlog/typed-test-fixtures-phase2-advisory.md)
 - core · queued · [typed-test-fixtures-consolidated-integration-e2e-verify](backlog/typed-test-fixtures-consolidated-integration-e2e-verify.md)
 - core · queued · [typed-test-fixtures-phase3-execution](backlog/typed-test-fixtures-phase3-execution.md)
@@ -22,6 +22,8 @@ rollup: core 4/8 done · captured 1/6 done
 - captured · parking · [dwc-sf-command-subject-tenantid-nondry](backlog/dwc-sf-command-subject-tenantid-nondry.md)
 - captured · parking · [investor-web-event-contracts-surface](backlog/investor-web-event-contracts-surface.md)
 - captured · parking · [ledger-ctrl-decision-packet-fixture-thin-shape](backlog/ledger-ctrl-decision-packet-fixture-thin-shape.md)
+- captured · parking · [sec-prospectus-pe-ctrl-fixture-contract-mismatch](backlog/sec-prospectus-pe-ctrl-fixture-contract-mismatch.md)
+- captured · parking · [yahoo-finance-mi-ctrl-subject-region-dead-code](backlog/yahoo-finance-mi-ctrl-subject-region-dead-code.md)
 - captured · dropped · [typed-fixtures-negative-test-invalid-payload](backlog/typed-fixtures-negative-test-invalid-payload.md)
 
 ### [ci-pipeline](backlog/ci-pipeline.md) `[epic · parking]` — CI has never run green; bring the pipeline up end-to-end (umbrella + its rehearsal last-step). Theme epic, 2 members.
@@ -141,12 +143,14 @@ rollup: core 0/2 done · captured 0/0 done
 - [precommit-hook-fatal-on-nx-daemon-failure](backlog/precommit-hook-fatal-on-nx-daemon-failure.md) [tooling] — Pre-commit hook (scripts/verify-structure.sh, copied to .git/hooks/pre-commit by the npm `prepare` step) Check 7 runs `pnpm nx affected` under `set -euo pipefail`. When the nx DAEMON is unhealthy it errors 'Failed to process project graph' → set -e fatally aborts the commit, despite Check 7 being documented 'non-blocking'. Blocks EVERY services/** commit until the daemon recovers. NX_DAEMON=false makes nx succeed; the hook does not set it. `[epic:nx-daemon-instability · core]`
 - [rebalance-planner-mode-awareness](backlog/rebalance-planner-mode-awareness.md) [refactor] — rebalance-planner stays mode-blind; promote on mode-correlated gap.
 - [rename-nestfolio-integ-prefix-to-prefix](backlog/rename-nestfolio-integ-prefix-to-prefix.md) [refactor] — Verbose NESTFOLIO_INTEG_ namespace is friction; rename atomically + sweep docs.
+- [sec-prospectus-pe-ctrl-fixture-contract-mismatch](backlog/sec-prospectus-pe-ctrl-fixture-contract-mismatch.md) [bug] — PE-ctrl SEC_PROSPECTUS_UPDATED resilience fixtures used { filingId, content } vs real SecFilingSchema `[epic:typed-test-fixtures · captured]`
 - [sf-start-idempotency-at-least-once-redelivery](backlog/sf-start-idempotency-at-least-once-redelivery.md) [refactor] — LOW priority post-collapse — defer until EB redelivery is observed empirically.
 - [stale-memory-write-comments-phase-a-cleanup](backlog/stale-memory-write-comments-phase-a-cleanup.md) [refactor] — 6 stale comments in decision-workflow-ctrl + cdk-constructs reference writeAgentOutput / BatchCreate / ListMemoryRecords
 - [test-infrastructure-polling-audit](backlog/test-infrastructure-polling-audit.md) [refactor] — App code clean; test infra has 98 justified + 12 should-replace + 126 lower-priority polls.
 - [unified-ingress-refactoring](backlog/unified-ingress-refactoring.md) [refactor] — Single event-listener with ResumeIntent + PublishIntent (planned, not started).
 - [weight-drift-detector](backlog/weight-drift-detector.md) [design] — Production-feature gap: no service emits PORTFOLIO_DRIFT_DETECTED on the weight-vs-target axis (the kind that motivates a rebalance). reconciliation-ctrl only handles Intent-vs-Settlement drift (broker errors). DWC SF reacts to the event correctly but no producer exists on the user-driven path. Surfaced 2026-05-27 during playwright-rebalance-real-agents-maxvms-remediation brainstorming. `[epic:weight-drift-rebalance · core]`
 - [wss-subscription-test-harness-test-support](backlog/wss-subscription-test-harness-test-support.md) [tooling] — For integration tests that need to assert AppSync @aws_subscribe broadcasts deliver.
+- [yahoo-finance-mi-ctrl-subject-region-dead-code](backlog/yahoo-finance-mi-ctrl-subject-region-dead-code.md) [bug] — MI-ctrl reads subject.region from YAHOO_FINANCE_UPDATED but producer schema has no region field `[epic:typed-test-fixtures · captured]`
 
 ## Recently Shipped (last 10)
 
