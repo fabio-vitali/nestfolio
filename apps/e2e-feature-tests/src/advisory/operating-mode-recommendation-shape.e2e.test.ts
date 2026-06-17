@@ -121,15 +121,14 @@ describe.each(CASES)('operating mode $mode — proposedTrades shape', (testCase)
       bus: 'advisory',
       targetService: 'decision-workflow-ctrl',
       detailType: 'MANDATE_ISSUED',
-      detail: {
-        tenantId: tenant.tenantId,
-        userId: tenant.userId,
+      subject: {
         mandateId: `e2e-mandate-${Date.now()}`,
         level: 'DISCRETIONARY',
         status: 'ACTIVE',
         operatingMode: testCase.mode,
         effectiveDate: new Date().toISOString(),
       },
+      context: { tenantId: tenant.tenantId, userId: tenant.userId },
     });
 
     // Poll getDecisionHistory until a packet appears for this tenant with
