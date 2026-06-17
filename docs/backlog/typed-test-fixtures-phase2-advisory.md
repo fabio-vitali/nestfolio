@@ -1,6 +1,6 @@
 ---
 id: typed-test-fixtures-phase2-advisory
-status: queued
+status: active
 rank: 2
 type: refactor
 epic: typed-test-fixtures
