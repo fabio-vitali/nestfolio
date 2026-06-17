@@ -32,6 +32,12 @@ export const MonthlyReportSchema = z.object({
 });
 export type MonthlyReport = z.infer<typeof MonthlyReportSchema>;
 
+/**
+ * Test-fixture event→subject map for investor-ctrl's CDC emissions.
+ * NOTIFICATION_CREATED/UPDATED share NotificationCreatedSchema (same Notification row);
+ * MONTHLY_REPORT_CREATED/UPDATED share MonthlyReportSchema. Consumed only by
+ * `@nestfolio/test-contracts`.
+ */
 export const investorCtrlEventSubjects = {
   NOTIFICATION_CREATED: NotificationCreatedSchema,
   NOTIFICATION_UPDATED: NotificationCreatedSchema,

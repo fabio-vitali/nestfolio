@@ -8,6 +8,8 @@ const EXPECTED = [
   'RECOMMENDATION_PROPOSED','WITHDRAWAL_INITIATED',
 ].sort();
 
-it('registry contains exactly the migrated event names', () => {
-  expect(Object.keys(EventSubjects).sort()).toEqual(EXPECTED);
+describe('EventSubjects registry', () => {
+  it('contains exactly the migrated event names', () => {
+    expect(Object.keys(EventSubjects).sort()).toEqual(EXPECTED);
+  });
 });
