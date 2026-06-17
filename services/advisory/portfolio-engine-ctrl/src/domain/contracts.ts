@@ -8,6 +8,7 @@
 // but kept optional here for safe additive tolerance.
 // `modelTiers` is a string[] in reality (['opus', 'sonnet']), not a Record — modelled accordingly.
 import { z } from 'zod';
+import type { ZodTypeAny } from 'zod';
 import { PortfolioConstructionSchema, RebalancePlanSchema } from '../agents/schemas';
 import { AgentCompletionRowSchema, AgentFailureRowSchema } from '@nestfolio/agent-orchestrator';
 
@@ -30,3 +31,13 @@ export type PortfolioAgentCompletion = z.infer<typeof PortfolioAgentCompletionSc
 /** PORTFOLIO_FAILED — the AgentFailure row subject. */
 export const PortfolioAgentFailureSchema = AgentFailureRowSchema('portfolio-engine');
 export type PortfolioAgentFailure = z.infer<typeof PortfolioAgentFailureSchema>;
+
+/**
+ * Test-fixture event→subject map for portfolio-engine-ctrl's emissions. Co-located with the
+ * producer-owned schemas (single source of truth); consumed only by
+ * `@nestfolio/test-contracts`. Bare string-literal keys so `keyof typeof` is a literal union.
+ */
+export const portfolioEngineCtrlEventSubjects = {
+  PORTFOLIO_COMPLETED: PortfolioAgentCompletionSchema,
+  PORTFOLIO_FAILED: PortfolioAgentFailureSchema,
+} as const satisfies Record<string, ZodTypeAny>;

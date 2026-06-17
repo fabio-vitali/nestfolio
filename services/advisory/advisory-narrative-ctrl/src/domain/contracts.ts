@@ -3,6 +3,7 @@
 // level + decisionId + metadata) stored as AgentCompletion.agentOutput and CDC-emitted on
 // NARRATIVE_COMPLETED.
 import { z } from 'zod';
+import type { ZodTypeAny } from 'zod';
 import { ExplainabilitySchema } from '../agents/schemas';
 import { AgentCompletionRowSchema, AgentFailureRowSchema } from '@nestfolio/agent-orchestrator';
 
@@ -33,3 +34,14 @@ export const ExplanationGeneratedSchema = ExplainabilitySchema.extend({
   decisionId: z.string(),
 });
 export type ExplanationGenerated = z.infer<typeof ExplanationGeneratedSchema>;
+
+/**
+ * Test-fixture event→subject map for advisory-narrative-ctrl's emissions. Co-located with the
+ * producer-owned schemas (single source of truth); consumed only by
+ * `@nestfolio/test-contracts`. Bare string-literal keys so `keyof typeof` is a literal union.
+ */
+export const advisoryNarrativeCtrlEventSubjects = {
+  NARRATIVE_COMPLETED: NarrativeAgentCompletionSchema,
+  NARRATIVE_FAILED: NarrativeAgentFailureSchema,
+  EXPLANATION_GENERATED: ExplanationGeneratedSchema,
+} as const satisfies Record<string, ZodTypeAny>;

@@ -5,6 +5,8 @@ import { onboardingBffEventSubjects } from '@nestfolio/onboarding-bff/contracts'
 import { investorCtrlEventSubjects } from '@nestfolio/investor-ctrl/contracts';
 import { decisionWorkflowEventSubjects } from '@nestfolio/decision-workflow-ctrl/contracts';
 import { complianceCtrlEventSubjects } from '@nestfolio/compliance-ctrl/contracts';
+import { portfolioEngineCtrlEventSubjects } from '@nestfolio/portfolio-engine-ctrl/contracts';
+import { advisoryNarrativeCtrlEventSubjects } from '@nestfolio/advisory-narrative-ctrl/contracts';
 
 /**
  * The single typed registry of `event detailType → producer subject schema`, composed
@@ -22,6 +24,8 @@ export const EventSubjects = {
   ...investorCtrlEventSubjects,
   ...decisionWorkflowEventSubjects,
   ...complianceCtrlEventSubjects,
+  ...portfolioEngineCtrlEventSubjects,
+  ...advisoryNarrativeCtrlEventSubjects,
 } as const satisfies Record<string, ZodTypeAny>;
 
 /** Union of all registered event names (detailTypes). */

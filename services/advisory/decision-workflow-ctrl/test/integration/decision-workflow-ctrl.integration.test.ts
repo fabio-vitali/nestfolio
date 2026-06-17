@@ -365,12 +365,27 @@ describe('decision-workflow-ctrl', () => {
       bus: 'advisory',
       targetService: 'decision-workflow-ctrl',
       detailType: 'PORTFOLIO_COMPLETED',
-      detail: {
-        tenantId: ctx.tenantId,
+      // (a) fix-fixture: agentOutput now satisfies PortfolioAgentCompletionSchema.
+      // agentName is a required literal; completedAt is required; agentOutput must
+      // match PortfolioAgentOutputSchema (allocations + riskMetrics required).
+      subject: {
         decisionId,
+        agentName: 'portfolio-engine' as const,
         taskToken: fakeTaskToken('pc'),
-        agentOutput: { proposedTrades: [{ symbol: 'SPY', side: 'BUY', quantity: 5 }] },
+        agentOutput: {
+          decisionId,
+          allocations: {
+            allocations: [],
+            totalExposure: 1.0,
+            equityWeight: 0,
+            riskMetrics: { concentrationRisk: 0, sectorDiversity: 0, largestPositionWeight: 0 },
+            confidence: 1,
+          },
+          metadata: { durationMs: 0 },
+        },
+        completedAt: new Date().toISOString(),
       },
+      context: { tenantId: ctx.tenantId },
       eventId,
     });
 
@@ -392,12 +407,26 @@ describe('decision-workflow-ctrl', () => {
       bus: 'advisory',
       targetService: 'decision-workflow-ctrl',
       detailType: 'NARRATIVE_COMPLETED',
-      detail: {
-        tenantId: ctx.tenantId,
+      // (a) fix-fixture: agentOutput now satisfies NarrativeAgentCompletionSchema.
+      // agentName is a required literal; completedAt is required; agentOutput must
+      // match NarrativeAgentOutputSchema (ExplainabilitySchema fields required).
+      subject: {
         decisionId,
+        agentName: 'advisory-narrative' as const,
         taskToken: fakeTaskToken('nc'),
-        agentOutput: { explanation: 'integration narrative output' },
+        agentOutput: {
+          decisionId,
+          summary: 'integration narrative output',
+          rationale: 'integration test rationale',
+          keyFactors: ['test'],
+          tone: 'informative',
+          wordCount: 4,
+          confidence: 1,
+          metadata: { durationMs: 0 },
+        },
+        completedAt: new Date().toISOString(),
       },
+      context: { tenantId: ctx.tenantId },
       eventId,
     });
 

@@ -57,11 +57,23 @@ describe('decision-workflow-ctrl resilience: idempotency', () => {
 
       const eventId = `idemp-pc-${randomUUID()}`;
       const decisionId = `idemp-decision-${randomUUID()}`;
-      const detail = {
-        tenantId: ctx.tenantId,
+      // (a) fix-fixture: satisfies PortfolioAgentCompletionSchema (agentName literal + completedAt required).
+      const subject = {
         decisionId,
+        agentName: 'portfolio-engine' as const,
         taskToken: fakeTaskToken('pc'),
-        agentOutput: { proposedTrades: [] },
+        agentOutput: {
+          decisionId,
+          allocations: {
+            allocations: [],
+            totalExposure: 1.0,
+            equityWeight: 0,
+            riskMetrics: { concentrationRisk: 0, sectorDiversity: 0, largestPositionWeight: 0 },
+            confidence: 1,
+          },
+          metadata: { durationMs: 0 },
+        },
+        completedAt: new Date().toISOString(),
       };
 
       // First publish — handler writes AgentOutput at sk=`AgentOutput#${eventId}`
@@ -69,7 +81,8 @@ describe('decision-workflow-ctrl resilience: idempotency', () => {
         bus: 'advisory',
         targetService: 'decision-workflow-ctrl',
         detailType: 'PORTFOLIO_COMPLETED',
-        detail,
+        subject,
+        context: { tenantId: ctx.tenantId },
         eventId,
       });
 
@@ -92,7 +105,8 @@ describe('decision-workflow-ctrl resilience: idempotency', () => {
         bus: 'advisory',
         targetService: 'decision-workflow-ctrl',
         detailType: 'PORTFOLIO_COMPLETED',
-        detail,
+        subject,
+        context: { tenantId: ctx.tenantId },
         eventId,
       });
 
@@ -209,28 +223,53 @@ describe('decision-workflow-ctrl resilience: order-agnostic', () => {
       const decisionId = `pair-decision-${randomUUID()}`;
       const pcId = `pair-pc-${randomUUID()}`;
       const ncId = `pair-nc-${randomUUID()}`;
+      // (a) fix-fixture: typed subjects satisfying PortfolioAgentCompletionSchema /
+      // NarrativeAgentCompletionSchema (agentName literal + completedAt required).
       const pcEvent = {
         bus: 'advisory' as const,
         targetService: 'decision-workflow-ctrl',
-        detailType: 'PORTFOLIO_COMPLETED',
-        detail: {
-          tenantId: ctx.tenantId,
+        detailType: 'PORTFOLIO_COMPLETED' as const,
+        subject: {
           decisionId,
+          agentName: 'portfolio-engine' as const,
           taskToken: fakeTaskToken('pc'),
-          agentOutput: { proposedTrades: [] },
+          agentOutput: {
+            decisionId,
+            allocations: {
+              allocations: [],
+              totalExposure: 1.0,
+              equityWeight: 0,
+              riskMetrics: { concentrationRisk: 0, sectorDiversity: 0, largestPositionWeight: 0 },
+              confidence: 1,
+            },
+            metadata: { durationMs: 0 },
+          },
+          completedAt: new Date().toISOString(),
         },
+        context: { tenantId: ctx.tenantId },
         eventId: pcId,
       };
       const ncEvent = {
         bus: 'advisory' as const,
         targetService: 'decision-workflow-ctrl',
-        detailType: 'NARRATIVE_COMPLETED',
-        detail: {
-          tenantId: ctx.tenantId,
+        detailType: 'NARRATIVE_COMPLETED' as const,
+        subject: {
           decisionId,
+          agentName: 'advisory-narrative' as const,
           taskToken: fakeTaskToken('nc'),
-          agentOutput: { explanation: 'narrative body' },
+          agentOutput: {
+            decisionId,
+            summary: 'integration order-agnostic narrative',
+            rationale: 'integration test rationale',
+            keyFactors: ['test'],
+            tone: 'informative',
+            wordCount: 4,
+            confidence: 1,
+            metadata: { durationMs: 0 },
+          },
+          completedAt: new Date().toISOString(),
         },
+        context: { tenantId: ctx.tenantId },
         eventId: ncId,
       };
 
