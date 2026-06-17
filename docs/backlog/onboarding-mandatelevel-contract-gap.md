@@ -1,6 +1,6 @@
 ---
 id: onboarding-mandatelevel-contract-gap
-status: active
+status: shipped
 rank: 1
 type: bug
 epic: typed-test-fixtures
@@ -19,7 +19,16 @@ out_of_scope:
 spec: null
 plan: null
 topic_memory: [project_event_subject_contracts.md]
-validation_gate: null
+validation_gate: |
+  Shipped on branch worktree-onboarding-mandatelevel-contract-gap (impl commit 0b4ac1c8).
+  - Contract: OnboardingCompletedRecordSchema gains optional mandateLevel (onboarding-bff/src/domain/schemas.ts); investor-bff onboarding-completed transform honors s.mandateLevel ?? 'DISCRETIONARY', removing the sole production tenantId.startsWith('e2e-') prefix-sniff.
+  - Isolation safety (researched per user direction): the e2e- prefix's load-bearing job is prod-source CDC routing, keyed on 'integ-' in event-processor change-data-capture.ts:164 (fresh-tenant.ts swaps integ-→e2e-), NEVER on mandate level. Dropping the prefix-sniff touches no CDC/adapter/isolation path; production behavior unchanged (real tenants already defaulted DISCRETIONARY).
+  - Unit (RED→GREEN): onboarding-bff domain/schemas 7/7; investor-bff transforms/onboarding-completed 9/9 (replaced the old 'e2e- → ADVISORY' test with explicit-honored + default-DISCRETIONARY cases).
+  - Affected test+lint: pnpm nx run-many -t test,lint over 32 affected projects — "Successfully ran targets test, lint for 32 projects" (0 lint errors).
+  - Deploy (dev sandbox, NX_DAEMON=false): dev-investor-bff + dev-onboarding-bff UPDATE_COMPLETE (onboarding-bff AgentCore a no-op — agent bundle content-identical; only its CDC-publisher Lambda updated).
+  - Integration (NESTFOLIO_INTEG_PREFIX=dev): onboarding-bff 2/2; investor-bff 19/19 on rerun. First run had 1 failure (updateOperatingMode InvalidState) — characterized as a pre-existing eventual-consistency flake (seed-dependent test, no wait-for-Mandate-ACTIVE guard; passed at 33s on rerun vs 8s fail); mechanically unrelated to mandateLevel (resolver precondition checks profile existence + status=ACTIVE, neither touched). Filed separately.
+  - E2E (the documented gate): update-operating-mode.e2e.test.ts GREEN (77.8s) — DISCRETIONARY mandate + AGGRESSIVE mode now resolves L1 (was unreachable under the forced-ADVISORY default).
+  - Surfaced (filed, NOT fixed here — different contract): operating-mode-authority.e2e.test.ts is red because its synthetic RECOMMENDATION_PROPOSED emits a flat detail missing isInitialBuild/riskCategory (has non-schema riskScore) → deployed compliance-ctrl parseSubject(RecommendationProposedSchema) rejects it → no ComplianceCheck. Same Bug-B co-wrong-fixture class fixed for update-operating-mode in phase0; its beforeEach waitForMandateSnapshot PASSED, so the mandateLevel chain is fine.
 ---
 
 # Onboarding fixture `mandateLevel` contract gap (forces e2e tenants to ADVISORY)
