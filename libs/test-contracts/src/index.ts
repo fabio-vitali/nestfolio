@@ -14,6 +14,7 @@ import { secEdgarAdptEventSubjects } from '@nestfolio/sec-edgar-adpt/contracts';
 import { alphaVantageAdptEventSubjects } from '@nestfolio/alpha-vantage-adpt/contracts';
 import { fredAdptEventSubjects } from '@nestfolio/fred-adpt/contracts';
 import { marketwatchAdptEventSubjects } from '@nestfolio/marketwatch-adpt/contracts';
+import { advisoryBffEventSubjects } from '@nestfolio/advisory-bff/contracts';
 
 /**
  * The single typed registry of `event detailType → producer subject schema`, composed
@@ -40,6 +41,7 @@ export const EventSubjects = {
   ...alphaVantageAdptEventSubjects,
   ...fredAdptEventSubjects,
   ...marketwatchAdptEventSubjects,
+  ...advisoryBffEventSubjects,
 } as const satisfies Record<string, ZodTypeAny>;
 
 /** Union of all registered event names (detailTypes). */

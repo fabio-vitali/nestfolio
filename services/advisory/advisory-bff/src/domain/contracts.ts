@@ -109,3 +109,18 @@ export const AdvisoryStatusSchema = z.object({
   __version: z.number(),
 });
 export type AdvisoryStatus = z.infer<typeof AdvisoryStatusSchema>;
+
+import type { ZodTypeAny } from 'zod';
+
+/**
+ * Test-fixture event→subject map for advisory-bff's CDC emissions. Co-located with the
+ * producer-owned schemas (single source of truth); consumed only by
+ * `@nestfolio/test-contracts`. Bare string-literal keys so `keyof typeof` is a literal union.
+ */
+export const advisoryBffEventSubjects = {
+  ADVISORY_STATUS_UPDATED: AdvisoryStatusSchema,
+  DECISION_READ_MODEL_CREATED: DecisionReadModelSchema,
+  DECISION_READ_MODEL_UPDATED: DecisionReadModelSchema,
+  USER_CONFIRMED: UserConfirmationSchema,
+  USER_REJECTED: UserRejectionSchema,
+} as const satisfies Record<string, ZodTypeAny>;

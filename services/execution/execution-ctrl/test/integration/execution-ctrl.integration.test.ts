@@ -73,18 +73,16 @@ describe('execution-ctrl', () => {
       bus: 'execution',
       targetService: 'execution-ctrl',
       detailType: 'USER_CONFIRMED',
-      detail: {
-        decisionPacketId,
-        proposedTrades: [
-          {
-            symbol: 'MSFT',
-            assetClass: 'EQUITY',
-            side: 'BUY',
-            quantityOrAmountCents: 500,
-            targetWeightPercent: 5,
-          },
-        ],
+      // (a) fixture-only fix: legacy detail had decisionPacketId+proposedTrades which don't
+      // match UserConfirmationSchema (the real advisory-bff CDC subject). Handler reads
+      // subject.decisionId (mapped → decisionPacketId) via parseSubject(UserConfirmationSchema).
+      subject: {
+        decisionId: decisionPacketId,
+        confirmedAt: new Date().toISOString(),
+        confirmedBy: 'integ-test-user',
+        timestamp: new Date().toISOString(),
       },
+      context: { tenantId: `integ-tenant-${Date.now()}` },
     });
 
     // USER_CONFIRMED routes to same processApprovedDecision handler

@@ -504,7 +504,9 @@ describe('dashboard-bff', () => {
         bus: 'investor',
         targetService: 'dashboard-bff',
         detailType: 'ADVISORY_STATUS_UPDATED',
-        detail: { tenantId: ctx.tenantId, inFlightCount: 2, __version: 900 },
+        // (a) fixture-only: moved tenantId → context (DRY rule); added required schema fields.
+        subject: { inFlightCount: 2, generatingCount: 0, failedCount: 0, oldestGeneratingAt: null, __version: 900 },
+        context: { tenantId: ctx.tenantId },
       });
       // 4. Activity — DECISION_APPROVED still dispatches to recentActivity.
       await eb.putEvent({
@@ -807,10 +809,9 @@ describe('dashboard-bff', () => {
         bus: 'investor',
         targetService: 'dashboard-bff',
         detailType: 'ADVISORY_STATUS_UPDATED',
-        detail: {
-          tenantId: ctx.tenantId, inFlightCount: 3, generatingCount: 1, failedCount: 0,
-          oldestGeneratingAt: '2026-06-05T09:00:00.000Z', __version: 1_000,
-        },
+        // (a) fixture-only: moved tenantId → context (DRY rule).
+        subject: { inFlightCount: 3, generatingCount: 1, failedCount: 0, oldestGeneratingAt: '2026-06-05T09:00:00.000Z', __version: 1_000 },
+        context: { tenantId: ctx.tenantId },
       });
 
       const item = await table.waitForItem({
@@ -836,7 +837,9 @@ describe('dashboard-bff', () => {
         bus: 'investor',
         targetService: 'dashboard-bff',
         detailType: 'ADVISORY_STATUS_UPDATED',
-        detail: { tenantId: ctx.tenantId, inFlightCount: 9, __version: 1_050 },
+        // (a) fixture-only: moved tenantId → context (DRY rule); added required schema fields.
+        subject: { inFlightCount: 9, generatingCount: 0, failedCount: 0, oldestGeneratingAt: null, __version: 1_050 },
+        context: { tenantId: ctx.tenantId },
       });
       await table.waitForItem({
         table: 'dashboard-bff',
@@ -851,7 +854,10 @@ describe('dashboard-bff', () => {
         bus: 'investor',
         targetService: 'dashboard-bff',
         detailType: 'ADVISORY_STATUS_UPDATED',
-        detail: { tenantId: ctx.tenantId, inFlightCount: 1, __version: 4 },
+        // (a) fixture-only: moved tenantId → context (DRY rule); added required schema fields.
+        // version 4 < 1_050: version-guard must drop this (stale-version idempotency test).
+        subject: { inFlightCount: 1, generatingCount: 0, failedCount: 0, oldestGeneratingAt: null, __version: 4 },
+        context: { tenantId: ctx.tenantId },
       });
       await new Promise((r) => setTimeout(r, 6_000));
       for (let i = 0; i < 6; i++) {
