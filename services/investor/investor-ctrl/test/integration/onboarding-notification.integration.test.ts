@@ -113,6 +113,7 @@ describe('investor-ctrl', () => {
       },
     ];
 
+    // TODO(typed-test-fixtures Phase 4): parametrized table mixes cross-domain events + a dynamic detailType; migrate once all producers are registered.
     it.each(notificationEvents)(
       'should create Notification on $detailType and emit NOTIFICATION_CREATED via CDC',
       async ({ detailType, detail }) => {
