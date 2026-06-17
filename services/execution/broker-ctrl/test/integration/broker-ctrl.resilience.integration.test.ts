@@ -48,8 +48,8 @@ describe('broker-ctrl resilience: idempotency', () => {
       // dedup is exercised on a byte-identical event (dedup is eventId-keyed).
       const payload = {
         changeId: randomUUID(),
-        fromMode: 'simulation',
-        toMode: 'live',
+        fromMode: 'simulation' as const,
+        toMode: 'live' as const,
         changedAt: new Date().toISOString(),
       };
 
@@ -57,8 +57,8 @@ describe('broker-ctrl resilience: idempotency', () => {
       await eb.putEvent({
         bus: 'execution',
         targetService: 'broker-ctrl',
-        detailType: 'EXECUTION_MODE_CHANGED',
-        detail: payload,
+        detailType: 'EXECUTION_MODE_CHANGED' as const,
+        subject: payload,
         eventId,
       });
 
@@ -76,8 +76,8 @@ describe('broker-ctrl resilience: idempotency', () => {
       await eb.putEvent({
         bus: 'execution',
         targetService: 'broker-ctrl',
-        detailType: 'EXECUTION_MODE_CHANGED',
-        detail: payload,
+        detailType: 'EXECUTION_MODE_CHANGED' as const,
+        subject: payload,
         eventId,
       });
 

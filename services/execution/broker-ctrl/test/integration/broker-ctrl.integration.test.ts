@@ -48,13 +48,13 @@ describe('broker-ctrl', () => {
     await eb.putEvent({
       bus: 'execution',
       targetService: 'broker-ctrl',
-      detailType: 'EXECUTION_MODE_CHANGED',
+      detailType: 'EXECUTION_MODE_CHANGED' as const,
       // ExecutionModeChangedSchema: {changeId, fromMode, toMode, changedAt}.
       // The mode-listener caches mode = toMode, so toMode:'live' → cached mode:'live'.
-      detail: {
+      subject: {
         changeId: randomUUID(),
-        fromMode: 'simulation',
-        toMode: 'live',
+        fromMode: 'simulation' as const,
+        toMode: 'live' as const,
         changedAt: new Date().toISOString(),
       },
     });
@@ -264,8 +264,8 @@ describe('broker-ctrl', () => {
       await eb.putEvent({
         bus: 'execution',
         targetService: 'broker-ctrl',
-        detailType: 'DEPOSIT_INITIATED',
-        detail: {
+        detailType: 'DEPOSIT_INITIATED' as const,
+        subject: {
           depositId,
           amountCents: 75000,
           currency: 'USD',
@@ -301,8 +301,8 @@ describe('broker-ctrl', () => {
       await eb.putEvent({
         bus: 'execution',
         targetService: 'broker-ctrl',
-        detailType: 'WITHDRAWAL_INITIATED',
-        detail: {
+        detailType: 'WITHDRAWAL_INITIATED' as const,
+        subject: {
           withdrawalId,
           amountCents: 30000,
           currency: 'USD',
