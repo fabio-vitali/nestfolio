@@ -288,8 +288,17 @@ describe('dashboard-bff', () => {
         bus: 'investor',
         targetService: 'dashboard-bff',
         detailType: 'DECISION_APPROVED',
-        detail: {
+        subject: {
+          ccId: `integ-cc-${Date.now()}`,
+          decisionPacketId: `integ-dp-${Date.now()}`,
           decisionId,
+          taskToken: `fake-task-token-${Date.now()}`,
+          mandateSnapshot: { level: 'ADVISORY' as const, status: 'ACTIVE' as const, operatingMode: 'BALANCED' as const, effectiveDate: '2026-01-01T00:00:00.000Z' },
+          status: 'COMPLETED' as const,
+          result: 'APPROVED' as const,
+          violations: [],
+          authorityLevel: 'L1' as const,
+          sourceEventId: `integ-src-${Date.now()}`,
         },
       });
 
@@ -324,9 +333,17 @@ describe('dashboard-bff', () => {
         bus: 'investor',
         targetService: 'dashboard-bff',
         detailType: 'DECISION_BLOCKED',
-        detail: {
+        subject: {
+          ccId: `integ-blocked-cc-${Date.now()}`,
+          decisionPacketId: `integ-blocked-dp-${Date.now()}`,
           decisionId,
-          reason: 'Integration test block',
+          taskToken: `fake-task-token-${Date.now()}`,
+          mandateSnapshot: { level: 'ADVISORY' as const, status: 'ACTIVE' as const, operatingMode: 'BALANCED' as const, effectiveDate: '2026-01-01T00:00:00.000Z' },
+          status: 'BLOCKED' as const,
+          result: 'BLOCKED' as const,
+          violations: [{ rule: 'integration-test-rule', description: 'Integration test block', severity: 'BLOCKING' as const }],
+          authorityLevel: 'L1' as const,
+          sourceEventId: `integ-blocked-src-${Date.now()}`,
         },
       });
 
@@ -494,7 +511,18 @@ describe('dashboard-bff', () => {
         bus: 'investor',
         targetService: 'dashboard-bff',
         detailType: 'DECISION_APPROVED',
-        detail: { decisionId: 'query-test-approved' },
+        subject: {
+          ccId: 'query-test-cc',
+          decisionPacketId: 'query-test-dp',
+          decisionId: 'query-test-approved',
+          taskToken: 'fake-task-token-query-test',
+          mandateSnapshot: { level: 'ADVISORY' as const, status: 'ACTIVE' as const, operatingMode: 'BALANCED' as const, effectiveDate: '2026-01-01T00:00:00.000Z' },
+          status: 'COMPLETED' as const,
+          result: 'APPROVED' as const,
+          violations: [],
+          authorityLevel: 'L1' as const,
+          sourceEventId: 'query-test-src',
+        },
       });
 
       // Wait for all parallel items to materialize

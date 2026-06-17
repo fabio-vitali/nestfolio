@@ -1,6 +1,6 @@
 // Producer-owned event/row subject contracts for compliance-ctrl. Imports ONLY zod.
 // Dry aggregate — identity (tenantId/userId/region) travels in the event context (RequestContext).
-import { z } from 'zod';
+import { z, type ZodTypeAny } from 'zod';
 
 // `taskToken` carries the SF taskToken across the compliance hop. It is persisted
 // onto the ComplianceCheck row so CDC re-emits it on DECISION_APPROVED |
@@ -37,3 +37,13 @@ export const ComplianceCheckSchema = z.object({
   sourceEventId: z.string(),
 });
 export type ComplianceCheck = z.infer<typeof ComplianceCheckSchema>;
+
+/**
+ * Event-name → producer zod subject schema map for compliance-ctrl.
+ * Consumed only by `@nestfolio/test-contracts` (typed-test-fixtures registry).
+ * Inert at runtime.
+ */
+export const complianceCtrlEventSubjects = {
+  DECISION_APPROVED: ComplianceCheckSchema,
+  DECISION_BLOCKED: ComplianceCheckSchema,
+} as const satisfies Record<string, ZodTypeAny>;

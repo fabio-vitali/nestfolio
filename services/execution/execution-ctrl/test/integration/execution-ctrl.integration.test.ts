@@ -42,17 +42,17 @@ describe('execution-ctrl', () => {
       bus: 'execution',
       targetService: 'execution-ctrl',
       detailType: 'DECISION_APPROVED',
-      detail: {
+      subject: {
+        ccId: `integ-cc-${Date.now()}`,
         decisionPacketId,
-        proposedTrades: [
-          {
-            symbol: 'AAPL',
-            assetClass: 'EQUITY',
-            side: 'BUY',
-            quantityOrAmountCents: 1000,
-            targetWeightPercent: 10,
-          },
-        ],
+        decisionId: `integ-dec-${Date.now()}`,
+        taskToken: `fake-task-token-${Date.now()}`,
+        mandateSnapshot: { level: 'ADVISORY' as const, status: 'ACTIVE' as const, operatingMode: 'BALANCED' as const, effectiveDate: '2026-01-01T00:00:00.000Z' },
+        status: 'COMPLETED' as const,
+        result: 'APPROVED' as const,
+        violations: [],
+        authorityLevel: 'L1' as const,
+        sourceEventId: `integ-src-${Date.now()}`,
       },
     });
 

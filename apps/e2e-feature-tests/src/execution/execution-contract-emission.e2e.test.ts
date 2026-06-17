@@ -114,6 +114,7 @@ import { AlpacaTransferResultSchema } from '@nestfolio/execution-adpt/domain';
 import { expectContractMatch } from '../helpers/contract-assert';
 import { armEventSubjectTrap } from '../helpers/event-subject-trap';
 import { ExecutionCtrlEventTypes } from '@nestfolio/execution-ctrl/events';
+import type { ComplianceCheck } from '@nestfolio/compliance-ctrl/contracts';
 
 // ---------------------------------------------------------------------------
 // Shared GSI helper: tenantId-index (PK=tenantId, SK=__typename, projection=ALL)
@@ -146,7 +147,7 @@ function makeByTypename(
 // decisionPacketId — proposedTrades ride RECOMMENDATION_PROPOSED, not this event,
 // so the resulting Order carries proposedTrades:[] (faithful to production; see
 // the event-listener doc-comment + backlog broker-ctrl-order-sf-input-contract-gap).
-function approvedComplianceCheck(decisionPacketId: string): Record<string, unknown> {
+function approvedComplianceCheck(decisionPacketId: string): ComplianceCheck {
   return {
     ccId: `e2e-cc-${randomUUID()}`,
     decisionPacketId,
@@ -216,7 +217,7 @@ describe('execution-domain producer contracts — SIM path', () => {
         bus: 'execution',
         targetService: 'execution-ctrl',
         detailType: 'DECISION_APPROVED',
-        detail: approvedComplianceCheck(decisionPacketId),
+        subject: approvedComplianceCheck(decisionPacketId),
       });
 
       const orders = await poll(async () => {
@@ -688,7 +689,7 @@ describe('execution-domain DRY-wire emission — Order subject (Task 9)', () => 
         bus: 'execution',
         targetService: 'execution-ctrl',
         detailType: 'DECISION_APPROVED',
-        detail: approvedComplianceCheck(`e2e-dp-dry-${randomUUID()}`),
+        subject: approvedComplianceCheck(`e2e-dp-dry-${randomUUID()}`),
       });
 
       // Wait for the live CDC emission. 300s window (matching the ledger + investor

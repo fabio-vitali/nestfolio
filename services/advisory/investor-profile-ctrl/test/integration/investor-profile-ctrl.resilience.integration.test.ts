@@ -177,10 +177,19 @@ describe('investor-profile-ctrl resilience: order-agnostic pairwise', () => {
         bus: 'advisory',
         targetService: 'investor-profile-ctrl',
         detailType: 'DECISION_APPROVED',
-        detail: {
+        subject: {
+          ccId: `pair-A-cc-${randomUUID()}`,
+          decisionPacketId: `pair-A-decision-${randomUUID()}`,
           decisionId: `pair-A-decision-${randomUUID()}`,
+          taskToken: `fake-task-token-${randomUUID()}`,
+          mandateSnapshot: { level: 'ADVISORY', status: 'ACTIVE', operatingMode: 'BALANCED', effectiveDate: '2026-01-01T00:00:00.000Z' },
+          status: 'COMPLETED',
+          result: 'APPROVED',
+          violations: [],
           authorityLevel: 'L2',
+          sourceEventId: `pair-A-src-${randomUUID()}`,
         },
+        context: { tenantId: ctxA.tenantId },
         eventId: `pair-A-approved-evt-${randomUUID()}`,
       });
 
@@ -208,10 +217,19 @@ describe('investor-profile-ctrl resilience: order-agnostic pairwise', () => {
           bus: 'advisory',
           targetService: 'investor-profile-ctrl',
           detailType: 'DECISION_APPROVED',
-          detail: {
+          subject: {
+            ccId: `pair-B-cc-${randomUUID()}`,
+            decisionPacketId: `pair-B-decision-${randomUUID()}`,
             decisionId: `pair-B-decision-${randomUUID()}`,
+            taskToken: `fake-task-token-${randomUUID()}`,
+            mandateSnapshot: { level: 'ADVISORY', status: 'ACTIVE', operatingMode: 'BALANCED', effectiveDate: '2026-01-01T00:00:00.000Z' },
+            status: 'COMPLETED',
+            result: 'APPROVED',
+            violations: [],
             authorityLevel: 'L2',
+            sourceEventId: `pair-B-src-${randomUUID()}`,
           },
+          context: { tenantId: ctxB.tenantId },
           eventId: `pair-B-approved-evt-${randomUUID()}`,
         });
 

@@ -59,17 +59,17 @@ describe('execution-ctrl resilience: idempotency', () => {
       });
 
       const eventId = `idemp-decision-${randomUUID()}`;
-      const payload = {
+      const subject = {
+        ccId: `idemp-cc-${randomUUID()}`,
         decisionPacketId: `dp-idemp-${randomUUID()}`,
-        proposedTrades: [
-          {
-            symbol: 'AAPL',
-            assetClass: 'equity',
-            side: 'BUY',
-            quantityOrAmountCents: 10,
-            targetWeightPercent: 25,
-          },
-        ],
+        decisionId: `idemp-dec-${randomUUID()}`,
+        taskToken: `fake-task-token-${randomUUID()}`,
+        mandateSnapshot: { level: 'ADVISORY' as const, status: 'ACTIVE' as const, operatingMode: 'BALANCED' as const, effectiveDate: '2026-01-01T00:00:00.000Z' },
+        status: 'COMPLETED' as const,
+        result: 'APPROVED' as const,
+        violations: [],
+        authorityLevel: 'L1' as const,
+        sourceEventId: `idemp-src-${randomUUID()}`,
       };
 
       // First publish
@@ -77,7 +77,7 @@ describe('execution-ctrl resilience: idempotency', () => {
         bus: 'execution',
         targetService: 'execution-ctrl',
         detailType: 'DECISION_APPROVED',
-        detail: payload,
+        subject,
         eventId,
       });
 
@@ -96,7 +96,7 @@ describe('execution-ctrl resilience: idempotency', () => {
         bus: 'execution',
         targetService: 'execution-ctrl',
         detailType: 'DECISION_APPROVED',
-        detail: payload,
+        subject,
         eventId,
       });
 
@@ -145,17 +145,17 @@ async function runPairwiseSequence(
       bus: 'execution',
       targetService: 'execution-ctrl',
       detailType: 'DECISION_APPROVED',
-      detail: {
+      subject: {
+        ccId: `pair-${label}-${i}-cc-${randomUUID()}`,
         decisionPacketId: `dp-pair-${label}-${i}-${randomUUID()}`,
-        proposedTrades: [
-          {
-            symbol: order[i].symbol,
-            assetClass: 'equity',
-            side: 'BUY',
-            quantityOrAmountCents: order[i].quantityOrAmountCents,
-            targetWeightPercent: order[i].targetWeightPercent,
-          },
-        ],
+        decisionId: `dec-pair-${label}-${i}-${randomUUID()}`,
+        taskToken: `fake-task-token-${randomUUID()}`,
+        mandateSnapshot: { level: 'ADVISORY' as const, status: 'ACTIVE' as const, operatingMode: 'BALANCED' as const, effectiveDate: '2026-01-01T00:00:00.000Z' },
+        status: 'COMPLETED' as const,
+        result: 'APPROVED' as const,
+        violations: [],
+        authorityLevel: 'L1' as const,
+        sourceEventId: `pair-${label}-${i}-src-${randomUUID()}`,
       },
       eventId,
     });

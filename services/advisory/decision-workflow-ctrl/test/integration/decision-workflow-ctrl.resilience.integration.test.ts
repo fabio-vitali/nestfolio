@@ -116,18 +116,25 @@ describe('decision-workflow-ctrl resilience: idempotency', () => {
 
       const decisionId = `idemp-approve-${randomUUID()}`;
       const eventId = `idemp-approve-evt-${randomUUID()}`;
-      const detail = {
-        tenantId: ctx.tenantId,
+      const subject = {
+        ccId: `idemp-approve-cc-${randomUUID()}`,
+        decisionPacketId: `idemp-approve-dp-${randomUUID()}`,
         decisionId,
-        authorityLevel: 'L2',
         taskToken: fakeTaskToken('approve'),
+        mandateSnapshot: { level: 'ADVISORY' as const, status: 'ACTIVE' as const, operatingMode: 'BALANCED' as const, effectiveDate: '2026-01-01T00:00:00.000Z' },
+        status: 'COMPLETED' as const,
+        result: 'APPROVED' as const,
+        violations: [],
+        authorityLevel: 'L2' as const,
+        sourceEventId: `idemp-approve-src-${randomUUID()}`,
       };
 
       await eb.putEvent({
         bus: 'advisory',
         targetService: 'decision-workflow-ctrl',
         detailType: 'DECISION_APPROVED',
-        detail,
+        subject,
+        context: { tenantId: ctx.tenantId },
         eventId,
       });
 
@@ -151,7 +158,8 @@ describe('decision-workflow-ctrl resilience: idempotency', () => {
         bus: 'advisory',
         targetService: 'decision-workflow-ctrl',
         detailType: 'DECISION_APPROVED',
-        detail,
+        subject,
+        context: { tenantId: ctx.tenantId },
         eventId,
       });
       await new Promise((r) => setTimeout(r, 10_000));
