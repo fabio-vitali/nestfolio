@@ -1,6 +1,6 @@
 ---
 id: typed-test-fixtures-phase2-advisory
-status: active
+status: shipped
 rank: 2
 type: refactor
 epic: typed-test-fixtures
@@ -19,7 +19,7 @@ out_of_scope:
 spec: docs/superpowers/specs/2026-06-16-typed-test-fixtures-design.md
 plan: docs/superpowers/plans/2026-06-17-typed-test-fixtures-phase2-advisory.md
 topic_memory: [project_event_subject_contracts.md]
-validation_gate: null
+validation_gate: "Shipped 2026-06-18 on branch worktree-typed-fixtures-phase2-advisory (8 slices, commits 6cdce32c..0a85df0c). STATIC GATES (runtime decoupled to typed-test-fixtures-consolidated-integration-e2e-verify): tools/check-typed-fixtures.mjs → OK (449 test files, 54 registered events, 18→54 = +36 advisory events); test-contracts 2/2 (registry name-source sync + parse backstop); affected test+lint over 32 projects → NX Successfully ran (unit suites only; integration is the decoupled test-integration target); per-task review clean ×8 + opus whole-branch review = Ready to merge (0 Critical/0 Important). Migrated ~77 advisory putEvent call-sites (incl. cross-domain execution-ctrl/dashboard-bff/ledger-ctrl sites emitting advisory events) detail→subject/context. Mechanism added: EventBridgeClient.putRawEvent (raw unvalidated send for intentional negative tests). 6 (b) latent contract bugs filed (captured): dwc-decision-packet-schema-missing-optional-fields, ledger-ctrl-decision-packet-fixture-thin-shape, dashboard-bff-decision-blocked-reason-field-mismatch, dwc-sf-command-subject-tenantid-nondry, yahoo-finance-mi-ctrl-subject-region-dead-code, sec-prospectus-pe-ctrl-fixture-contract-mismatch; typed-fixtures-negative-test-invalid-payload dropped (resolved by putRawEvent). ONE user-approved production change rode along (Task 1): DecisionPacketSchema +3 optional fields (taskToken/confirmedAt/rejectedAt) it was stripping from CDC → confirm/reject flow fix; its runtime validation is owed to consolidated-verify. NOTE: done_when's 'integration+e2e green against deployed dev' is intentionally satisfied by the decoupled consolidated-verify member per the epic's decoupled-runtime decision, NOT in this phase."
 ---
 
 # Phase 2 — Advisory domain fixture retrofit (remaining services)
