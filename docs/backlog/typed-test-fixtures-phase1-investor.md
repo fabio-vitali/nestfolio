@@ -1,6 +1,6 @@
 ---
 id: typed-test-fixtures-phase1-investor
-status: queued
+status: active
 rank: 1
 type: refactor
 epic: typed-test-fixtures
