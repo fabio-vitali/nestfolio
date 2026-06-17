@@ -1,17 +1,21 @@
 ---
 id: onboarding-mandatelevel-contract-gap
-status: queued
+status: active
 rank: 1
 type: bug
 epic: typed-test-fixtures
 epic_role: core
+requires_deploy: true
 notes: "ONBOARDING_COMPLETED drops mandateLevel → every e2e tenant forced to level=ADVISORY → update-operating-mode e2e stuck at L2 (blocks e2e green)"
 references:
   - apps/e2e-feature-tests/src/helpers/fixtures.ts
   - services/investor/onboarding-bff/src/domain/schemas.ts
   - services/investor/investor-bff/src/transforms/onboarding-completed.ts
   - apps/e2e-feature-tests/src/profile/update-operating-mode.e2e.test.ts
-out_of_scope: []
+out_of_scope:
+  - "Capturing mandateLevel in the onboarding wizard UI (no wizard phase selects a mandate level today; the agent does not emit one). This member only makes the subject field OPTIONAL + honored so fixtures/future producers CAN carry it."
+  - "The broader typed-test-fixtures Phase 1 (Investor) migration of onboarding/investor fixtures to the typed putEvent API — that is a separate epic wave; this member is the production contract fix that the typed migration would have surfaced."
+  - "dashboard-bff InvestorSnapshot.mandateLevel display field — unaffected; it already mirrors the investor-bff Mandate row."
 spec: null
 plan: null
 topic_memory: [project_event_subject_contracts.md]
