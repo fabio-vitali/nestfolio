@@ -124,17 +124,16 @@ describe('decision-workflow-ctrl', () => {
     await eb.putEvent({
       bus: 'advisory',
       targetService: 'decision-workflow-ctrl',
-      detailType: 'MANDATE_ISSUED',
-      detail: {
-        tenantId: ctx.tenantId,
-        userId,
+      detailType: 'MANDATE_ISSUED' as const,
+      subject: {
         mandateId,
-        level: 'ADVISORY',
-        status: 'ACTIVE',
-        operatingMode: 'BALANCED',
+        level: 'ADVISORY' as const,
+        status: 'ACTIVE' as const,
+        operatingMode: 'BALANCED' as const,
         effectiveDate: new Date().toISOString(),
         __version: 1,
       },
+      context: { tenantId: ctx.tenantId, userId },
     });
 
     // 1. The mandate-projector ingress materialises a MandateSnapshot row.
@@ -164,17 +163,16 @@ describe('decision-workflow-ctrl', () => {
     await eb.putEvent({
       bus: 'advisory',
       targetService: 'decision-workflow-ctrl',
-      detailType: 'MANDATE_ISSUED',
-      detail: {
-        tenantId: ctx.tenantId,
-        userId,
+      detailType: 'MANDATE_ISSUED' as const,
+      subject: {
         mandateId,
-        level: 'ADVISORY',
-        status: 'ACTIVE',
-        operatingMode: 'AGGRESSIVE',
+        level: 'ADVISORY' as const,
+        status: 'ACTIVE' as const,
+        operatingMode: 'AGGRESSIVE' as const,
         effectiveDate: new Date().toISOString(),
         __version: 1,
       },
+      context: { tenantId: ctx.tenantId, userId },
     });
     await table.waitForItem({
       table: 'decision-workflow-ctrl',
@@ -215,27 +213,19 @@ describe('decision-workflow-ctrl', () => {
     await eb.putEvent({
       bus: 'advisory',
       targetService: 'decision-workflow-ctrl',
-      detailType: 'INVESTOR_PROFILE_UPDATED',
-      detail: {
-        userId,
-        tenantId: ctx.tenantId,
-        mandate: {
-          riskTolerance: 'AGGRESSIVE',
-          investmentHorizon: 'LONG_TERM',
-          targetReturn: 0.12,
-        },
+      detailType: 'INVESTOR_PROFILE_UPDATED' as const,
+      subject: {
+        operatingMode: 'AGGRESSIVE' as const,
         goal: {
-          goalType: 'RETIREMENT',
-          targetAmount: 1_500_000,
-          targetDate: '2055-01-01',
+          objective: 'RETIREMENT',
+          targetReturn: 0.12,
         },
         riskProfile: {
           score: 9,
-          band: 'AGGRESSIVE',
+          band: { minEquity: 70, maxEquity: 100 },
         },
-        operatingMode: 'AGGRESSIVE',
-        updatedAt: new Date().toISOString(),
       },
+      context: { tenantId: ctx.tenantId, userId },
     });
 
     const execution = await waitForSfExecution(sfn, {
@@ -442,14 +432,13 @@ describe('decision-workflow-ctrl', () => {
     await eb.putEvent({
       bus: 'advisory',
       targetService: 'decision-workflow-ctrl',
-      detailType: 'INVESTOR_PROFILE_UPDATED',
-      detail: {
-        userId,
-        tenantId: ctx.tenantId,
-        operatingMode: 'AGGRESSIVE',
-        investorProfile: { riskScore: 90 },
-        updatedAt: new Date().toISOString(),
+      detailType: 'INVESTOR_PROFILE_UPDATED' as const,
+      subject: {
+        operatingMode: 'AGGRESSIVE' as const,
+        goal: { objective: 'GROWTH' },
+        riskProfile: { score: 90 },
       },
+      context: { tenantId: ctx.tenantId, userId },
     });
 
     const execution = await waitForSfExecution(sfn, {
