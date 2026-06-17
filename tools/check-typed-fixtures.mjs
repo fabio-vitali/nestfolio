@@ -12,11 +12,14 @@
 //   name) are NOT flagged but ARE printed as `note:` lines to stderr so they
 //   are never silently ignored.
 //
-// SUBJECT-CAST CHECK (repo-wide, same test file roots):
-//   `.subject as <Type>` used as a PROPERTY VALUE in a fixture call object,
-//   i.e. `key: ... .subject as Foo`. Standalone read-side assignments
-//   (`const s = event.subject as T`) are assertion code and are intentionally
-//   excluded from this check. This check is registry-independent.
+// SUBJECT-CAST CHECK (putEvent-scoped, same test file roots):
+//   `.subject as <Type>` used as a PROPERTY VALUE inside a putEvent({ ... })
+//   call block, i.e. `key: ... .subject as Foo` within the brace-balanced
+//   object passed to putEvent. This is the anti-pattern: a fixture casting to
+//   satisfy the typed overload instead of constructing a schema-conformant value.
+//   Legitimate reads OUTSIDE putEvent (e.g. `mapPayload: (p) => p.subject as T`
+//   in pipeline handler tests) are excluded — they are TypeScript narrowing, not
+//   fixture construction. This check is registry-independent.
 //
 // Registry source: tools/typed-fixture-registered-events.json
 //   (kept in sync with the TypeScript EventSubjects registry via the
@@ -65,11 +68,12 @@ const files = scanRoots.flatMap((r) => (existsSync(r) ? walk(r) : []));
 
 // ─── patterns ───────────────────────────────────────────────────────────────
 
-// subject-cast: `.subject as <Type>` used as a PROPERTY VALUE, i.e. preceded
-// by a property key and colon on the same line (`key: ... .subject as Foo`).
-// Standalone variable declarations (`const s = x.subject as T`) are
-// assertion-side reads and are intentionally excluded.
-const SUBJECT_CAST_LINE = /\w[\w.]*\s*:\s*.*\.subject\s+as\b/;
+// subject-cast: `.subject as <Type>` used as a PROPERTY VALUE inside a
+// putEvent({ ... }) call object, i.e. `key: ... .subject as Foo` within the
+// brace-balanced block of a putEvent call. Standalone reads outside putEvent
+// (e.g. mapPayload callbacks, pipeline handler tests) are legitimate TypeScript
+// narrowing and must NOT be flagged — they are not fixture anti-patterns.
+const SUBJECT_CAST_IN_BLOCK = /\w[\w.]*\s*:\s*.*\.subject\s+as\b/;
 
 // putEvent call start — we collect the full brace-balanced block after this.
 const PUTEVENT_START = /putEvent\s*\(\s*\{/g;
@@ -142,14 +146,41 @@ for (const file of files) {
     // Simple literal not in registry → clean, no note needed.
   }
 
-  // ── subject-cast check (registry-independent, repo-wide) ──────────────────
-  for (const line of src.split('\n')) {
-    if (SUBJECT_CAST_LINE.test(line)) {
-      violations.push(
-        `${file}: '.subject as' cast as fixture value — fixtures must satisfy the producer schema by type, not cast`,
-      );
-      break; // one violation per file is enough for the cast check
+  // ── subject-cast check (putEvent-scoped) ─────────────────────────────────
+  // Only flags `.subject as T` casts that appear INSIDE a putEvent({ ... })
+  // call block. Reads outside putEvent (e.g. mapPayload callbacks casting
+  // `payload.subject as T` for type-narrowing) are legitimate and excluded.
+  {
+    PUTEVENT_START.lastIndex = 0;
+    let castMatch;
+    let subjectCastFound = false;
+    while (!subjectCastFound && (castMatch = PUTEVENT_START.exec(src)) !== null) {
+      const castCallStart = castMatch.index;
+      let depth2 = 0;
+      let j = src.indexOf('{', castCallStart);
+      let castBlockEnd = -1;
+      while (j < src.length) {
+        if (src[j] === '{') depth2++;
+        else if (src[j] === '}') {
+          depth2--;
+          if (depth2 === 0) { castBlockEnd = j; break; }
+        }
+        j++;
+      }
+      if (castBlockEnd === -1) continue;
+      const castBlock = src.substring(castCallStart, castBlockEnd + 1);
+      for (const line of castBlock.split('\n')) {
+        if (SUBJECT_CAST_IN_BLOCK.test(line)) {
+          const lineNum = src.substring(0, castCallStart).split('\n').length;
+          violations.push(
+            `${file}:${lineNum}: '.subject as' cast inside putEvent fixture — fixtures must satisfy the producer schema by type, not cast`,
+          );
+          subjectCastFound = true;
+          break;
+        }
+      }
     }
+    PUTEVENT_START.lastIndex = 0; // reset for next file's legacy-detail scan
   }
 }
 
