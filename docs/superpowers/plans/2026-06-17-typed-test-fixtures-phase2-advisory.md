@@ -91,6 +91,7 @@ await eb.putEvent({
 2. Remove any identity field (`tenantId`/`userId`/`region`) from the subject; add a `context: { tenantId: ..., userId: ... }` param carrying them (only the identity fields the test actually varies).
 3. Let `tsc` surface co-wrong fields. For each: classify **(a)** (fix the fixture to satisfy the schema) or **(b)** (real producer/consumer mismatch → `backlog-add`, leave the fixture matching real producer, reference the filed id in a comment). Record the (a)/(b) tally in the task's commit body.
 4. A call-site emitting an event NOT registered in this phase (e.g. `ORDER_FILLED`) stays legacy — leave it.
+5. **Negative / fault-tolerance tests (`putRawEvent`).** A test that DELIBERATELY emits a schema-INVALID payload (to prove the deployed handler tolerates it: ZodError at `parseSubject` → no row, no DLQ poison) cannot use typed `putEvent` (it `parse()`s before sending → throws in the test process, never reaching the handler). Added in Task 4: `EventBridgeClient.putRawEvent({ bus, targetService, detailType, detail, eventId? })` — sends the raw, UNVALIDATED `detail` (no registry parse), gate-invisible by name. Migrate such negative call-sites to `putRawEvent` (NOT typed `putEvent`, NOT an exclusion registry, NOT a direct handler call — decided 2026-06-17). It is reserved for intentional negatives; the doc comment says so. Normal fixtures must never use it to dodge the gate.
 
 ### Procedure VERIFY — per-slice gate (must be green to commit)
 ```bash
