@@ -1,8 +1,8 @@
 ---
 id: typed-fixtures-negative-test-invalid-payload
-status: parking
+status: dropped
 type: bug
-notes: "typed putEvent validates before sending; DWC snapshot-projector negative test can't inject invalid payload"
+notes: "RESOLVED in-phase: EventBridgeClient.putRawEvent (raw unvalidated send) added for intentional negative tests"
 references: []
 out_of_scope: []
 spec: null
@@ -14,6 +14,8 @@ epic_role: captured
 ---
 
 # Typed putEvent prevents negative-test invalid-payload injection
+
+**RESOLVED in-phase by introducing `EventBridgeClient.putRawEvent` (raw unvalidated send) for intentional negative tests; the snapshot-projector negative test uses it and retains integration coverage.**
 
 ## Evidence
 

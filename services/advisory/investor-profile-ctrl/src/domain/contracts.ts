@@ -2,6 +2,7 @@
 // Imports zod + the agent sub-schemas (mirrors how portfolio-engine-ctrl/advisory-narrative-ctrl
 // compose their agent schemas into the producer contract).
 import { z } from 'zod';
+import type { ZodTypeAny } from 'zod';
 import { GoalInterpretationSchema, RiskEvaluationSchema } from '../agents/schemas';
 
 /**
@@ -33,3 +34,13 @@ export const InvestorProfileSnapshotSchema = z.object({
 });
 
 export type InvestorProfileSnapshot = z.infer<typeof InvestorProfileSnapshotSchema>;
+
+/**
+ * Test-fixture event→subject map for investor-profile-ctrl's emissions. Co-located with the
+ * producer-owned schemas (single source of truth); consumed only by `@nestfolio/test-contracts`.
+ * Bare string-literal keys so `keyof typeof` is a literal union.
+ */
+export const investorProfileCtrlEventSubjects = {
+  INVESTOR_PROFILE_SNAPSHOT_CREATED: InvestorProfileSnapshotSchema,
+  INVESTOR_PROFILE_SNAPSHOT_UPDATED: InvestorProfileSnapshotSchema,
+} as const satisfies Record<string, ZodTypeAny>;

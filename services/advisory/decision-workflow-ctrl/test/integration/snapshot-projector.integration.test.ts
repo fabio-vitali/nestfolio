@@ -88,9 +88,9 @@ describe('decision-workflow-ctrl SnapshotProjectorIngress', () => {
       bus: 'advisory',
       targetService: 'decision-workflow-ctrl',
       detailType: 'INVESTOR_PROFILE_SNAPSHOT_CREATED',
-      detail: {
-        // Identity (tenantId/userId) travels in the event context, not the
-        // dry domain subject — eb.putEvent injects it into context.
+      // Dry subject — identity (tenantId/userId) travels in the event context,
+      // injected by eb.putEvent from ctx (ctx.userId pinned above for isolation).
+      subject: {
         agentOutput,
         sourceEventId,
         __version: 1,
@@ -148,7 +148,7 @@ describe('decision-workflow-ctrl SnapshotProjectorIngress', () => {
       bus: 'advisory',
       targetService: 'decision-workflow-ctrl',
       detailType: 'INVESTOR_PROFILE_SNAPSHOT_CREATED',
-      detail: {
+      subject: {
         agentOutput: { ...baseAgentOutput, risk: { ...baseAgentOutput.risk, riskScore: 30 } },
         sourceEventId: `seed-${randomUUID()}`,
         __version: 1,
@@ -178,7 +178,7 @@ describe('decision-workflow-ctrl SnapshotProjectorIngress', () => {
       bus: 'advisory',
       targetService: 'decision-workflow-ctrl',
       detailType: 'INVESTOR_PROFILE_SNAPSHOT_UPDATED',
-      detail: {
+      subject: {
         agentOutput: updatedAgentOutput,
         sourceEventId: `upd-${randomUUID()}`,
         __version: 2,
@@ -233,13 +233,16 @@ describe('decision-workflow-ctrl SnapshotProjectorIngress', () => {
       bus: 'advisory',
       targetService: 'decision-workflow-ctrl',
       detailType: 'MARKET_SNAPSHOT_UPDATED',
-      detail: {
-        // region is a KEPT domain field on the market subject (the market
-        // region, not the requester's region).
-        region,
+      // Dry subject — MarketSnapshotSchema is { agentOutput, __version }. The
+      // market `region` is region-scope identity carried in RegionContext (the
+      // event context), NOT on the subject — the snapshot-projector keys the
+      // MarketSnapshot row on ctx.region. (Schema-verified: region is not a
+      // MarketSnapshotSchema field.)
+      subject: {
         agentOutput,
         __version: 1,
       },
+      context: { region },
     });
 
     const row = await table.waitForItem({
@@ -257,14 +260,23 @@ describe('decision-workflow-ctrl SnapshotProjectorIngress', () => {
   // ── Negative: missing agentOutput → no row written ──────────────
 
   it('does NOT project a row when MARKET_SNAPSHOT_UPDATED is missing subject.agentOutput', async () => {
+    // The projector keys the MarketSnapshot row on ctx.region (region is RegionContext,
+    // not a subject field). Pin a per-test region onto the shared context so this
+    // negative assertion resolves against the row the handler WOULD write.
     const region = `integ-noagent-${randomUUID().slice(0, 8)}`;
+    ctx.region = region;
 
-    await eb.putEvent({
+    // putRawEvent: a deliberate UNVALIDATED send — the typed putEvent overload parses
+    // the subject (MarketSnapshotSchema) BEFORE the network call, so it cannot deliver
+    // a schema-invalid payload to the deployed handler. putRawEvent bypasses that guard
+    // so the missing-agentOutput payload reaches the handler and exercises its
+    // fault-tolerance path end-to-end (parseSubject ZodError → NotRetryableError → no
+    // row written, observability-surfaced).
+    await eb.putRawEvent({
       bus: 'advisory',
       targetService: 'decision-workflow-ctrl',
       detailType: 'MARKET_SNAPSHOT_UPDATED',
       detail: {
-        region,
         // agentOutput intentionally omitted → parseSubject(MarketSnapshotSchema)
         // throws a ZodError at the seam; materializeToTable surfaces it through
         // observability and the row is NOT written.

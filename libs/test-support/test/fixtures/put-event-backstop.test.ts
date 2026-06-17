@@ -52,3 +52,27 @@ it('runtime backstop: accepts a valid typed subject and sends exactly one event'
   expect(parsed.context.tenantId).toBe('integ-tenant'); // defaulted from ctx
   expect(parsed.subject).not.toHaveProperty('userId');   // DRY subject: identity is NOT in the subject
 });
+
+it('putRawEvent: sends a schema-invalid payload WITHOUT parsing (negative-test escape hatch)', async () => {
+  // putRawEvent deliberately bypasses the registry parse so a negative/fault-tolerance
+  // test can deliver a schema-invalid event to the deployed handler. A subject that
+  // would make the typed putEvent throw offline (here: MARKET_SNAPSHOT_UPDATED with no
+  // agentOutput) must instead reach the network as the raw `detail`.
+  ebMock.onAnyCommand().resolves({ FailedEntryCount: 0, Entries: [{ EventId: 'evt-raw' }] });
+  const ctx = fakeCtx();
+  (ctx.ssm as unknown as { busArn: (b: string) => Promise<string> }).busArn = async () => 'arn:aws:events:us-east-1:1:event-bus/advisory';
+  const client = new EventBridgeClient(ctx);
+  await client.putRawEvent({
+    bus: 'advisory',
+    targetService: 'decision-workflow-ctrl',
+    detailType: 'MARKET_SNAPSHOT_UPDATED',
+    detail: { region: 'us-east-1' }, // intentionally missing agentOutput — would fail the typed parse
+  });
+  expect(ebMock.commandCalls(PutEventsCommand)).toHaveLength(1);
+
+  const sent = ebMock.commandCalls(PutEventsCommand)[0].args[0].input.Entries![0].Detail!;
+  const parsed = JSON.parse(sent);
+  expect(parsed.type).toBe('MARKET_SNAPSHOT_UPDATED');
+  expect(parsed.subject).toEqual({ region: 'us-east-1' }); // raw detail passed through unvalidated
+  expect(parsed.context.tenantId).toBe('integ-tenant');    // same envelope as putEvent
+});

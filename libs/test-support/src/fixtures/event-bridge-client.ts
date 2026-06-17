@@ -65,13 +65,6 @@ export class EventBridgeClient {
     context?: TestEventContext;
     eventId?: string;
   }): Promise<void> {
-    const targets = Array.isArray(params.targetService)
-      ? params.targetService
-      : [params.targetService];
-    if (targets.length === 0) {
-      throw new Error('putEvent: targetService must not be an empty array');
-    }
-
     // Resolve the subject. Typed path = parse against the registry (runtime backstop,
     // BEFORE any network call so a bad subject throws offline). Legacy path = raw detail.
     let subject: unknown;
@@ -85,6 +78,64 @@ export class EventBridgeClient {
       subject = params.detail;
     }
 
+    await this.send({
+      bus: params.bus,
+      targetService: params.targetService,
+      detailType: params.detailType,
+      subject,
+      context: params.context,
+      eventId: params.eventId,
+    });
+  }
+
+  /**
+   * Raw, unvalidated send for intentional negative tests; bypasses the typed-fixture
+   * schema guard on purpose. Gate-invisible by name (tools/check-typed-fixtures.mjs only
+   * matches `putEvent(`).
+   *
+   * Use this — and ONLY this — when a test must inject a schema-invalid event so the
+   * DEPLOYED handler's tolerance path is exercised end-to-end (e.g. a missing required
+   * subject field → ZodError at the parseSubject seam → no row written, no DLQ poison).
+   * The typed `putEvent` parses the subject BEFORE the network call, so it cannot deliver
+   * an invalid payload to the handler; `putRawEvent` builds the same `BusEvent` envelope
+   * (id/type/timestamp/subject=detail/context-from-ctx) but skips the registry parse,
+   * sending the raw `detail` as the subject.
+   */
+  async putRawEvent(params: {
+    bus: string;
+    targetService: string | string[];
+    detailType: string;
+    detail: Record<string, unknown>;
+    eventId?: string;
+  }): Promise<void> {
+    await this.send({
+      bus: params.bus,
+      targetService: params.targetService,
+      detailType: params.detailType,
+      subject: params.detail,
+      eventId: params.eventId,
+    });
+  }
+
+  /**
+   * Shared envelope-build + retry loop for both `putEvent` (post-parse) and
+   * `putRawEvent` (no parse). `subject` is already resolved by the caller.
+   */
+  private async send(params: {
+    bus: string;
+    targetService: string | string[];
+    detailType: string;
+    subject: unknown;
+    context?: TestEventContext;
+    eventId?: string;
+  }): Promise<void> {
+    const targets = Array.isArray(params.targetService)
+      ? params.targetService
+      : [params.targetService];
+    if (targets.length === 0) {
+      throw new Error('putEvent: targetService must not be an empty array');
+    }
+
     const busArn = await this.ctx.ssm.busArn(params.bus);
     const maxRetries = this.ctx.timings.putEventRetries;
     const baseBackoff = this.ctx.timings.putEventBackoffMs;
@@ -93,7 +144,7 @@ export class EventBridgeClient {
       id: params.eventId ?? `integ-${randomUUID()}`,
       type: params.detailType,
       timestamp: new Date().toISOString(),
-      subject,
+      subject: params.subject,
       context: {
         tenantId: params.context?.tenantId ?? this.ctx.tenantId,
         userId: params.context?.userId ?? this.ctx.userId,
