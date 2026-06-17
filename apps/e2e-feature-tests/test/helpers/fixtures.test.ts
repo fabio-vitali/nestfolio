@@ -66,12 +66,11 @@ describe('fixtures — onboarded', () => {
       bus: 'investor',
       targetService: 'investor-bff',
       detailType: 'ONBOARDING_COMPLETED',
-      detail: expect.objectContaining({
-        tenantId: 'tenant-1',
-        userId: 'user-1',
+      subject: expect.objectContaining({
         operatingMode: 'BALANCED',
         mandateAccepted: true,
       }),
+      context: expect.objectContaining({ tenantId: 'tenant-1', userId: 'user-1' }),
     }));
   });
 });
@@ -143,13 +142,12 @@ describe('fixtures — withNotification', () => {
       bus: 'investor',
       targetService: 'investor-bff',
       detailType: 'NOTIFICATION_CREATED',
-      detail: expect.objectContaining({
-        tenantId: 't-4',
-        userId: 'u-4',
+      subject: expect.objectContaining({
         title: 'hello',
         body: 'world',
         channel: 'IN_APP',
       }),
+      context: expect.objectContaining({ tenantId: 't-4', userId: 'u-4' }),
     }));
     expect(typeof result.notificationId).toBe('string');
   });

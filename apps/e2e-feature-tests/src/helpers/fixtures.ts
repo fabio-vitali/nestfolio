@@ -83,9 +83,7 @@ export function onboarded(overrides?: {
       bus: 'investor',
       targetService: 'investor-bff',
       detailType: InvestorBffEventTypes.ONBOARDING_COMPLETED,
-      detail: {
-        tenantId: tenant.tenantId,
-        userId: tenant.userId,
+      subject: {
         goal: { objective: 'GROWTH' },
         horizonYears: 10,
         accountMode: 'simulation',
@@ -97,6 +95,7 @@ export function onboarded(overrides?: {
         mandateLevel: overrides?.mandateLevel,  // optional — transform defaults absent to DISCRETIONARY
         mandateAccepted: true,
       },
+      context: { tenantId: tenant.tenantId, userId: tenant.userId },
     });
     // Poll getProfile to confirm the composite InvestorProfile row has been materialized
     // by onboarding-completed's Put. Downstream fixtures (funded, withDecision, etc.) can
@@ -349,18 +348,17 @@ export function withLiveDecision(opts?: {
         bus: 'advisory',
         targetService: 'decision-workflow-ctrl',
         detailType: 'MANDATE_ISSUED',
-        detail: {
-          tenantId: tenant.tenantId,
-          userId: tenant.userId,
+        // (a) co-wrong fix: dropped monthlyTurnoverCapPercent, maxSingleTradePercent,
+        // rebalanceCadence — these are NOT in MandateSchema (derived at compliance
+        // eval-time, never on the Mandate subject).
+        subject: {
           mandateId: `e2e-mandate-${Date.now()}`,
           level: 'ADVISORY',
           status: 'ACTIVE',
           operatingMode,
-          monthlyTurnoverCapPercent: 10,
-          maxSingleTradePercent: 5,
-          rebalanceCadence: 'MONTHLY',
           effectiveDate: new Date().toISOString(),
         },
+        context: { tenantId: tenant.tenantId, userId: tenant.userId },
       });
     } else {
       // Re-decision path: INVESTOR_PROFILE_UPDATED published directly. The
@@ -370,23 +368,15 @@ export function withLiveDecision(opts?: {
         bus: 'advisory',
         targetService: 'decision-workflow-ctrl',
         detailType: 'INVESTOR_PROFILE_UPDATED',
-        detail: {
-          tenantId: tenant.tenantId,
-          userId: tenant.userId,
+        // (a) co-wrong fix: dropped accountMode (not in InvestorProfileUpdatedSchema)
+        // and mandate (not in InvestorProfileUpdatedSchema — mandate is a sibling
+        // aggregate row emitted separately as MANDATE_ISSUED).
+        subject: {
           operatingMode,
-          accountMode: { mode: 'simulation', capitalAmount: 100_000, currency: 'USD' },
           goal: { objective: 'GROWTH', targetAmountCents: 1_000_000, currency: 'USD', timeHorizonMonths: 120, targetReturn: 0.07 },
           riskProfile: { score: 7, band: { minEquity: 0.5, maxEquity: 0.8 }, toleranceResponse: 'MEDIUM', experienceLevel: 'INTERMEDIATE' },
-          mandate: {
-            mandateId: `e2e-mandate-${Date.now()}`,
-            level: 'ADVISORY',
-            status: 'ACTIVE',
-            monthlyTurnoverCapPercent: 10,
-            maxSingleTradePercent: 5,
-            rebalanceCadence: 'MONTHLY',
-            effectiveDate: new Date().toISOString(),
-          },
         },
+        context: { tenantId: tenant.tenantId, userId: tenant.userId },
       });
     }
 
@@ -438,9 +428,7 @@ export function withNotification(opts: {
       bus: 'investor',
       targetService: 'investor-bff',
       detailType: InvestorCtrlEventTypes.NOTIFICATION_CREATED,
-      detail: {
-        tenantId: tenant.tenantId,
-        userId: tenant.userId,
+      subject: {
         notificationId,
         channel: opts.channel ?? 'IN_APP',
         title: opts.title,
@@ -448,6 +436,7 @@ export function withNotification(opts: {
         relatedEntityType: opts.relatedEntityType ?? 'System',
         relatedEntityId: opts.relatedEntityId ?? 'system',
       },
+      context: { tenantId: tenant.tenantId, userId: tenant.userId },
     });
     return { notificationId };
   };
