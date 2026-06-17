@@ -43,15 +43,14 @@ describe('dashboard-bff', () => {
         detailType: 'INVESTOR_PROFILE_CREATED',
         // Mirrors investor-bff's full-row CDC subject: monotonic __version + the
         // stable onboardingCompletedAt are present on every INVESTOR_PROFILE_* emit.
-        detail: {
-          tenantId: ctx.tenantId,
-          userId: ctx.userId,
+        subject: {
           goal: { objective: 'GROWTH', targetAmountCents: 500_000_00 },
           riskProfile: { score: 7 },
           operatingMode: 'BALANCED',
           onboardingCompletedAt: '2026-01-01T00:00:00.000Z',
           __version: 1,
         },
+        context: { tenantId: ctx.tenantId, userId: ctx.userId },
       });
 
       const item = await table.waitForItem({
@@ -75,15 +74,14 @@ describe('dashboard-bff', () => {
         targetService: 'dashboard-bff',
         detailType: 'INVESTOR_PROFILE_UPDATED',
         // __version 2 > the CREATED row's 1 → the version guard accepts this update.
-        detail: {
-          tenantId: ctx.tenantId,
-          userId: ctx.userId,
+        subject: {
           goal: { objective: 'INCOME', targetAmountCents: 1_000_000_00 },
           riskProfile: { score: 9 },
           operatingMode: 'AGGRESSIVE',
           onboardingCompletedAt: '2026-01-01T00:00:00.000Z',
           __version: 2,
         },
+        context: { tenantId: ctx.tenantId, userId: ctx.userId },
       });
 
       const item = await table.waitForItem({
@@ -421,7 +419,7 @@ describe('dashboard-bff', () => {
         bus: 'investor',
         targetService: 'dashboard-bff',
         detailType: 'INVESTOR_PROFILE_UPDATED',
-        detail: {
+        subject: {
           goal: { objective: 'RETIREMENT' },
           riskProfile: { score: 6 },
           operatingMode: 'BALANCED',
