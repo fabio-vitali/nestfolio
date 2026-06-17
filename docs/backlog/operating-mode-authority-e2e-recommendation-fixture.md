@@ -1,6 +1,6 @@
 ---
 id: operating-mode-authority-e2e-recommendation-fixture
-status: queued
+status: shipped
 rank: 1
 type: bug
 epic: typed-test-fixtures
@@ -14,7 +14,27 @@ out_of_scope: []
 spec: null
 plan: null
 topic_memory: [project_event_subject_contracts.md]
-validation_gate: null
+validation_gate: |
+  Shipped directly on main (Simple lane, test-only — impl commit b786fb8a). No deploy:
+  detect-deploy-needed → deploy=false (compliance-ctrl already runs parseSubject on dev).
+  - Fix: operating-mode-authority.e2e.test.ts migrated from the legacy flat-`detail`
+    putEvent overload to the typed `subject`/`context` overload (mirrors the proven-good
+    update-operating-mode sibling). Dropped non-schema `riskScore`; added the
+    RecommendationProposedSchema-required `isInitialBuild: false` + a valid
+    `riskCategory: 'MODERATE'`.
+  - riskCategory safety: with currentPositions=[] and one 6% EQUITY BUY, resultingEquity=6%
+    is below every category's max-equity cap (CONSERVATIVE=30%), so suitability-checker
+    never violates → authority-resolver stays driven purely by the operatingMode-derived
+    thresholds (the test's actual assertion). Confirmed by reading the deployed rule engine
+    (rule-engine.ts:104 / authority-resolver.ts:27 'any violation → L2').
+  - Offline: tsc -p apps/e2e-feature-tests/tsconfig.spec.json --noEmit → exit 0 (the typed
+    overload's SubjectOf<'RECOMMENDATION_PROPOSED'> enforces the shape at compile time);
+    nx lint e2e-feature-tests,nestfolio-e2e → 0 errors.
+  - E2E (the documented gate, NESTFOLIO_INTEG_PREFIX=dev, JEST_PATH scoped):
+    operating-mode-authority.e2e.test.ts GREEN 3/3 in 129.4s on the first run (no flake) —
+    CONSERVATIVE→L2 (62.5s), BALANCED→L1 (34.5s), AGGRESSIVE→L1 (28.3s). "Tests: 3 passed,
+    3 total"; "Ran all test suites matching advisory/operating-mode-authority" (tests
+    actually executed, not a zero-test false green).
 ---
 
 # operating-mode-authority e2e RECOMMENDATION_PROPOSED co-wrong fixture (Bug-B class)
