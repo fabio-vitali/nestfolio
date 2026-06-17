@@ -136,16 +136,20 @@ describe.each([
     const decisionId = `e2e-decision-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
 
     // Publish RECOMMENDATION_PROPOSED to advisory bus targeting compliance-ctrl.
+    // Typed putEvent overload: the payload travels under `subject` (validated against
+    // RecommendationProposedSchema, offline + at runtime) and identity under `context`,
+    // matching the deployed compliance-ctrl's parseSubject(payload, RecommendationProposedSchema).
     // taskToken is required by compliance-ctrl's handler (NotRetryableError otherwise);
     // we use a fake token because we don't care about the SF callback in this test —
     // we only assert on the ComplianceCheck row written by compliance-ctrl.
+    // riskCategory is held constant at a valid, suitability-passing value: a 6 % equity
+    // build sits below every category's max-equity cap (CONSERVATIVE=30 %), so suitability
+    // never violates and authority is driven purely by the operatingMode-derived thresholds.
     await eb.putEvent({
       bus: 'advisory',
       targetService: 'compliance-ctrl',
       detailType: DecisionWorkflowEventTypes.RECOMMENDATION_PROPOSED,
-      detail: {
-        tenantId: tenant.tenantId,
-        userId: tenant.userId,
+      subject: {
         decisionId,
         taskToken: `e2e-fake-token-${decisionId}`,
         awaitingCompliance: true,
@@ -158,9 +162,11 @@ describe.each([
           rationale: 'E2E test trade',
         }],
         portfolioValueCents: CAPITAL_AMOUNT,
-        riskScore: 5,
+        isInitialBuild: false,
+        riskCategory: 'MODERATE',
         currentPositions: [],
       },
+      context: { tenantId: tenant.tenantId, userId: tenant.userId },
     });
 
     // Wait for compliance-ctrl to write a ComplianceCheck record matching this
