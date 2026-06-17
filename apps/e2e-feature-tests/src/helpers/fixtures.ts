@@ -348,9 +348,9 @@ export function withLiveDecision(opts?: {
         bus: 'advisory',
         targetService: 'decision-workflow-ctrl',
         detailType: 'MANDATE_ISSUED',
-        // (a) co-wrong fix: dropped monthlyTurnoverCapPercent, maxSingleTradePercent,
+        // co-wrong fixture fix: dropped monthlyTurnoverCapPercent, maxSingleTradePercent,
         // rebalanceCadence — these are NOT in MandateSchema (derived at compliance
-        // eval-time, never on the Mandate subject).
+        // eval-time, never carried on the Mandate subject).
         subject: {
           mandateId: `e2e-mandate-${Date.now()}`,
           level: 'ADVISORY',
@@ -368,9 +368,9 @@ export function withLiveDecision(opts?: {
         bus: 'advisory',
         targetService: 'decision-workflow-ctrl',
         detailType: 'INVESTOR_PROFILE_UPDATED',
-        // (a) co-wrong fix: dropped accountMode (not in InvestorProfileUpdatedSchema)
-        // and mandate (not in InvestorProfileUpdatedSchema — mandate is a sibling
-        // aggregate row emitted separately as MANDATE_ISSUED).
+        // co-wrong fixture fix: dropped accountMode (not in InvestorProfileUpdatedSchema)
+        // and mandate (mandate is a sibling aggregate row emitted separately as
+        // MANDATE_ISSUED, not nested in the InvestorProfile subject).
         subject: {
           operatingMode,
           goal: { objective: 'GROWTH', targetAmountCents: 1_000_000, currency: 'USD', timeHorizonMonths: 120, targetReturn: 0.07 },
