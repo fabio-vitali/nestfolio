@@ -37,8 +37,9 @@ import {
  *   - L1 in BALANCED    (maxSingleTradePercent = 10 %, trade within threshold → L1)
  *   - L1 in AGGRESSIVE  (maxSingleTradePercent = 20 %, trade within threshold → L1)
  *
- * The mandateLevel: 'DISCRETIONARY' override is required because the default
- * for e2e tenants is ADVISORY (forces L2 regardless of mode — see
+ * The explicit mandateLevel: 'DISCRETIONARY' makes authority depend on mode; an
+ * ADVISORY mandate would force L2 regardless. The subject carries mandateLevel
+ * through OnboardingCompletedRecordSchema (no tenant-prefix derivation — see
  * services/investor/investor-bff/src/transforms/onboarding-completed.ts).
  */
 

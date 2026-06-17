@@ -54,6 +54,12 @@ export const OnboardingCompletedRecordSchema = z.object({
   riskTolerance: z.number(),
   riskExperience: z.number(),
   operatingMode: z.enum(['CONSERVATIVE', 'BALANCED', 'AGGRESSIVE']),
+  // The mandate authority level the investor agrees to. Optional because the
+  // current onboarding wizard has no level-selection phase (the agent does not
+  // emit one yet) — consumers default an absent value to DISCRETIONARY. Carried
+  // in the contract so a producer/fixture that DOES supply it survives
+  // parseSubject instead of being silently stripped.
+  mandateLevel: z.enum(['ADVISORY', 'DISCRETIONARY']).optional(),
   mandateAccepted: z.literal(true),
 });
 export type OnboardingCompletedRecord = z.infer<typeof OnboardingCompletedRecordSchema>;

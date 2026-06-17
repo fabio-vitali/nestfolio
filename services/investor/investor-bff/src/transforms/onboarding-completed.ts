@@ -18,10 +18,10 @@ export async function onboardingCompleted(
   const risk = computeRiskProfile(s.riskTolerance, s.riskExperience);
   const mandateId = getUUID();
   const depositId = getUUID();
-  // mandateLevel is not carried in the ONBOARDING_COMPLETED subject (onboarding-bff does not emit it);
-  // derive it from the tenant prefix at materialization time.
-  const mandateLevel: 'ADVISORY' | 'DISCRETIONARY' =
-    tenantId.startsWith('e2e-') ? 'ADVISORY' : 'DISCRETIONARY';
+  // Honor the mandate level the subject carries (OnboardingCompletedRecordSchema
+  // exposes it as optional); default to DISCRETIONARY when absent — the product
+  // default for a tenant that completed onboarding without an explicit level.
+  const mandateLevel: 'ADVISORY' | 'DISCRETIONARY' = s.mandateLevel ?? 'DISCRETIONARY';
 
   await repo.transactWrite({
     TransactItems: [

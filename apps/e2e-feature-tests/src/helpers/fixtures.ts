@@ -94,7 +94,7 @@ export function onboarded(overrides?: {
         riskTolerance: 7,
         riskExperience: 5,
         operatingMode: overrides?.operatingMode ?? 'BALANCED',
-        mandateLevel: overrides?.mandateLevel,  // optional — falls back to e2e-prefix default in transform
+        mandateLevel: overrides?.mandateLevel,  // optional — transform defaults absent to DISCRETIONARY
         mandateAccepted: true,
       },
     });

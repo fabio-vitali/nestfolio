@@ -119,8 +119,10 @@ describe('scenario — investor switches operatingMode CONSERVATIVE → AGGRESSI
       ],
     });
 
-    // Onboard with CONSERVATIVE + DISCRETIONARY (DISCRETIONARY so authority
-    // resolution depends on mode, not on the e2e-prefix ADVISORY default).
+    // Onboard with CONSERVATIVE + DISCRETIONARY. The explicit DISCRETIONARY mandate
+    // makes authority resolution depend on operatingMode (ADVISORY would force L2
+    // regardless). The subject now carries mandateLevel through the contract — it is
+    // no longer derived from the tenant prefix.
     await applyFixtures(ctx, tenant, [
       onboarded({ operatingMode: 'CONSERVATIVE', capitalAmount: CAPITAL_AMOUNT, mandateLevel: 'DISCRETIONARY' }),
     ]);

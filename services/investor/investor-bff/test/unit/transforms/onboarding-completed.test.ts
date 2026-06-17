@@ -25,7 +25,7 @@ describe('onboardingCompleted transform', () => {
     const items = (InvestorProfileRepository as any).prototype.transactWrite.mock.calls[0][0].TransactItems;
     const profile = items.find((i: any) => i.Put?.Item.sk === 'InvestorProfile').Put.Item;
     expect(profile.operatingMode).toBe('BALANCED');
-    expect(profile.mandateLevel).toBe('DISCRETIONARY'); // tenantId 't1' lacks 'e2e-' prefix → default DISCRETIONARY
+    expect(profile.mandateLevel).toBe('DISCRETIONARY'); // subject omits mandateLevel → default DISCRETIONARY
     expect(profile.mandate).toBeUndefined(); // numeric guardrails no longer nested
     expect(profile.mandateId).toEqual(expect.any(String));
   });
@@ -67,12 +67,33 @@ describe('onboardingCompleted transform', () => {
     expect(items.some((i: any) => i.Put?.Item.__typename === 'Deposit')).toBe(false);
   });
 
-  it('e2e- tenant defaults mandate level to ADVISORY', async () => {
+  it('honors an explicit mandateLevel from the subject (ADVISORY)', async () => {
+    await onboardingCompleted({ subject: { ...baseSubject, mandateLevel: 'ADVISORY' } } as any, ctx as any);
+    const items = (InvestorProfileRepository as any).prototype.transactWrite.mock.calls[0][0].TransactItems;
+    const mandate = items.find((i: any) => i.Put?.Item.sk === 'Mandate').Put.Item;
+    const profile = items.find((i: any) => i.Put?.Item.sk === 'InvestorProfile').Put.Item;
+    expect(mandate.level).toBe('ADVISORY');
+    expect(profile.mandateLevel).toBe('ADVISORY');
+  });
+
+  it('explicit subject mandateLevel overrides any tenant prefix (e2e- tenant, DISCRETIONARY)', async () => {
+    // Proves the old tenantId.startsWith('e2e-') → ADVISORY test-ism is gone: the
+    // subject value wins regardless of prefix.
+    await onboardingCompleted({ subject: { ...baseSubject, mandateLevel: 'DISCRETIONARY' } } as any,
+                              { ...ctx, tenantId: 'e2e-foo' } as any);
+    const items = (InvestorProfileRepository as any).prototype.transactWrite.mock.calls[0][0].TransactItems;
+    const mandate = items.find((i: any) => i.Put?.Item.sk === 'Mandate').Put.Item;
+    expect(mandate.level).toBe('DISCRETIONARY');
+  });
+
+  it('defaults mandate level to DISCRETIONARY when the subject omits it — independent of tenant prefix', async () => {
+    // No more prefix-sniffing: an e2e- tenant with no explicit mandateLevel defaults to
+    // DISCRETIONARY exactly like a production tenant (the prod default).
     await onboardingCompleted({ subject: baseSubject } as any,
                               { ...ctx, tenantId: 'e2e-foo' } as any);
     const items = (InvestorProfileRepository as any).prototype.transactWrite.mock.calls[0][0].TransactItems;
     const mandate = items.find((i: any) => i.Put?.Item.sk === 'Mandate').Put.Item;
-    expect(mandate.level).toBe('ADVISORY');
+    expect(mandate.level).toBe('DISCRETIONARY');
   });
 
   it('stamps __version: 1 on the seeded Mandate row (WS-B carriage)', async () => {

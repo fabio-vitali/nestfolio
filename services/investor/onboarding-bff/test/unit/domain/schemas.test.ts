@@ -79,6 +79,26 @@ describe('OnboardingCompletedRecordSchema', () => {
     };
     expect(() => OnboardingCompletedRecordSchema.parse(record)).toThrow();
   });
+
+  it('accepts an OPTIONAL mandateLevel and retains it when present', () => {
+    // mandateLevel is part of the contract (not stripped), so a producer/fixture
+    // that carries it survives parseSubject. Absent → optional; invalid → rejected.
+    const base = {
+      goal: { objective: 'Retirement savings' },
+      horizonYears: 10,
+      accountMode: 'simulation',
+      capitalAmount: 25000,
+      currency: 'EUR',
+      riskTolerance: 2,
+      riskExperience: 1,
+      operatingMode: 'BALANCED',
+      mandateAccepted: true,
+    };
+    expect(OnboardingCompletedRecordSchema.parse({ ...base, mandateLevel: 'ADVISORY' }).mandateLevel).toBe('ADVISORY');
+    expect(OnboardingCompletedRecordSchema.parse({ ...base, mandateLevel: 'DISCRETIONARY' }).mandateLevel).toBe('DISCRETIONARY');
+    expect(OnboardingCompletedRecordSchema.parse(base).mandateLevel).toBeUndefined();
+    expect(() => OnboardingCompletedRecordSchema.parse({ ...base, mandateLevel: 'FOO' })).toThrow();
+  });
 });
 
 describe('onboarding-bff CDC contracts cover the two emitted events (dry)', () => {
