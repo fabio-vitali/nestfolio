@@ -126,13 +126,23 @@ describe('investor-ctrl resilience: idempotency', () => {
       table.registerCleanup();
 
       const eventId = `idemp-onboard-${randomUUID()}`;
-      const detail = { goal: 'RETIREMENT', riskTolerance: 'MODERATE' };
+      const subject = {
+        goal: { objective: 'RETIREMENT' },
+        horizonYears: 10,
+        accountMode: 'simulation' as const,
+        capitalAmount: 100_000,
+        currency: 'USD',
+        riskTolerance: 2,
+        riskExperience: 1,
+        operatingMode: 'BALANCED' as const,
+        mandateAccepted: true as const,
+      };
 
       await eb.putEvent({
         bus: 'investor',
         targetService: 'investor-ctrl',
         detailType: 'ONBOARDING_COMPLETED',
-        detail,
+        subject,
         eventId,
       });
       await waitForNotification(table, ctx.tenantId, eventId);
@@ -141,7 +151,7 @@ describe('investor-ctrl resilience: idempotency', () => {
         bus: 'investor',
         targetService: 'investor-ctrl',
         detailType: 'ONBOARDING_COMPLETED',
-        detail,
+        subject,
         eventId,
       });
       await new Promise((r) => setTimeout(r, 15_000));
@@ -179,8 +189,18 @@ describe('investor-ctrl resilience: order-agnostic', () => {
       const onboardEvent = {
         bus: 'investor' as const,
         targetService: 'investor-ctrl',
-        detailType: 'ONBOARDING_COMPLETED',
-        detail: { goal: 'RETIREMENT', riskTolerance: 'MODERATE' },
+        detailType: 'ONBOARDING_COMPLETED' as const,
+        subject: {
+          goal: { objective: 'RETIREMENT' },
+          horizonYears: 10,
+          accountMode: 'simulation' as const,
+          capitalAmount: 100_000,
+          currency: 'USD',
+          riskTolerance: 2,
+          riskExperience: 1,
+          operatingMode: 'BALANCED' as const,
+          mandateAccepted: true as const,
+        },
         eventId: onboardId,
       };
       const fillEvent = {
