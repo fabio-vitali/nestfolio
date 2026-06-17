@@ -104,19 +104,11 @@ describe('investor-profile-ctrl: INVESTOR_PROFILE_UPDATED → InvestorProfileSna
       await eb.putEvent({
         bus: 'advisory',
         targetService: 'investor-profile-ctrl',
-        detailType: 'INVESTOR_PROFILE_UPDATED',
-        detail: {
-          operatingMode: 'BALANCED',
-          investorProfile: {
-            age: 40,
-            income: 120000,
-            liquidAssets: 80000,
-            investmentExperience: 'MODERATE',
-          },
-          portfolioState: {
-            totalValue: 200000,
-            holdings: [],
-          },
+        detailType: 'INVESTOR_PROFILE_UPDATED' as const,
+        subject: {
+          operatingMode: 'BALANCED' as const,
+          goal: { objective: 'GROWTH' },
+          riskProfile: { score: 5 },
         },
       });
 
@@ -169,19 +161,16 @@ describe('investor-profile-ctrl: INVESTOR_PROFILE_UPDATED → InvestorProfileSna
       const table = new TableAssertions(ctx);
       table.registerCleanup();
 
-      // DRY subject: identity in context. mandate.operatingMode supplies the
-      // operatingMode the handler resolves when the top-level field is absent.
+      // DRY subject: identity in context. operatingMode is schema-required on MandateSchema.
       await eb.putEvent({
         bus: 'advisory',
         targetService: 'investor-profile-ctrl',
-        detailType: 'MANDATE_ISSUED',
-        detail: {
+        detailType: 'MANDATE_ISSUED' as const,
+        subject: {
           mandateId: `mandate-${randomUUID()}`,
-          level: 'ADVISORY',
-          mandate: {
-            operatingMode: 'AGGRESSIVE',
-          },
-          operatingMode: 'AGGRESSIVE',
+          level: 'ADVISORY' as const,
+          status: 'ACTIVE' as const,
+          operatingMode: 'AGGRESSIVE' as const,
           effectiveDate: new Date().toISOString(),
         },
       });
@@ -227,11 +216,11 @@ describe('investor-profile-ctrl: INVESTOR_PROFILE_UPDATED → InvestorProfileSna
       await eb.putEvent({
         bus: 'advisory',
         targetService: 'investor-profile-ctrl',
-        detailType: 'INVESTOR_PROFILE_UPDATED',
-        detail: {
-          operatingMode: 'BALANCED',
-          investorProfile: { age: 40, income: 120000, liquidAssets: 80000, investmentExperience: 'MODERATE' },
-          portfolioState: { totalValue: 200000, holdings: [] },
+        detailType: 'INVESTOR_PROFILE_UPDATED' as const,
+        subject: {
+          operatingMode: 'BALANCED' as const,
+          goal: { objective: 'GROWTH' },
+          riskProfile: { score: 5 },
         },
         eventId: `wsb-trigger1-${randomUUID()}`,
       });
@@ -254,11 +243,11 @@ describe('investor-profile-ctrl: INVESTOR_PROFILE_UPDATED → InvestorProfileSna
       await eb.putEvent({
         bus: 'advisory',
         targetService: 'investor-profile-ctrl',
-        detailType: 'INVESTOR_PROFILE_UPDATED',
-        detail: {
-          operatingMode: 'CONSERVATIVE',
-          investorProfile: { age: 40, income: 120000, liquidAssets: 80000, investmentExperience: 'MODERATE' },
-          portfolioState: { totalValue: 200000, holdings: [] },
+        detailType: 'INVESTOR_PROFILE_UPDATED' as const,
+        subject: {
+          operatingMode: 'CONSERVATIVE' as const,
+          goal: { objective: 'GROWTH' },
+          riskProfile: { score: 3 },
         },
         eventId: `wsb-trigger2-${randomUUID()}`,
       });

@@ -70,9 +70,9 @@ describe('investor-profile-ctrl resilience: idempotency', () => {
       // by eb.putEvent from ctx — not in the subject. The row pk's user component
       // falls back to ctx.tenantId (handler resolves `subject.userId ?? tenantId`).
       const payload = {
-        operatingMode: 'BALANCED',
-        investorProfile: { age: 35 },
-        portfolioState: { totalValue: 50000 },
+        operatingMode: 'BALANCED' as const,
+        goal: { objective: 'GROWTH' },
+        riskProfile: { score: 5 },
       };
       const snapshotPk = `InvestorProfileSnapshot#${ctx.tenantId}#${ctx.tenantId}`;
 
@@ -80,8 +80,8 @@ describe('investor-profile-ctrl resilience: idempotency', () => {
       await eb.putEvent({
         bus: 'advisory',
         targetService: 'investor-profile-ctrl',
-        detailType: 'INVESTOR_PROFILE_UPDATED',
-        detail: payload,
+        detailType: 'INVESTOR_PROFILE_UPDATED' as const,
+        subject: payload,
         eventId,
       });
 
@@ -109,8 +109,8 @@ describe('investor-profile-ctrl resilience: idempotency', () => {
       await eb.putEvent({
         bus: 'advisory',
         targetService: 'investor-profile-ctrl',
-        detailType: 'INVESTOR_PROFILE_UPDATED',
-        detail: payload,
+        detailType: 'INVESTOR_PROFILE_UPDATED' as const,
+        subject: payload,
         eventId,
       });
 
@@ -153,10 +153,11 @@ describe('investor-profile-ctrl resilience: order-agnostic pairwise', () => {
       await ebA.putEvent({
         bus: 'advisory',
         targetService: 'investor-profile-ctrl',
-        detailType: 'INVESTOR_PROFILE_UPDATED',
-        detail: {
-          operatingMode: 'BALANCED',
-          investorProfile: { age: 35 },
+        detailType: 'INVESTOR_PROFILE_UPDATED' as const,
+        subject: {
+          operatingMode: 'BALANCED' as const,
+          goal: { objective: 'GROWTH' },
+          riskProfile: { score: 5 },
         },
         eventId: `pair-A-profile-evt-${randomUUID()}`,
       });
@@ -219,10 +220,11 @@ describe('investor-profile-ctrl resilience: order-agnostic pairwise', () => {
         await ebB.putEvent({
           bus: 'advisory',
           targetService: 'investor-profile-ctrl',
-          detailType: 'INVESTOR_PROFILE_UPDATED',
-          detail: {
-            operatingMode: 'CONSERVATIVE',
-            investorProfile: { age: 35 },
+          detailType: 'INVESTOR_PROFILE_UPDATED' as const,
+          subject: {
+            operatingMode: 'CONSERVATIVE' as const,
+            goal: { objective: 'GROWTH' },
+            riskProfile: { score: 3 },
           },
           eventId: `pair-B-profile-evt-${randomUUID()}`,
         });
