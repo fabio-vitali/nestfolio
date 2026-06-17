@@ -25,6 +25,17 @@ module.exports = [
         'error',
         {
           enforceBuildableLibDependency: false,
+          // The typed-fixture registry (`test-contracts`) composes producer-owned zod
+          // contracts so test-support's typed `putEvent` can validate fixture subjects.
+          // This forms a TEST-ONLY cycle: a producer service's *tests* import test-support
+          // → test-contracts → that producer's `/contracts` (and producers reference each
+          // other, e.g. decision-workflow-ctrl reads compliance-ctrl's ComplianceCheck back).
+          // The production graph is acyclic — test-support/test-contracts are never bundled
+          // into any Lambda. Every such cycle routes through a `test-contracts -> <producer>`
+          // edge, so ignoring any cycle that involves test-contracts clears the benign test
+          // cycle for this and every future typed-fixtures phase (as more producers join the
+          // registry) without suppressing real production cycles.
+          ignoredCircularDependencies: [['test-contracts', '*']],
           allow: [
             '@nestfolio/.+/events',
             '@nestfolio/.+/contracts',
