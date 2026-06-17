@@ -7,6 +7,7 @@
 // JS resolvers can't import this at runtime — these contracts validate the emitted shape
 // (unit tests + e2e parseSubject gate).
 import { z } from 'zod';
+import type { ZodTypeAny } from 'zod';
 
 /**
  * DecisionReadModel subject — the `DecisionReadModel` row
@@ -109,8 +110,6 @@ export const AdvisoryStatusSchema = z.object({
   __version: z.number(),
 });
 export type AdvisoryStatus = z.infer<typeof AdvisoryStatusSchema>;
-
-import type { ZodTypeAny } from 'zod';
 
 /**
  * Test-fixture event→subject map for advisory-bff's CDC emissions. Co-located with the
