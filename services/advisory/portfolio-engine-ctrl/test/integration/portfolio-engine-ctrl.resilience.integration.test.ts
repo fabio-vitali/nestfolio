@@ -68,11 +68,12 @@ describe('portfolio-engine-ctrl resilience: idempotency', () => {
       const eventId = `idemp-portfolio-${randomUUID()}`;
       const decisionId = `decision-idemp-${randomUUID()}`;
       const taskToken = `task-token-${randomUUID()}`;
-      const payload = {
-        tenantId: ctx.tenantId,
+      const subject = {
         decisionId,
         taskToken,
-        context: {},
+        operatingMode: 'BALANCED',
+        investorProfile: {},
+        marketAnalysis: {},
       };
 
       // First publish
@@ -80,7 +81,8 @@ describe('portfolio-engine-ctrl resilience: idempotency', () => {
         bus: 'advisory',
         targetService: 'portfolio-engine-ctrl',
         detailType: 'CONSTRUCT_PORTFOLIO',
-        detail: payload,
+        subject,
+        context: { tenantId: ctx.tenantId },
         eventId,
       });
 
@@ -111,12 +113,13 @@ describe('portfolio-engine-ctrl resilience: idempotency', () => {
       );
       expect(firstCount).toBeGreaterThanOrEqual(1);
 
-      // Duplicate publish (same eventId, same payload)
+      // Duplicate publish (same eventId, same subject)
       await eb.putEvent({
         bus: 'advisory',
         targetService: 'portfolio-engine-ctrl',
         detailType: 'CONSTRUCT_PORTFOLIO',
-        detail: payload,
+        subject,
+        context: { tenantId: ctx.tenantId },
         eventId,
       });
 
@@ -164,12 +167,14 @@ describe('portfolio-engine-ctrl resilience: order-agnostic pairwise', () => {
         bus: 'advisory',
         targetService: 'portfolio-engine-ctrl',
         detailType: 'CONSTRUCT_PORTFOLIO',
-        detail: {
-          tenantId: ctxA.tenantId,
+        subject: {
           decisionId: decisionIdA,
           taskToken: taskTokenA,
-          context: {},
+          operatingMode: 'BALANCED',
+          investorProfile: {},
+          marketAnalysis: {},
         },
+        context: { tenantId: ctxA.tenantId },
         eventId: `pair-A-cp-evt-${randomUUID()}`,
       });
 
@@ -235,12 +240,14 @@ describe('portfolio-engine-ctrl resilience: order-agnostic pairwise', () => {
           bus: 'advisory',
           targetService: 'portfolio-engine-ctrl',
           detailType: 'CONSTRUCT_PORTFOLIO',
-          detail: {
-            tenantId: ctxB.tenantId,
+          subject: {
             decisionId: decisionIdB,
             taskToken: taskTokenB,
-            context: {},
+            operatingMode: 'BALANCED',
+            investorProfile: {},
+            marketAnalysis: {},
           },
+          context: { tenantId: ctxB.tenantId },
           eventId: `pair-B-cp-evt-${randomUUID()}`,
         });
 

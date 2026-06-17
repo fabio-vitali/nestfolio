@@ -95,6 +95,26 @@ export const DecisionCycleFailedSchema = z.object({
 });
 export type DecisionCycleFailed = z.infer<typeof DecisionCycleFailedSchema>;
 
+/** CONSTRUCT_PORTFOLIO — SF command (decision-state-machine.ts) to portfolio-engine-ctrl.
+ *  DRY subject — tenantId travels in context. Upstream agent outputs are opaque.
+ *  Note: the SF also emits tenantId inside the subject (jsonPath `$.tenantId`) — a
+ *  non-DRY producer emission filed as backlog item dwc-sf-command-subject-tenantid-nondry.
+ *  The schema is DRY (no tenantId) because consumers read identity from context. */
+export const ConstructPortfolioSchema = z.object({
+  decisionId: z.string(),
+  taskToken: z.string(),
+  operatingMode: z.string(),
+  investorProfile: z.record(z.string(), z.unknown()),
+  marketAnalysis: z.record(z.string(), z.unknown()),
+});
+export type ConstructPortfolio = z.infer<typeof ConstructPortfolioSchema>;
+
+/** GENERATE_NARRATIVE — SF command to advisory-narrative-ctrl. Adds the portfolio output. */
+export const GenerateNarrativeSchema = ConstructPortfolioSchema.extend({
+  portfolio: z.record(z.string(), z.unknown()),
+});
+export type GenerateNarrative = z.infer<typeof GenerateNarrativeSchema>;
+
 /**
  * Test-fixture event→subject map for decision-workflow-ctrl's emissions (CDC + SF-direct).
  * RECOMMENDATION_PROPOSED is putEvents'd from the ASL (decision-state-machine.ts),
@@ -102,10 +122,12 @@ export type DecisionCycleFailed = z.infer<typeof DecisionCycleFailedSchema>;
  * for fixtures. Consumed only by `@nestfolio/test-contracts`.
  */
 export const decisionWorkflowEventSubjects = {
-  RECOMMENDATION_PROPOSED: RecommendationProposedSchema,
+  CONSTRUCT_PORTFOLIO: ConstructPortfolioSchema,
+  DECISION_CYCLE_FAILED: DecisionCycleFailedSchema,
+  DECISION_CYCLE_STARTED: DecisionCycleStartedSchema,
   DECISION_PACKET_CREATED: DecisionPacketSchema,
   DECISION_PACKET_UPDATED: DecisionPacketSchema,
+  GENERATE_NARRATIVE: GenerateNarrativeSchema,
   MANDATE_SNAPSHOT_CREATED: MandateSnapshotSchema,
-  DECISION_CYCLE_STARTED: DecisionCycleStartedSchema,
-  DECISION_CYCLE_FAILED: DecisionCycleFailedSchema,
+  RECOMMENDATION_PROPOSED: RecommendationProposedSchema,
 } as const satisfies Record<string, ZodTypeAny>;

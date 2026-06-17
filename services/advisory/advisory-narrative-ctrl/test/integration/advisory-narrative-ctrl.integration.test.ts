@@ -62,12 +62,15 @@ describe('advisory-narrative-ctrl: GENERATE_NARRATIVE → AgentInvocation DDB wr
       bus: 'advisory',
       targetService: 'advisory-narrative-ctrl',
       detailType: 'GENERATE_NARRATIVE',
-      detail: {
-        tenantId: ctx.tenantId,
+      subject: {
         decisionId,
         taskToken: 'integ-task-token',
         operatingMode: 'BALANCED',
+        investorProfile: {},
+        marketAnalysis: {},
+        portfolio: {},
       },
+      context: { tenantId: ctx.tenantId },
     });
 
     // 60 s is architecturally required, NOT a cold-start hedge. The handler
@@ -113,12 +116,15 @@ describe('advisory-narrative-ctrl: GENERATE_NARRATIVE → AgentInvocation DDB wr
       bus: 'advisory',
       targetService: 'advisory-narrative-ctrl',
       detailType: 'GENERATE_NARRATIVE',
-      detail: {
-        tenantId: ctx.tenantId,
+      subject: {
         decisionId,
         taskToken,
         operatingMode: 'BALANCED',
+        investorProfile: {},
+        marketAnalysis: {},
+        portfolio: {},
       },
+      context: { tenantId: ctx.tenantId },
     });
 
     let completion: Record<string, unknown>;

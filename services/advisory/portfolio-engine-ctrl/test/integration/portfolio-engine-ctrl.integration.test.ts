@@ -87,13 +87,14 @@ describe('portfolio-engine-ctrl: CONSTRUCT_PORTFOLIO → AgentInvocation DDB wri
       bus: 'advisory',
       targetService: 'portfolio-engine-ctrl',
       detailType: 'CONSTRUCT_PORTFOLIO',
-      detail: {
-        tenantId: ctx.tenantId,
+      subject: {
         decisionId,
         taskToken: 'integ-task-token',
         operatingMode: 'BALANCED',
-        context: {},
+        investorProfile: {},
+        marketAnalysis: {},
       },
+      context: { tenantId: ctx.tenantId },
     });
 
     // agent-service writes IN_PROGRESS record before invoking the agent pipeline:
@@ -127,16 +128,14 @@ describe('portfolio-engine-ctrl: CONSTRUCT_PORTFOLIO → AgentInvocation DDB wri
       bus: 'advisory',
       targetService: 'portfolio-engine-ctrl',
       detailType: 'CONSTRUCT_PORTFOLIO',
-      detail: {
-        tenantId: ctx.tenantId,
+      subject: {
         decisionId,
         taskToken,
         operatingMode: 'BALANCED',
         investorProfile: { riskScore: 50 },
         marketAnalysis: { signals: [] },
-        pastRationale: [],
-        context: {},
       },
+      context: { tenantId: ctx.tenantId },
     });
 
     // Wait for the AgentCompletion row.

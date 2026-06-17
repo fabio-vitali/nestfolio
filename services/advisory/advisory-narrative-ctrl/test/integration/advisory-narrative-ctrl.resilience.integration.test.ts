@@ -69,11 +69,13 @@ describe('advisory-narrative-ctrl resilience: idempotency', () => {
 
       const eventId = `idemp-narrative-${randomUUID()}`;
       const decisionId = `decision-idemp-${randomUUID()}`;
-      const payload = {
-        tenantId: ctx.tenantId,
+      const subject = {
         decisionId,
         taskToken: `task-token-${randomUUID()}`,
-        context: {},
+        operatingMode: 'BALANCED',
+        investorProfile: {},
+        marketAnalysis: {},
+        portfolio: {},
       };
 
       // First publish
@@ -81,7 +83,8 @@ describe('advisory-narrative-ctrl resilience: idempotency', () => {
         bus: 'advisory',
         targetService: 'advisory-narrative-ctrl',
         detailType: 'GENERATE_NARRATIVE',
-        detail: payload,
+        subject,
+        context: { tenantId: ctx.tenantId },
         eventId,
       });
 
@@ -109,12 +112,13 @@ describe('advisory-narrative-ctrl resilience: idempotency', () => {
       );
       expect(firstCount).toBeGreaterThanOrEqual(1);
 
-      // Duplicate publish (same eventId)
+      // Duplicate publish (same eventId, same subject)
       await eb.putEvent({
         bus: 'advisory',
         targetService: 'advisory-narrative-ctrl',
         detailType: 'GENERATE_NARRATIVE',
-        detail: payload,
+        subject,
+        context: { tenantId: ctx.tenantId },
         eventId,
       });
 
@@ -159,12 +163,15 @@ describe('advisory-narrative-ctrl resilience: order-agnostic pairwise', () => {
         bus: 'advisory',
         targetService: 'advisory-narrative-ctrl',
         detailType: 'GENERATE_NARRATIVE',
-        detail: {
-          tenantId: ctxA.tenantId,
+        subject: {
           decisionId: decisionIdA,
           taskToken: `task-token-A-${randomUUID()}`,
-          context: {},
+          operatingMode: 'BALANCED',
+          investorProfile: {},
+          marketAnalysis: {},
+          portfolio: {},
         },
+        context: { tenantId: ctxA.tenantId },
         eventId: `pair-A-narr-evt-${randomUUID()}`,
       });
 
@@ -228,12 +235,15 @@ describe('advisory-narrative-ctrl resilience: order-agnostic pairwise', () => {
           bus: 'advisory',
           targetService: 'advisory-narrative-ctrl',
           detailType: 'GENERATE_NARRATIVE',
-          detail: {
-            tenantId: ctxB.tenantId,
+          subject: {
             decisionId: decisionIdB,
             taskToken: `task-token-B-${randomUUID()}`,
-            context: {},
+            operatingMode: 'BALANCED',
+            investorProfile: {},
+            marketAnalysis: {},
+            portfolio: {},
           },
+          context: { tenantId: ctxB.tenantId },
           eventId: `pair-B-narr-evt-${randomUUID()}`,
         });
 
