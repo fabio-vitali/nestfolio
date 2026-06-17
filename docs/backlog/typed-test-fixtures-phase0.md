@@ -1,6 +1,6 @@
 ---
 id: typed-test-fixtures-phase0
-status: active
+status: shipped
 epic: typed-test-fixtures
 epic_role: core
 type: feature
@@ -15,7 +15,7 @@ out_of_scope:
 spec: docs/superpowers/specs/2026-06-16-typed-test-fixtures-design.md
 plan: docs/superpowers/plans/2026-06-16-typed-test-fixtures-phase0.md
 topic_memory: [project_event_subject_contracts.md]
-validation_gate: null
+validation_gate: "SHIPPED 2026-06-17 (branch worktree-typed-test-fixtures-phase0, 16 commits 0c11fdd0..0b62f8f0). MECHANISM: libs/test-contracts registry (EventSubjects/RegisteredEventName/SubjectOf) + producer maps (mandateEventSubjects, decisionWorkflowEventSubjects); test-support putEvent typed overload + runtime parse backstop (put-event-backstop.test.ts 2/2) + @ts-expect-error type-tests (test-support:typecheck green, 4 negative guards fire); integration-testing waitForItem<T>; tools/check-typed-fixtures.mjs gate wired into verify-structure.sh Check 9 (self-test proves it fails on legacy detail:). SHARED-INFRA (user-approved): @nestfolio/* Jest resolution centralized in jest.preset.js (pathsToModuleNameMapper, absolute prefix, 368c84be) — nx run-many -t test 47/48, affected test+lint exit 0 (only known agent-orchestrator @smithy worktree-symlink false-FAIL). BUG A FIXED+VALIDATED: compliance-ctrl integration GREEN vs deployed dev 15/15, 2 suites (bccaa10c+a66ab5b1). BUG B parseSubject ZodError FIXED (7d003f17): update-operating-mode e2e now PRODUCES a ComplianceCheck (no timeout); real producer emits isInitialBuild+riskCategory (decision-state-machine.ts L226-227 — no producer gap). DONE-DEFINITION CAVEAT: the e2e's deeper L1 assertion is NOT green — blocked by a SEPARATE co-wrong onboarding fixture (mandateLevel stripped by OnboardingCompletedRecordSchema → e2e tenants forced level=ADVISORY → L2), filed as onboarding-mandatelevel-contract-gap (queued rank 1, epic core member) per the epic's test-layer-only out_of_scope; shipped with that blocker filed per user direction. NO DEPLOY: only inert test-fixture registry exports + test infra changed; gates ran against existing deployed dev."
 ---
 
 # Phase 0 — mechanism + compliance-ctrl retrofit (fixes Bug A + Bug B)
@@ -35,3 +35,47 @@ compile-then-corrected errors:
 
 Validated by: the mechanism's type-tests + the compliance-ctrl integration suite and the
 update-operating-mode e2e going green against deployed dev.
+
+## Phase 0 ship (2026-06-17)
+
+**Delivered — the reusable typed-fixture mechanism (spec §3):**
+- `libs/test-contracts` composes producer event→schema maps into a typed `EventSubjects` registry
+  (`RegisteredEventName` / `SubjectOf<K>`); producers export the maps (`mandateEventSubjects` in
+  investor-adpt/domain, `decisionWorkflowEventSubjects` in decision-workflow-ctrl/contracts).
+- `test-support` `EventBridgeClient.putEvent` gained a typed overload (`detailType: K`,
+  `subject: SubjectOf<K>`, `context?: TestEventContext`) beside the **retained** legacy `detail:`
+  overload (so the ~280 unmigrated call-sites still compile), with a runtime `schema.parse()` backstop.
+  Compile-error type-tests (`@ts-expect-error`) pinned via `test-support:typecheck`.
+- `integration-testing` `waitForItem<T>` made generic (backward-compatible default).
+- Regression gate `tools/check-typed-fixtures.mjs` forbids legacy `detail:` / `.subject as` in migrated
+  dirs (Phase 0: compliance-ctrl/test), wired into `verify-structure.sh` Check 9.
+- **Shared-infra bonus (user-approved architectural decision):** `@nestfolio/*` Jest resolution
+  centralized in `jest.preset.js` via `pathsToModuleNameMapper` (absolute prefix) — unblocked
+  `test-contracts` in every consumer and ended the per-project `moduleNameMapper` sprawl for the
+  remaining phases.
+
+**Bug triage (spec §7 — count + (a)/(b) split, no silent truncation):**
+- **Bug A** (compliance-ctrl integration + resilience mandate fixtures: per-test `userId` in subject) —
+  **case (a) fixture-only**. Migrated identity to `context`; subject typed DRY. Validated:
+  compliance-ctrl integration GREEN vs deployed dev (15/15).
+- **Bug B** (update-operating-mode e2e RECOMMENDATION_PROPOSED omits isInitialBuild/riskCategory) —
+  **case (a) fixture-only**. Real producer emits both (decision-state-machine.ts L226-227) → **no
+  producer gap to file**. Fixed; the e2e now produces a `ComplianceCheck` instead of timing out.
+- **Discovered during validation (case a, OUT of Phase-0 scope)** — the e2e's *deeper* L1 assertion is
+  blocked by a **separate** co-wrong onboarding fixture: `mandateLevel` is stripped by
+  `OnboardingCompletedRecordSchema`, so every `e2e-` tenant is forced to `level=ADVISORY` and
+  compliance returns L2 regardless of operatingMode (deployed-dev evidence: ComplianceCheck
+  `mandateSnapshot.level=ADVISORY`, `operatingMode=AGGRESSIVE`, `violations=[]`). Filed as
+  **`onboarding-mandatelevel-contract-gap`** (queued rank 1, epic `core` member). Proper fix is a
+  production schema+transform change — deferred per the epic's test-layer-only `out_of_scope`; it is
+  exactly what typing the onboarding fixture in **Phase 1 (Investor)** will surface as a compile error.
+
+**Done-definition note:** mechanism + Bug A (green) + Bug B (parseSubject fixed, ComplianceCheck now
+produced) delivered. The `done_when` "update-operating-mode e2e GREEN end-to-end" is **not** met — the
+residual L1 assertion is blocked by the filed onboarding finding, not by Bug B. Shipped with that
+blocker filed+queued per user direction (the e2e-green clause was predicated on Bug B being the only
+blocker; a second, independent, out-of-scope blocker was discovered and filed).
+
+**No deploy:** the only production-src changes are behaviorally-inert test-fixture registry exports
+(investor-adpt, decision-workflow-ctrl); everything else is test infra. Both validation gates ran
+against existing deployed dev.
