@@ -160,9 +160,7 @@ describe('investor-bff', () => {
         bus: 'investor',
         targetService: 'investor-bff',
         detailType: 'NOTIFICATION_CREATED',
-        detail: {
-          tenantId: ctx.tenantId,
-          userId,
+        subject: {
           notificationId,
           channel: 'IN_APP',
           title: 'Integration test notification',
@@ -170,6 +168,7 @@ describe('investor-bff', () => {
           relatedEntityType: 'Goal',
           relatedEntityId: 'goal-123',
         },
+        context: { tenantId: ctx.tenantId, userId },
       });
 
       // record('Notification', ...) with overrides → pk: InvestorProfile#<tenantId>#<userId>, sk: Notification#<notificationId>
@@ -218,9 +217,7 @@ describe('investor-bff', () => {
         bus: 'investor',
         targetService: 'investor-bff',
         detailType: 'ONBOARDING_COMPLETED',
-        detail: {
-          tenantId: ctx.tenantId,
-          userId,
+        subject: {
           email: `${userId}@integ-onboarding.example`,
           goal: { objective: 'GROWTH' },
           horizonYears: 10,
@@ -232,6 +229,7 @@ describe('investor-bff', () => {
           operatingMode: 'BALANCED',
           mandateAccepted: true,
         },
+        context: { tenantId: ctx.tenantId, userId },
       });
 
       // Wait for the composite InvestorProfile row's `mandateId` field to appear
@@ -877,9 +875,7 @@ describe('investor-bff', () => {
         bus: 'investor',
         targetService: 'investor-bff',
         detailType: 'NOTIFICATION_CREATED',
-        detail: {
-          tenantId: ctx.tenantId,
-          userId: cognitoSub,
+        subject: {
           notificationId,
           channel: 'IN_APP',
           title: 'Test notification',
@@ -887,6 +883,7 @@ describe('investor-bff', () => {
           relatedEntityType: 'Goal',
           relatedEntityId: 'goal-xyz',
         },
+        context: { tenantId: ctx.tenantId, userId: cognitoSub },
       });
 
       // Wait for notification to materialize
