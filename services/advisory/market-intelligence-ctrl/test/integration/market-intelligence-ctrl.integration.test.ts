@@ -164,7 +164,7 @@ describe('market-intelligence-ctrl: snapshot materialisation + CDC', () => {
       bus: 'advisory',
       targetService: 'market-intelligence-ctrl',
       detailType: 'MARKET_SNAPSHOT_REFRESH_TICK',
-      detail: { region },
+      subject: { region },
     });
 
     let after: Record<string, unknown>;
