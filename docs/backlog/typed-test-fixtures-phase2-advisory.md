@@ -17,7 +17,7 @@ out_of_scope:
   - "Investor / Execution / Ledger domain fixtures (Phases 1, 3, 4)"
   - "Production contract/producer/consumer changes (test layer only); latent contract bugs surfaced are filed separately (spec §7)"
 spec: docs/superpowers/specs/2026-06-16-typed-test-fixtures-design.md
-plan: null
+plan: docs/superpowers/plans/2026-06-17-typed-test-fixtures-phase2-advisory.md
 topic_memory: [project_event_subject_contracts.md]
 validation_gate: null
 ---
