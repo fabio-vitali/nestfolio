@@ -164,6 +164,13 @@ compiler surfaces.
   bypass the tag-based `depConstraints`, so `test-contracts`/`test-support` (libs) and service test
   files may import producer schemas with no violation. Precedent: 11 test files already import
   `@nestfolio/<svc>/{contracts,domain}` and lint clean.
+  - **CORRECTION (Phase 0, 2026-06-17):** this analysis covered the tag-based `depConstraints` but
+    **missed the separate circular-dependency rule**. Because `test-support` depends on `test-contracts`,
+    and `test-contracts` imports producer-service `/contracts` whose *tests* import `test-support` (and
+    producers reference each other, e.g. `decision-workflow-ctrl` ← `compliance-ctrl`), nx flags a
+    **test-only** cycle (production graph is acyclic — these libs are never bundled). Resolved once for
+    all phases with `ignoredCircularDependencies: [['test-contracts', '*']]` in `eslint.config.js`. NB:
+    the nx cache masks this — verify fixture-touching lint with `--skip-nx-cache`.
 - **typed-subject C2 gate:** `check-typed-subjects.mjs` is scoped to `services/**/src + libs/**/src`
   and excludes `.test.ts`/`.spec.ts` + test dirs, so fixtures importing producer schemas cross-domain
   do not trip cross-domain-import. (Consequence: the home rule in fixtures is convention-only unless
