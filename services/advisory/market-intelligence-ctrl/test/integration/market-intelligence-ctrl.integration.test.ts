@@ -79,7 +79,7 @@ describe('market-intelligence-ctrl: snapshot materialisation + CDC', () => {
 
     // b(1): producer schema is { ticker, source, articles } — no region/tickers array.
     // MI-ctrl reads subject.region ?? process.env.AWS_REGION as its snapshot key.
-    // Filed: backlog typed-fixtures-advisory-b-yahoofinance-mi (see task-7-report).
+    // Filed: backlog yahoo-finance-mi-ctrl-subject-region-dead-code (see task-7-report).
     await eb.putEvent({
       bus: 'advisory',
       targetService: 'market-intelligence-ctrl',
