@@ -70,7 +70,8 @@ describe('fred-adpt (mocked)', () => {
       bus: 'advisory',
       targetService: 'fred-adpt',
       detailType: 'FETCH_FRED_REQUESTED',
-      detail: {},
+      subject: {},
+      context: { tenantId: 'SYSTEM' },
     });
 
     const item = await table.waitForItem({
@@ -90,7 +91,8 @@ describe('fred-adpt (mocked)', () => {
       bus: 'advisory',
       targetService: 'fred-adpt',
       detailType: 'FETCH_FRED_REQUESTED',
-      detail: {},
+      subject: {},
+      context: { tenantId: 'SYSTEM' },
     });
 
     const items = await table.queryItems({

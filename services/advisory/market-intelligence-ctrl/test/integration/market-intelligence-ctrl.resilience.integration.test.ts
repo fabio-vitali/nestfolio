@@ -60,11 +60,12 @@ describe('market-intelligence-ctrl resilience: idempotency', () => {
       const eventId = `resilience-yahoo-${randomUUID()}`;
 
       // First publish
+      // b(1): producer schema is { ticker, source, articles } — see task-7-report.
       await eb.putEvent({
         bus: 'advisory',
         targetService: 'market-intelligence-ctrl',
         detailType: 'YAHOO_FINANCE_UPDATED',
-        detail: { region, tickers: ['SPY'] },
+        subject: { ticker: 'SPY', source: 'yahoo-finance' as const, articles: [] },
         eventId,
       });
 
@@ -93,7 +94,7 @@ describe('market-intelligence-ctrl resilience: idempotency', () => {
         bus: 'advisory',
         targetService: 'market-intelligence-ctrl',
         detailType: 'YAHOO_FINANCE_UPDATED',
-        detail: { region, tickers: ['SPY'] },
+        subject: { ticker: 'SPY', source: 'yahoo-finance' as const, articles: [] },
         eventId,
       });
 
@@ -131,7 +132,7 @@ describe('market-intelligence-ctrl resilience: order-agnostic pairwise', () => {
         bus: 'advisory',
         targetService: 'market-intelligence-ctrl',
         detailType: 'YAHOO_FINANCE_UPDATED',
-        detail: { region, tickers: ['VTI'] },
+        subject: { ticker: 'VTI', source: 'yahoo-finance' as const, articles: [] },
         eventId: `pair-A-feed-${randomUUID()}`,
       });
       try {
@@ -185,7 +186,7 @@ describe('market-intelligence-ctrl resilience: order-agnostic pairwise', () => {
           bus: 'advisory',
           targetService: 'market-intelligence-ctrl',
           detailType: 'YAHOO_FINANCE_UPDATED',
-          detail: { region, tickers: ['VEA'] },
+          subject: { ticker: 'VEA', source: 'yahoo-finance' as const, articles: [] },
           eventId: `pair-B-feed-${randomUUID()}`,
         });
         try {

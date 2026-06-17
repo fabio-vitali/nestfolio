@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import type { ZodTypeAny } from 'zod';
 
 /**
  * YahooFinanceArticle subject — the `YahooFinanceArticle` row (pk='YahooFinance#SYSTEM',
@@ -13,3 +14,11 @@ export const YahooFinanceArticleSchema = z.object({
 });
 
 export type YahooFinanceArticle = z.infer<typeof YahooFinanceArticleSchema>;
+
+/** Inbound fetch trigger — empty subject (fetch-trigger.ts emits subject:{}). */
+export const FetchRequestedSchema = z.object({});
+
+export const yahooFinanceAdptEventSubjects = {
+  FETCH_YAHOO_FINANCE_REQUESTED: FetchRequestedSchema,
+  YAHOO_FINANCE_UPDATED: YahooFinanceArticleSchema,
+} as const satisfies Record<string, ZodTypeAny>;

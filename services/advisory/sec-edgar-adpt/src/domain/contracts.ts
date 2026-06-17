@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import type { ZodTypeAny } from 'zod';
 
 /**
  * SecFiling subject — the `SecFiling` row (pk=`SecFiling#${cik}`, sk=`Filing#${accessionNumber}`),
@@ -17,3 +18,13 @@ export const SecFilingSchema = z.object({
 });
 
 export type SecFiling = z.infer<typeof SecFilingSchema>;
+
+/** Inbound fetch trigger — empty subject (fetch-trigger.ts emits subject:{}). */
+export const FetchRequestedSchema = z.object({});
+
+export const secEdgarAdptEventSubjects = {
+  FETCH_SEC_EDGAR_REQUESTED: FetchRequestedSchema,
+  SEC_8K_FILED: SecFilingSchema,
+  SEC_PROSPECTUS_UPDATED: SecFilingSchema,
+  SEC_10K_UPDATED: SecFilingSchema,
+} as const satisfies Record<string, ZodTypeAny>;

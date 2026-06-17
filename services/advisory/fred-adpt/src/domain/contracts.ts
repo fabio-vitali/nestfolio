@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import type { ZodTypeAny } from 'zod';
 
 /**
  * FredIndicator subject — the `FredIndicator` row (pk='Fred#SYSTEM', sk=`Indicator#${seriesId}`),
@@ -13,3 +14,11 @@ export const FredIndicatorSchema = z.object({
 });
 
 export type FredIndicator = z.infer<typeof FredIndicatorSchema>;
+
+/** Inbound fetch trigger — empty subject (fetch-trigger.ts emits subject:{}). */
+export const FetchRequestedSchema = z.object({});
+
+export const fredAdptEventSubjects = {
+  FETCH_FRED_REQUESTED: FetchRequestedSchema,
+  FRED_INDICATORS_UPDATED: FredIndicatorSchema,
+} as const satisfies Record<string, ZodTypeAny>;

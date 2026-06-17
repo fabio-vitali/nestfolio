@@ -74,7 +74,8 @@ describe('sec-edgar-adpt (mocked)', () => {
       bus: 'advisory',
       targetService: 'sec-edgar-adpt',
       detailType: 'FETCH_SEC_EDGAR_REQUESTED',
-      detail: {},
+      subject: {},
+      context: { tenantId: 'SYSTEM' },
     });
 
     const item = await table.waitForItem({
@@ -94,7 +95,8 @@ describe('sec-edgar-adpt (mocked)', () => {
       bus: 'advisory',
       targetService: 'sec-edgar-adpt',
       detailType: 'FETCH_SEC_EDGAR_REQUESTED',
-      detail: {},
+      subject: {},
+      context: { tenantId: 'SYSTEM' },
     });
 
     const item = await table.waitForItem({
@@ -113,7 +115,8 @@ describe('sec-edgar-adpt (mocked)', () => {
       bus: 'advisory',
       targetService: 'sec-edgar-adpt',
       detailType: 'FETCH_SEC_EDGAR_REQUESTED',
-      detail: {},
+      subject: {},
+      context: { tenantId: 'SYSTEM' },
     });
 
     const item = await table.waitForItem({

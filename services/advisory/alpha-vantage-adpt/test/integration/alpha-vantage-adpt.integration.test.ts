@@ -74,7 +74,8 @@ describe('alpha-vantage-adpt (mocked)', () => {
       bus: 'advisory',
       targetService: 'alpha-vantage-adpt',
       detailType: 'FETCH_ALPHA_VANTAGE_REQUESTED',
-      detail: {},
+      subject: {},
+      context: { tenantId: 'SYSTEM' },
     });
 
     // Verify DDB write
@@ -96,7 +97,8 @@ describe('alpha-vantage-adpt (mocked)', () => {
       bus: 'advisory',
       targetService: 'alpha-vantage-adpt',
       detailType: 'FETCH_ALPHA_VANTAGE_REQUESTED',
-      detail: {},
+      subject: {},
+      context: { tenantId: 'SYSTEM' },
     });
 
     const event = await trap.waitForEvent({

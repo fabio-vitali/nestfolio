@@ -70,7 +70,8 @@ describe('marketwatch-adpt (mocked)', () => {
       bus: 'advisory',
       targetService: 'marketwatch-adpt',
       detailType: 'FETCH_MARKETWATCH_REQUESTED',
-      detail: {},
+      subject: {},
+      context: { tenantId: 'SYSTEM' },
     });
 
     const item = await table.waitForItem({
@@ -90,7 +91,8 @@ describe('marketwatch-adpt (mocked)', () => {
       bus: 'advisory',
       targetService: 'marketwatch-adpt',
       detailType: 'FETCH_MARKETWATCH_REQUESTED',
-      detail: {},
+      subject: {},
+      context: { tenantId: 'SYSTEM' },
     });
 
     const event = await trap.waitForEvent<BusEventPayload>({ timeoutMs: 60_000 });
@@ -103,7 +105,8 @@ describe('marketwatch-adpt (mocked)', () => {
       bus: 'advisory',
       targetService: 'marketwatch-adpt',
       detailType: 'FETCH_MARKETWATCH_REQUESTED',
-      detail: {},
+      subject: {},
+      context: { tenantId: 'SYSTEM' },
     });
 
     await table.waitForItem({

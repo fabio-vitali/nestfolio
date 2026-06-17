@@ -77,11 +77,14 @@ describe('market-intelligence-ctrl: snapshot materialisation + CDC', () => {
     const eventId1 = `yahoo-feed-1-${randomUUID()}`;
     const eventId2 = `yahoo-feed-2-${randomUUID()}`;
 
+    // b(1): producer schema is { ticker, source, articles } — no region/tickers array.
+    // MI-ctrl reads subject.region ?? process.env.AWS_REGION as its snapshot key.
+    // Filed: backlog typed-fixtures-advisory-b-yahoofinance-mi (see task-7-report).
     await eb.putEvent({
       bus: 'advisory',
       targetService: 'market-intelligence-ctrl',
       detailType: 'YAHOO_FINANCE_UPDATED',
-      detail: { region, tickers: ['SPY', 'AAPL'] },
+      subject: { ticker: 'SPY', source: 'yahoo-finance' as const, articles: [] },
       eventId: eventId1,
     });
 
@@ -118,7 +121,7 @@ describe('market-intelligence-ctrl: snapshot materialisation + CDC', () => {
       bus: 'advisory',
       targetService: 'market-intelligence-ctrl',
       detailType: 'YAHOO_FINANCE_UPDATED',
-      detail: { region, tickers: ['QQQ'] },
+      subject: { ticker: 'QQQ', source: 'yahoo-finance' as const, articles: [] },
       eventId: eventId2,
     });
 
@@ -202,7 +205,7 @@ describe('market-intelligence-ctrl: snapshot materialisation + CDC', () => {
       bus: 'advisory',
       targetService: 'market-intelligence-ctrl',
       detailType: 'YAHOO_FINANCE_UPDATED',
-      detail: { region, tickers: ['DIA'] },
+      subject: { ticker: 'DIA', source: 'yahoo-finance' as const, articles: [] },
       eventId,
     });
 
@@ -232,7 +235,7 @@ describe('market-intelligence-ctrl: snapshot materialisation + CDC', () => {
       bus: 'advisory',
       targetService: 'market-intelligence-ctrl',
       detailType: 'YAHOO_FINANCE_UPDATED',
-      detail: { region, tickers: ['DIA'] },
+      subject: { ticker: 'DIA', source: 'yahoo-finance' as const, articles: [] },
       eventId,
     });
 

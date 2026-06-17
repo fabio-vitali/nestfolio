@@ -9,6 +9,11 @@ import { portfolioEngineCtrlEventSubjects } from '@nestfolio/portfolio-engine-ct
 import { advisoryNarrativeCtrlEventSubjects } from '@nestfolio/advisory-narrative-ctrl/contracts';
 import { investorProfileCtrlEventSubjects } from '@nestfolio/investor-profile-ctrl/contracts';
 import { marketIntelligenceCtrlEventSubjects } from '@nestfolio/market-intelligence-ctrl/contracts';
+import { yahooFinanceAdptEventSubjects } from '@nestfolio/yahoo-finance-adpt/contracts';
+import { secEdgarAdptEventSubjects } from '@nestfolio/sec-edgar-adpt/contracts';
+import { alphaVantageAdptEventSubjects } from '@nestfolio/alpha-vantage-adpt/contracts';
+import { fredAdptEventSubjects } from '@nestfolio/fred-adpt/contracts';
+import { marketwatchAdptEventSubjects } from '@nestfolio/marketwatch-adpt/contracts';
 
 /**
  * The single typed registry of `event detailType → producer subject schema`, composed
@@ -30,6 +35,11 @@ export const EventSubjects = {
   ...advisoryNarrativeCtrlEventSubjects,
   ...investorProfileCtrlEventSubjects,
   ...marketIntelligenceCtrlEventSubjects,
+  ...yahooFinanceAdptEventSubjects,
+  ...secEdgarAdptEventSubjects,
+  ...alphaVantageAdptEventSubjects,
+  ...fredAdptEventSubjects,
+  ...marketwatchAdptEventSubjects,
 } as const satisfies Record<string, ZodTypeAny>;
 
 /** Union of all registered event names (detailTypes). */

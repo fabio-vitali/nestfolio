@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import type { ZodTypeAny } from 'zod';
 
 /**
  * MarketWatchArticle subject — the `MarketWatchArticle` row (pk='MarketWatch#SYSTEM',
@@ -13,3 +14,11 @@ export const MarketWatchArticleSchema = z.object({
 });
 
 export type MarketWatchArticle = z.infer<typeof MarketWatchArticleSchema>;
+
+/** Inbound fetch trigger — empty subject (fetch-trigger.ts emits subject:{}). */
+export const FetchRequestedSchema = z.object({});
+
+export const marketwatchAdptEventSubjects = {
+  FETCH_MARKETWATCH_REQUESTED: FetchRequestedSchema,
+  MARKETWATCH_UPDATED: MarketWatchArticleSchema,
+} as const satisfies Record<string, ZodTypeAny>;

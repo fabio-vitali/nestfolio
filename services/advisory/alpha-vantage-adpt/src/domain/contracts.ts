@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import type { ZodTypeAny } from 'zod';
 
 /**
  * AlphaVantageArticle subject — the `AlphaVantageArticle` row
@@ -33,3 +34,12 @@ export const EconomicIndicatorSchema = z.object({
 });
 
 export type EconomicIndicator = z.infer<typeof EconomicIndicatorSchema>;
+
+/** Inbound fetch trigger — empty subject (fetch-trigger.ts emits subject:{}). */
+export const FetchRequestedSchema = z.object({});
+
+export const alphaVantageAdptEventSubjects = {
+  ALPHA_VANTAGE_ECONOMIC_INDICATOR_UPDATED: EconomicIndicatorSchema,
+  ALPHA_VANTAGE_NEWS_UPDATED: AlphaVantageArticleSchema,
+  FETCH_ALPHA_VANTAGE_REQUESTED: FetchRequestedSchema,
+} as const satisfies Record<string, ZodTypeAny>;

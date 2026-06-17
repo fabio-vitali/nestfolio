@@ -56,7 +56,8 @@ describe('yahoo-finance-adpt (mocked)', () => {
       bus: 'advisory',
       targetService: 'yahoo-finance-adpt',
       detailType: 'FETCH_YAHOO_FINANCE_REQUESTED',
-      detail: {},
+      subject: {},
+      context: { tenantId: 'SYSTEM' },
     });
 
     const item = await table.waitForItem({
@@ -76,7 +77,8 @@ describe('yahoo-finance-adpt (mocked)', () => {
       bus: 'advisory',
       targetService: 'yahoo-finance-adpt',
       detailType: 'FETCH_YAHOO_FINANCE_REQUESTED',
-      detail: {},
+      subject: {},
+      context: { tenantId: 'SYSTEM' },
     });
 
     await table.waitForItem({
@@ -100,7 +102,8 @@ describe('yahoo-finance-adpt (mocked)', () => {
       bus: 'advisory',
       targetService: 'yahoo-finance-adpt',
       detailType: 'FETCH_YAHOO_FINANCE_REQUESTED',
-      detail: {},
+      subject: {},
+      context: { tenantId: 'SYSTEM' },
     });
 
     const event = await trap.waitForEvent<BusEventPayload>({ timeoutMs: 60_000 });

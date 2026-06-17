@@ -473,7 +473,8 @@ describe('advisory-domain producer contracts — feed-fetch (REAL external APIs)
         bus: 'advisory',
         targetService: 'sec-edgar-adpt',
         detailType: 'FETCH_SEC_EDGAR_REQUESTED',
-        detail: {},
+        subject: {},
+        context: { tenantId: 'SYSTEM' },
       });
 
       // SEC EDGAR is real — allow generous deadline.
@@ -515,7 +516,8 @@ describe('advisory-domain producer contracts — feed-fetch (REAL external APIs)
         bus: 'advisory',
         targetService: 'fred-adpt',
         detailType: 'FETCH_FRED_REQUESTED',
-        detail: {},
+        subject: {},
+        context: { tenantId: 'SYSTEM' },
       });
 
       const rows = await pollFor('FredIndicator', async () => {
@@ -553,7 +555,8 @@ describe('advisory-domain producer contracts — feed-fetch (REAL external APIs)
         bus: 'advisory',
         targetService: 'marketwatch-adpt',
         detailType: 'FETCH_MARKETWATCH_REQUESTED',
-        detail: {},
+        subject: {},
+        context: { tenantId: 'SYSTEM' },
       });
 
       const rows = await pollFor('MarketWatchArticle', async () => {
@@ -593,7 +596,8 @@ describe('advisory-domain producer contracts — feed-fetch (REAL external APIs)
         bus: 'advisory',
         targetService: 'yahoo-finance-adpt',
         detailType: 'FETCH_YAHOO_FINANCE_REQUESTED',
-        detail: {},
+        subject: {},
+        context: { tenantId: 'SYSTEM' },
       });
 
       const rows = await pollFor('YahooFinanceArticle', async () => {
@@ -635,7 +639,8 @@ describe('advisory-domain producer contracts — feed-fetch (REAL external APIs)
         bus: 'advisory',
         targetService: 'alpha-vantage-adpt',
         detailType: 'FETCH_ALPHA_VANTAGE_REQUESTED',
-        detail: {},
+        subject: {},
+        context: { tenantId: 'SYSTEM' },
       });
 
       // Wait for at least one row of each type to appear. The adapter writes BOTH

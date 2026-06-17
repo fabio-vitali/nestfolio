@@ -161,7 +161,6 @@ describe('portfolio-engine-ctrl resilience: order-agnostic pairwise', () => {
 
       const decisionIdA = `pair-A-decision-${randomUUID()}`;
       const taskTokenA = `task-token-A-${randomUUID()}`;
-      const filingIdA = `pair-A-filing-${randomUUID()}`;
 
       await ebA.putEvent({
         bus: 'advisory',
@@ -191,13 +190,21 @@ describe('portfolio-engine-ctrl resilience: order-agnostic pairwise', () => {
         );
       }
 
+      // b(2): producer schema is SecFilingSchema { cik, issuer, formType, filingDate, accessionNumber, body, source, fetchedAt }
+      // Old fixture had { filingId, content } — wrong fields; filed: backlog typed-fixtures-advisory-b-secprospectus-pe (see task-7-report).
       await ebA.putEvent({
         bus: 'advisory',
         targetService: 'portfolio-engine-ctrl',
         detailType: 'SEC_PROSPECTUS_UPDATED',
-        detail: {
-          filingId: filingIdA,
-          content: 'Test prospectus content for resilience test',
+        subject: {
+          cik: '0000088053',
+          issuer: 'Vanguard Group Inc',
+          formType: '485BPOS',
+          filingDate: '2024-01-15',
+          accessionNumber: `0000088053-24-${randomUUID().replace(/-/g, '').slice(0, 6)}`,
+          body: 'Test prospectus content for resilience test',
+          source: 'sec-edgar' as const,
+          fetchedAt: new Date().toISOString(),
         },
         eventId: `pair-A-sec-evt-${randomUUID()}`,
       });
@@ -220,15 +227,20 @@ describe('portfolio-engine-ctrl resilience: order-agnostic pairwise', () => {
 
         const decisionIdB = `pair-B-decision-${randomUUID()}`;
         const taskTokenB = `task-token-B-${randomUUID()}`;
-        const filingIdB = `pair-B-filing-${randomUUID()}`;
 
         await ebB.putEvent({
           bus: 'advisory',
           targetService: 'portfolio-engine-ctrl',
           detailType: 'SEC_PROSPECTUS_UPDATED',
-          detail: {
-            filingId: filingIdB,
-            content: 'Test prospectus content for resilience test',
+          subject: {
+            cik: '0000088053',
+            issuer: 'Vanguard Group Inc',
+            formType: '485BPOS',
+            filingDate: '2024-01-15',
+            accessionNumber: `0000088053-24-${randomUUID().replace(/-/g, '').slice(0, 6)}`,
+            body: 'Test prospectus content for resilience test',
+            source: 'sec-edgar' as const,
+            fetchedAt: new Date().toISOString(),
           },
           eventId: `pair-B-sec-evt-${randomUUID()}`,
         });
