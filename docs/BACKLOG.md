@@ -8,8 +8,9 @@
 
 ### [typed-test-fixtures](backlog/typed-test-fixtures.md) `[epic · active]` — Type-check every test fixture (unit/integration/e2e) against the producer-owned zod contracts so co-wrong fixtures are COMPILE errors (+ a runtime parse backstop), closing the [[event-subject-contracts]] 'fixture passed, real producer differed' gap workspace-wide. Promoted to active delivery epic 2026-06-16; first member typed-test-fixtures-phase0 in flight. Design: docs/superpowers/specs/2026-06-16-typed-test-fixtures-design.md. Motivated by two pre-existing co-wrong fixtures surfaced validating compliance-ctrl-mandate-snapshot-parse-subject (Bug A: identity-in-subject integration fixtures; Bug B: e2e RECOMMENDATION_PROPOSED missing required fields).
 done_when: Mechanism shipped (producer event->schema maps + composed registry + typed putEvent with per-call context override + runtime parse backstop + typed TableAssertions); all ~290 putEvent call-sites across the 4 domains migrated to the typed API; every surfaced co-wrong fixture fixed or its latent contract bug filed; regression gate forbids untyped putEvent in migrated domains. Every core member shipped or dropped.
-rollup: core 0/1 done · captured 0/0 done
+rollup: core 0/2 done · captured 0/0 done
 - core · active · [typed-test-fixtures-phase0](backlog/typed-test-fixtures-phase0.md)
+- core · queued · [onboarding-mandatelevel-contract-gap](backlog/onboarding-mandatelevel-contract-gap.md)
 
 ### [ci-pipeline](backlog/ci-pipeline.md) `[epic · parking]` — CI has never run green; bring the pipeline up end-to-end (umbrella + its rehearsal last-step). Theme epic, 2 members.
 done_when: The PR + post-merge CI pipeline runs green end-to-end at least once (the bring-up is real, not theatre); both members shipped or dropped.
@@ -56,8 +57,7 @@ rollup: core 0/2 done · captured 0/0 done
 
 ## QUEUED
 
-_(none)_
-
+1. [onboarding-mandatelevel-contract-gap](backlog/onboarding-mandatelevel-contract-gap.md) [bug] — ONBOARDING_COMPLETED drops mandateLevel → every e2e tenant forced to level=ADVISORY → update-operating-mode e2e stuck at L2 (blocks e2e green) `[epic:typed-test-fixtures · core]`
 
 ## LATER
 
