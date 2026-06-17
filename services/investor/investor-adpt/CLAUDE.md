@@ -38,6 +38,7 @@ Producer-owned zod payload contracts, re-exported via the `/domain` barrel (cons
 - MandateSchema / Mandate — MANDATE_ISSUED / MANDATE_REVOKED / OPERATING_MODE_CHANGED subject (the Mandate sibling row, sk='Mandate', from investor-bff); consumed cross-domain by compliance-ctrl (advisory). OPERATING_MODE_CHANGED is re-sourced from it.
 - ExecutionModeChangedSchema / ExecutionModeChanged — EXECUTION_MODE_CHANGED / EXECUTION_MODE_CHANGE_UPDATED subject (the ExecutionModeChange audit row from investor-bff); consumed cross-domain by broker-ctrl (execution).
 Owned in the producer's cross-domain adapter (ProposedTrade/DepositInitiated precedent); breaks circular dependencies between investor-bff and cross-domain consumers.
+- `mandateEventSubjects` (test-fixture event-name→schema map) — `{ MANDATE_ISSUED, OPERATING_MODE_CHANGED, MANDATE_REVOKED, MANDATE_REAFFIRMED } → MandateSchema`, re-exported via `/domain`. Consumed only by `@nestfolio/test-contracts` (the typed-fixture registry); inert at runtime (`typed-test-fixtures` Phase 0).
 
 ## Tests
 - Unit: test/unit/service.stack.test.ts

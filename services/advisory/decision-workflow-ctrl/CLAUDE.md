@@ -139,7 +139,7 @@ Note: The 4 agent-output fields on AssemblePacketEvent (assemble-packet.ts) are 
 ## Exports (package subpaths)
 - `./events` — domain event types.
 - `./agent-budgets` — `AGENT_BUDGETS` constants (PE+AN UX budgets, shared with the agent service stacks).
-- `./contracts` — producer-owned zod subject contracts (DecisionPacketSchema, MandateSnapshotSchema, RecommendationProposedSchema, DecisionCycleStartedSchema, DecisionCycleFailedSchema).
+- `./contracts` — producer-owned zod subject contracts (DecisionPacketSchema, MandateSnapshotSchema, RecommendationProposedSchema, DecisionCycleStartedSchema, DecisionCycleFailedSchema) + `decisionWorkflowEventSubjects` (test-fixture event-name→schema map: `RECOMMENDATION_PROPOSED → RecommendationProposedSchema`, consumed only by `@nestfolio/test-contracts`; inert at runtime — `typed-test-fixtures` Phase 0).
 
 ## DDB Entities
 <!-- card-drift:ddb-entities (generated — `nx run event-processor:card-drift -- --fix`) -->
