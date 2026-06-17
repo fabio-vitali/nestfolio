@@ -1,3 +1,5 @@
+import * as fs from 'node:fs';
+import * as path from 'node:path';
 import { EventSubjects } from '../src';
 
 const EXPECTED = [
@@ -11,5 +13,18 @@ const EXPECTED = [
 describe('EventSubjects registry', () => {
   it('contains exactly the migrated event names', () => {
     expect(Object.keys(EventSubjects).sort()).toEqual(EXPECTED);
+  });
+
+  it('tools/typed-fixture-registered-events.json is in sync with the TypeScript registry', () => {
+    // The pure-Node gate (tools/check-typed-fixtures.mjs) cannot import TypeScript, so it reads
+    // this JSON as its name-source. This test ensures the JSON never silently drifts from the
+    // real registry: if you add/remove an event in EventSubjects, this test will fail until
+    // you also update the JSON file.
+    const jsonPath = path.join(process.cwd(), 'tools/typed-fixture-registered-events.json');
+    const { registeredEvents } = JSON.parse(fs.readFileSync(jsonPath, 'utf8')) as {
+      registeredEvents: string[];
+    };
+
+    expect(registeredEvents.slice().sort()).toEqual(Object.keys(EventSubjects).sort());
   });
 });
