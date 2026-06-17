@@ -3,6 +3,7 @@
 // emitted by investor-ctrl's CDC Egress. Consumers (e.g. investor-bff) import this
 // schema via @nestfolio/investor-ctrl/contracts and parse at runtime with parseSubject.
 import { z } from 'zod';
+import type { ZodTypeAny } from 'zod';
 
 export const NotificationCreatedSchema = z.object({
   notificationId: z.string(),
@@ -30,3 +31,10 @@ export const MonthlyReportSchema = z.object({
   orderDetails: z.record(z.unknown()).optional(),
 });
 export type MonthlyReport = z.infer<typeof MonthlyReportSchema>;
+
+export const investorCtrlEventSubjects = {
+  NOTIFICATION_CREATED: NotificationCreatedSchema,
+  NOTIFICATION_UPDATED: NotificationCreatedSchema,
+  MONTHLY_REPORT_CREATED: MonthlyReportSchema,
+  MONTHLY_REPORT_UPDATED: MonthlyReportSchema,
+} as const satisfies Record<string, ZodTypeAny>;

@@ -92,3 +92,15 @@ export const mandateEventSubjects = {
   MANDATE_REVOKED: MandateSchema,
   MANDATE_REAFFIRMED: MandateSchema,
 } as const satisfies Record<string, ZodTypeAny>;
+
+/**
+ * Test-fixture event→subject map for the investor-produced, cross-domain-consumed
+ * funding / execution-mode events whose contracts live here (the producer-adapter home).
+ * MANDATE_* lives in mandateEventSubjects (above). Consumed only by @nestfolio/test-contracts.
+ */
+export const investorFundingEventSubjects = {
+  DEPOSIT_INITIATED: DepositInitiatedSchema,
+  WITHDRAWAL_INITIATED: WithdrawalInitiatedSchema,
+  EXECUTION_MODE_CHANGED: ExecutionModeChangedSchema,
+  EXECUTION_MODE_CHANGE_UPDATED: ExecutionModeChangedSchema,
+} as const satisfies Record<string, ZodTypeAny>;

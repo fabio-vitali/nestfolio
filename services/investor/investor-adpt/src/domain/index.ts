@@ -1,5 +1,5 @@
 export { InvestorCrossDomainEventTypes, InvestorIngestEventTypes } from './events';
-export { DepositInitiatedSchema, WithdrawalInitiatedSchema, MandateSchema, ExecutionModeChangedSchema, mandateEventSubjects } from './contracts';
+export { DepositInitiatedSchema, WithdrawalInitiatedSchema, MandateSchema, ExecutionModeChangedSchema, mandateEventSubjects, investorFundingEventSubjects } from './contracts';
 export type { DepositInitiated, WithdrawalInitiated, Mandate, ExecutionModeChanged } from './contracts';
 
 // Cross-domain re-export: INVESTOR_PROFILE_UPDATED is produced by investor-bff and

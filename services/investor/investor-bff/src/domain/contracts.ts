@@ -2,6 +2,7 @@
 // InvestorProfile is the composite DDB row emitted as-is via CDC on
 // INVESTOR_PROFILE_CREATED / INVESTOR_PROFILE_UPDATED.
 import { z } from 'zod';
+import type { ZodTypeAny } from 'zod';
 
 export const InvestorProfileGoalSchema = z.object({
   objective: z.string(),
@@ -56,3 +57,16 @@ export const NotificationReadSchema = z.object({
   createdAt: z.string().optional(),
 });
 export type NotificationRead = z.infer<typeof NotificationReadSchema>;
+
+/**
+ * Test-fixture event→subject map for investor-bff's own CDC emissions.
+ * Mandate / Deposit / Withdrawal / ExecutionMode events are cross-domain and live in
+ * investor-adpt/domain; the INVESTOR_PROFILE_* / GOAL_UPDATED / NOTIFICATION_READ subjects
+ * are intra-domain and homed here. Consumed only by `@nestfolio/test-contracts`.
+ */
+export const investorBffEventSubjects = {
+  INVESTOR_PROFILE_CREATED: InvestorProfileUpdatedSchema,
+  INVESTOR_PROFILE_UPDATED: InvestorProfileUpdatedSchema,
+  GOAL_UPDATED: InvestorProfileUpdatedSchema,
+  NOTIFICATION_READ: NotificationReadSchema,
+} as const satisfies Record<string, ZodTypeAny>;

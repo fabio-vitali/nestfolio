@@ -1,5 +1,8 @@
 import type { z, ZodTypeAny } from 'zod';
-import { mandateEventSubjects } from '@nestfolio/investor-adpt/domain';
+import { mandateEventSubjects, investorFundingEventSubjects } from '@nestfolio/investor-adpt/domain';
+import { investorBffEventSubjects } from '@nestfolio/investor-bff/contracts';
+import { onboardingBffEventSubjects } from '@nestfolio/onboarding-bff/contracts';
+import { investorCtrlEventSubjects } from '@nestfolio/investor-ctrl/contracts';
 import { decisionWorkflowEventSubjects } from '@nestfolio/decision-workflow-ctrl/contracts';
 
 /**
@@ -12,6 +15,10 @@ import { decisionWorkflowEventSubjects } from '@nestfolio/decision-workflow-ctrl
  */
 export const EventSubjects = {
   ...mandateEventSubjects,
+  ...investorFundingEventSubjects,
+  ...investorBffEventSubjects,
+  ...onboardingBffEventSubjects,
+  ...investorCtrlEventSubjects,
   ...decisionWorkflowEventSubjects,
 } as const satisfies Record<string, ZodTypeAny>;
 
