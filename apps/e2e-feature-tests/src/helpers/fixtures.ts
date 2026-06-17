@@ -253,13 +253,24 @@ export async function emitDecisionSnapshot(
   },
 ): Promise<void> {
   const now = new Date().toISOString();
+  const detailType = opts.detailType ?? DecisionWorkflowEventTypes.DECISION_PACKET_UPDATED;
+  // DRY_PACKET_DEFAULTS: required nullable fields present on every real DWC DecisionPacket row.
+  // triggerEventId / executionArn / complianceResult etc. are not meaningful in e2e fixtures
+  // but are required by DecisionPacketSchema (the typed putEvent overload validates at runtime).
   await eb.putEvent({
     bus: 'advisory',
     targetService: 'advisory-bff',
-    detailType: opts.detailType ?? DecisionWorkflowEventTypes.DECISION_PACKET_UPDATED,
-    detail: {
+    detailType: detailType as 'DECISION_PACKET_UPDATED' | 'DECISION_PACKET_CREATED',
+    subject: {
+      triggerEventId: 'e2e-trigger-evt',
+      executionArn: null,
+      complianceResult: null,
+      authorityLevel: null,
+      userDecision: null,
+      blockReason: null,
+      rejectionReason: opts.rejectionReason ?? null,
+      timestamp: now,
       __version: opts.version,
-      tenantId: tenant.tenantId,
       decisionId: opts.decisionId,
       trigger: opts.trigger,
       status: opts.status,
@@ -268,10 +279,10 @@ export async function emitDecisionSnapshot(
       confirmationRequired: true,
       confirmedAt: opts.confirmedAt,
       rejectedAt: opts.rejectedAt,
-      rejectionReason: opts.rejectionReason,
       createdAt: now,
       updatedAt: now,
     },
+    context: { tenantId: tenant.tenantId },
   });
 }
 

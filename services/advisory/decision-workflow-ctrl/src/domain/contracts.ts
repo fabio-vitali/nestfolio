@@ -27,6 +27,15 @@ export const DecisionPacketSchema = z.object({
   timestamp: z.string(),
   createdAt: z.string(),
   updatedAt: z.string(),
+  // Optional fields written to the DDB row conditionally by the SF / sfn-callback.ts:
+  // taskToken: set on AWAITING_CONFIRMATION (SF direct-DDB write), removed on CONFIRMED/REJECTED.
+  // confirmedAt: set by sfn-callback on USER_CONFIRMED.
+  // rejectedAt: set by sfn-callback on USER_REJECTED.
+  // These were absent from the original schema, causing publisher-schemas.ts to strip them
+  // from the CDC subject — a latent contract bug surfaced by typed-fixtures Phase 2.
+  taskToken: z.string().optional(),
+  confirmedAt: z.string().optional(),
+  rejectedAt: z.string().optional(),
 });
 export type DecisionPacket = z.infer<typeof DecisionPacketSchema>;
 
@@ -87,11 +96,16 @@ export const DecisionCycleFailedSchema = z.object({
 export type DecisionCycleFailed = z.infer<typeof DecisionCycleFailedSchema>;
 
 /**
- * Test-fixture event→subject map for decision-workflow-ctrl's SF-direct emissions.
+ * Test-fixture event→subject map for decision-workflow-ctrl's emissions (CDC + SF-direct).
  * RECOMMENDATION_PROPOSED is putEvents'd from the ASL (decision-state-machine.ts),
  * not CDC, so it is not in publisher-schemas; this map carries its subject contract
  * for fixtures. Consumed only by `@nestfolio/test-contracts`.
  */
 export const decisionWorkflowEventSubjects = {
   RECOMMENDATION_PROPOSED: RecommendationProposedSchema,
+  DECISION_PACKET_CREATED: DecisionPacketSchema,
+  DECISION_PACKET_UPDATED: DecisionPacketSchema,
+  MANDATE_SNAPSHOT_CREATED: MandateSnapshotSchema,
+  DECISION_CYCLE_STARTED: DecisionCycleStartedSchema,
+  DECISION_CYCLE_FAILED: DecisionCycleFailedSchema,
 } as const satisfies Record<string, ZodTypeAny>;

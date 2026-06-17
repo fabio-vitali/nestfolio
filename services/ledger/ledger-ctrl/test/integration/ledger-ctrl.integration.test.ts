@@ -320,17 +320,38 @@ describe('ledger-ctrl: DECISION_PACKET_CREATED → simulated LedgerEntry writes'
 
   it('should write simulated LedgerEntry per proposed trade', async () => {
     const dpId = `dp-sim-${Date.now()}`;
+    const now = new Date().toISOString();
 
+    // typed putEvent: DecisionPacketSchema shape (DRY — tenantId in context).
+    // NOTE (b): this fixture historically sent { decisionPacketId, proposedTrades } — a thin shape
+    // that never matched DecisionPacketSchema. The handler reads proposedTrades and derives
+    // decisionId from ctx.eventId (see event-listener.ts processSimulationEvent comment).
+    // Migrated fields are (a) fixture-only additions to satisfy the schema.
     await eb.putEvent({
       bus: 'ledger',
       targetService: 'ledger-ctrl',
       detailType: 'DECISION_PACKET_CREATED',
-      detail: {
-        decisionPacketId: dpId,
+      subject: {
+        decisionId: dpId,
+        trigger: 'REBALANCE',
+        triggerEventId: 'integ-trigger-evt',
+        executionArn: null,
+        explanation: 'Integration test simulation',
         proposedTrades: [
           { symbol: 'AAPL', side: 'BUY', quantityOrAmountCents: 150_000 },
           { symbol: 'MSFT', side: 'SELL', quantityOrAmountCents: 50_000 },
         ],
+        confirmationRequired: false,
+        status: 'CONFIRMED',
+        __version: 1,
+        complianceResult: null,
+        authorityLevel: null,
+        userDecision: null,
+        blockReason: null,
+        rejectionReason: null,
+        timestamp: now,
+        createdAt: now,
+        updatedAt: now,
       },
     });
 
@@ -371,14 +392,30 @@ describe('ledger-ctrl: DECISION_PACKET_CREATED → simulated LedgerEntry writes'
 
   it('should skip when proposedTrades is empty', async () => {
     const dpId = `dp-empty-${Date.now()}`;
+    const now = new Date().toISOString();
 
     await eb.putEvent({
       bus: 'ledger',
       targetService: 'ledger-ctrl',
       detailType: 'DECISION_PACKET_CREATED',
-      detail: {
-        decisionPacketId: dpId,
+      subject: {
+        decisionId: dpId,
+        trigger: 'REBALANCE',
+        triggerEventId: 'integ-trigger-evt',
+        executionArn: null,
+        explanation: 'Integration test simulation (empty trades)',
         proposedTrades: [],
+        confirmationRequired: false,
+        status: 'CONFIRMED',
+        __version: 1,
+        complianceResult: null,
+        authorityLevel: null,
+        userDecision: null,
+        blockReason: null,
+        rejectionReason: null,
+        timestamp: now,
+        createdAt: now,
+        updatedAt: now,
       },
     });
 
@@ -417,15 +454,31 @@ describe('ledger-ctrl: simulation CDC chain → BALANCE_UPDATED', () => {
   }, 60_000);
 
   it('DECISION_PACKET_CREATED → BALANCE_UPDATED (simulated)', async () => {
+    const now = new Date().toISOString();
     await eb.putEvent({
       bus: 'ledger',
       targetService: 'ledger-ctrl',
       detailType: 'DECISION_PACKET_CREATED',
-      detail: {
-        decisionPacketId: `dp-cdc-${Date.now()}`,
+      subject: {
+        decisionId: `dp-cdc-${Date.now()}`,
+        trigger: 'REBALANCE',
+        triggerEventId: 'integ-trigger-evt',
+        executionArn: null,
+        explanation: 'Integration test CDC chain',
         proposedTrades: [
           { symbol: 'AAPL', side: 'BUY', quantityOrAmountCents: 150_000 },
         ],
+        confirmationRequired: false,
+        status: 'CONFIRMED',
+        __version: 1,
+        complianceResult: null,
+        authorityLevel: null,
+        userDecision: null,
+        blockReason: null,
+        rejectionReason: null,
+        timestamp: now,
+        createdAt: now,
+        updatedAt: now,
       },
     });
 

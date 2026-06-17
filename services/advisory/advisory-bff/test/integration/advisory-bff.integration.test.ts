@@ -40,10 +40,24 @@ import {
 //    versioned projection — so the mutation response is the pre-action
 //    (readback) row, NOT a CONFIRMED/REJECTED row.
 //
-// Envelope: eb.putEvent({ ..., detail }) wraps `detail` as the event SUBJECT
-// (see EventBridgeClient.putEvent → detail.subject). The CDC subject in
-// production is the full DDB NewImage, so we place ALL row fields (including
-// __version) directly in `detail`, and decisionSnapshot reads uow.event.subject.
+// Envelope: eb.putEvent({ ..., subject }) wraps the typed subject as the event SUBJECT
+// (see EventBridgeClient.putEvent → typed overload). The CDC subject in production
+// is the DRY DecisionPacket row (identity stripped by publisher-schemas.ts schema.parse),
+// so we place all DRY fields in `subject` and identity (tenantId) in `context`.
+
+// Shared helper: DRY nullable fields required by DecisionPacketSchema.
+// The real DWC row always carries these; fixtures must provide them so the
+// typed putEvent schema.parse succeeds.
+const DRY_PACKET_DEFAULTS = {
+  triggerEventId: 'integ-trigger-evt',
+  executionArn: null,
+  complianceResult: null,
+  authorityLevel: null,
+  userDecision: null,
+  blockReason: null,
+  rejectionReason: null,
+  timestamp: new Date().toISOString(),
+} as const;
 
 describe('advisory-bff', () => {
   let ctx: TestContext;
@@ -86,9 +100,9 @@ describe('advisory-bff', () => {
         bus: 'advisory',
         targetService: 'advisory-bff',
         detailType: 'DECISION_PACKET_CREATED',
-        detail: {
+        subject: {
+          ...DRY_PACKET_DEFAULTS,
           __version: 1,
-          tenantId: ctx.tenantId,
           decisionId,
           trigger: 'REBALANCE',
           status: 'PENDING',
@@ -98,6 +112,7 @@ describe('advisory-bff', () => {
           createdAt: new Date().toISOString(),
           updatedAt: new Date().toISOString(),
         },
+        context: { tenantId: ctx.tenantId },
       });
 
       const item = await table.waitForItem({
@@ -124,9 +139,9 @@ describe('advisory-bff', () => {
         bus: 'advisory',
         targetService: 'advisory-bff',
         detailType: 'DECISION_PACKET_CREATED',
-        detail: {
+        subject: {
+          ...DRY_PACKET_DEFAULTS,
           __version: 1,
-          tenantId: ctx.tenantId,
           decisionId,
           trigger: 'REBALANCE',
           status: 'PENDING',
@@ -136,6 +151,7 @@ describe('advisory-bff', () => {
           createdAt: new Date().toISOString(),
           updatedAt: new Date().toISOString(),
         },
+        context: { tenantId: ctx.tenantId },
       });
       await table.waitForItem({
         table: 'advisory-bff',
@@ -150,9 +166,9 @@ describe('advisory-bff', () => {
         bus: 'advisory',
         targetService: 'advisory-bff',
         detailType: 'DECISION_PACKET_UPDATED',
-        detail: {
+        subject: {
+          ...DRY_PACKET_DEFAULTS,
           __version: 5,
-          tenantId: ctx.tenantId,
           decisionId,
           trigger: 'REBALANCE',
           status: 'AWAITING_CONFIRMATION',
@@ -163,6 +179,7 @@ describe('advisory-bff', () => {
           createdAt: new Date().toISOString(),
           updatedAt: new Date().toISOString(),
         },
+        context: { tenantId: ctx.tenantId },
       });
 
       const item = await table.waitForItem({
@@ -186,9 +203,9 @@ describe('advisory-bff', () => {
         bus: 'advisory',
         targetService: 'advisory-bff',
         detailType: 'DECISION_PACKET_CREATED',
-        detail: {
+        subject: {
+          ...DRY_PACKET_DEFAULTS,
           __version: 1,
-          tenantId: ctx.tenantId,
           decisionId,
           trigger: 'REBALANCE',
           status: 'PENDING',
@@ -198,6 +215,7 @@ describe('advisory-bff', () => {
           createdAt: new Date().toISOString(),
           updatedAt: new Date().toISOString(),
         },
+        context: { tenantId: ctx.tenantId },
       });
       await table.waitForItem({
         table: 'advisory-bff',
@@ -212,9 +230,9 @@ describe('advisory-bff', () => {
         bus: 'advisory',
         targetService: 'advisory-bff',
         detailType: 'DECISION_PACKET_UPDATED',
-        detail: {
+        subject: {
+          ...DRY_PACKET_DEFAULTS,
           __version: 5,
-          tenantId: ctx.tenantId,
           decisionId,
           trigger: 'REBALANCE',
           status: 'AWAITING_CONFIRMATION',
@@ -225,6 +243,7 @@ describe('advisory-bff', () => {
           createdAt: new Date().toISOString(),
           updatedAt: new Date().toISOString(),
         },
+        context: { tenantId: ctx.tenantId },
       });
       await table.waitForItem({
         table: 'advisory-bff',
@@ -240,9 +259,9 @@ describe('advisory-bff', () => {
         bus: 'advisory',
         targetService: 'advisory-bff',
         detailType: 'DECISION_PACKET_UPDATED',
-        detail: {
+        subject: {
+          ...DRY_PACKET_DEFAULTS,
           __version: 2,
-          tenantId: ctx.tenantId,
           decisionId,
           trigger: 'REBALANCE',
           status: 'BLOCKED',
@@ -252,6 +271,7 @@ describe('advisory-bff', () => {
           createdAt: new Date().toISOString(),
           updatedAt: new Date().toISOString(),
         },
+        context: { tenantId: ctx.tenantId },
       });
 
       // Allow the stale invocation to land + (correctly) be dropped.
@@ -275,9 +295,9 @@ describe('advisory-bff', () => {
         bus: 'advisory',
         targetService: 'advisory-bff',
         detailType: 'DECISION_PACKET_CREATED',
-        detail: {
+        subject: {
+          ...DRY_PACKET_DEFAULTS,
           __version: 1,
-          tenantId: ctx.tenantId,
           decisionId,
           trigger: 'REBALANCE',
           status: 'PENDING',
@@ -287,6 +307,7 @@ describe('advisory-bff', () => {
           createdAt: new Date().toISOString(),
           updatedAt: new Date().toISOString(),
         },
+        context: { tenantId: ctx.tenantId },
       });
 
       // The decisionSnapshot degraded guard returns undefined → skip(): no row.
@@ -319,7 +340,8 @@ describe('advisory-bff', () => {
         bus: 'advisory',
         targetService: 'advisory-bff',
         detailType: 'DECISION_CYCLE_STARTED',
-        detail: { decisionId, tenantId: ctx.tenantId, status: 'GENERATING', __version: 0 },
+        subject: { decisionId, status: 'GENERATING', __version: 0 },
+        context: { tenantId: ctx.tenantId },
       });
 
       const item = await table.waitForItem({
@@ -337,7 +359,8 @@ describe('advisory-bff', () => {
 
       await eb.putEvent({
         bus: 'advisory', targetService: 'advisory-bff', detailType: 'DECISION_CYCLE_STARTED',
-        detail: { decisionId, tenantId: ctx.tenantId, status: 'GENERATING', __version: 0 },
+        subject: { decisionId, status: 'GENERATING', __version: 0 },
+        context: { tenantId: ctx.tenantId },
       });
       await table.waitForItem({
         table: 'advisory-bff', pk, sk: 'DecisionReadModel', timeoutMs: 30_000, match: { status: 'GENERATING' },
@@ -345,12 +368,14 @@ describe('advisory-bff', () => {
 
       await eb.putEvent({
         bus: 'advisory', targetService: 'advisory-bff', detailType: 'DECISION_PACKET_CREATED',
-        detail: {
-          __version: 1, tenantId: ctx.tenantId, decisionId, trigger: 'REBALANCE', status: 'PENDING',
+        subject: {
+          ...DRY_PACKET_DEFAULTS,
+          __version: 1, decisionId, trigger: 'REBALANCE', status: 'PENDING',
           proposedTrades: [{ symbol: 'AAPL', action: 'BUY', quantity: 1 }],
           explanation: 'real decision overwrites generating', confirmationRequired: true,
           createdAt: new Date().toISOString(), updatedAt: new Date().toISOString(),
         },
+        context: { tenantId: ctx.tenantId },
       });
 
       const item = await table.waitForItem({
@@ -367,7 +392,8 @@ describe('advisory-bff', () => {
 
       await eb.putEvent({
         bus: 'advisory', targetService: 'advisory-bff', detailType: 'DECISION_CYCLE_STARTED',
-        detail: { decisionId, tenantId: ctx.tenantId, status: 'GENERATING', __version: 0 },
+        subject: { decisionId, status: 'GENERATING', __version: 0 },
+        context: { tenantId: ctx.tenantId },
       });
       await table.waitForItem({
         table: 'advisory-bff', pk, sk: 'DecisionReadModel', timeoutMs: 30_000, match: { status: 'GENERATING' },
@@ -375,7 +401,8 @@ describe('advisory-bff', () => {
 
       await eb.putEvent({
         bus: 'advisory', targetService: 'advisory-bff', detailType: 'DECISION_CYCLE_FAILED',
-        detail: { decisionId, tenantId: ctx.tenantId, status: 'FAILED', __version: 1 },
+        subject: { decisionId, status: 'FAILED', __version: 1 },
+        context: { tenantId: ctx.tenantId },
       });
       await table.waitForItem({
         table: 'advisory-bff', pk, sk: 'DecisionReadModel', timeoutMs: 30_000, match: { status: 'FAILED' },
@@ -384,7 +411,8 @@ describe('advisory-bff', () => {
       // Late STARTED (v0) after FAILED (v1): the guard (#__version < :version) drops it.
       await eb.putEvent({
         bus: 'advisory', targetService: 'advisory-bff', detailType: 'DECISION_CYCLE_STARTED',
-        detail: { decisionId, tenantId: ctx.tenantId, status: 'GENERATING', __version: 0 },
+        subject: { decisionId, status: 'GENERATING', __version: 0 },
+        context: { tenantId: ctx.tenantId },
       });
       await new Promise((r) => setTimeout(r, 8_000));
 
@@ -418,9 +446,9 @@ describe('advisory-bff', () => {
             bus: 'advisory',
             targetService: 'advisory-bff',
             detailType: 'DECISION_PACKET_CREATED',
-            detail: {
+            subject: {
+              ...DRY_PACKET_DEFAULTS,
               __version: 1,
-              tenantId: localCtx.tenantId,
               decisionId,
               trigger: 'REBALANCE',
               status: 'PENDING',
@@ -430,6 +458,7 @@ describe('advisory-bff', () => {
               createdAt: new Date().toISOString(),
               updatedAt: new Date().toISOString(),
             },
+            context: { tenantId: localCtx.tenantId },
           });
         }
 
@@ -450,9 +479,9 @@ describe('advisory-bff', () => {
           bus: 'advisory',
           targetService: 'advisory-bff',
           detailType: 'DECISION_PACKET_UPDATED',
-          detail: {
+          subject: {
+            ...DRY_PACKET_DEFAULTS,
             __version: 3,
-            tenantId: localCtx.tenantId,
             decisionId: d1,
             trigger: 'REBALANCE',
             status: 'CONFIRMED',
@@ -463,6 +492,7 @@ describe('advisory-bff', () => {
             createdAt: new Date().toISOString(),
             updatedAt: new Date().toISOString(),
           },
+          context: { tenantId: localCtx.tenantId },
         });
 
         const afterItem = await localTable.waitForItem({
@@ -493,9 +523,9 @@ describe('advisory-bff', () => {
         bus: 'advisory',
         targetService: 'advisory-bff',
         detailType: 'DECISION_PACKET_CREATED',
-        detail: {
+        subject: {
+          ...DRY_PACKET_DEFAULTS,
           __version: 1,
-          tenantId: ctx.tenantId,
           decisionId,
           trigger: 'REBALANCE',
           status: 'PENDING',
@@ -505,6 +535,7 @@ describe('advisory-bff', () => {
           createdAt: new Date().toISOString(),
           updatedAt: new Date().toISOString(),
         },
+        context: { tenantId: ctx.tenantId },
       });
       await table.waitForItem({ table: 'advisory-bff', pk, sk: 'DecisionReadModel', timeoutMs: 30_000 });
 
@@ -512,9 +543,9 @@ describe('advisory-bff', () => {
         bus: 'advisory',
         targetService: 'advisory-bff',
         detailType: 'DECISION_PACKET_UPDATED',
-        detail: {
+        subject: {
+          ...DRY_PACKET_DEFAULTS,
           __version: 5,
-          tenantId: ctx.tenantId,
           decisionId,
           trigger: 'REBALANCE',
           status: 'AWAITING_CONFIRMATION',
@@ -525,6 +556,7 @@ describe('advisory-bff', () => {
           createdAt: new Date().toISOString(),
           updatedAt: new Date().toISOString(),
         },
+        context: { tenantId: ctx.tenantId },
       });
       await table.waitForItem({
         table: 'advisory-bff',
@@ -579,9 +611,9 @@ describe('advisory-bff', () => {
         bus: 'advisory',
         targetService: 'advisory-bff',
         detailType: 'DECISION_PACKET_CREATED',
-        detail: {
+        subject: {
+          ...DRY_PACKET_DEFAULTS,
           __version: 1,
-          tenantId: ctx.tenantId,
           decisionId,
           trigger: 'REBALANCE',
           status: 'PENDING',
@@ -591,6 +623,7 @@ describe('advisory-bff', () => {
           createdAt: new Date().toISOString(),
           updatedAt: new Date().toISOString(),
         },
+        context: { tenantId: ctx.tenantId },
       });
       await table.waitForItem({ table: 'advisory-bff', pk, sk: 'DecisionReadModel', timeoutMs: 30_000 });
 
@@ -598,9 +631,9 @@ describe('advisory-bff', () => {
         bus: 'advisory',
         targetService: 'advisory-bff',
         detailType: 'DECISION_PACKET_UPDATED',
-        detail: {
+        subject: {
+          ...DRY_PACKET_DEFAULTS,
           __version: 5,
-          tenantId: ctx.tenantId,
           decisionId,
           trigger: 'REBALANCE',
           status: 'AWAITING_CONFIRMATION',
@@ -611,6 +644,7 @@ describe('advisory-bff', () => {
           createdAt: new Date().toISOString(),
           updatedAt: new Date().toISOString(),
         },
+        context: { tenantId: ctx.tenantId },
       });
       await table.waitForItem({
         table: 'advisory-bff',
