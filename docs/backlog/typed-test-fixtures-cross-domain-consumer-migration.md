@@ -7,9 +7,10 @@ references: []
 out_of_scope:
   - "ORDER_*/NormalizedOrderEvent family — doubly blocked, stays in [[typed-test-fixtures-execution-deferred-cross-domain]]"
   - "CORPORATE_ACTION_APPLIED + PORTFOLIO_SNAPSHOT_IMPORTED — no producer zod contract/emitter, can't be typed test-layer-only; split to [[corporate-action-portfolio-snapshot-no-producer-contract]]"
+  - "Dynamic-detailType it.each putEvent sites (investor-ctrl onboarding-notification notificationEvents/circuitBreakerEvents arrays) — gate exempts variable detailType + typed overload can't narrow; belongs to [[check-typed-fixtures-dynamic-detailtype-gap]] (rank 4)"
   - "Producer/consumer/registry production changes — test-layer migration only (per epic out_of_scope)"
 spec: null
-plan: null
+plan: docs/superpowers/plans/2026-06-19-typed-fixtures-cross-domain-consumer-migration.md
 topic_memory: [project_event_subject_contracts.md]
 validation_gate: null
 epic: typed-test-fixtures
