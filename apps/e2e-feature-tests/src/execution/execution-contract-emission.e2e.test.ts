@@ -527,7 +527,7 @@ describe('execution-domain producer contracts — REAL Alpaca paper path', () =>
         bus: 'execution',
         targetService: 'broker-alpaca-adpt',
         detailType: 'ALPACA_ACCOUNT_CHECK',
-        detail: {},
+        subject: {},
       });
 
       const snapshots = await poll(async () => {

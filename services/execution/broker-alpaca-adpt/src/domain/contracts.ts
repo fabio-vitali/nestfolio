@@ -1,6 +1,8 @@
 // Producer-owned event/row subject contracts for broker-alpaca-adpt. Imports ONLY zod.
 // Dry aggregates — identity travels in the event context, not on the subject.
 import { z } from 'zod';
+import type { ZodTypeAny } from 'zod';
+import { AlpacaTransferResultSchema } from '@nestfolio/execution-adpt/domain';
 
 /** ALPACA_ORDER_* subject — the `AlpacaOrderResult` row (sk='OrderMapping'|'CancelResult').
  * symbol/side/requestedQty are present on PLACED/REJECTED, absent on CancelResult. Tenant-scoped.
@@ -54,3 +56,23 @@ export const CircuitBreakerSchema = z.object({
   reason: z.string(),
 });
 export type CircuitBreaker = z.infer<typeof CircuitBreakerSchema>;
+
+/** ALPACA_ACCOUNT_CHECK is an empty-payload trigger — the handler reads no subject fields. */
+export const AlpacaAccountCheckSchema = z.object({});
+
+/**
+ * Test-fixture event→subject map for broker-alpaca-adpt's CDC emissions. Co-located with the
+ * producer-owned schemas; consumed only by `@nestfolio/test-contracts`.
+ */
+export const brokerAlpacaAdptEventSubjects = {
+  ALPACA_ACCOUNT_CHECK: AlpacaAccountCheckSchema,
+  ALPACA_ORDER_CANCEL_FAILED: AlpacaOrderResultSchema,
+  ALPACA_ORDER_CANCELLED: AlpacaOrderResultSchema,
+  ALPACA_ORDER_FILLED: AlpacaOrderResultSchema,
+  ALPACA_ORDER_PARTIALLY_FILLED: AlpacaOrderResultSchema,
+  ALPACA_ORDER_PLACED: AlpacaOrderResultSchema,
+  ALPACA_ORDER_REJECTED: AlpacaOrderResultSchema,
+  ALPACA_TRANSFER_COMPLETED: AlpacaTransferResultSchema,
+  ALPACA_TRANSFER_FAILED: AlpacaTransferResultSchema,
+  ALPACA_TRANSFER_INITIATED: AlpacaTransferResultSchema,
+} as const satisfies Record<string, ZodTypeAny>;

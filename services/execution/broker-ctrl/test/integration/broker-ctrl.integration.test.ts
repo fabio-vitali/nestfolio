@@ -199,7 +199,7 @@ describe('broker-ctrl', () => {
         bus: 'execution',
         targetService: 'broker-ctrl',
         detailType: 'ALPACA_TRANSFER_FAILED',
-        detail: {
+        subject: {
           // AlpacaTransferResultSchema shape: nestfolioTransferId (NOT transferId),
           // alpacaTransferId, direction, amount (DOLLARS), status; failureReason optional.
           nestfolioTransferId: transferId,
@@ -469,7 +469,7 @@ describe('broker-ctrl', () => {
           bus: 'execution',
           targetService: 'broker-ctrl',
           detailType: 'ALPACA_TRANSFER_COMPLETED',
-          detail: {
+          subject: {
             nestfolioTransferId: depositId,
             alpacaTransferId: 'a',
             amount: 69, // dollars → fallback would be Math.round(69*100)=6900, NOT 7000

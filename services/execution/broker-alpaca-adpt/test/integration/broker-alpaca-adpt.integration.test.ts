@@ -197,7 +197,7 @@ describe('broker-alpaca-adpt', () => {
       bus: 'execution',
       targetService: 'broker-alpaca-adpt',
       detailType: 'ALPACA_ACCOUNT_CHECK',
-      detail: {},
+      subject: {},
     });
 
     const item = await table.waitForItem({
