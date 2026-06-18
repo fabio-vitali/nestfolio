@@ -1,7 +1,6 @@
 ---
 id: typed-test-fixtures-phase4-ledger
-status: queued
-rank: 4
+status: active
 type: refactor
 epic: typed-test-fixtures
 epic_role: core
