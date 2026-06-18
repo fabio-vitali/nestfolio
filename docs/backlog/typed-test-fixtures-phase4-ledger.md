@@ -1,6 +1,6 @@
 ---
 id: typed-test-fixtures-phase4-ledger
-status: active
+status: shipped
 type: refactor
 epic: typed-test-fixtures
 epic_role: core
@@ -18,7 +18,33 @@ out_of_scope:
 spec: docs/superpowers/specs/2026-06-16-typed-test-fixtures-design.md
 plan: docs/superpowers/plans/2026-06-18-typed-test-fixtures-phase4-ledger.md
 topic_memory: [project_event_subject_contracts.md]
-validation_gate: null
+validation_gate: >-
+  Static gates GREEN (deployed-dev runtime decoupled to typed-test-fixtures-consolidated-integration-e2e-verify
+  per the 2026-06-17 program decision). Full producer-wave migration (2026-06-18 user decision): registered the
+  4 ledger-PRODUCED events and migrated every fixture that injects them across 4 domains + the shared e2e funded()
+  helper. Commits: 3b560b41 (BALANCE_UPDATED, 10 sites), 0958e22e (PORTFOLIO_UPDATED, 14 sites incl. the
+  reconciliation array→record reshape), dcf06578 (LEDGER_ENTRY_RECORDED, 6 sites), 6e8b0774 (RECONCILIATION_COMPLETED,
+  1 site). Gate: `node tools/check-typed-fixtures.mjs` → OK (449 test files, 77 registered events — +4 over the Phase-3
+  baseline of 73: BALANCE_UPDATED, LEDGER_ENTRY_RECORDED, PORTFOLIO_UPDATED, RECONCILIATION_COMPLETED). test-contracts
+  registry test 2/2 (map ⟺ JSON ⟺ EXPECTED quadruple-sync at 77 names). tsc: 0 NEW errors across every touched project
+  (ledger-ctrl/reconciliation-ctrl/ledger-bff/investor-bff/dashboard-bff/decision-workflow-ctrl/test-contracts/e2e —
+  pre-existing latent errors per investor-services-latent-tsc-errors tolerated). Lint clean on all touched projects
+  (per-task). Closing verify `nx run-many -t test,lint -p ledger-ctrl,reconciliation-ctrl,test-contracts` → 18 suites /
+  116 unit tests + lint PASS (proportionate scope: the 32-project nx-affected set is the libs/test-contracts shared-test-lib
+  artifact; my change is additive test-fixture maps that can only break the projects whose code changed; integration/e2e
+  files are test-integration-target only and decoupled). Final whole-branch review (opus): ✅ ready to merge — registry
+  integrity verified, the reconciliation reshape proven behavior-preserving against the real handler (normalizePositions
+  reads only symbol+quantity; reconciliationId is content-derived and quantities were preserved per site), no identity in
+  any subject, production boundary respected (only the 2 contracts.ts map appends). (a)=14 co-wrong fixtures fixed
+  (deltaCents ×2; reconciliation array→record ×6 — these were silently red against deployed dev, Bug-A class, now corrected;
+  dashboard PORTFOLIO_UPDATED positions/cashBalanceCents ×2 + read-model-projection ×1; dashboard LEDGER_ENTRY_RECORDED
+  entryType ×2; dashboard RECONCILIATION_COMPLETED ×1). Deferrals: PORTFOLIO_DRIFT_DETECTED registry name-collision
+  (portfolio-drift-detected-registry-collision, captured) + the execution-CONSUMED events kept deferred
+  (typed-test-fixtures-execution-deferred-cross-domain, per user decision). Final-review finding filed:
+  check-typed-fixtures-dynamic-detailtype-gap (captured). Deploy: NONE — test-layer only; the contracts.ts maps are
+  tree-shaken test-only exports (detect-deploy's 28-service flag is a shared-test-lib false-positive). With all 4 domains
+  migrated, the untyped-putEvent regression gate is workspace-wide (modulo the documented deferrals); the typed-test-fixtures
+  epic's core members are all terminal except the consolidated-verify gate → epic is now drainable pending that runtime proof.
 ---
 
 # Phase 4 — Ledger domain fixture retrofit (final wave)
