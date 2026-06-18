@@ -16,7 +16,7 @@ out_of_scope:
   - "ledger-ctrl-live-tax-lot-missing-order-fields production fix (a genuine producer/consumer fork owned by typed-subject-consumer-contract-gaps; the retrofit cross-references the latent bug, does not fix it)"
   - "Production contract/producer/consumer changes (test layer only)"
 spec: docs/superpowers/specs/2026-06-16-typed-test-fixtures-design.md
-plan: null
+plan: docs/superpowers/plans/2026-06-18-typed-test-fixtures-phase4-ledger.md
 topic_memory: [project_event_subject_contracts.md]
 validation_gate: null
 ---
