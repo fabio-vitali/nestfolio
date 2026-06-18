@@ -82,6 +82,7 @@ Producer-owned zod CDC subject contracts, exported via `@nestfolio/broker-alpaca
 - AlpacaTransferResultSchema / AlpacaTransferResult — MOVED to `@nestfolio/execution-adpt/domain` (intra-execution mutual boundary; see Payload Contracts note there). Imported from there by this service.
 - AlpacaTransferRequestSchema / AlpacaTransferRequest — consumed by this service from `@nestfolio/execution-adpt/domain` (produced by broker-ctrl router). See execution-adpt/CLAUDE.md.
 The Alpaca REST `*ApiResponse` interfaces (AlpacaOrderApiResponse, AlpacaTransferApiResponse, AlpacaAccountApiResponse) remain in domain/schemas.ts — they are external API response shapes, not producer contracts.
+- Also exported: `brokerAlpacaAdptEventSubjects` — test-fixture event→subject map (ALPACA_ACCOUNT_CHECK, ALPACA_ORDER_* → AlpacaOrderResultSchema, ALPACA_TRANSFER_* → AlpacaTransferResultSchema, ALPACA_ACCOUNT_SNAPSHOT → AlpacaAccountSnapshotSchema, BROKER_CIRCUIT_OPEN/CLOSED + BROKER_HEAL_ESCALATED → BrokerCircuitEventSchema) consumed only by `@nestfolio/test-contracts` for typed test fixtures. Not a runtime contract; tree-shaken from Lambda bundles. (ACCOUNT_SNAPSHOT + circuit events added by typed-test-fixtures-cross-domain-consumer-migration.)
 
 ## Tests
 - service.stack.test.ts
