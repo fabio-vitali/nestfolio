@@ -29,11 +29,12 @@ describe('reconciliation-ctrl: PORTFOLIO_UPDATED → RECONCILIATION_COMPLETED CD
       bus: 'ledger',
       targetService: 'reconciliation-ctrl',
       detailType: 'ALPACA_ACCOUNT_SNAPSHOT',
-      detail: {
-        tenantId: ctx.tenantId,
+      subject: {
+        equity: '0',
+        buyingPower: '0',
         positions: [
-          { symbol: 'AAPL', qty: 10 },
-          { symbol: 'MSFT', qty: 5 },
+          { symbol: 'AAPL', qty: 10, marketValue: 0 },
+          { symbol: 'MSFT', qty: 5, marketValue: 0 },
         ],
       },
     });

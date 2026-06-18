@@ -37,11 +37,12 @@ describe('reconciliation-ctrl resilience: idempotency', () => {
         bus: 'ledger',
         targetService: 'reconciliation-ctrl',
         detailType: 'ALPACA_ACCOUNT_SNAPSHOT',
-        detail: {
-          tenantId: ctx.tenantId,
+        subject: {
+          equity: '0',
+          buyingPower: '0',
           positions: [
-            { symbol: 'AAPL', qty: 10 },
-            { symbol: 'MSFT', qty: 5 },
+            { symbol: 'AAPL', qty: 10, marketValue: 0 },
+            { symbol: 'MSFT', qty: 5, marketValue: 0 },
           ],
         },
       });
@@ -124,8 +125,8 @@ describe('reconciliation-ctrl resilience: idempotency', () => {
       await trap.deploy({ bus: 'ledger', detailType: 'RECONCILIATION_COMPLETED' });
 
       const settlementPositions = [
-        { symbol: 'AAPL', qty: 10 },
-        { symbol: 'MSFT', qty: 5 },
+        { symbol: 'AAPL', qty: 10, marketValue: 0 },
+        { symbol: 'MSFT', qty: 5, marketValue: 0 },
       ];
 
       // Cache Settlement first
@@ -133,7 +134,7 @@ describe('reconciliation-ctrl resilience: idempotency', () => {
         bus: 'ledger',
         targetService: 'reconciliation-ctrl',
         detailType: 'ALPACA_ACCOUNT_SNAPSHOT',
-        detail: { tenantId: ctx.tenantId, positions: settlementPositions },
+        subject: { equity: '0', buyingPower: '0', positions: settlementPositions },
       });
       await new Promise((r) => setTimeout(r, 10_000));
 
@@ -162,7 +163,7 @@ describe('reconciliation-ctrl resilience: idempotency', () => {
         bus: 'ledger',
         targetService: 'reconciliation-ctrl',
         detailType: 'ALPACA_ACCOUNT_SNAPSHOT',
-        detail: { tenantId: ctx.tenantId, positions: settlementPositions },
+        subject: { equity: '0', buyingPower: '0', positions: settlementPositions },
       });
 
       await new Promise((r) => setTimeout(r, 20_000));
@@ -226,8 +227,9 @@ describe('reconciliation-ctrl resilience: order-agnostic pairwise', () => {
         bus: 'ledger',
         targetService: 'reconciliation-ctrl',
         detailType: 'ALPACA_ACCOUNT_SNAPSHOT',
-        detail: {
-          tenantId: ctx.tenantId,
+        subject: {
+          equity: '0',
+          buyingPower: '0',
           positions: [{ symbol: 'AAPL', qty: 10, marketValue: 1800 }],
         },
       });
@@ -254,8 +256,9 @@ describe('reconciliation-ctrl resilience: order-agnostic pairwise', () => {
         bus: 'ledger',
         targetService: 'reconciliation-ctrl',
         detailType: 'ALPACA_ACCOUNT_SNAPSHOT',
-        detail: {
-          tenantId: ctx.tenantId,
+        subject: {
+          equity: '0',
+          buyingPower: '0',
           positions: [{ symbol: 'AAPL', qty: 10, marketValue: 1800 }],
         },
       });
