@@ -1,7 +1,6 @@
 ---
 id: typed-test-fixtures-cross-domain-consumer-migration
-status: queued
-rank: 3
+status: active
 type: refactor
 notes: "CORE. Register + migrate the execution-produced events whose CONSUMER fixtures live in other domains' test files and that have a usable producer contract: ALPACA_ACCOUNT_SNAPSHOT, DEPOSIT_SETTLED/WITHDRAWAL_SETTLED, BROKER_CIRCUIT_OPEN/CLOSED, BROKER_HEAL_ESCALATED. Their consumer putEvent({detail}) sites remain legacy/gate-invisible after Phase 4 — required for done_when 'all ~290 sites migrated'. Split out 2026-06-19 from typed-test-fixtures-execution-deferred-cross-domain (ORDER_* family) and again 2026-06-19 from CORPORATE_ACTION_APPLIED/PORTFOLIO_SNAPSHOT_IMPORTED (no producer contract)."
 references: []
