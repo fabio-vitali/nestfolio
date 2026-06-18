@@ -8,7 +8,7 @@
 
 ### [typed-test-fixtures](backlog/typed-test-fixtures.md) `[epic · active]` — Type-check every test fixture (unit/integration/e2e) against the producer-owned zod contracts so co-wrong fixtures are COMPILE errors (+ a runtime parse backstop), closing the [[event-subject-contracts]] 'fixture passed, real producer differed' gap workspace-wide. Promoted to active delivery epic 2026-06-16; first member typed-test-fixtures-phase0 in flight. Design: docs/superpowers/specs/2026-06-16-typed-test-fixtures-design.md. Motivated by two pre-existing co-wrong fixtures surfaced validating compliance-ctrl-mandate-snapshot-parse-subject (Bug A: identity-in-subject integration fixtures; Bug B: e2e RECOMMENDATION_PROPOSED missing required fields).
 done_when: Mechanism shipped (producer event->schema maps + composed registry + typed putEvent with per-call context override + runtime parse backstop + typed TableAssertions); all ~290 putEvent call-sites across the 4 domains migrated to the typed API; every surfaced co-wrong fixture fixed or its latent contract bug filed; regression gate forbids untyped putEvent in migrated domains. Every core member shipped or dropped.
-rollup: core 6/8 done · captured 1/13 done
+rollup: core 6/8 done · captured 1/14 done
 - core · active · [typed-test-fixtures-phase4-ledger](backlog/typed-test-fixtures-phase4-ledger.md)
 - core · queued · [typed-test-fixtures-consolidated-integration-e2e-verify](backlog/typed-test-fixtures-consolidated-integration-e2e-verify.md)
 - core · shipped · [onboarding-mandatelevel-contract-gap](backlog/onboarding-mandatelevel-contract-gap.md)
@@ -19,6 +19,7 @@ rollup: core 6/8 done · captured 1/13 done
 - core · shipped · [typed-test-fixtures-phase3-execution](backlog/typed-test-fixtures-phase3-execution.md)
 - captured · parking · [account-closure-requested-never-emitted](backlog/account-closure-requested-never-emitted.md)
 - captured · parking · [broker-sim-inbound-schemas-nondry-stale](backlog/broker-sim-inbound-schemas-nondry-stale.md)
+- captured · parking · [check-typed-fixtures-dynamic-detailtype-gap](backlog/check-typed-fixtures-dynamic-detailtype-gap.md)
 - captured · parking · [dashboard-bff-decision-blocked-reason-field-mismatch](backlog/dashboard-bff-decision-blocked-reason-field-mismatch.md)
 - captured · parking · [dwc-decision-packet-schema-missing-optional-fields](backlog/dwc-decision-packet-schema-missing-optional-fields.md)
 - captured · parking · [dwc-sf-command-subject-tenantid-nondry](backlog/dwc-sf-command-subject-tenantid-nondry.md)
@@ -107,6 +108,7 @@ rollup: core 0/2 done · captured 0/0 done
 - [bump-tsconfig-es2022-to-es2023](backlog/bump-tsconfig-es2022-to-es2023.md) [tooling] — Enable .toSpliced/.toReversed/.with workspace-wide; promote on second use case.
 - [c4-frontend-representation](backlog/c4-frontend-representation.md) [tooling] — MFEs in C4 diagrams at C1 + C2 level (planned, not started).
 - [cdk-bundle-staleness-deploy-integrity](backlog/cdk-bundle-staleness-deploy-integrity.md) [tooling] — Hypothesis: 2026-05-13 dev-investor-bff deploy produced a Lambda bundle whose change-data-capture.ts logic lagged behind source. Surfaced via update-operating-mode-cdc-silent. Need a deploy-time integrity check that the bundle's resolveEmissions actually matches the EVENT_TYPE_MAP shape it'll be asked to process.
+- [check-typed-fixtures-dynamic-detailtype-gap](backlog/check-typed-fixtures-dynamic-detailtype-gap.md) [tooling] — check-typed-fixtures gate matches static literal detailType only — a putEvent with a variable/computed detailType escapes the gate, so a co-wrong subject there is uncaught. `[epic:typed-test-fixtures · captured]`
 - [ci-pipeline-bring-up](backlog/ci-pipeline-bring-up.md) [infra] — Bring all 5 GitHub workflows green for the first time — OIDC role deploy, secrets, charter check, security policy, no-Pro gating model. `[epic:ci-pipeline · core]`
 - [dashboard-bff-awaiting-confirmation-activity-gap](backlog/dashboard-bff-awaiting-confirmation-activity-gap.md) [bug] — dashboard-bff recent-activity may be missing an 'awaiting confirmation' feed item. The dead USER_CONFIRMATION_REQUESTED handler (removed by incident-escalation-path-b 2026-06-15) was its only producer; since the Task-1.5 taskToken redesign no event fires, so an L2 decision entering AWAITING_CONFIRMATION may not surface in the activity feed. Surfaced 2026-06-15.
 - [dashboard-bff-decision-blocked-reason-field-mismatch](backlog/dashboard-bff-decision-blocked-reason-field-mismatch.md) [bug] — dashboard-bff DECISION_BLOCKED fixture used `reason` absent from ComplianceCheckSchema; real producer emits violations[], consumer description degrades to decisionId `[epic:typed-test-fixtures · captured]`

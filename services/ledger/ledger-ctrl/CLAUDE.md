@@ -54,6 +54,7 @@ Producer-owned zod payload contracts for the CDC-published subjects (imports ONL
 - Persisted rows are typed via `TableEntry<Subject>`: `TaxLotEntry = TableEntry<TaxLot, { tenantId: string }>` (repository) and `SnapshotRecord = TableEntry<AccountSnapshot, RequestContext>` (transforms/snapshot-to-events.ts) — no hand-rolled pk/sk/__typename interfaces.
 - Cross-domain consumers: ledger-bff, investor-bff, dashboard-bff, decision-workflow-ctrl
 - Also exported: @nestfolio/ledger-ctrl/events (LedgerCtrlEventTypes)
+- Also exported: `ledgerCtrlEventSubjects` — test-fixture event→subject map (BALANCE_UPDATED→BalanceUpdatedSchema, PORTFOLIO_UPDATED→PortfolioUpdatedSchema, LEDGER_ENTRY_RECORDED→LedgerEntryRecordedSchema) consumed only by `@nestfolio/test-contracts` for typed test fixtures (typed-test-fixtures Phase 4). Not a runtime contract; tree-shaken from Lambda bundles.
 
 ## Tests
 - domain/account-state.test.ts

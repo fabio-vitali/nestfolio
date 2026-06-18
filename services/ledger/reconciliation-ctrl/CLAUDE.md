@@ -29,6 +29,7 @@ Producer-owned zod payload contracts for the 2 CDC-emitted rows (imports ONLY zo
 - ReconciliationResultSchema — RECONCILIATION_COMPLETED / RECONCILIATION_RESULT_UPDATED subject
 - DriftRecordSchema — PORTFOLIO_DRIFT_DETECTED / DRIFT_RECORD_UPDATED subject
 - The other declared event names are consumed-only (CORPORATE_ACTION_APPLIED) or declared-but-unused — no contracts (not emitted).
+- Also exported: `reconciliationCtrlEventSubjects` — test-fixture event→subject map (RECONCILIATION_COMPLETED→ReconciliationResultSchema) consumed only by `@nestfolio/test-contracts` for typed test fixtures (typed-test-fixtures Phase 4). PORTFOLIO_DRIFT_DETECTED is deliberately omitted (registry name collision — see `[[portfolio-drift-detected-registry-collision]]`). Not a runtime contract.
 
 ## Handlers
 - event-listener.ts — materializeToTable pipeline; `createHandlers()` factory builds a handler map with inline per-event registration (cache-and-compare): PORTFOLIO_UPDATED (intra-domain, contract-backed via parseSubject), PORTFOLIO_SNAPSHOT_IMPORTED, and CORPORATE_ACTION_APPLIED cache the 'Intent' side; ALPACA_ACCOUNT_SNAPSHOT caches the 'Settlement' side; each calls cacheAndReconcile → writes ReconciliationResult + DriftRecord items
