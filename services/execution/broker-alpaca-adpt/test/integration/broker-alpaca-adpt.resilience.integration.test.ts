@@ -168,7 +168,7 @@ describe('broker-alpaca-adpt resilience: idempotency', () => {
         bus: 'execution',
         targetService: 'broker-alpaca-adpt',
         detailType: 'ALPACA_TRANSFER_REQUESTED',
-        detail: payload,
+        subject: payload,
         eventId,
       });
 
@@ -197,7 +197,7 @@ describe('broker-alpaca-adpt resilience: idempotency', () => {
         bus: 'execution',
         targetService: 'broker-alpaca-adpt',
         detailType: 'ALPACA_TRANSFER_REQUESTED',
-        detail: payload,
+        subject: payload,
         eventId,
       });
 

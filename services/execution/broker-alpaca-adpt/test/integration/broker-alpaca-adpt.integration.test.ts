@@ -124,14 +124,7 @@ describe('broker-alpaca-adpt', () => {
       bus: 'execution',
       targetService: 'broker-alpaca-adpt',
       detailType: 'ALPACA_TRANSFER_REQUESTED',
-      detail: {
-        // AlpacaTransferRequestSchema: amountCents (NOT amount) + currency.
-        transferId,
-        amountCents: 1000000, // $10,000
-        currency: 'USD',
-        direction: 'INCOMING',
-        relationshipId: 'rel-integ',
-      },
+      subject: { transferId, amountCents: 1_000_000, currency: 'USD', direction: 'INCOMING' as const, relationshipId: 'rel-integ' },
     });
 
     const item = await table.waitForItem({
@@ -157,13 +150,7 @@ describe('broker-alpaca-adpt', () => {
       bus: 'execution',
       targetService: 'broker-alpaca-adpt',
       detailType: 'ALPACA_TRANSFER_REQUESTED',
-      detail: {
-        transferId,
-        amountCents: 5000,
-        currency: 'USD',
-        direction: 'INCOMING',
-        relationshipId: '',
-      },
+      subject: { transferId, amountCents: 5000, currency: 'USD', direction: 'INCOMING' as const, relationshipId: '' },
     });
 
     // Assert: AlpacaTransferResult row written with the correct fields.
@@ -286,16 +273,9 @@ describe('broker-alpaca-adpt', () => {
         bus: 'execution',
         targetService: 'broker-alpaca-adpt',
         detailType: 'ALPACA_TRANSFER_REQUESTED',
-        detail: {
-          // AlpacaTransferRequestSchema: amountCents (NOT amount) + currency.
-          // The handler parseSubject's this BEFORE the breaker check, so even the
-          // breaker-open path requires a schema-valid subject.
-          transferId,
-          amountCents: 1000000, // $10,000
-          currency: 'USD',
-          direction: 'INCOMING',
-          relationshipId: 'rel-integ',
-        },
+        // The handler parseSubject's this BEFORE the breaker check, so even the
+        // breaker-open path requires a schema-valid subject.
+        subject: { transferId, amountCents: 1_000_000, currency: 'USD', direction: 'INCOMING' as const, relationshipId: 'rel-integ' },
       });
 
       const item = await table.waitForItem({

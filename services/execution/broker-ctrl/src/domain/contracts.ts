@@ -2,6 +2,7 @@
 // Dry aggregates — identity (tenantId/userId/region) travels in the event context, not here.
 import { z } from 'zod';
 import type { ZodTypeAny } from 'zod';
+import { AlpacaTransferRequestSchema } from '@nestfolio/execution-adpt/domain';
 
 /**
  * ORDER lifecycle subject — the `NormalizedEvent` row (sk=`ORDER_*#${ts}`) written by the
@@ -63,11 +64,30 @@ export const BrokerOrderRequestSchema = z.object({
   quantity: z.number(),
 });
 
+/** DRY subject for the deposit-routing command broker-ctrl emits to broker-sim (SIM_DEPOSIT_INITIATED). */
+export const SimDepositInitiatedSubjectSchema = z.object({
+  depositId: z.string(),
+  amountCents: z.number().int().positive(),
+  currency: z.string(),
+  direction: z.literal('INCOMING'),
+});
+
+/** DRY subject for the withdrawal-routing command broker-ctrl emits to broker-sim (SIM_WITHDRAWAL_REQUESTED). */
+export const SimWithdrawalRequestedSubjectSchema = z.object({
+  withdrawalId: z.string(),
+  amountCents: z.number().int().positive(),
+  currency: z.string(),
+  direction: z.literal('OUTGOING'),
+});
+
 /**
  * Test-fixture event→subject map for broker-ctrl's emissions. Co-located with the producer-owned
  * schemas; consumed only by `@nestfolio/test-contracts`. Grows across Tasks 3 and 4.
  */
 export const brokerCtrlEventSubjects = {
-  SIM_ORDER_REQUESTED: BrokerOrderRequestSchema,
   ALPACA_ORDER_REQUESTED: BrokerOrderRequestSchema,
+  ALPACA_TRANSFER_REQUESTED: AlpacaTransferRequestSchema,
+  SIM_DEPOSIT_INITIATED: SimDepositInitiatedSubjectSchema,
+  SIM_ORDER_REQUESTED: BrokerOrderRequestSchema,
+  SIM_WITHDRAWAL_REQUESTED: SimWithdrawalRequestedSubjectSchema,
 } as const satisfies Record<string, ZodTypeAny>;

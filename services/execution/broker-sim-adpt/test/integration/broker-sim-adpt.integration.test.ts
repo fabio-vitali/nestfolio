@@ -75,12 +75,8 @@ describe('broker-sim-adpt', () => {
       bus: 'execution',
       targetService: 'broker-sim-adpt',
       detailType: 'SIM_DEPOSIT_INITIATED',
-      detail: {
-        depositId,
-        userId: ctx.userId,
-        amountCents: 100_000,
-        currency: 'USD',
-      },
+      subject: { depositId, amountCents: 100_000, currency: 'USD', direction: 'INCOMING' as const },
+      context: { userId: ctx.userId },
     });
 
     // Verify CDC event — proves full pipeline: EB → SQS → Lambda → DDB DepositDetected write → CDC → SIM_DEPOSIT_COMPLETED
@@ -101,12 +97,8 @@ describe('broker-sim-adpt', () => {
       bus: 'execution',
       targetService: 'broker-sim-adpt',
       detailType: 'SIM_DEPOSIT_INITIATED',
-      detail: {
-        depositId: setupDepositId,
-        userId: ctx.userId,
-        amountCents: 500_000,
-        currency: 'USD',
-      },
+      subject: { depositId: setupDepositId, amountCents: 500_000, currency: 'USD', direction: 'INCOMING' as const },
+      context: { userId: ctx.userId },
     });
 
     // Wait for setup deposit to complete before requesting withdrawal
@@ -116,11 +108,8 @@ describe('broker-sim-adpt', () => {
       bus: 'execution',
       targetService: 'broker-sim-adpt',
       detailType: 'SIM_WITHDRAWAL_REQUESTED',
-      detail: {
-        withdrawalId,
-        userId: ctx.userId,
-        amount: 500,
-      },
+      subject: { withdrawalId, amountCents: 50_000, currency: 'USD', direction: 'OUTGOING' as const },
+      context: { userId: ctx.userId },
     });
 
     // Verify CDC event — proves full pipeline: EB → SQS → Lambda → DDB WithdrawalCompleted write → CDC → SIM_WITHDRAWAL_COMPLETED

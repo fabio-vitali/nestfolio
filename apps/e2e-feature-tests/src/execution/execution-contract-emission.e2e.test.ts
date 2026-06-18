@@ -253,19 +253,15 @@ describe('execution-domain producer contracts — SIM path', () => {
       // funded() seeds investor-bff, NOT the broker-sim VIRTUAL ledger. The sim
       // BUY order would otherwise reject on insufficient virtual cash, so fund the
       // virtual ledger first with a SIM_DEPOSIT_INITIATED and wait for the
-      // DepositDetected row (proves the guarded credit landed). Subject fields are
-      // those read by broker-sim's event-listener SIM_DEPOSIT_INITIATED handler:
-      // {depositId, amountCents, currency, userId}.
+      // DepositDetected row (proves the guarded credit landed). Subject fields follow
+      // SimDepositInitiatedSubjectSchema (broker-ctrl/contracts): {depositId, amountCents,
+      // currency, direction}; identity (userId) travels in context.
       await eb.putEvent({
         bus: 'execution',
         targetService: 'broker-sim-adpt',
         detailType: 'SIM_DEPOSIT_INITIATED',
-        detail: {
-          depositId: `e2e-simdep-${randomUUID()}`,
-          amountCents: 1_000_000,
-          currency: 'USD',
-          userId: tenant.userId,
-        },
+        subject: { depositId: `e2e-simdep-${randomUUID()}`, amountCents: 1_000_000, currency: 'USD', direction: 'INCOMING' as const },
+        context: { userId: tenant.userId },
       });
       await poll(async () => {
         const items = await byTypename('DepositDetected');
@@ -309,10 +305,10 @@ describe('execution-domain producer contracts — SIM path', () => {
       const table = await ctx.ssm.tableName('broker-sim-adpt');
       const byTypename = makeByTypename(ddbDoc, table, tenant.tenantId);
 
-      // Emit SIM_DEPOSIT_INITIATED directly to broker-sim-adpt. Subject fields are
-      // those read by broker-sim's event-listener SIM_DEPOSIT_INITIATED handler:
-      // {depositId, amountCents, currency, userId}. It writes a `DepositDetected`
-      // row (pk=`DepositDetected#${tenantId}#${eventId}`, sk='DepositDetected',
+      // Emit SIM_DEPOSIT_INITIATED directly to broker-sim-adpt. Subject follows
+      // SimDepositInitiatedSubjectSchema: {depositId, amountCents, currency, direction};
+      // identity (userId) in context. The handler writes a `DepositDetected` row
+      // (pk=`DepositDetected#${tenantId}#${eventId}`, sk='DepositDetected',
       // __typename='DepositDetected') → CDC SIM_DEPOSIT_COMPLETED. The emitted
       // subject is validated by SimDepositCompletedSchema. This deposit also funds
       // the virtual ledger so the withdrawal below can draw from it.
@@ -320,12 +316,8 @@ describe('execution-domain producer contracts — SIM path', () => {
         bus: 'execution',
         targetService: 'broker-sim-adpt',
         detailType: 'SIM_DEPOSIT_INITIATED',
-        detail: {
-          depositId: `e2e-deposit-${randomUUID()}`,
-          amountCents: 500_000,
-          currency: 'USD',
-          userId: tenant.userId,
-        },
+        subject: { depositId: `e2e-deposit-${randomUUID()}`, amountCents: 500_000, currency: 'USD', direction: 'INCOMING' as const },
+        context: { userId: tenant.userId },
       });
 
       const deposits = await poll(async () => {
@@ -337,21 +329,18 @@ describe('execution-domain producer contracts — SIM path', () => {
         expectContractMatch(SimDepositCompletedSchema, row, `SimDepositCompleted[${i}]`),
       );
 
-      // Emit SIM_WITHDRAWAL_REQUESTED directly to broker-sim-adpt. Subject fields
-      // read by the handler (lines 76-78): {withdrawalId, amount, userId}. NOTE the
-      // deposit/withdrawal asymmetry — withdrawal carries `amount` in DOLLARS, not
-      // amountCents. The deposit above credited $5,000 of virtual cash; withdraw
-      // $2,500 (< balance) so the guarded debit succeeds and a `WithdrawalCompleted`
-      // row is written (__typename='WithdrawalCompleted') → CDC SIM_WITHDRAWAL_COMPLETED.
+      // Emit SIM_WITHDRAWAL_REQUESTED directly to broker-sim-adpt. Subject follows
+      // SimWithdrawalRequestedSubjectSchema: {withdrawalId, amountCents, currency, direction};
+      // identity (userId) in context. The handler converts amountCents→dollars for the
+      // virtual ledger. The deposit above credited $5,000 of virtual cash; withdraw
+      // $2,500 (250_000 amountCents, < balance) so the guarded debit succeeds and a
+      // `WithdrawalCompleted` row is written (__typename='WithdrawalCompleted') → CDC SIM_WITHDRAWAL_COMPLETED.
       await eb.putEvent({
         bus: 'execution',
         targetService: 'broker-sim-adpt',
         detailType: 'SIM_WITHDRAWAL_REQUESTED',
-        detail: {
-          withdrawalId: `e2e-withdrawal-${randomUUID()}`,
-          amount: 2_500,
-          userId: tenant.userId,
-        },
+        subject: { withdrawalId: `e2e-withdrawal-${randomUUID()}`, amountCents: 250_000, currency: 'USD', direction: 'OUTGOING' as const },
+        context: { userId: tenant.userId },
       });
 
       const withdrawals = await poll(async () => {
@@ -474,12 +463,9 @@ describe('execution-domain producer contracts — REAL Alpaca paper path', () =>
         bus: 'execution',
         targetService: 'broker-alpaca-adpt',
         detailType: 'ALPACA_TRANSFER_REQUESTED',
-        detail: {
-          transferId,
-          direction: 'INCOMING',
-          amount: 100,
-          relationshipId: '',
-        },
+        // (a) fixture fix: amount→amountCents (* 100) + add currency — prior shape would have
+        // thrown on AlpacaTransferRequestSchema (handler parseSubject validates before any API call).
+        subject: { transferId, direction: 'INCOMING' as const, amountCents: 10_000, currency: 'USD', relationshipId: '' },
       });
 
       const results = await poll(async () => {
