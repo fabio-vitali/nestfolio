@@ -26,3 +26,10 @@ This is the same root cause as [[broker-alpaca-adpt-latent-tsc-errors]] (that it
 one service). Candidate for a shared "diagnostics:false masks tsc" theme epic + a real
 `typecheck` nx target per service so the typed-subject / typed-test-fixtures compile-time
 guarantees actually bind.
+
+**Extended 2026-06-19** (typed-test-fixtures cross-domain consumer migration): the LEDGER domain is
+also affected (this item's title says investor/advisory/execution, but the class is workspace-wide) —
+`reconciliation-ctrl` 26 (src handlers/repositories/services + `test/unit/reconciliation.service.test.ts`)
+and `ledger-ctrl` 5 (`test/unit/transforms/snapshot-to-events.test.ts`). Confirmed pre-existing: the
+cross-domain fixture migration added **zero** new errors to either (the migrated integration/e2e files
+compile clean). Reinforces that the shared theme epic should span all 4 domains.

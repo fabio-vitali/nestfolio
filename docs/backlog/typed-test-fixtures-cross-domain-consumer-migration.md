@@ -1,6 +1,6 @@
 ---
 id: typed-test-fixtures-cross-domain-consumer-migration
-status: active
+status: shipped
 type: refactor
 notes: "CORE. Register + migrate the execution-produced events whose CONSUMER fixtures live in other domains' test files and that have a usable producer contract: ALPACA_ACCOUNT_SNAPSHOT, DEPOSIT_SETTLED/WITHDRAWAL_SETTLED, BROKER_CIRCUIT_OPEN/CLOSED, BROKER_HEAL_ESCALATED. Their consumer putEvent({detail}) sites remain legacy/gate-invisible after Phase 4 — required for done_when 'all ~290 sites migrated'. Split out 2026-06-19 from typed-test-fixtures-execution-deferred-cross-domain (ORDER_* family) and again 2026-06-19 from CORPORATE_ACTION_APPLIED/PORTFOLIO_SNAPSHOT_IMPORTED (no producer contract)."
 references: []
@@ -12,7 +12,7 @@ out_of_scope:
 spec: null
 plan: docs/superpowers/plans/2026-06-19-typed-fixtures-cross-domain-consumer-migration.md
 topic_memory: [project_event_subject_contracts.md]
-validation_gate: null
+validation_gate: "STATIC gate (runtime decoupled to typed-test-fixtures-consolidated-integration-e2e-verify per epic). check-typed-fixtures: OK exit 0, 449 files / 83 registered events — all 6 events 0 violations. test-contracts:test registry sync 2/2 pass. nx run-many test+lint on test-contracts/broker-alpaca-adpt/broker-ctrl/reconciliation-ctrl/ledger-ctrl/investor-bff: all 6 PASS (24 suites, 105 tests). Per-service tsc delta-0 (migrated integration/e2e files compile clean): reconciliation-ctrl 26/26, ledger-ctrl 5/5, investor-bff 27/27, e2e app 0/0. Commits: 565924fa register · 6893f9ac reconciliation-ctrl · 7e6a9126 ledger-ctrl · 0250afb1 investor-bff · a2445058 e2e. Honest ledger fixtures surfaced + filed the money bug [[ledger-ctrl-funding-reducer-depositid-vs-transferid]]; sibling funding events split to [[typed-fixtures-funding-lifecycle-detected-failed]]."
 epic: typed-test-fixtures
 epic_role: core
 ---
