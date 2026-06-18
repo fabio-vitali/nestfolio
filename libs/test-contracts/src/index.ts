@@ -1,6 +1,7 @@
 import type { z, ZodTypeAny } from 'zod';
 import { mandateEventSubjects, investorFundingEventSubjects } from '@nestfolio/investor-adpt/domain';
 import { ledgerCtrlEventSubjects } from '@nestfolio/ledger-ctrl/contracts';
+import { reconciliationCtrlEventSubjects } from '@nestfolio/reconciliation-ctrl/contracts';
 import { investorBffEventSubjects } from '@nestfolio/investor-bff/contracts';
 import { onboardingBffEventSubjects } from '@nestfolio/onboarding-bff/contracts';
 import { investorCtrlEventSubjects } from '@nestfolio/investor-ctrl/contracts';
@@ -32,6 +33,7 @@ export const EventSubjects = {
   ...mandateEventSubjects,
   ...investorFundingEventSubjects,
   ...ledgerCtrlEventSubjects,
+  ...reconciliationCtrlEventSubjects,
   ...investorBffEventSubjects,
   ...onboardingBffEventSubjects,
   ...investorCtrlEventSubjects,

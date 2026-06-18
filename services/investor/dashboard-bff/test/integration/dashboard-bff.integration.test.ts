@@ -182,10 +182,7 @@ describe('dashboard-bff', () => {
         bus: 'investor',
         targetService: 'dashboard-bff',
         detailType: 'RECONCILIATION_COMPLETED',
-        detail: {
-          reconciliationId: `integ-recon-${Date.now()}`,
-          completedAt: new Date().toISOString(),
-        },
+        subject: { reconciliationId: `integ-recon-${Date.now()}`, status: 'COMPLETED', driftCount: 0 },
       });
 
       // Wait briefly, then verify PortfolioSummary was not modified
