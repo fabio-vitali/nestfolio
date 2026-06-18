@@ -2,6 +2,7 @@
 // These schemas describe the DDB rows emitted as CDC subjects on SIM_DEPOSIT_COMPLETED
 // and SIM_WITHDRAWAL_COMPLETED. Separate from the inbound-event schemas in schemas.ts.
 import { z } from 'zod';
+import type { ZodTypeAny } from 'zod';
 
 /**
  * Subject shape for SIM_DEPOSIT_COMPLETED.
@@ -76,3 +77,15 @@ export const VirtualSnapshotSchema = z.object({
   totalValue: z.number(),
 });
 export type VirtualSnapshot = z.infer<typeof VirtualSnapshotSchema>;
+
+/**
+ * Test-fixture event→subject map for broker-sim-adpt's CDC emissions. Co-located with the
+ * producer-owned schemas (single source of truth); consumed only by `@nestfolio/test-contracts`.
+ * Bare string-literal keys so `keyof typeof` is a literal union.
+ */
+export const brokerSimAdptEventSubjects = {
+  SIM_DEPOSIT_COMPLETED: SimDepositCompletedSchema,
+  SIM_WITHDRAWAL_COMPLETED: SimWithdrawalCompletedSchema,
+  SIM_ORDER_FILLED: VirtualTradeSchema,
+  SIM_ORDER_REJECTED: VirtualTradeSchema,
+} as const satisfies Record<string, ZodTypeAny>;

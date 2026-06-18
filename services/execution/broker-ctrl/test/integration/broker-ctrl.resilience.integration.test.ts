@@ -131,7 +131,7 @@ describe('broker-ctrl resilience: idempotency', () => {
         bus: 'execution',
         targetService: 'broker-ctrl',
         detailType: 'SIM_DEPOSIT_COMPLETED',
-        detail: payload,
+        subject: payload,
         eventId,
       });
 
@@ -166,7 +166,7 @@ describe('broker-ctrl resilience: idempotency', () => {
         bus: 'execution',
         targetService: 'broker-ctrl',
         detailType: 'SIM_DEPOSIT_COMPLETED',
-        detail: payload,
+        subject: payload,
         eventId,
       });
 
@@ -219,7 +219,7 @@ describe('broker-ctrl resilience: order-agnostic pairwise', () => {
         bus: 'execution',
         targetService: 'broker-ctrl',
         detailType: 'SIM_DEPOSIT_COMPLETED',
-        detail: {
+        subject: {
           depositId: depositIdA,
           amountCents: 100000,
           currency: 'USD',
@@ -237,7 +237,7 @@ describe('broker-ctrl resilience: order-agnostic pairwise', () => {
         bus: 'execution',
         targetService: 'broker-ctrl',
         detailType: 'SIM_WITHDRAWAL_COMPLETED',
-        detail: {
+        subject: {
           // SimWithdrawalCompletedSchema carries `amount` (DOLLARS), no amountCents/currency.
           withdrawalId: withdrawalIdA,
           amount: 500,
@@ -286,7 +286,7 @@ describe('broker-ctrl resilience: order-agnostic pairwise', () => {
           bus: 'execution',
           targetService: 'broker-ctrl',
           detailType: 'SIM_WITHDRAWAL_COMPLETED',
-          detail: {
+          subject: {
             // SimWithdrawalCompletedSchema carries `amount` (DOLLARS), no amountCents/currency.
             withdrawalId: withdrawalIdB,
             amount: 500,
@@ -304,7 +304,7 @@ describe('broker-ctrl resilience: order-agnostic pairwise', () => {
           bus: 'execution',
           targetService: 'broker-ctrl',
           detailType: 'SIM_DEPOSIT_COMPLETED',
-          detail: {
+          subject: {
             depositId: depositIdB,
             amountCents: 100000,
             currency: 'USD',

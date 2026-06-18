@@ -84,7 +84,7 @@ describe('broker-ctrl', () => {
         bus: 'execution',
         targetService: 'broker-ctrl',
         detailType: 'SIM_DEPOSIT_COMPLETED',
-        detail: {
+        subject: {
           depositId,
           amountCents: 100000,
           currency: 'USD',
@@ -151,7 +151,7 @@ describe('broker-ctrl', () => {
         bus: 'execution',
         targetService: 'broker-ctrl',
         detailType: 'SIM_WITHDRAWAL_COMPLETED',
-        detail: {
+        subject: {
           // SimWithdrawalCompletedSchema carries `amount` (DOLLARS), NOT amountCents/currency.
           withdrawalId,
           amount: 500, // dollars → carrier amountCents = Math.round(500*100) = 50000
@@ -405,7 +405,7 @@ describe('broker-ctrl', () => {
           bus: 'execution',
           targetService: 'broker-ctrl',
           detailType: 'SIM_DEPOSIT_COMPLETED',
-          detail: {
+          subject: {
             depositId,
             amountCents: 6900, // ≠ seeded 7000 → fallback would yield 6900
             currency: 'USD',
