@@ -44,6 +44,19 @@ Phase 3 (execution) was intentionally scoped to the execution domain's own test 
   - `[[broker-ctrl-order-sf-input-contract-gap]]`
 - These were explicitly out-of-scope in Phase 3 spec §9. See `TODO(typed-test-fixtures Phase 4)` comment in `services/investor/investor-ctrl/test/integration/onboarding-notification.integration.test.ts:116`.
 
+## Phase 4 (2026-06-18)
+
+Phase 4 (ledger) shipped registering the ledger-**produced** events (BALANCE_UPDATED,
+PORTFOLIO_UPDATED, LEDGER_ENTRY_RECORDED, RECONCILIATION_COMPLETED) and migrating every fixture
+that injects them. The execution events ledger **consumes** — `ORDER_FILLED` / `ORDER_PARTIALLY_FILLED`
+/ `ORDER_REJECTED` / `ORDER_CANCELLED`, `DEPOSIT_SETTLED`, `WITHDRAWAL_SETTLED`,
+`ALPACA_ACCOUNT_SNAPSHOT`, `CORPORATE_ACTION_APPLIED`, `PORTFOLIO_SNAPSHOT_IMPORTED` — were kept
+**deferred** (2026-06-18 user decision: keep this item captured, revisit at epic ship). Their ledger
+`putEvent({ detail })` sites remain legacy/gate-invisible (unregistered). Net: the deferral set
+named above is unchanged after Phase 4; this item still rides along the `typed-test-fixtures` epic as
+`captured`. (Separately, Phase 4 newly deferred `PORTFOLIO_DRIFT_DETECTED` for a registry name
+collision — filed as `[[portfolio-drift-detected-registry-collision]]`, not folded here.)
+
 ## Promote when
 
 Starting Phase 4 (ledger domain wave), OR when the parked production forks `ledger-ctrl-live-tax-lot-missing-order-fields` and `broker-ctrl-order-sf-input-contract-gap` are resolved, whichever comes first.
