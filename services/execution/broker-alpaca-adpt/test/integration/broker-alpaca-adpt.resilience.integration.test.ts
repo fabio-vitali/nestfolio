@@ -85,14 +85,14 @@ describe('broker-alpaca-adpt resilience: idempotency', () => {
 
       const eventId = `idemp-alp-order-${randomUUID()}`;
       const orderId = `idemp-alp-order-${randomUUID()}`;
-      const payload = { orderId, symbol: 'AAPL', side: 'BUY', quantity: 5 };
+      const payload = { orderId, symbol: 'AAPL', side: 'BUY' as const, quantity: 5 };
 
       // First publish
       await eb.putEvent({
         bus: 'execution',
         targetService: 'broker-alpaca-adpt',
         detailType: 'ALPACA_ORDER_REQUESTED',
-        detail: payload,
+        subject: payload,
         eventId,
       });
 
@@ -121,7 +121,7 @@ describe('broker-alpaca-adpt resilience: idempotency', () => {
         bus: 'execution',
         targetService: 'broker-alpaca-adpt',
         detailType: 'ALPACA_ORDER_REQUESTED',
-        detail: payload,
+        subject: payload,
         eventId,
       });
 

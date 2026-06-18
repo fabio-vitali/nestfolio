@@ -283,14 +283,8 @@ describe('execution-domain producer contracts — SIM path', () => {
         bus: 'execution',
         targetService: 'broker-sim-adpt',
         detailType: 'SIM_ORDER_REQUESTED',
-        detail: {
-          orderId,
-          tenantId: tenant.tenantId,
-          userId: tenant.userId,
-          symbol: 'VTI',
-          side: 'BUY',
-          quantity: 5,
-        },
+        subject: { orderId, symbol: 'VTI', side: 'BUY', quantity: 5 },
+        context: { tenantId: tenant.tenantId, userId: tenant.userId },
       });
 
       const trades = await poll(async () => {
@@ -439,12 +433,7 @@ describe('execution-domain producer contracts — REAL Alpaca paper path', () =>
         bus: 'execution',
         targetService: 'broker-alpaca-adpt',
         detailType: 'ALPACA_ORDER_REQUESTED',
-        detail: {
-          orderId,
-          symbol: 'VTI',
-          side: 'BUY',
-          quantity: 1,
-        },
+        subject: { orderId, symbol: 'VTI', side: 'BUY', quantity: 1 },
       });
 
       // Generous deadline — real Alpaca API.

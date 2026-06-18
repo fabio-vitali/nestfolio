@@ -47,13 +47,8 @@ describe('broker-sim-adpt', () => {
       bus: 'execution',
       targetService: 'broker-sim-adpt',
       detailType: 'SIM_ORDER_REQUESTED',
-      detail: {
-        orderId,
-        userId: ctx.userId,
-        symbol: 'VTI',
-        side: 'BUY',
-        quantity: 1,
-      },
+      subject: { orderId, symbol: 'VTI', side: 'BUY', quantity: 1 },
+      context: { userId: ctx.userId },
     });
 
     // Verify DDB write (proves: EB → SQS → Lambda → DDB VirtualTrade write)

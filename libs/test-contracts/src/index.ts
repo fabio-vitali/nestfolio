@@ -17,6 +17,7 @@ import { marketwatchAdptEventSubjects } from '@nestfolio/marketwatch-adpt/contra
 import { advisoryBffEventSubjects } from '@nestfolio/advisory-bff/contracts';
 import { brokerSimAdptEventSubjects } from '@nestfolio/broker-sim-adpt/contracts';
 import { brokerAlpacaAdptEventSubjects } from '@nestfolio/broker-alpaca-adpt/contracts';
+import { brokerCtrlEventSubjects } from '@nestfolio/broker-ctrl/contracts';
 
 /**
  * The single typed registry of `event detailType → producer subject schema`, composed
@@ -46,6 +47,7 @@ export const EventSubjects = {
   ...advisoryBffEventSubjects,
   ...brokerSimAdptEventSubjects,
   ...brokerAlpacaAdptEventSubjects,
+  ...brokerCtrlEventSubjects,
 } as const satisfies Record<string, ZodTypeAny>;
 
 /** Union of all registered event names (detailTypes). */

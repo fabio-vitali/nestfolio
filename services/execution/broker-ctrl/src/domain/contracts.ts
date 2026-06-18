@@ -1,6 +1,7 @@
 // Producer-owned event/row subject contracts for broker-ctrl. Imports ONLY zod.
 // Dry aggregates — identity (tenantId/userId/region) travels in the event context, not here.
 import { z } from 'zod';
+import type { ZodTypeAny } from 'zod';
 
 /**
  * ORDER lifecycle subject — the `NormalizedEvent` row (sk=`ORDER_*#${ts}`) written by the
@@ -48,3 +49,25 @@ export const ExecutionModeSchema = z.object({
   updatedAt: z.string(),
 });
 export type ExecutionMode = z.infer<typeof ExecutionModeSchema>;
+
+/**
+ * DRY subject for the order-routing commands broker-ctrl emits to the broker adapters
+ * (SIM_ORDER_REQUESTED / ALPACA_ORDER_REQUESTED). Identity (userId/tenantId) is carried in the
+ * envelope context, not the subject. NB: the live producer (route-order.ts) currently also puts
+ * userId on the subject — tracked as a latent non-DRY producer bug (see Task 5 filing).
+ */
+export const BrokerOrderRequestSchema = z.object({
+  orderId: z.string(),
+  symbol: z.string(),
+  side: z.enum(['BUY', 'SELL']),
+  quantity: z.number(),
+});
+
+/**
+ * Test-fixture event→subject map for broker-ctrl's emissions. Co-located with the producer-owned
+ * schemas; consumed only by `@nestfolio/test-contracts`. Grows across Tasks 3 and 4.
+ */
+export const brokerCtrlEventSubjects = {
+  SIM_ORDER_REQUESTED: BrokerOrderRequestSchema,
+  ALPACA_ORDER_REQUESTED: BrokerOrderRequestSchema,
+} as const satisfies Record<string, ZodTypeAny>;
