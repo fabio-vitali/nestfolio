@@ -2,6 +2,7 @@ import { randomUUID } from 'node:crypto';
 import {
   EventBridgeClient,
 } from '@nestfolio/test-support';
+import { type FundingSnapshot } from '@nestfolio/execution-adpt/domain';
 import {
   createIntegrationTestContext,
   EventBusTrap,
@@ -138,16 +139,23 @@ describe('ledger-ctrl resilience: idempotency', () => {
 
       const eventId = `idemp-dep-${randomUUID()}`;
       const payload = {
-        depositId: `dep-idemp-${randomUUID()}`,
+        sk: 'DEPOSIT_SETTLED',
+        direction: 'DEPOSIT',
+        status: 'settled',
+        transferId: `dep-idemp-${randomUUID()}`,
         amountCents: 500_000,
+        currency: 'USD',
+        executionMode: 'simulation',
+        initiatedAt: new Date().toISOString(),
         settledAt: new Date().toISOString(),
-      };
+        timestamp: new Date().toISOString(),
+      } satisfies FundingSnapshot;
 
       await eb.putEvent({
         bus: 'ledger',
         targetService: 'ledger-ctrl',
         detailType: 'DEPOSIT_SETTLED',
-        detail: payload,
+        subject: payload,
         eventId,
       });
       await waitForEntryCount(table, ctx.tenantId, 'actual', 1);
@@ -160,7 +168,7 @@ describe('ledger-ctrl resilience: idempotency', () => {
         bus: 'ledger',
         targetService: 'ledger-ctrl',
         detailType: 'DEPOSIT_SETTLED',
-        detail: payload,
+        subject: payload,
         eventId,
       });
 
@@ -248,10 +256,17 @@ describe('ledger-ctrl resilience: order-agnostic pairwise', () => {
         bus: 'ledger',
         targetService: 'ledger-ctrl',
         detailType: 'DEPOSIT_SETTLED',
-        detail: {
-          depositId: `dep-pair-A-${randomUUID()}`,
+        subject: {
+          sk: 'DEPOSIT_SETTLED',
+          direction: 'DEPOSIT',
+          status: 'settled',
+          transferId: `dep-pair-A-${randomUUID()}`,
           amountCents: 500_000,
+          currency: 'USD',
+          executionMode: 'simulation',
+          initiatedAt: new Date().toISOString(),
           settledAt: new Date().toISOString(),
+          timestamp: new Date().toISOString(),
         },
       });
       await waitForSnapshot(tableA, ctxA.tenantId, 'actual');
@@ -304,10 +319,17 @@ describe('ledger-ctrl resilience: order-agnostic pairwise', () => {
           bus: 'ledger',
           targetService: 'ledger-ctrl',
           detailType: 'DEPOSIT_SETTLED',
-          detail: {
-            depositId: `dep-pair-B-${randomUUID()}`,
+          subject: {
+            sk: 'DEPOSIT_SETTLED',
+            direction: 'DEPOSIT',
+            status: 'settled',
+            transferId: `dep-pair-B-${randomUUID()}`,
             amountCents: 500_000,
+            currency: 'USD',
+            executionMode: 'simulation',
+            initiatedAt: new Date().toISOString(),
             settledAt: new Date().toISOString(),
+            timestamp: new Date().toISOString(),
           },
         });
 

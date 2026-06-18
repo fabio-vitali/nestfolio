@@ -102,10 +102,17 @@ describe('ledger-ctrl: event-listener DDB writes', () => {
       bus: 'ledger',
       targetService: 'ledger-ctrl',
       detailType: 'DEPOSIT_SETTLED',
-      detail: {
-        depositId: `dep-ddb-${Date.now()}`,
+      subject: {
+        sk: 'DEPOSIT_SETTLED',
+        direction: 'DEPOSIT',
+        status: 'settled',
+        transferId: `dep-ddb-${Date.now()}`,
         amountCents: 500_000,
+        currency: 'USD',
+        executionMode: 'simulation',
+        initiatedAt: new Date().toISOString(),
         settledAt: new Date().toISOString(),
+        timestamp: new Date().toISOString(),
       },
     });
 
@@ -119,10 +126,17 @@ describe('ledger-ctrl: event-listener DDB writes', () => {
       bus: 'ledger',
       targetService: 'ledger-ctrl',
       detailType: 'WITHDRAWAL_SETTLED',
-      detail: {
-        withdrawalId: `wd-ddb-${Date.now()}`,
+      subject: {
+        sk: 'WITHDRAWAL_SETTLED',
+        direction: 'WITHDRAWAL',
+        status: 'settled',
+        transferId: `wd-ddb-${Date.now()}`,
         amountCents: 100_000,
+        currency: 'USD',
+        executionMode: 'simulation',
+        initiatedAt: new Date().toISOString(),
         settledAt: new Date().toISOString(),
+        timestamp: new Date().toISOString(),
       },
     });
 
@@ -241,10 +255,17 @@ describe('ledger-ctrl: CDC chain → BALANCE_UPDATED', () => {
       bus: 'ledger',
       targetService: 'ledger-ctrl',
       detailType: 'DEPOSIT_SETTLED',
-      detail: {
-        depositId: `dep-cdc-${Date.now()}`,
+      subject: {
+        sk: 'DEPOSIT_SETTLED',
+        direction: 'DEPOSIT',
+        status: 'settled',
+        transferId: `dep-cdc-${Date.now()}`,
         amountCents: 500_000,
+        currency: 'USD',
+        executionMode: 'simulation',
+        initiatedAt: new Date().toISOString(),
         settledAt: new Date().toISOString(),
+        timestamp: new Date().toISOString(),
       },
     });
 
@@ -262,10 +283,17 @@ describe('ledger-ctrl: CDC chain → BALANCE_UPDATED', () => {
       bus: 'ledger',
       targetService: 'ledger-ctrl',
       detailType: 'WITHDRAWAL_SETTLED',
-      detail: {
-        withdrawalId: `wd-cdc-${Date.now()}`,
+      subject: {
+        sk: 'WITHDRAWAL_SETTLED',
+        direction: 'WITHDRAWAL',
+        status: 'settled',
+        transferId: `wd-cdc-${Date.now()}`,
         amountCents: 100_000,
+        currency: 'USD',
+        executionMode: 'simulation',
+        initiatedAt: new Date().toISOString(),
         settledAt: new Date().toISOString(),
+        timestamp: new Date().toISOString(),
       },
     });
 
