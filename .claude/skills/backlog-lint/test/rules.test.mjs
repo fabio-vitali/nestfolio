@@ -4,7 +4,7 @@ import { dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { ruleIdMatchesFilename, ruleSingleActive, ruleQueuedRanks } from '../lib/rules.mjs';
 import { ruleActiveOutOfScope, ruleShippedValidationGate } from '../lib/rules.mjs';
-import { ruleReferencesValid } from '../lib/rules.mjs';
+import { ruleReferencesValid, rulePromotionTriggerGated } from '../lib/rules.mjs';
 
 const fixturesDir = dirname(fileURLToPath(import.meta.url)) + '/fixtures';
 
@@ -131,4 +131,31 @@ test('rule 3: design type with bad anchor — fail', () => {
 test('rule 3: non-design types skip the check', () => {
   const f = file('a', { type: 'bug', references: [] });
   assert.deepEqual(ruleReferencesValid(f, fixturesDir), []);
+});
+
+// ── Rule 8: promotion-trigger gating (notes AND body) ──────────────────────
+test('rule 8: queued + trigger in body — fail', () => {
+  const f = file('a', { status: 'queued', rank: 1 });
+  f.body = 'Some context. Promote when the dev env recovers.';
+  const v = rulePromotionTriggerGated(f);
+  assert.equal(v.length, 1);
+  assert.match(v[0].message, /unmet promotion trigger/i);
+});
+
+test('rule 8: queued + trigger in NOTES — fail (notes must not escape)', () => {
+  const f = file('a', { status: 'queued', rank: 1, notes: 'Runtime verify. Promote after Phase 4 ships.' });
+  const v = rulePromotionTriggerGated(f);
+  assert.equal(v.length, 1);
+  assert.match(v[0].message, /unmet promotion trigger/i);
+});
+
+test('rule 8: queued + no trigger anywhere — pass', () => {
+  const f = file('a', { status: 'queued', rank: 1, notes: 'Next-up work, ready to pick up.' });
+  f.body = 'No gating language here.';
+  assert.deepEqual(rulePromotionTriggerGated(f), []);
+});
+
+test('rule 8: parking + trigger in notes — skipped (only queued is gated)', () => {
+  const f = file('a', { status: 'parking', notes: 'Promote when the forks resolve.' });
+  assert.deepEqual(rulePromotionTriggerGated(f), []);
 });

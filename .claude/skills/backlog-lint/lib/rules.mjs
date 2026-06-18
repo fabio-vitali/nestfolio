@@ -36,11 +36,13 @@ export function ruleSingleActive(files) {
 
 export function rulePromotionTriggerGated(file) {
   if (file.frontmatter?.status !== 'queued') return [];
-  const body = file.body ?? '';
-  const m = body.match(/\bPromote\s+(when|on|once|until|after|only)\b[^.\n]*/i);
+  // Scan BOTH the notes: frontmatter AND the body — trigger language in notes
+  // escapes a body-only scan and silently keeps an unmet item queued.
+  const text = `${file.frontmatter?.notes ?? ''}\n${file.body ?? ''}`;
+  const m = text.match(/\bPromote\s+(when|on|once|until|after|only)\b[^.\n]*/i);
   if (m) {
     return [v('promotion-trigger-gated', file,
-      `${file.id}: queued but body has unmet promotion trigger — "${m[0].trim()}". Either remove the sentence (trigger fired — document why in body) or revert to status: parking.`)];
+      `${file.id}: queued but notes/body has unmet promotion trigger — "${m[0].trim()}". Either remove the sentence (trigger fired — document why) or revert to status: parking.`)];
   }
   return [];
 }

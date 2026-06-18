@@ -23,7 +23,7 @@ Invoke when:
 5. `status: shipped` ⇒ `validation_gate` non-empty.
 6. `status: queued` ⇒ `rank` set + unique among queued.
 7. `docs/BACKLOG.md` matches the auto-generated rendering of frontmatter.
-8. `status: queued` ⇒ body must NOT contain "Promote when/on/once/until/after/only" trigger language. If a promotion trigger remains unmet, item belongs in `parking`. To promote: remove the trigger sentence and document in body why the trigger fired.
+8. `status: queued` ⇒ neither `notes:` nor body may contain "Promote when/on/once/until/after/only" trigger language (both are scanned — notes must not let a trigger escape). If a promotion trigger remains unmet, item belongs in `parking`. To promote: remove the trigger sentence and document why it fired.
 9. **Epic closure:** `type: epic` + `status: shipped` ⇒ no member (a file whose `epic:` equals this id) is in a non-terminal status. Core members must be `shipped`/`dropped`; captured members must be resolved/dropped **or** re-homed (e.g. to `<epic>-leftovers`).
 10. **Epic pointer integrity:** a member's `epic:` references an existing `type: epic` file; an epic file must NOT carry an `epic:` pointer (1-level tree, no nesting); `epic_role`, when set, ∈ {`core`, `captured`}.
 11. **Single active epic:** at most one `type: epic` with `status: active` (the one delivery epic in flight). Theme epics (`status: parking`) and scheduled epics (`status: queued`) are unbounded.
