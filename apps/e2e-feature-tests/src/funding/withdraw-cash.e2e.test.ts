@@ -81,13 +81,18 @@ describe('scenario 2 — investor withdraws cash', () => {
       bus: 'investor',
       targetService: 'dashboard-bff',
       detailType: 'WITHDRAWAL_SETTLED',
-      detail: {
-        tenantId: tenant.tenantId,
-        userId: tenant.userId,
-        withdrawalId: withdrawal.requestWithdrawal.withdrawalId,
+      context: { tenantId: tenant.tenantId, userId: tenant.userId },
+      subject: {
+        sk: 'WITHDRAWAL_SETTLED',
+        direction: 'WITHDRAWAL',
+        status: 'settled',
+        transferId: withdrawal.requestWithdrawal.withdrawalId,
         amountCents: 250_000,
         currency: 'USD',
+        executionMode: 'simulation',
+        initiatedAt: new Date().toISOString(),
         settledAt: new Date().toISOString(),
+        timestamp: new Date().toISOString(),
       },
     });
 

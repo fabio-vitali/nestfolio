@@ -43,7 +43,6 @@ import {
 } from '..';
 import { DynamoDBClient } from '@aws-sdk/client-dynamodb';
 import { DynamoDBDocumentClient, GetCommand, QueryCommand } from '@aws-sdk/lib-dynamodb';
-import { AlpacaAdptEventTypes } from '@nestfolio/broker-alpaca-adpt/events';
 import {
   BalanceUpdatedSchema,
   PortfolioUpdatedSchema,
@@ -196,11 +195,11 @@ describe('ledger-domain producer contracts match REAL deployed emission', () => 
       await eb.putEvent({
         bus: 'ledger',
         targetService: 'reconciliation-ctrl',
-        detailType: AlpacaAdptEventTypes.ALPACA_ACCOUNT_SNAPSHOT,
-        detail: {
-          tenantId: tenant.tenantId,
-          userId: tenant.userId,
-          portfolioId: tenant.tenantId,
+        detailType: 'ALPACA_ACCOUNT_SNAPSHOT',
+        context: { tenantId: tenant.tenantId, userId: tenant.userId },
+        subject: {
+          equity: '0',
+          buyingPower: '0',
           positions: [
             { symbol: 'VTI', qty: 45, marketValue: 9000 },
             { symbol: 'BND', qty: 25, marketValue: 2000 },
