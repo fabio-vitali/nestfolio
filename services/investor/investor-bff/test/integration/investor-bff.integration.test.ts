@@ -447,9 +447,8 @@ describe('investor-bff', () => {
         bus: 'investor',
         targetService: 'investor-bff',
         detailType: 'DEPOSIT_SETTLED',
-        detail: {
-          tenantId: ctx.tenantId,
-          userId: cognitoSub,
+        context: { tenantId: ctx.tenantId, userId: cognitoSub },
+        subject: {
           sk: 'DEPOSIT_SETTLED',
           direction: 'DEPOSIT',
           status: 'settled',
@@ -1024,9 +1023,8 @@ describe('investor-bff', () => {
         bus: 'investor',
         targetService: 'investor-bff',
         detailType: 'DEPOSIT_SETTLED',
-        detail: {
-          tenantId: ctx.tenantId,
-          userId: cognitoSub,
+        context: { tenantId: ctx.tenantId, userId: cognitoSub },
+        subject: {
           sk: 'DEPOSIT_SETTLED',
           direction: 'DEPOSIT',
           status: 'settled',
@@ -1139,7 +1137,7 @@ describe('investor-bff', () => {
         bus: 'investor',
         targetService: 'investor-bff',
         detailType: 'BROKER_CIRCUIT_OPEN',
-        detail: {},
+        subject: { adapter: 'alpaca', timestamp: new Date().toISOString() },
       });
 
       const flags = await waitForFlags(false);
@@ -1159,7 +1157,7 @@ describe('investor-bff', () => {
         bus: 'investor',
         targetService: 'investor-bff',
         detailType: 'BROKER_CIRCUIT_CLOSED',
-        detail: {},
+        subject: { adapter: 'alpaca', timestamp: new Date().toISOString() },
       });
 
       const flags = await waitForFlags(true);
