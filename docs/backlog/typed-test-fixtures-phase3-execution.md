@@ -16,7 +16,7 @@ out_of_scope:
   - "Fixing the known execution producer minimal-shape latent bugs (those are their own parked workstreams; the retrofit cross-references, it does not fix production code)"
   - "Production contract/producer/consumer changes (test layer only)"
 spec: docs/superpowers/specs/2026-06-16-typed-test-fixtures-design.md
-plan: null
+plan: docs/superpowers/plans/2026-06-18-typed-test-fixtures-phase3-execution.md
 topic_memory: [project_event_subject_contracts.md]
 validation_gate: null
 ---
