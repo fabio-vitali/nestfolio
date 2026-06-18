@@ -1,7 +1,6 @@
 ---
 id: typed-test-fixtures-phase3-execution
-status: queued
-rank: 3
+status: active
 type: refactor
 epic: typed-test-fixtures
 epic_role: core
