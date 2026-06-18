@@ -260,7 +260,7 @@ describe('execution-domain producer contracts — SIM path', () => {
         bus: 'execution',
         targetService: 'broker-sim-adpt',
         detailType: 'SIM_DEPOSIT_INITIATED',
-        subject: { depositId: `e2e-simdep-${randomUUID()}`, amountCents: 1_000_000, currency: 'USD', direction: 'INCOMING' as const },
+        subject: { depositId: `e2e-simdep-${randomUUID()}`, amountCents: 1_000_000, currency: 'USD', timestamp: '2026-01-01T00:00:00.000Z', direction: 'INCOMING' as const },
         context: { userId: tenant.userId },
       });
       await poll(async () => {
@@ -316,7 +316,7 @@ describe('execution-domain producer contracts — SIM path', () => {
         bus: 'execution',
         targetService: 'broker-sim-adpt',
         detailType: 'SIM_DEPOSIT_INITIATED',
-        subject: { depositId: `e2e-deposit-${randomUUID()}`, amountCents: 500_000, currency: 'USD', direction: 'INCOMING' as const },
+        subject: { depositId: `e2e-deposit-${randomUUID()}`, amountCents: 500_000, currency: 'USD', timestamp: '2026-01-01T00:00:00.000Z', direction: 'INCOMING' as const },
         context: { userId: tenant.userId },
       });
 
@@ -339,7 +339,7 @@ describe('execution-domain producer contracts — SIM path', () => {
         bus: 'execution',
         targetService: 'broker-sim-adpt',
         detailType: 'SIM_WITHDRAWAL_REQUESTED',
-        subject: { withdrawalId: `e2e-withdrawal-${randomUUID()}`, amountCents: 250_000, currency: 'USD', direction: 'OUTGOING' as const },
+        subject: { withdrawalId: `e2e-withdrawal-${randomUUID()}`, amountCents: 250_000, currency: 'USD', timestamp: '2026-01-01T00:00:00.000Z', direction: 'OUTGOING' as const },
         context: { userId: tenant.userId },
       });
 

@@ -69,6 +69,7 @@ export const SimDepositInitiatedSubjectSchema = z.object({
   depositId: z.string(),
   amountCents: z.number().int().positive(),
   currency: z.string(),
+  timestamp: z.string(),
   direction: z.literal('INCOMING'),
 });
 
@@ -77,6 +78,7 @@ export const SimWithdrawalRequestedSubjectSchema = z.object({
   withdrawalId: z.string(),
   amountCents: z.number().int().positive(),
   currency: z.string(),
+  timestamp: z.string(),
   direction: z.literal('OUTGOING'),
 });
 

@@ -75,7 +75,7 @@ describe('broker-sim-adpt', () => {
       bus: 'execution',
       targetService: 'broker-sim-adpt',
       detailType: 'SIM_DEPOSIT_INITIATED',
-      subject: { depositId, amountCents: 100_000, currency: 'USD', direction: 'INCOMING' as const },
+      subject: { depositId, amountCents: 100_000, currency: 'USD', timestamp: '2026-01-01T00:00:00.000Z', direction: 'INCOMING' as const },
       context: { userId: ctx.userId },
     });
 
@@ -97,7 +97,7 @@ describe('broker-sim-adpt', () => {
       bus: 'execution',
       targetService: 'broker-sim-adpt',
       detailType: 'SIM_DEPOSIT_INITIATED',
-      subject: { depositId: setupDepositId, amountCents: 500_000, currency: 'USD', direction: 'INCOMING' as const },
+      subject: { depositId: setupDepositId, amountCents: 500_000, currency: 'USD', timestamp: '2026-01-01T00:00:00.000Z', direction: 'INCOMING' as const },
       context: { userId: ctx.userId },
     });
 
@@ -108,7 +108,7 @@ describe('broker-sim-adpt', () => {
       bus: 'execution',
       targetService: 'broker-sim-adpt',
       detailType: 'SIM_WITHDRAWAL_REQUESTED',
-      subject: { withdrawalId, amountCents: 50_000, currency: 'USD', direction: 'OUTGOING' as const },
+      subject: { withdrawalId, amountCents: 50_000, currency: 'USD', timestamp: '2026-01-01T00:00:00.000Z', direction: 'OUTGOING' as const },
       context: { userId: ctx.userId },
     });
 
