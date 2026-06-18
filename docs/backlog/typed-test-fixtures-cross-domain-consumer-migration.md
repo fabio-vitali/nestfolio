@@ -3,10 +3,11 @@ id: typed-test-fixtures-cross-domain-consumer-migration
 status: queued
 rank: 3
 type: refactor
-notes: "CORE. Register + migrate the execution-produced events whose CONSUMER fixtures live in other domains' test files and that have a usable producer contract: ALPACA_ACCOUNT_SNAPSHOT, DEPOSIT_SETTLED/WITHDRAWAL_SETTLED, BROKER_CIRCUIT_*, CORPORATE_ACTION_APPLIED, PORTFOLIO_SNAPSHOT_IMPORTED. Their consumer putEvent({detail}) sites remain legacy/gate-invisible after Phase 4 — required for done_when 'all ~290 sites migrated'. Split out 2026-06-19 from typed-test-fixtures-execution-deferred-cross-domain (which keeps only the blocked ORDER_* family)."
+notes: "CORE. Register + migrate the execution-produced events whose CONSUMER fixtures live in other domains' test files and that have a usable producer contract: ALPACA_ACCOUNT_SNAPSHOT, DEPOSIT_SETTLED/WITHDRAWAL_SETTLED, BROKER_CIRCUIT_OPEN/CLOSED, BROKER_HEAL_ESCALATED. Their consumer putEvent({detail}) sites remain legacy/gate-invisible after Phase 4 — required for done_when 'all ~290 sites migrated'. Split out 2026-06-19 from typed-test-fixtures-execution-deferred-cross-domain (ORDER_* family) and again 2026-06-19 from CORPORATE_ACTION_APPLIED/PORTFOLIO_SNAPSHOT_IMPORTED (no producer contract)."
 references: []
 out_of_scope:
   - "ORDER_*/NormalizedOrderEvent family — doubly blocked, stays in [[typed-test-fixtures-execution-deferred-cross-domain]]"
+  - "CORPORATE_ACTION_APPLIED + PORTFOLIO_SNAPSHOT_IMPORTED — no producer zod contract/emitter, can't be typed test-layer-only; split to [[corporate-action-portfolio-snapshot-no-producer-contract]]"
   - "Producer/consumer/registry production changes — test-layer migration only (per epic out_of_scope)"
 spec: null
 plan: null
@@ -30,13 +31,24 @@ producer-owned contract, so it is typeable now (unlike the `ORDER_*` family, whi
 
 ## Events to register + migrate
 
-| Event | Producer | Consumer test files |
+All 6 have a producer-owned zod schema that is defined but **not yet registered** in the producer's
+local `*EventSubjects` map (verified 2026-06-19). The 2 originally-listed events with **no producer
+contract** (`CORPORATE_ACTION_APPLIED`, `PORTFOLIO_SNAPSHOT_IMPORTED`) were split out to
+[[corporate-action-portfolio-snapshot-no-producer-contract]].
+
+| Event | Producer schema (file:line) | Consumer legacy call sites |
 | --- | --- | --- |
-| `ALPACA_ACCOUNT_SNAPSHOT` | `broker-alpaca-adpt` | `services/ledger/` reconciliation |
-| `DEPOSIT_SETTLED` / `WITHDRAWAL_SETTLED` | execution funding services | investor / advisory / ledger |
-| `BROKER_CIRCUIT_OPEN` / `_CLOSED` / `BROKER_HEAL_ESCALATED` | `broker-ctrl` | investor-ctrl `onboarding-notification.integration.test.ts` |
-| `CORPORATE_ACTION_APPLIED` | execution | ledger |
-| `PORTFOLIO_SNAPSHOT_IMPORTED` | execution | ledger |
+| `ALPACA_ACCOUNT_SNAPSHOT` | `AlpacaAccountSnapshotSchema` — `broker-alpaca-adpt/src/domain/contracts.ts:28` | `reconciliation-ctrl` unit + integration |
+| `DEPOSIT_SETTLED` | `FundingSnapshotSchema` (verify real producer: broker-ctrl vs execution-adpt) | `ledger-ctrl`, `investor-bff` |
+| `WITHDRAWAL_SETTLED` | `FundingSnapshotSchema` (same — verify producer home) | `ledger-ctrl`, `investor-bff`, `investor-ctrl` |
+| `BROKER_CIRCUIT_OPEN` | `BrokerCircuitEventSchema` — `broker-alpaca-adpt/src/domain/contracts.ts:43` | `investor-bff`, `investor-ctrl` |
+| `BROKER_CIRCUIT_CLOSED` | `BrokerCircuitEventSchema` (same) | `investor-bff`, `investor-ctrl` |
+| `BROKER_HEAL_ESCALATED` | `BrokerCircuitEventSchema` (same) | `investor-ctrl` |
+
+⚠ `BROKER_CIRCUIT_*` schemas live in `broker-alpaca-adpt` while the item title said `broker-ctrl` —
+confirm the **real producer** of each circuit event before registering (event-subject-contracts
+lesson: register against the actual emitter's contract). Same for `DEPOSIT/WITHDRAWAL_SETTLED`
+(schema found in `execution-adpt/src/domain/contracts.ts:17`, item said broker-ctrl producer).
 
 ## Done when
 
