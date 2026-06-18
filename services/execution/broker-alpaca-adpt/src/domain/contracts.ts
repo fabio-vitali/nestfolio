@@ -66,6 +66,7 @@ export const AlpacaAccountCheckSchema = z.object({});
  */
 export const brokerAlpacaAdptEventSubjects = {
   ALPACA_ACCOUNT_CHECK: AlpacaAccountCheckSchema,
+  ALPACA_ACCOUNT_SNAPSHOT: AlpacaAccountSnapshotSchema,
   ALPACA_ORDER_CANCEL_FAILED: AlpacaOrderResultSchema,
   ALPACA_ORDER_CANCELLED: AlpacaOrderResultSchema,
   ALPACA_ORDER_FILLED: AlpacaOrderResultSchema,
@@ -75,4 +76,7 @@ export const brokerAlpacaAdptEventSubjects = {
   ALPACA_TRANSFER_COMPLETED: AlpacaTransferResultSchema,
   ALPACA_TRANSFER_FAILED: AlpacaTransferResultSchema,
   ALPACA_TRANSFER_INITIATED: AlpacaTransferResultSchema,
+  BROKER_CIRCUIT_CLOSED: BrokerCircuitEventSchema,
+  BROKER_CIRCUIT_OPEN: BrokerCircuitEventSchema,
+  BROKER_HEAL_ESCALATED: BrokerCircuitEventSchema,
 } as const satisfies Record<string, ZodTypeAny>;

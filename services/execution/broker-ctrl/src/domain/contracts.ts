@@ -2,7 +2,7 @@
 // Dry aggregates — identity (tenantId/userId/region) travels in the event context, not here.
 import { z } from 'zod';
 import type { ZodTypeAny } from 'zod';
-import { AlpacaTransferRequestSchema } from '@nestfolio/execution-adpt/domain';
+import { AlpacaTransferRequestSchema, FundingSnapshotSchema } from '@nestfolio/execution-adpt/domain';
 
 /**
  * ORDER lifecycle subject — the `NormalizedEvent` row (sk=`ORDER_*#${ts}`) written by the
@@ -89,7 +89,9 @@ export const SimWithdrawalRequestedSubjectSchema = z.object({
 export const brokerCtrlEventSubjects = {
   ALPACA_ORDER_REQUESTED: BrokerOrderRequestSchema,
   ALPACA_TRANSFER_REQUESTED: AlpacaTransferRequestSchema,
+  DEPOSIT_SETTLED: FundingSnapshotSchema,
   SIM_DEPOSIT_INITIATED: SimDepositInitiatedSubjectSchema,
   SIM_ORDER_REQUESTED: BrokerOrderRequestSchema,
   SIM_WITHDRAWAL_REQUESTED: SimWithdrawalRequestedSubjectSchema,
+  WITHDRAWAL_SETTLED: FundingSnapshotSchema,
 } as const satisfies Record<string, ZodTypeAny>;
