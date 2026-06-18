@@ -2,7 +2,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import {
   ruleEpicClosure, ruleEpicPointerIntegrity, ruleSingleActiveEpic,
-  ruleActiveEpicFields, ruleSingleActive,
+  ruleActiveEpicFields, ruleSingleActive, epicCapturedAudit,
 } from '../lib/rules.mjs';
 
 const file = (id, fm = {}) => ({
@@ -121,4 +121,34 @@ test('rule 9: active (not shipped) epic skips the closure check', () => {
     file('m1', { status: 'parking', epic: 'e1', epic_role: 'core' }),
   ];
   assert.deepEqual(ruleEpicClosure(files[0], files), []);
+});
+
+// ── Captured-member audit surface (close-ritual aid) ───────────────────────
+test('captured audit: active epic surfaces its open captured members', () => {
+  const files = [
+    epic('e1', { status: 'active' }),
+    file('m1', { status: 'parking', epic: 'e1', epic_role: 'captured' }),
+    file('m2', { status: 'queued', epic: 'e1', epic_role: 'core' }),      // core, ignored
+    file('m3', { status: 'shipped', epic: 'e1', epic_role: 'captured' }), // terminal, ignored
+  ];
+  const audit = epicCapturedAudit(files);
+  assert.equal(audit.length, 1);
+  assert.equal(audit[0].epic, 'e1');
+  assert.deepEqual(audit[0].members, ['m1']);
+});
+
+test('captured audit: only ACTIVE epics are surfaced (parking theme epic ignored)', () => {
+  const files = [
+    epic('e1', { status: 'parking' }),
+    file('m1', { status: 'parking', epic: 'e1', epic_role: 'captured' }),
+  ];
+  assert.deepEqual(epicCapturedAudit(files), []);
+});
+
+test('captured audit: active epic with no open captured members yields nothing', () => {
+  const files = [
+    epic('e1', { status: 'active' }),
+    file('m1', { status: 'queued', epic: 'e1', epic_role: 'core' }),
+  ];
+  assert.deepEqual(epicCapturedAudit(files), []);
 });

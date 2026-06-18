@@ -7,7 +7,7 @@ import {
   ruleIdMatchesFilename, ruleSingleActive, ruleQueuedRanks,
   ruleActiveOutOfScope, ruleShippedValidationGate, ruleReferencesValid,
   rulePromotionTriggerGated, ruleActiveEpicFields, ruleEpicClosure,
-  ruleEpicPointerIntegrity, ruleSingleActiveEpic,
+  ruleEpicPointerIntegrity, ruleSingleActiveEpic, epicCapturedAudit,
 } from './lib/rules.mjs';
 import { renderIndex, ruleIndexMatches } from './lib/index-render.mjs';
 import { syncDossiers } from './lib/dossier-sync.mjs';
@@ -50,6 +50,14 @@ function main() {
   violations.push(...ruleQueuedRanks(files));
   violations.push(...ruleSingleActiveEpic(files));
   violations.push(...ruleIndexMatches(files, BACKLOG_INDEX));
+
+  // Close-ritual aid: surface open captured members of any active epic so the
+  // ship-time captured audit (CLAUDE.md § close ritual) cannot skip them.
+  // Advisory, never a violation — load-bearing-ness is the agent's judgment.
+  for (const a of epicCapturedAudit(files)) {
+    console.log(`ℹ captured audit — active epic "${a.epic}" has ${a.members.length} open captured member(s); re-test each against done_when before ship (promote load-bearing ones to core):`);
+    for (const m of a.members) console.log(`    · ${m}`);
+  }
 
   if (violations.length > 0) {
     console.error(`✗ ${violations.length} violation(s):`);

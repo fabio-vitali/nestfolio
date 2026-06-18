@@ -27,11 +27,19 @@ First load context: is there an `active` epic? (`grep -l '^status: active' docs/
 then check `type: epic`). Read its `scope:` / `out_of_scope:`. Then walk the finding down:
 
 1. **Thematically near the active epic?** → fold in as a **member**: set `epic: <active-epic-id>`.
-   - within the epic's `scope:` → `epic_role: core` (it's part of the epic's done-definition).
-   - near but outside `scope:` (a finding you'd rather not lose track of while you're here) →
-     `epic_role: captured` (rides along, never blocks the epic's closure; auto-spun-out at close).
-   - **Generous on purpose:** keeping the session's context unified is worth more than a crisp
-     epic boundary. When unsure between core and captured, choose `captured`.
+   Pick the role by the **closure-predicate test** — read the epic's `done_when:`, not just `scope:`:
+   - leaving this finding undone would make a `done_when:` clause literally false (everything in
+     `scope:` qualifies, plus anything else `done_when` requires) → `epic_role: core` (part of the
+     done-definition; rule 9 drains it).
+   - genuinely *orthogonal* to `done_when:` — near the theme but not required for the epic to be
+     done → `epic_role: captured` (rides along, never blocks closure; spun out at close).
+   - **When unsure whether it's load-bearing, choose `core`.** A captured member silently
+     leftover-spins-out at close, so misfiling required work as captured drops it from the
+     done-definition. Be generous folding things *in*; be conservative calling them *captured*.
+   - **Atomicity — one item = one closure verdict.** If the finding's sub-parts split across the
+     verdict (some required for `done_when`, others orthogonal or blocked on out-of-scope work),
+     file them as **separate** homogeneous items — never one mixed item. A mixed item cannot carry
+     a correct `epic_role` and hides its required half under the captured label.
 2. **Else does it match an existing theme epic?** (`grep -l '^type: epic' docs/backlog/*.md` with
    `status: parking`, compare root cause) → join it: `epic: <theme-epic-id>`, `epic_role: core`.
 3. **Else does it share a root cause with ≥1 existing parking orphans?** (quick scan of parking

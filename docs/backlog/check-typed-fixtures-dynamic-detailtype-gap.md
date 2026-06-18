@@ -1,10 +1,11 @@
 ---
 id: check-typed-fixtures-dynamic-detailtype-gap
-status: parking
+status: queued
+rank: 4
 type: tooling
 epic: typed-test-fixtures
-epic_role: captured
-notes: "check-typed-fixtures gate matches static literal detailType only — a putEvent with a variable/computed detailType escapes the gate, so a co-wrong subject there is uncaught."
+epic_role: core
+notes: "CORE. check-typed-fixtures gate matches static literal detailType only — a putEvent with a variable/computed detailType escapes the gate, so a co-wrong subject there is uncaught. A structural hole in the epic's done_when deliverable 'regression gate forbids untyped putEvent in migrated domains'; promoted captured→core 2026-06-19 (closure-predicate test)."
 references: []
 out_of_scope: []
 spec: null
@@ -31,9 +32,13 @@ loop variable. The gate skips the whole parameterized block. (Same shape as the 
 name not in registry".)
 
 This is a **gate-coverage limitation**, not a defect in any one fixture: the dynamic-name pattern
-is inherent to static-literal gating. Options when full typed coverage is desired: (a) refactor
-the parameterized fixtures to per-event literal `putEvent` calls; (b) extend the gate to resolve
-simple `EventTypes.NAME` member expressions to their literal (it already partially does for the
-compound-skip note); (c) add a runtime assertion in the test harness. Captured under the
-`typed-test-fixtures` epic (does not block closure — the runtime `schema.parse(subject)` backstop
-in `putEvent` still fires for the literal-typed majority).
+is inherent to static-literal gating. Options to close it: (a) refactor the parameterized
+fixtures to per-event literal `putEvent` calls; (b) extend the gate to resolve simple
+`EventTypes.NAME` member expressions to their literal (it already partially does for the
+compound-skip note); (c) add a runtime assertion in the test harness.
+
+**Core (promoted 2026-06-19).** This is load-bearing for the epic's `done_when` deliverable
+*"regression gate forbids untyped putEvent in migrated domains"* — a structural blind spot means
+the gate does NOT fully forbid untyped `putEvent`, so the clause is not yet true. The runtime
+`schema.parse(subject)` backstop fires for the literal-typed majority, but the gate hole itself is
+part of the done-definition and must be closed (or explicitly carved out) before the epic ships.

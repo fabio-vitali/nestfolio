@@ -152,6 +152,23 @@ export function ruleEpicClosure(file, files) {
   return violations;
 }
 
+// Captured-member audit surface (close-ritual aid, NOT a hard rule). For each
+// ACTIVE epic, list its still-open captured members so the ship-time audit
+// (CLAUDE.md § "Closure & close ritual") cannot skip re-testing them against
+// done_when before spin-out. Structural only: WHETHER a captured member is
+// load-bearing is the agent's judgment — this guarantees none hide silently.
+// Returns [{ epic, members: [id,...] }] for epics that have ≥1 such member.
+export function epicCapturedAudit(files) {
+  const notes = [];
+  for (const e of files.filter(f => isEpic(f) && f.frontmatter?.status === 'active')) {
+    const members = membersOf(e.id, files)
+      .filter(m => epicRole(m) === 'captured' && !TERMINAL.has(m.frontmatter?.status))
+      .map(m => m.id);
+    if (members.length > 0) notes.push({ epic: e.id, members });
+  }
+  return notes;
+}
+
 // Rule 10 (pointer integrity): epic relational fields are well-formed.
 //  - a member's `epic:` must reference an existing `type: epic` file
 //  - an epic file must NOT carry an `epic:` pointer (1-level tree, no nesting)

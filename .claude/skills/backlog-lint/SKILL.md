@@ -33,6 +33,20 @@ Invoke when:
 - **Members** add: `epic: <epic-id>` (the parent pointer) + `epic_role: core | captured` (default `core`). `core` drives closure (rule 9); `captured` rides along and never blocks closure.
 - **Epic files** (`type: epic`) add: `done_when:` (closure narrative), `scope:` (what folds in as `core`), `out_of_scope:` (the scope-creep guard). No `epic:` pointer. Membership is **derived** from children — never hand-listed on the epic.
 
+## Captured-member audit surface (close-ritual aid)
+
+On every run, lint prints the open `captured` members of any **active** epic:
+
+```
+ℹ captured audit — active epic "<id>" has N open captured member(s); re-test each
+  against done_when before ship (promote load-bearing ones to core):
+```
+
+This is **advisory, never a violation** — it's structural (which files are captured members of the active epic), but *whether* a captured member is actually load-bearing for `done_when` is a judgment the agent makes during the **close ritual** (CLAUDE.md § "Closure & close ritual"). The print exists so required work can't hide under the captured label and silently leftover-spin-out at close. Two disciplines it backstops, both **router/close-ritual prose, not machine-checked** (they're semantic):
+
+- **Predicate routing** (`backlog-add`): role is `core` if leaving the finding undone falsifies a `done_when` clause — not merely "in `scope:`".
+- **Atomicity:** one item = one closure verdict; a finding split across core/captured is filed as separate items.
+
 ## What `--fix` does
 
 - Regenerates `docs/BACKLOG.md` from per-item frontmatter (rule 7 becomes structurally true).
