@@ -105,8 +105,10 @@ describe('dashboard-bff', () => {
         bus: 'investor',
         targetService: 'dashboard-bff',
         detailType: 'PORTFOLIO_UPDATED',
-        detail: {
-          cashBalanceCents: 80000,
+        subject: {
+          positions: {
+            AAPL: { symbol: 'AAPL', quantity: 10, averageCostBasis: 150, totalCostBasis: 1500, lastFillPrice: 160 },
+          },
           snapshot: {
             cashBalanceCents: 80000,
             lastEventSequence: 42,
@@ -469,8 +471,10 @@ describe('dashboard-bff', () => {
           bus: 'investor',
           targetService: 'dashboard-bff',
           detailType: 'PORTFOLIO_UPDATED',
-          detail: {
-            cashBalanceCents: 50000,
+          subject: {
+            positions: {
+              MSFT: { symbol: 'MSFT', quantity: 20, averageCostBasis: 300, totalCostBasis: 6000, lastFillPrice: 320 },
+            },
             snapshot: {
               cashBalanceCents: 50000,
               lastEventSequence: 50,

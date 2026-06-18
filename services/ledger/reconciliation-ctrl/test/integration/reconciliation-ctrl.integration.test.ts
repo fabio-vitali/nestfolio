@@ -46,12 +46,12 @@ describe('reconciliation-ctrl: PORTFOLIO_UPDATED → RECONCILIATION_COMPLETED CD
       bus: 'ledger',
       targetService: 'reconciliation-ctrl',
       detailType: 'PORTFOLIO_UPDATED',
-      detail: {
-        portfolioId: `portfolio-integ-${ctx.tenantId}`,
-        positions: [
-          { symbol: 'AAPL', quantity: 10 },
-          { symbol: 'MSFT', quantity: 5 },
-        ],
+      subject: {
+        positions: {
+          AAPL: { symbol: 'AAPL', quantity: 10, averageCostBasis: 0, totalCostBasis: 0, lastFillPrice: 0 },
+          MSFT: { symbol: 'MSFT', quantity: 5,  averageCostBasis: 0, totalCostBasis: 0, lastFillPrice: 0 },
+        },
+        snapshot: { positions: {}, cashBalanceCents: 0, lastEventSequence: 0 },
       },
     });
 

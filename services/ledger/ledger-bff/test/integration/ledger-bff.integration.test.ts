@@ -71,7 +71,7 @@ describe('ledger-bff', () => {
         bus: 'ledger',
         targetService: 'ledger-bff',
         detailType: 'PORTFOLIO_UPDATED',
-        detail: {
+        subject: {
           positions: {
             [symbol]: {
               symbol,
@@ -267,7 +267,7 @@ describe('ledger-bff', () => {
         bus: 'ledger',
         targetService: 'ledger-bff',
         detailType: 'PORTFOLIO_UPDATED',
-        detail: {
+        subject: {
           positions: {
             AAPL: { symbol: 'AAPL', quantity: 10, averageCostBasis: 150.0, totalCostBasis: 1500.0, lastFillPrice: 155.0 },
             MSFT: { symbol: 'MSFT', quantity: 5, averageCostBasis: 300.0, totalCostBasis: 1500.0, lastFillPrice: 310.0 },

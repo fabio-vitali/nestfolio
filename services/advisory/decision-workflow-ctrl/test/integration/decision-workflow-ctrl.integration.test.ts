@@ -550,7 +550,7 @@ describe('LedgerSnapshot projection', () => {
       bus: 'advisory',
       targetService: 'decision-workflow-ctrl',
       detailType: 'PORTFOLIO_UPDATED',
-      detail: {
+      subject: {
         streamType: 'CASH',
         positions,
         snapshot: {
@@ -594,7 +594,7 @@ describe('LedgerSnapshot projection', () => {
       bus: 'advisory',
       targetService: 'decision-workflow-ctrl',
       detailType: 'PORTFOLIO_UPDATED',
-      detail: {
+      subject: {
         streamType: 'CASH',
         positions: positions5,
         snapshot: {
@@ -629,7 +629,7 @@ describe('LedgerSnapshot projection', () => {
       bus: 'advisory',
       targetService: 'decision-workflow-ctrl',
       detailType: 'PORTFOLIO_UPDATED',
-      detail: {
+      subject: {
         streamType: 'CASH',
         positions: positions7,
         snapshot: {

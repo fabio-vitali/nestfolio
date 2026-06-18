@@ -82,11 +82,12 @@ describe('dashboard-bff read-model projection (w2)', () => {
   }, 180_000);
 
   it('projects one versioned PositionSnapshot row per holding', async () => {
+    const sd = snapshotDetail(25, 5000);
     await eb.putEvent({
       bus: 'investor',
       targetService: 'dashboard-bff',
       detailType: 'PORTFOLIO_UPDATED',
-      detail: snapshotDetail(25, 5000),
+      subject: { positions: sd.snapshot.positions, snapshot: sd.snapshot },
     });
     const aapl = await table.waitForItem({
       table: 'dashboard-bff',

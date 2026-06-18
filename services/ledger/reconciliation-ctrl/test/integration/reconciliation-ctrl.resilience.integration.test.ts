@@ -51,11 +51,11 @@ describe('reconciliation-ctrl resilience: idempotency', () => {
 
       const eventId = `recon-idemp-${randomUUID()}`;
       const payload = {
-        portfolioId: `portfolio-idemp-${randomUUID()}`,
-        positions: [
-          { symbol: 'AAPL', quantity: 10 },
-          { symbol: 'MSFT', quantity: 5 },
-        ],
+        positions: {
+          AAPL: { symbol: 'AAPL', quantity: 10, averageCostBasis: 0, totalCostBasis: 0, lastFillPrice: 0 },
+          MSFT: { symbol: 'MSFT', quantity: 5,  averageCostBasis: 0, totalCostBasis: 0, lastFillPrice: 0 },
+        },
+        snapshot: { positions: {}, cashBalanceCents: 0, lastEventSequence: 0 },
       };
 
       // First Intent publish — finds Settlement → reconcile → RECONCILIATION_COMPLETED
@@ -63,7 +63,7 @@ describe('reconciliation-ctrl resilience: idempotency', () => {
         bus: 'ledger',
         targetService: 'reconciliation-ctrl',
         detailType: 'PORTFOLIO_UPDATED',
-        detail: payload,
+        subject: payload,
         eventId,
       });
 
@@ -82,7 +82,7 @@ describe('reconciliation-ctrl resilience: idempotency', () => {
         bus: 'ledger',
         targetService: 'reconciliation-ctrl',
         detailType: 'PORTFOLIO_UPDATED',
-        detail: payload,
+        subject: payload,
         eventId,
       });
 
@@ -142,12 +142,12 @@ describe('reconciliation-ctrl resilience: idempotency', () => {
         bus: 'ledger',
         targetService: 'reconciliation-ctrl',
         detailType: 'PORTFOLIO_UPDATED',
-        detail: {
-          portfolioId: `portfolio-late-redeliver-${randomUUID()}`,
-          positions: [
-            { symbol: 'AAPL', quantity: 10 },
-            { symbol: 'MSFT', quantity: 5 },
-          ],
+        subject: {
+          positions: {
+            AAPL: { symbol: 'AAPL', quantity: 10, averageCostBasis: 0, totalCostBasis: 0, lastFillPrice: 0 },
+            MSFT: { symbol: 'MSFT', quantity: 5,  averageCostBasis: 0, totalCostBasis: 0, lastFillPrice: 0 },
+          },
+          snapshot: { positions: {}, cashBalanceCents: 0, lastEventSequence: 0 },
         },
       });
 
@@ -211,9 +211,11 @@ describe('reconciliation-ctrl resilience: order-agnostic pairwise', () => {
         bus: 'ledger',
         targetService: 'reconciliation-ctrl',
         detailType: 'PORTFOLIO_UPDATED',
-        detail: {
-          portfolioId: `portfolio-pair-A-${randomUUID()}`,
-          positions: [{ symbol: 'AAPL', quantity: 10 }],
+        subject: {
+          positions: {
+            AAPL: { symbol: 'AAPL', quantity: 10, averageCostBasis: 0, totalCostBasis: 0, lastFillPrice: 0 },
+          },
+          snapshot: { positions: {}, cashBalanceCents: 0, lastEventSequence: 0 },
         },
       });
 
@@ -265,9 +267,11 @@ describe('reconciliation-ctrl resilience: order-agnostic pairwise', () => {
         bus: 'ledger',
         targetService: 'reconciliation-ctrl',
         detailType: 'PORTFOLIO_UPDATED',
-        detail: {
-          portfolioId: `portfolio-pair-B-${randomUUID()}`,
-          positions: [{ symbol: 'AAPL', quantity: 10 }],
+        subject: {
+          positions: {
+            AAPL: { symbol: 'AAPL', quantity: 10, averageCostBasis: 0, totalCostBasis: 0, lastFillPrice: 0 },
+          },
+          snapshot: { positions: {}, cashBalanceCents: 0, lastEventSequence: 0 },
         },
       });
 

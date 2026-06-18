@@ -100,4 +100,5 @@ export type SnapshotHistory = z.infer<typeof SnapshotHistorySchema>;
  */
 export const ledgerCtrlEventSubjects = {
   BALANCE_UPDATED: BalanceUpdatedSchema,
+  PORTFOLIO_UPDATED: PortfolioUpdatedSchema,
 } as const satisfies Record<string, ZodTypeAny>;
