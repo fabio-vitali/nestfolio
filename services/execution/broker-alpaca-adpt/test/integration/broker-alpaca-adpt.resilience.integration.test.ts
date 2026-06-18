@@ -159,7 +159,7 @@ describe('broker-alpaca-adpt resilience: idempotency', () => {
         transferId,
         amountCents: 1_000_000, // $10,000
         currency: 'USD',
-        direction: 'INCOMING',
+        direction: 'INCOMING' as const,
         relationshipId: 'rel-integ',
       };
 
