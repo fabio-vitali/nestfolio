@@ -108,7 +108,7 @@ describe('ledger-bff', () => {
         targetService: 'ledger-bff',
         detailType: 'LEDGER_ENTRY_RECORDED',
         eventId,
-        detail: {
+        subject: {
           streamType: 'actual',
           lastEventSequence,
           snapshotAt: new Date().toISOString(),
@@ -294,7 +294,7 @@ describe('ledger-bff', () => {
         targetService: 'ledger-bff',
         detailType: 'LEDGER_ENTRY_RECORDED',
         eventId: 'integ-hist-query-001',
-        detail: {
+        subject: {
           streamType: 'actual',
           lastEventSequence: 99001,
           snapshotAt: new Date().toISOString(),
@@ -310,7 +310,7 @@ describe('ledger-bff', () => {
         targetService: 'ledger-bff',
         detailType: 'LEDGER_ENTRY_RECORDED',
         eventId: 'integ-hist-query-002',
-        detail: {
+        subject: {
           streamType: 'actual',
           lastEventSequence: 99002,
           snapshotAt: new Date().toISOString(),
@@ -328,7 +328,7 @@ describe('ledger-bff', () => {
         targetService: 'ledger-bff',
         detailType: 'LEDGER_ENTRY_RECORDED',
         eventId: 'integ-sim-001',
-        detail: {
+        subject: {
           streamType: 'simulated',
           lastEventSequence: 1,
           snapshotAt: new Date().toISOString(),

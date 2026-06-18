@@ -214,18 +214,12 @@ describe('dashboard-bff', () => {
         bus: 'investor',
         targetService: 'dashboard-bff',
         detailType: 'LEDGER_ENTRY_RECORDED',
-        detail: {
-          // Mirror the producer's LedgerEntryRecorded contract: tenantId + snapshot
-          // are required on the subject (snapshot-to-events.ts emits them), and
-          // snapshotAt is now carried top-level for the TimeTravel projection.
-          tenantId: ctx.tenantId,
-          snapshotAt,
-          entryType: 'TRADE',
-          // WS-C: TimeTravelAvailability is now projectVersioned keyed on
-          // subject.lastEventSequence (the real LEDGER_ENTRY_RECORDED carries it).
+        subject: {
           lastEventSequence: 10,
+          snapshotAt,
           snapshot: { positions: {}, cashBalanceCents: 0, lastEventSequence: 10 },
         },
+        context: { tenantId: ctx.tenantId },
       });
 
       // projectVersioned('TimeTravelAvailability', …) → pk: T#<tenantId>, sk: TimeTravelAvailability
@@ -491,13 +485,12 @@ describe('dashboard-bff', () => {
           bus: 'investor',
           targetService: 'dashboard-bff',
           detailType: 'LEDGER_ENTRY_RECORDED',
-          detail: {
-            tenantId: ctx.tenantId,
-            snapshotAt: querySnapshotAt,
-            entryType: 'TRADE',
+          subject: {
             lastEventSequence: 100,
+            snapshotAt: querySnapshotAt,
             snapshot: { positions: {}, cashBalanceCents: 0, lastEventSequence: 100 },
           },
+          context: { tenantId: ctx.tenantId },
         }),
       ]);
 
