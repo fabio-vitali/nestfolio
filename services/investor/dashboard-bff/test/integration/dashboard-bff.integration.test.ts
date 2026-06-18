@@ -251,7 +251,7 @@ describe('dashboard-bff', () => {
         bus: 'investor',
         targetService: 'dashboard-bff',
         detailType: 'BALANCE_UPDATED',
-        detail: {
+        subject: {
           cashBalanceCents: 50_000_00,
           snapshot: {
             cashBalanceCents: 50_000_00,

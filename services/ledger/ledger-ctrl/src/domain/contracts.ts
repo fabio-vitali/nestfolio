@@ -1,5 +1,5 @@
 // Producer-owned event payload contracts for ledger-ctrl. Imports ONLY zod.
-import { z } from 'zod';
+import { z, type ZodTypeAny } from 'zod';
 
 export const LedgerPositionSchema = z.object({
   symbol: z.string(),
@@ -90,3 +90,14 @@ export type SnapshotHistory = z.infer<typeof SnapshotHistorySchema>;
 /** Failure events (LEDGER_PROCESSING_FAILED, LEDGER_SNAPSHOT_PUBLISHER_FAILED) use
  * the SHARED platform contract — import { ErrorEventSubjectSchema } from
  * '@nestfolio/event-processor'. They are not producer aggregates. */
+
+/**
+ * Test-fixture event→subject map for ledger-ctrl's CDC emissions. Co-located with the
+ * producer-owned schemas (single source of truth); consumed only by `@nestfolio/test-contracts`.
+ * Grows across Tasks 1–3 (BALANCE_UPDATED, then PORTFOLIO_UPDATED, then LEDGER_ENTRY_RECORDED).
+ * Only the primary insert detailTypes are registered (the `*_EVENT_UPDATED` modify variants and the
+ * `*_FAILED` error events are not injected by any fixture and use the shared platform error contract).
+ */
+export const ledgerCtrlEventSubjects = {
+  BALANCE_UPDATED: BalanceUpdatedSchema,
+} as const satisfies Record<string, ZodTypeAny>;

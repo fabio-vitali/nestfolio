@@ -170,9 +170,7 @@ export function funded(opts: { cashBalanceCents: number }): Fixture {
     // loudly at emit time, not via a downstream poll timeout (the
     // event-subject-contracts lesson: fixtures must emit the shape the real
     // producer emits).
-    const detail = {
-      tenantId: tenant.tenantId,
-      userId: tenant.userId,
+    const subject = {
       cashBalanceCents: opts.cashBalanceCents,
       snapshot: {
         positions: {},
@@ -180,12 +178,13 @@ export function funded(opts: { cashBalanceCents: number }): Fixture {
         lastEventSequence: 0,
       },
     };
-    BalanceUpdatedSchema.parse(detail);
+    BalanceUpdatedSchema.parse(subject);
     await eb.putEvent({
       bus: 'investor',
       targetService: 'investor-bff',
       detailType: LedgerCtrlEventTypes.BALANCE_UPDATED,
-      detail,
+      subject,
+      context: { tenantId: tenant.tenantId, userId: tenant.userId },
     });
 
     // Poll for CashBalance materialization. The investor-bff event-listener

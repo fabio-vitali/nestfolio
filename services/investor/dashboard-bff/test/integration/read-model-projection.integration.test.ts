@@ -39,7 +39,7 @@ describe('dashboard-bff read-model projection (w2)', () => {
       bus: 'investor',
       targetService: 'dashboard-bff',
       detailType: 'BALANCE_UPDATED',
-      detail: snapshotDetail(seq, cash),
+      subject: snapshotDetail(seq, cash),
     });
 
   it('projects a full PortfolioSummary row — no structural zeros, no double-count', async () => {

@@ -130,12 +130,11 @@ describe('investor-bff', () => {
         bus: 'investor',
         targetService: 'investor-bff',
         detailType: 'BALANCE_UPDATED',
-        detail: {
-          tenantId: ctx.tenantId,
-          userId,
+        subject: {
           cashBalanceCents: 500_000,
           snapshot: { positions: {}, cashBalanceCents: 500_000, lastEventSequence: 7 },
         },
+        context: { tenantId: ctx.tenantId, userId },
       });
 
       // projectVersioned('CashBalance', ...) keyed on snapshot.lastEventSequence as
@@ -515,12 +514,11 @@ describe('investor-bff', () => {
         bus: 'investor',
         targetService: 'investor-bff',
         detailType: 'BALANCE_UPDATED',
-        detail: {
-          tenantId: ctx.tenantId,
-          userId: cognitoSub,
+        subject: {
           cashBalanceCents: 1_000_000,
           snapshot: { positions: {}, cashBalanceCents: 1_000_000, lastEventSequence: 1000 },
         },
+        context: { tenantId: ctx.tenantId, userId: cognitoSub },
       });
       await table.waitForItem({
         table: 'investor-bff',

@@ -44,13 +44,11 @@ describe('ledger-bff', () => {
         bus: 'ledger',
         targetService: 'ledger-bff',
         detailType: 'BALANCE_UPDATED',
-        detail: {
-          tenantId: ctx.tenantId,
-          userId: ctx.userId,
+        subject: {
           cashBalanceCents: 500000,
-          deltaCents: 50000,
           snapshot: { positions: {}, cashBalanceCents: 500000, lastEventSequence: 1 },
         },
+        context: { tenantId: ctx.tenantId, userId: ctx.userId },
       });
 
       // projectVersioned() → deterministic sk: Latest
@@ -154,12 +152,11 @@ describe('ledger-bff', () => {
         bus: 'ledger',
         targetService: 'ledger-bff',
         detailType: 'BALANCE_UPDATED',
-        detail: {
-          tenantId: ctx.tenantId,
-          userId: ctx.userId,
+        subject: {
           cashBalanceCents: 2_000_000,
           snapshot: { positions: {}, cashBalanceCents: 2_000_000, lastEventSequence: 20 },
         },
+        context: { tenantId: ctx.tenantId, userId: ctx.userId },
       });
       const fresh = await table.waitForItem({
         table: 'ledger-bff',
@@ -177,12 +174,11 @@ describe('ledger-bff', () => {
         bus: 'ledger',
         targetService: 'ledger-bff',
         detailType: 'BALANCE_UPDATED',
-        detail: {
-          tenantId: ctx.tenantId,
-          userId: ctx.userId,
+        subject: {
           cashBalanceCents: 111,
           snapshot: { positions: {}, cashBalanceCents: 111, lastEventSequence: 10 },
         },
+        context: { tenantId: ctx.tenantId, userId: ctx.userId },
       });
 
       // Give the stale event time to traverse EB → SQS → Lambda before we
@@ -203,12 +199,11 @@ describe('ledger-bff', () => {
         bus: 'ledger',
         targetService: 'ledger-bff',
         detailType: 'BALANCE_UPDATED',
-        detail: {
-          tenantId: ctx.tenantId,
-          userId: ctx.userId,
+        subject: {
           cashBalanceCents: 3_000_000,
           snapshot: { positions: {}, cashBalanceCents: 3_000_000, lastEventSequence: 30 },
         },
+        context: { tenantId: ctx.tenantId, userId: ctx.userId },
       });
       const applied = await table.waitForItem({
         table: 'ledger-bff',
@@ -254,11 +249,8 @@ describe('ledger-bff', () => {
         bus: 'ledger',
         targetService: 'ledger-bff',
         detailType: 'BALANCE_UPDATED',
-        detail: {
-          tenantId: ctx.tenantId,
-          userId: ctx.userId,
+        subject: {
           cashBalanceCents: 1_000_000,
-          deltaCents: 50_000,
           snapshot: {
             cashBalanceCents: 800_000,
             positions: {
@@ -267,6 +259,7 @@ describe('ledger-bff', () => {
             lastEventSequence: 99,
           },
         },
+        context: { tenantId: ctx.tenantId, userId: ctx.userId },
       });
 
       // 2. PORTFOLIO_UPDATED → Position#AAPL, Position#MSFT
