@@ -13,7 +13,7 @@ out_of_scope:
   - "Redesigning the operating-mode L1/L2 authority model — WS-1 only confirms DECISION_APPROVED vs USER_CONFIRMED stay mutually exclusive for order creation, it does not change which event fires when"
   - "Changing RECOMMENDATION_PROPOSED or the decision-packet contract (the trades already ride it) — WS-1 forwards/stamps from existing data, no new upstream contract"
 spec: docs/superpowers/specs/2026-06-19-order-execution-money-path-design.md
-plan: null
+plan: docs/superpowers/plans/2026-06-19-ws1-advisory-authorizing-events-proposed-trades.md
 topic_memory: []
 validation_gate: null
 ---
