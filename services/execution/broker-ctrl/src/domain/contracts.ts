@@ -89,6 +89,7 @@ export const SimWithdrawalRequestedSubjectSchema = z.object({
 export const brokerCtrlEventSubjects = {
   ALPACA_ORDER_REQUESTED: BrokerOrderRequestSchema,
   ALPACA_TRANSFER_REQUESTED: AlpacaTransferRequestSchema,
+  DEPOSIT_DETECTED: FundingSnapshotSchema,
   DEPOSIT_SETTLED: FundingSnapshotSchema,
   SIM_DEPOSIT_INITIATED: SimDepositInitiatedSubjectSchema,
   SIM_ORDER_REQUESTED: BrokerOrderRequestSchema,

@@ -414,9 +414,8 @@ describe('investor-bff', () => {
         bus: 'investor',
         targetService: 'investor-bff',
         detailType: 'DEPOSIT_DETECTED',
-        detail: {
-          tenantId: ctx.tenantId,
-          userId: cognitoSub,
+        context: { tenantId: ctx.tenantId, userId: cognitoSub },
+        subject: {
           sk: 'DEPOSIT_DETECTED',
           direction: 'DEPOSIT',
           status: 'detected',
@@ -480,9 +479,8 @@ describe('investor-bff', () => {
         bus: 'investor',
         targetService: 'investor-bff',
         detailType: 'DEPOSIT_DETECTED',
-        detail: {
-          tenantId: ctx.tenantId,
-          userId: cognitoSub,
+        context: { tenantId: ctx.tenantId, userId: cognitoSub },
+        subject: {
           sk: 'DEPOSIT_DETECTED',
           direction: 'DEPOSIT',
           status: 'detected',

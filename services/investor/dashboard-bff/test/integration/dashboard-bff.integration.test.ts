@@ -379,7 +379,19 @@ describe('dashboard-bff', () => {
         targetService: 'dashboard-bff',
         detailType: 'DEPOSIT_DETECTED',
         eventId,
-        detail: { tenantId: ctx.tenantId, amountCents: 250_00, currency: 'USD' },
+        context: { tenantId: ctx.tenantId },
+        subject: {
+          sk: 'DEPOSIT_DETECTED',
+          direction: 'DEPOSIT',
+          status: 'detected',
+          transferId: eventId,
+          amountCents: 250_00,
+          currency: 'USD',
+          executionMode: 'simulation',
+          initiatedAt: '2026-01-01T00:00:00.000Z',
+          detectedAt: '2026-01-02T00:00:00.000Z',
+          timestamp: '2026-01-02T00:00:00.000Z',
+        },
       });
 
       let activityItem: Record<string, unknown> | undefined;

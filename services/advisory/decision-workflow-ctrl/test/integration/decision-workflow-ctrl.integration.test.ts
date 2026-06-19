@@ -187,12 +187,18 @@ describe('decision-workflow-ctrl', () => {
       bus: 'advisory',
       targetService: 'decision-workflow-ctrl',
       detailType: 'DEPOSIT_DETECTED',
-      detail: {
-        depositId: `integ-deposit-${Date.now()}`,
-        tenantId: ctx.tenantId,
-        userId,
-        amount: 5000,
+      context: { tenantId: ctx.tenantId, userId },
+      subject: {
+        sk: 'DEPOSIT_DETECTED',
+        direction: 'DEPOSIT',
+        status: 'detected',
+        transferId: `integ-deposit-${Date.now()}`,
+        amountCents: 500_000,
         currency: 'USD',
+        executionMode: 'simulation',
+        initiatedAt: new Date().toISOString(),
+        detectedAt: new Date().toISOString(),
+        timestamp: new Date().toISOString(),
       },
     });
 
@@ -273,12 +279,18 @@ describe('decision-workflow-ctrl', () => {
       bus: 'advisory',
       targetService: 'decision-workflow-ctrl',
       detailType: 'DEPOSIT_DETECTED',
-      detail: {
-        depositId,
-        tenantId: ctx.tenantId,
-        amount: 5000,
+      context: { tenantId: ctx.tenantId },
+      subject: {
+        sk: 'DEPOSIT_DETECTED',
+        direction: 'DEPOSIT',
+        status: 'detected',
+        transferId: depositId,
+        amountCents: 500_000,
         currency: 'USD',
+        executionMode: 'simulation',
+        initiatedAt: new Date().toISOString(),
         detectedAt: new Date().toISOString(),
+        timestamp: new Date().toISOString(),
       },
     });
 
