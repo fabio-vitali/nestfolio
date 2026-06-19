@@ -1,6 +1,6 @@
 ---
 id: typed-fixtures-funding-lifecycle-detected-failed
-status: active
+status: shipped
 type: refactor
 notes: "CORE follow-on: register + migrate the remaining broker-ctrl funding-lifecycle consumer fixtures. Re-verified 2026-06-19 with the gate scanner: DEPOSIT_DETECTED has 5 literal-detailType putEvent sites across 4 files; DEPOSIT_FAILED has 0 consumer fixtures (the earlier 'DEPOSIT_FAILED ×1' was a CDC-emission trap-assertion + a subscription-list assertion, not a putEvent fixture) → DEPOSIT_FAILED deferred under the same register-when-a-fixture-appears rule as the other 0-site funding siblings. Part of the epic's 'all ~290 sites migrated' done_when."
 references: []
@@ -12,7 +12,7 @@ out_of_scope:
 spec: null
 plan: null
 topic_memory: [project_event_subject_contracts.md]
-validation_gate: null
+validation_gate: "Registered DEPOSIT_DETECTED → FundingSnapshotSchema (broker-ctrl/domain/contracts.ts brokerCtrlEventSubjects + tools/typed-fixture-registered-events.json + libs/test-contracts/test/registry.test.ts EXPECTED) and migrated all 5 consumer putEvent({detail}) sites across 4 integration files (dwc ×2 — co-wrong ad-hoc {depositId,amount} fixtures rewritten to the honest FundingSnapshotSchema shape; dashboard-bff ×1 thin fixture filled; investor-bff ×2 identity→context). DEPOSIT_FAILED deferred (gate scanner re-verified 0 consumer fixtures). Commits: 60085ffd register+migrate · e6dd8101 broker-ctrl card · 4a414fcd/97cdd95c adopt+index. STATIC: check-typed-fixtures OK (0 violations, 449 files, 89 registered events); test-contracts registry.test 2/2 (EventSubjects==EXPECTED==JSON); per-service tsc delta-0 vs main (dwc 10=10, dashboard-bff 11=11, investor-bff 54=54 — all pre-existing TS7053, zero new subject-type errors); card-drift broker-ctrl OK; nx run-many test,lint 32 affected projects ALL GREEN (0 errors). RUNTIME vs deployed dev (no deploy — registry map is tree-shaken from Lambda bundles, identical to the ORDER_* sibling): 4 scoped DEPOSIT_DETECTED integration tests PASS first-run — decision-workflow-ctrl 2/2 (honest DRY fixture still triggers the SF), dashboard-bff 1/1 (Activity row tenantId from context), investor-bff 1/1 (Deposit P1 v2→v3 monotonic guard). Closes the typed-test-fixtures epic's last open core member."
 epic: typed-test-fixtures
 epic_role: core
 ---
