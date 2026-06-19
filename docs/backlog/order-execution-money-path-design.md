@@ -1,6 +1,6 @@
 ---
 id: order-execution-money-path-design
-status: active
+status: shipped
 type: design
 notes: "Design workstream (Doc-layer): repair the end-to-end order-execution money path, which empirical evidence (2026-06-19) shows has NEVER functioned in production. The broker-ctrl OrderStateMachine FAILS at its first state for 100% of real orders (dev: 881/881 FAILED, all `States.Runtime` at ReadExecutionMode — `$.tenantId` not found because the real ORDER_SUBMITTED carries identity under `$.context`, order data under `$.subject`, NOT top-level), and the observed ORDER_SUBMITTED subject carries `proposedTrades: []` (empty) — so even past ReadExecutionMode there is no trade data to route. Downstream, even a successful fill would emit a minimal NormalizedOrderEvent (orderId/executionMode/filledQty/averageFillPrice/timestamp) with NO symbol/side/quantity, so ledger-ctrl's RecordFill reducer reads undefined economics → cash balance + positions never updated on fills. This design produces a spec in docs/superpowers/specs/ that defines the canonical command→SF→normalized-event→read-model money-path pattern end-to-end and decomposes it into sequential implementation workstreams (each its own Complex backlog item). SUBSUMES the consumer half (ledger-ctrl-live-tax-lot-missing-order-fields, currently QUEUED rank 1) and the producer half (broker-ctrl-order-sf-input-contract-gap, currently parking); both will be re-homed into the implementation epic minted when this spec ships. Scope decided by user 2026-06-19 (Full money-path design) over the narrow ledger-contract-only and SF-root-cause-first alternatives, on reusability grounds. DESIGN PHASE IS DOC-LAYER — implementation is separate Complex work."
 references:
@@ -20,7 +20,7 @@ out_of_scope:
 spec: docs/superpowers/specs/2026-06-19-order-execution-money-path-design.md
 plan: null
 topic_memory: []
-validation_gate: null
+validation_gate: "Spec written, self-reviewed, user-approved; committed 97db0e11 (docs/superpowers/specs/2026-06-19-order-execution-money-path-design.md). Empirically grounded: dev broker-ctrl order SF 881/881 FAILED at ReadExecutionMode (States.Runtime, $.tenantId not found — identity under $.context). Decomposed into delivery epic order-execution-money-path (5 core members — WS-1 advisory-authorizing-events-carry-proposed-trades queued rank 1; WS-2 execution-ctrl-per-trade-order-expansion; WS-3 broker-ctrl-order-sf-input-contract-gap; WS-4 ledger-ctrl-live-tax-lot-missing-order-fields; WS-5 order-execution-money-path-real-e2e — WS-2..WS-5 parking, promoted as predecessors ship). Subsumed items re-homed (ledger-ctrl-live-tax-lot out of typed-subject-consumer-contract-gaps; broker-ctrl-order-sf-input-contract-gap from standalone parking). Doc-layer, no deploy; backlog-lint 11/11 green."
 ---
 
 # Order-execution money path — end-to-end repair (design)
