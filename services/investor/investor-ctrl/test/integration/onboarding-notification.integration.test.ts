@@ -205,10 +205,12 @@ describe('investor-ctrl', () => {
       });
     }, 90_000);
 
-    // Unrolled from an it.each so every putEvent carries a literal detailType. The asserted
-    // `subject` is the OUTGOING Notification envelope (re-emitted via CDC), unaffected by the
-    // injected BrokerCircuitEvent subject ({ adapter, timestamp }).
-    const expectSystemNotificationCdc = async (eventType: string, emit: () => Promise<void>) => {
+    // Unrolled from an it.each so every putEvent carries a literal detailType. The emitted
+    // NOTIFICATION_CREATED is DRY: identity ('SYSTEM' tenantId) is in `context`, and the
+    // system-notification marker is `subject.relatedEntityType === 'SYSTEM'` (per
+    // NotificationCreatedSchema — the subject carries no tenantId/type). The injected
+    // BrokerCircuitEvent subject ({ adapter, timestamp }) does not appear on the outgoing event.
+    const expectSystemNotificationCdc = async (emit: () => Promise<void>) => {
       await emit();
       const cdcEvent = await systemTrap.waitForEvent({
         detailType: 'NOTIFICATION_CREATED',
@@ -216,24 +218,24 @@ describe('investor-ctrl', () => {
       });
       expect(cdcEvent.detailType).toBe('NOTIFICATION_CREATED');
       expect(cdcEvent.detail).toBeDefined();
-      expect(cdcEvent.detail.subject.tenantId).toBe('SYSTEM');
-      expect(cdcEvent.detail.subject.type).toBe(eventType);
+      expect(cdcEvent.detail.context.tenantId).toBe('SYSTEM');
+      expect(cdcEvent.detail.subject.relatedEntityType).toBe('SYSTEM');
     };
 
     it('creates SYSTEM Notification on BROKER_CIRCUIT_OPEN and emits NOTIFICATION_CREATED via CDC', () =>
-      expectSystemNotificationCdc('BROKER_CIRCUIT_OPEN', () => eb.putEvent({
+      expectSystemNotificationCdc(() => eb.putEvent({
         bus: 'investor', targetService: 'investor-ctrl', detailType: 'BROKER_CIRCUIT_OPEN',
         subject: { adapter: 'broker-alpaca-adpt', timestamp: new Date().toISOString() },
       })), 120_000);
 
     it('creates SYSTEM Notification on BROKER_CIRCUIT_CLOSED and emits NOTIFICATION_CREATED via CDC', () =>
-      expectSystemNotificationCdc('BROKER_CIRCUIT_CLOSED', () => eb.putEvent({
+      expectSystemNotificationCdc(() => eb.putEvent({
         bus: 'investor', targetService: 'investor-ctrl', detailType: 'BROKER_CIRCUIT_CLOSED',
         subject: { adapter: 'broker-alpaca-adpt', timestamp: new Date().toISOString() },
       })), 120_000);
 
     it('creates SYSTEM Notification on BROKER_HEAL_ESCALATED and emits NOTIFICATION_CREATED via CDC', () =>
-      expectSystemNotificationCdc('BROKER_HEAL_ESCALATED', () => eb.putEvent({
+      expectSystemNotificationCdc(() => eb.putEvent({
         bus: 'investor', targetService: 'investor-ctrl', detailType: 'BROKER_HEAL_ESCALATED',
         subject: { adapter: 'broker-alpaca-adpt', timestamp: new Date().toISOString() },
       })), 120_000);
