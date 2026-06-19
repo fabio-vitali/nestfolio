@@ -21,11 +21,15 @@ This is a structural blind spot, not a per-fixture defect:
 - It let parameterized fixtures slip past the per-phase migrations. Two truly-dynamic sites exist
   today, both `it.each` blocks in
   `services/investor/investor-ctrl/test/integration/onboarding-notification.integration.test.ts`:
-  - `notificationEvents` (`:117`) — emits `BALANCE_UPDATED`, `ORDER_REJECTED`, `DECISION_BLOCKED`,
-    `WITHDRAWAL_SETTLED`, `GOAL_UPDATED`, `OPERATING_MODE_CHANGED` via the legacy untyped form with a
-    **shorthand** `detail` property (so `HAS_DETAIL` — which matches only `detail:` — misses it too).
+  - `notificationEvents` (`:117`) — a **12-element** array emitted via the legacy untyped form with
+    a **shorthand** `detail` property (so `HAS_DETAIL` — which matches only `detail:` — misses it
+    too). Per the gate registry (source of truth): **10 registered** — `ONBOARDING_COMPLETED`,
+    `MANDATE_ISSUED`, `MANDATE_REVOKED`, `DEPOSIT_INITIATED`, `DECISION_APPROVED`, `BALANCE_UPDATED`,
+    `DECISION_BLOCKED`, `WITHDRAWAL_SETTLED`, `GOAL_UPDATED`, `OPERATING_MODE_CHANGED` — and **2
+    unregistered** (`ORDER_FILLED`, `ORDER_REJECTED`, both the deferred `ORDER_*` family).
   - `circuitBreakerEvents` (`:195`) — emits `BROKER_CIRCUIT_OPEN`/`_CLOSED`/`BROKER_HEAL_ESCALATED`
-    with empty `detail: {}`.
+    with empty `detail: {}` (all 3 registered).
+  - **Total: 13 registered → typed migration; 2 unregistered → documented legacy literals.**
 
 This is load-bearing for the epic's `done_when` deliverable
 *"regression gate forbids untyped `putEvent` in migrated domains"* — while the blind spot exists the
@@ -40,9 +44,9 @@ gate does not fully forbid untyped `putEvent`, so the clause is not yet true.
    documentation example at `advisory-bff.integration.test.ts:43`).
 3. The gate is **refactored into testable exported functions + a thin CLI**, mirroring the sibling
    `tools/check-typed-subjects.mjs`, and ships with a `node:test` suite.
-4. The two `it.each` blocks are **unrolled to per-event literal calls**; the 8 registered events use
-   the typed `subject:`/`context:` form; `ORDER_REJECTED` stays an unregistered literal (documented,
-   deferred).
+4. The two `it.each` blocks are **unrolled to per-event literal calls**; the **13 registered** events
+   use the typed `subject:`/`context:` form; `ORDER_FILLED` + `ORDER_REJECTED` stay unregistered
+   literals (documented, deferred to the parked `ORDER_*` family).
 5. `node tools/check-typed-fixtures.mjs` runs **green repo-wide**, and the involved
    `onboarding-notification` integration coverage still passes against deployed dev.
 
@@ -100,21 +104,28 @@ Mirror `check-typed-subjects.test.mjs` (in-memory `scanFile`/`scanTree` + `spawn
 
 Unroll **both** `it.each` blocks to explicit per-event `it(…)` calls (the absolute ban makes an
 `it.each` over a `detailType` variable incompatible with typed emission). Preserve every existing
-assertion (a `NOTIFICATION_CREATED` arrives via CDC; `subject.type === detailType`; SYSTEM tenant
-for circuit-breaker).
+assertion (a `NOTIFICATION_CREATED` arrives via CDC; for the circuit-breaker block,
+`subject.tenantId === 'SYSTEM'` and `subject.type === detailType` — note that asserted `subject` is
+the *outgoing Notification* envelope, not the injected subject, so it is unaffected by the input
+migration). No test reads any field of the *injected* subject, so each migrated subject only needs
+to be **minimally schema-valid** (the typed `putEvent` runtime backstop `EventSubjects[K].parse`
+enforces this offline before any send).
 
-- **`notificationEvents`** → the 5 **registered** events (`BALANCE_UPDATED`, `DECISION_BLOCKED`,
-  `WITHDRAWAL_SETTLED`, `GOAL_UPDATED`, `OPERATING_MODE_CHANGED`) become typed
-  `putEvent({ …, detailType: '<LITERAL>', subject: <schema-conformant>, context: { tenantId, userId } })`.
-  Subjects are constructed to satisfy each producer's registered schema (looked up from
-  `@nestfolio/test-contracts` `EventSubjects`). The current minimal `detail` payloads are filled out;
-  if constructing a real subject surfaces a co-wrong shape, **fix-or-file** (do not expand scope).
-- **`ORDER_REJECTED`** → kept as a literal legacy form
-  `putEvent({ detailType: 'ORDER_REJECTED', detail: { … } })` with a `// deferred:` comment pointing
-  at `typed-test-fixtures-execution-deferred-cross-domain`. It is unregistered → gate-clean. Not
-  migrated (respects the parked `ORDER_*`/`NormalizedOrderEvent` family + epic atomicity).
+- **`notificationEvents`** → unroll the 12-element array to explicit per-event `it(…)` calls:
+  - The **10 registered** (`ONBOARDING_COMPLETED`, `MANDATE_ISSUED`, `MANDATE_REVOKED`,
+    `DEPOSIT_INITIATED`, `DECISION_APPROVED`, `BALANCE_UPDATED`, `DECISION_BLOCKED`,
+    `WITHDRAWAL_SETTLED`, `GOAL_UPDATED`, `OPERATING_MODE_CHANGED`) become typed
+    `putEvent({ …, detailType: '<LITERAL>', subject: <minimal schema-valid>, context: { tenantId: ctx.tenantId } })`.
+    Most current `detail` payloads are NOT schema-valid (e.g. `BALANCE_UPDATED` lacks `snapshot`;
+    `OPERATING_MODE_CHANGED` lacks `mandateId/level/status/effectiveDate`) — construct minimal valid
+    subjects per each producer schema. If a real shape surfaces a genuine co-wrong/contract issue,
+    **fix-or-file** (do not expand scope).
+  - **`ORDER_FILLED`** and **`ORDER_REJECTED`** → kept as literal legacy forms
+    `putEvent({ detailType: '<LITERAL>', detail: { … } })` with a `// deferred:` comment pointing at
+    `typed-test-fixtures-execution-deferred-cross-domain`. Both unregistered → gate-clean. Not
+    migrated (respects the parked `ORDER_*`/`NormalizedOrderEvent` family + epic atomicity).
 - **`circuitBreakerEvents`** → 3 typed calls for `BROKER_CIRCUIT_OPEN`/`_CLOSED`/`BROKER_HEAL_ESCALATED`
-  with schema-conformant subjects (today `detail: {}`).
+  with minimal `BrokerCircuitEventSchema` subjects `{ adapter, timestamp }` (today `detail: {}`).
 
 ### 3.4 Validation
 

@@ -5,14 +5,14 @@ rank: null
 type: tooling
 epic: typed-test-fixtures
 epic_role: core
-notes: "CORE. check-typed-fixtures gate matches static literal detailType only — a putEvent with a variable/computed detailType escapes the gate, so a co-wrong subject there is uncaught. A structural hole in the epic's done_when deliverable 'regression gate forbids untyped putEvent in migrated domains'; promoted captured→core 2026-06-19 (closure-predicate test). Approach (2026-06-19 user direction): ban dynamic detailType outright (no escape hatch) + strip comments before scanning; unroll the two it.each blocks in onboarding-notification.integration.test.ts to per-event literal calls (8 registered → typed subject form; ORDER_REJECTED stays an unregistered literal, deferred to typed-test-fixtures-execution-deferred-cross-domain)."
+notes: "CORE. check-typed-fixtures gate matches static literal detailType only — a putEvent with a variable/computed detailType escapes the gate, so a co-wrong subject there is uncaught. A structural hole in the epic's done_when deliverable 'regression gate forbids untyped putEvent in migrated domains'; promoted captured→core 2026-06-19 (closure-predicate test). Approach (2026-06-19 user direction): ban dynamic detailType outright (no escape hatch) + strip comments before scanning; unroll the two it.each blocks in onboarding-notification.integration.test.ts to per-event literal calls — 13 registered events (10 notificationEvents + 3 circuit-breaker) → typed subject form; ORDER_FILLED + ORDER_REJECTED stay unregistered legacy literals (deferred ORDER_* family per typed-test-fixtures-execution-deferred-cross-domain). Shorthand-detail HAS_DETAIL gap filed as a follow-up."
 references: []
 out_of_scope:
   - "Wiring the gate into an nx target / pre-commit hook (it is the package.json `check:typed-fixtures` script today) — separate concern; file if it blocks."
   - "Typed migration of the parked ORDER_*/NormalizedOrderEvent family (incl. ORDER_REJECTED) — blocked on out-of-scope production forks per typed-test-fixtures-execution-deferred-cross-domain; left as documented unregistered literals."
   - "Any DRY test-support emit<K>() helper to preserve it.each — YAGNI; unrolling to per-event literal calls suffices."
 spec: docs/superpowers/specs/2026-06-19-check-typed-fixtures-ban-dynamic-detailtype-design.md
-plan: null
+plan: docs/superpowers/plans/2026-06-19-check-typed-fixtures-ban-dynamic-detailtype.md
 topic_memory: [project_event_subject_contracts.md]
 validation_gate: null
 ---
