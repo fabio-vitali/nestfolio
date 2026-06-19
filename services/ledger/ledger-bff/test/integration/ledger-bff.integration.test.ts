@@ -344,10 +344,17 @@ describe('ledger-bff', () => {
 
       // Wait for all materializations
       const today = new Date().toISOString().slice(0, 10);
+      // NB: the event-materializations block above already left a Portfolio#Latest
+      // row at __version 30 (cashBalanceCents 3_000_000). An existence-only wait
+      // here returns instantly against that stale row, racing the version-99 /
+      // 1_000_000 BALANCE_UPDATED emitted in this beforeAll. Wait for the v99 write
+      // to actually supersede it so the AppSync queries read 1_000_000 deterministically.
       await table.waitForItem({
         table: 'ledger-bff',
         pk: portfolioPk(),
         sk: 'Latest',
+        predicate: (item) =>
+          item['__version'] === 99 && item['cashBalanceCents'] === 1_000_000,
         timeoutMs: 90_000,
       });
       await table.waitForItem({
