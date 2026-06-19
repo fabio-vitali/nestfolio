@@ -9,7 +9,7 @@
 ### [typed-test-fixtures](backlog/typed-test-fixtures.md) `[epic · active]` — Type-check every test fixture (unit/integration/e2e) against the producer-owned zod contracts so co-wrong fixtures are COMPILE errors (+ a runtime parse backstop), closing the [[event-subject-contracts]] 'fixture passed, real producer differed' gap workspace-wide. Promoted to active delivery epic 2026-06-16; first member typed-test-fixtures-phase0 in flight. Design: docs/superpowers/specs/2026-06-16-typed-test-fixtures-design.md. Motivated by two pre-existing co-wrong fixtures surfaced validating compliance-ctrl-mandate-snapshot-parse-subject (Bug A: identity-in-subject integration fixtures; Bug B: e2e RECOMMENDATION_PROPOSED missing required fields).
 done_when: Mechanism shipped (producer event->schema maps + composed registry + typed putEvent with per-call context override + runtime parse backstop + typed TableAssertions); all ~290 putEvent call-sites across the 4 domains migrated to the typed API; every surfaced co-wrong fixture fixed or its latent contract bug filed; regression gate forbids untyped putEvent in migrated domains. Every core member shipped or dropped.
 rollup: core 11/12 done · captured 2/15 done
-- core · parking · [typed-fixtures-funding-lifecycle-detected-failed](backlog/typed-fixtures-funding-lifecycle-detected-failed.md)
+- core · active · [typed-fixtures-funding-lifecycle-detected-failed](backlog/typed-fixtures-funding-lifecycle-detected-failed.md)
 - core · shipped · [check-typed-fixtures-dynamic-detailtype-gap](backlog/check-typed-fixtures-dynamic-detailtype-gap.md)
 - core · shipped · [onboarding-mandatelevel-contract-gap](backlog/onboarding-mandatelevel-contract-gap.md)
 - core · shipped · [operating-mode-authority-e2e-recommendation-fixture](backlog/operating-mode-authority-e2e-recommendation-fixture.md)
@@ -79,8 +79,7 @@ rollup: core 0/2 done · captured 0/0 done
 
 ## ACTIVE
 
-_(none)_
-
+- [typed-fixtures-funding-lifecycle-detected-failed](backlog/typed-fixtures-funding-lifecycle-detected-failed.md) [refactor] — CORE follow-on: register + migrate the remaining broker-ctrl funding-lifecycle consumer fixtures. Re-verified 2026-06-19 with the gate scanner: DEPOSIT_DETECTED has 5 literal-detailType putEvent sites across 4 files; DEPOSIT_FAILED has 0 consumer fixtures (the earlier 'DEPOSIT_FAILED ×1' was a CDC-emission trap-assertion + a subscription-list assertion, not a putEvent fixture) → DEPOSIT_FAILED deferred under the same register-when-a-fixture-appears rule as the other 0-site funding siblings. Part of the epic's 'all ~290 sites migrated' done_when. `[epic:typed-test-fixtures · core]`
 
 ## QUEUED
 
@@ -165,7 +164,6 @@ _(none)_
 - [sf-start-idempotency-at-least-once-redelivery](backlog/sf-start-idempotency-at-least-once-redelivery.md) [refactor] — LOW priority post-collapse — defer until EB redelivery is observed empirically.
 - [stale-memory-write-comments-phase-a-cleanup](backlog/stale-memory-write-comments-phase-a-cleanup.md) [refactor] — 6 stale comments in decision-workflow-ctrl + cdk-constructs reference writeAgentOutput / BatchCreate / ListMemoryRecords
 - [test-infrastructure-polling-audit](backlog/test-infrastructure-polling-audit.md) [refactor] — App code clean; test infra has 98 justified + 12 should-replace + 126 lower-priority polls.
-- [typed-fixtures-funding-lifecycle-detected-failed](backlog/typed-fixtures-funding-lifecycle-detected-failed.md) [refactor] — CORE follow-on: register + migrate the remaining broker-ctrl funding-lifecycle consumer fixtures (DEPOSIT_DETECTED ×4 files, DEPOSIT_FAILED ×1) — same FundingSnapshotSchema as DEPOSIT/WITHDRAWAL_SETTLED. Part of the epic's 'all ~290 sites migrated' done_when. `[epic:typed-test-fixtures · core]`
 - [unified-ingress-refactoring](backlog/unified-ingress-refactoring.md) [refactor] — Single event-listener with ResumeIntent + PublishIntent (planned, not started).
 - [weight-drift-detector](backlog/weight-drift-detector.md) [design] — Production-feature gap: no service emits PORTFOLIO_DRIFT_DETECTED on the weight-vs-target axis (the kind that motivates a rebalance). reconciliation-ctrl only handles Intent-vs-Settlement drift (broker errors). DWC SF reacts to the event correctly but no producer exists on the user-driven path. Surfaced 2026-05-27 during playwright-rebalance-real-agents-maxvms-remediation brainstorming. `[epic:weight-drift-rebalance · core]`
 - [wss-subscription-test-harness-test-support](backlog/wss-subscription-test-harness-test-support.md) [tooling] — For integration tests that need to assert AppSync @aws_subscribe broadcasts deliver.
