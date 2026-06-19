@@ -422,6 +422,24 @@ describe('event-listener handler', () => {
         fields: expect.objectContaining({ taskToken: 'integ-task-token' }),
       });
     });
+
+    it('writes proposedTrades from RECOMMENDATION_PROPOSED onto the ComplianceCheck row', async () => {
+      getMandateSnapshot.mockResolvedValue(mandate);
+      evaluateSpy.mockReturnValue({ result: 'APPROVED', violations: [], authorityLevel: 'L1' });
+
+      const harness = makeHarness();
+      const result = await harness.process([
+        fakeSqsRecord('RECOMMENDATION_PROPOSED', decisionPayload, { tenantId: 't-1' }),
+      ]);
+
+      expect(result.intents[0]).toMatchObject({
+        _tag: 'record',
+        typename: 'ComplianceCheck',
+        fields: expect.objectContaining({
+          proposedTrades: decisionPayload.proposedTrades,
+        }),
+      });
+    });
   });
 
   describe('Mandate projection (projectVersioned)', () => {

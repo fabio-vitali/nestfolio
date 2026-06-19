@@ -126,6 +126,7 @@ async function processDecisionPacket(
     result: output.result,
     violations: output.violations,
     authorityLevel: output.authorityLevel,
+    proposedTrades,
     sourceEventId: ctx.eventId,
   };
 

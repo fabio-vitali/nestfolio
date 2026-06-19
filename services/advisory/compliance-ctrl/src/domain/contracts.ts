@@ -12,8 +12,10 @@ import { z, type ZodTypeAny } from 'zod';
  * event-listener on RECOMMENDATION_PROPOSED, CDC-emitted (value-mapped on `result`) as
  * DECISION_APPROVED (result=APPROVED) / DECISION_BLOCKED (result=BLOCKED). Enums verbatim from
  * rules/rule-engine.ts ComplianceOutput. `decisionId` is a dual-field alias of decisionPacketId.
- * `taskToken` is carried so decision-workflow-ctrl/sfn-callback can resume the SF. The row carries
- * NO proposedTrades (those ride RECOMMENDATION_PROPOSED).
+ * `taskToken` is carried so decision-workflow-ctrl/sfn-callback can resume the SF.
+ * `proposedTrades` is carried so the execution domain can create per-trade orders (WS-1 of the
+ * order-execution money path). Opaque here — the typed ProposedTradeSchema parse happens at the
+ * execution-ctrl consumer (WS-2). Optional: DECISION_BLOCKED / fallback emissions need not carry trades.
  */
 export const ComplianceCheckSchema = z.object({
   ccId: z.string(),
@@ -34,6 +36,11 @@ export const ComplianceCheckSchema = z.object({
     severity: z.enum(['WARNING', 'BLOCKING']),
   })),
   authorityLevel: z.enum(['L1', 'L2']),
+  // Carried so the execution domain can create per-trade orders (WS-1 of the
+  // order-execution money path). Opaque here — the typed ProposedTradeSchema
+  // parse happens at the execution-ctrl consumer (WS-2). Optional: DECISION_BLOCKED
+  // / fallback emissions need not carry trades.
+  proposedTrades: z.array(z.unknown()).optional(),
   sourceEventId: z.string(),
 });
 export type ComplianceCheck = z.infer<typeof ComplianceCheckSchema>;

@@ -67,6 +67,9 @@ describe('compliance-ctrl', () => {
     const detail = event.detail as Record<string, unknown>;
     const subject = detail.subject as Record<string, unknown>;
     expect(subject['taskToken']).toBe(taskToken);
+    // WS-1: proposedTrades must round-trip onto the DECISION_APPROVED/BLOCKED subject
+    expect(Array.isArray(subject['proposedTrades'])).toBe(true);
+    expect((subject['proposedTrades'] as unknown[]).length).toBeGreaterThan(0);
   }, 120_000);
 
   // ── Mandate lifecycle events (compliance rules projection) ────────────
