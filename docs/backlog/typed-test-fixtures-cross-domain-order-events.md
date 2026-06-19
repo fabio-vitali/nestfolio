@@ -1,6 +1,6 @@
 ---
 id: typed-test-fixtures-cross-domain-order-events
-status: active
+status: shipped
 type: refactor
 epic: typed-test-fixtures
 epic_role: core
@@ -18,7 +18,7 @@ out_of_scope:
 spec: docs/superpowers/specs/2026-06-16-typed-test-fixtures-design.md
 plan: null
 topic_memory: [project_event_subject_contracts.md]
-validation_gate: null
+validation_gate: "Shipped on feat/typed-fixtures-order-events (commits d5434456 register+type ORDER_*, 77ae5c8f circuit-breaker assertion fix). Static: check-typed-fixtures green at 88 registered events; test-contracts registry.test 2/2 (EventSubjects == EXPECTED == JSON); tsc --noEmit introduces zero new errors across broker-ctrl/ledger-ctrl/decision-workflow-ctrl/e2e/test-contracts (investor-ctrl's 3 errors confirmed pre-existing on main); lint 6 projects 0 errors. Runtime vs deployed dev: decision-workflow-ctrl 20/20, investor-ctrl 19/19 (incl. circuit-breaker fix), ledger-ctrl existence/dedup green. Class-(b) ledger reducer money bug FILED not fixed (ledger-ctrl-live-tax-lot-missing-order-fields extended with balance-reducer + e2e evidence). Test-only change, no deploy. broker-ctrl service card regenerated for the brokerCtrlEventSubjects ORDER_* additions."
 ---
 
 # typed-test-fixtures — cross-domain ORDER_* registration + fixture migration
