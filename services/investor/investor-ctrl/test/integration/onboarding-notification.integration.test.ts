@@ -62,78 +62,96 @@ describe('investor-ctrl', () => {
   // ── Notification creation for the 10 simple-template events ────────────
 
   describe('notification creation (CDC verification)', () => {
-    const notificationEvents = [
-      {
-        detailType: 'ONBOARDING_COMPLETED',
-        detail: { goal: 'RETIREMENT', riskTolerance: 'MODERATE' },
-      },
-      {
-        detailType: 'MANDATE_ISSUED',
-        detail: { mandateId: 'integ-mandate', level: 'DISCRETIONARY' },
-      },
-      {
-        detailType: 'MANDATE_REVOKED',
-        detail: { mandateId: 'integ-mandate', revokedAt: new Date().toISOString() },
-      },
-      {
-        detailType: 'DEPOSIT_INITIATED',
-        detail: { depositId: 'integ-dep', amountCents: 100_000 },
-      },
-      {
-        detailType: 'DECISION_APPROVED',
-        detail: { decisionId: 'integ-decision' },
-      },
-      {
-        detailType: 'ORDER_FILLED',
+    // Each event type makes investor-ctrl write a Notification, re-emitted as NOTIFICATION_CREATED
+    // via CDC. No assertion reads the INJECTED subject, so each injected subject only needs to be
+    // minimally valid under its producer schema — enforced offline by the typed putEvent runtime
+    // backstop (EventSubjects[K].parse) before any send. Unrolled from an it.each so every putEvent
+    // carries a literal detailType (the typed subject:/context: overload binds only for literal K).
+    const expectNotificationCdc = async (emit: () => Promise<void>) => {
+      await emit();
+      // event → SQS → Lambda → DDB PutItem (Notification) → DDB Stream INSERT → CDC → NOTIFICATION_CREATED
+      const cdcEvent = await notificationTrap.waitForEvent({
+        detailType: 'NOTIFICATION_CREATED',
+        timeoutMs: 90_000,
+      });
+      expect(cdcEvent.detailType).toBe('NOTIFICATION_CREATED');
+      expect(cdcEvent.detail).toBeDefined();
+    };
+
+    it('creates Notification on ONBOARDING_COMPLETED and emits NOTIFICATION_CREATED via CDC', () =>
+      expectNotificationCdc(() => eb.putEvent({
+        bus: 'investor', targetService: 'investor-ctrl', detailType: 'ONBOARDING_COMPLETED',
+        subject: { goal: { objective: 'RETIREMENT' }, horizonYears: 10, accountMode: 'simulation', capitalAmount: 100_000, currency: 'USD', riskTolerance: 2, riskExperience: 1, operatingMode: 'BALANCED', mandateAccepted: true },
+      })), 120_000);
+
+    it('creates Notification on MANDATE_ISSUED and emits NOTIFICATION_CREATED via CDC', () =>
+      expectNotificationCdc(() => eb.putEvent({
+        bus: 'investor', targetService: 'investor-ctrl', detailType: 'MANDATE_ISSUED',
+        subject: { mandateId: 'integ-mandate', level: 'DISCRETIONARY', status: 'ACTIVE', operatingMode: 'BALANCED', effectiveDate: new Date().toISOString() },
+      })), 120_000);
+
+    it('creates Notification on MANDATE_REVOKED and emits NOTIFICATION_CREATED via CDC', () =>
+      expectNotificationCdc(() => eb.putEvent({
+        bus: 'investor', targetService: 'investor-ctrl', detailType: 'MANDATE_REVOKED',
+        subject: { mandateId: 'integ-mandate', level: 'DISCRETIONARY', status: 'REVOKED', operatingMode: 'BALANCED', effectiveDate: new Date().toISOString(), revokedAt: new Date().toISOString() },
+      })), 120_000);
+
+    it('creates Notification on DEPOSIT_INITIATED and emits NOTIFICATION_CREATED via CDC', () =>
+      expectNotificationCdc(() => eb.putEvent({
+        bus: 'investor', targetService: 'investor-ctrl', detailType: 'DEPOSIT_INITIATED',
+        subject: { depositId: 'integ-dep', amountCents: 100_000, currency: 'USD', timestamp: new Date().toISOString() },
+      })), 120_000);
+
+    it('creates Notification on DECISION_APPROVED and emits NOTIFICATION_CREATED via CDC', () =>
+      expectNotificationCdc(() => eb.putEvent({
+        bus: 'investor', targetService: 'investor-ctrl', detailType: 'DECISION_APPROVED',
+        subject: { ccId: 'integ-cc', decisionPacketId: 'integ-dp', decisionId: 'integ-decision', taskToken: 'integ-token', mandateSnapshot: { level: 'DISCRETIONARY', status: 'ACTIVE', operatingMode: 'BALANCED', effectiveDate: new Date().toISOString() }, status: 'COMPLETED', result: 'APPROVED', violations: [], authorityLevel: 'L1', sourceEventId: 'integ-src-evt' },
+      })), 120_000);
+
+    // ORDER_FILLED / ORDER_REJECTED — deferred ORDER_*/NormalizedOrderEvent family (no producer zod
+    // contract; doubly-blocked on parked production forks). Left as legacy untyped putEvent;
+    // unregistered → gate-clean. See backlog typed-test-fixtures-execution-deferred-cross-domain.
+    it('creates Notification on ORDER_FILLED and emits NOTIFICATION_CREATED via CDC', () =>
+      expectNotificationCdc(() => eb.putEvent({
+        bus: 'investor', targetService: 'investor-ctrl', detailType: 'ORDER_FILLED',
         detail: { orderId: 'integ-order', symbol: 'AAPL', side: 'BUY', quantity: 10, fillPrice: 150 },
-      },
-      {
-        detailType: 'BALANCE_UPDATED',
-        detail: { cashBalanceCents: 500_000, deltaCents: 50_000 },
-      },
-      {
-        detailType: 'ORDER_REJECTED',
+      })), 120_000);
+
+    it('creates Notification on BALANCE_UPDATED and emits NOTIFICATION_CREATED via CDC', () =>
+      expectNotificationCdc(() => eb.putEvent({
+        bus: 'investor', targetService: 'investor-ctrl', detailType: 'BALANCE_UPDATED',
+        subject: { cashBalanceCents: 500_000, snapshot: { positions: {}, cashBalanceCents: 500_000, lastEventSequence: 1 } },
+      })), 120_000);
+
+    it('creates Notification on ORDER_REJECTED and emits NOTIFICATION_CREATED via CDC', () =>
+      expectNotificationCdc(() => eb.putEvent({
+        bus: 'investor', targetService: 'investor-ctrl', detailType: 'ORDER_REJECTED',
         detail: { orderId: 'integ-reject', reason: 'Margin' },
-      },
-      {
-        detailType: 'DECISION_BLOCKED',
-        detail: { decisionId: 'integ-blocked', reason: 'Compliance' },
-      },
-      {
-        detailType: 'WITHDRAWAL_SETTLED',
-        detail: { withdrawalId: 'integ-wd', amountCents: 50_000 },
-      },
-      {
-        detailType: 'GOAL_UPDATED',
-        detail: { goal: { objective: 'INCOME', targetAmountCents: 100_000_000 } },
-      },
-      {
-        detailType: 'OPERATING_MODE_CHANGED',
-        detail: { operatingMode: 'AGGRESSIVE' },
-      },
-    ];
+      })), 120_000);
 
-    // TODO(typed-test-fixtures Phase 4): ORDER_* / BROKER_CIRCUIT_* fixture migration tracked in backlog item `typed-test-fixtures-execution-deferred-cross-domain` (Phase 4 / ledger wave).
-    it.each(notificationEvents)(
-      'should create Notification on $detailType and emit NOTIFICATION_CREATED via CDC',
-      async ({ detailType, detail }) => {
-        await eb.putEvent({
-          bus: 'investor',
-          targetService: 'investor-ctrl',
-          detailType,
-          detail,
-        });
+    it('creates Notification on DECISION_BLOCKED and emits NOTIFICATION_CREATED via CDC', () =>
+      expectNotificationCdc(() => eb.putEvent({
+        bus: 'investor', targetService: 'investor-ctrl', detailType: 'DECISION_BLOCKED',
+        subject: { ccId: 'integ-cc', decisionPacketId: 'integ-dp', decisionId: 'integ-blocked', taskToken: 'integ-token', mandateSnapshot: { level: 'DISCRETIONARY', status: 'ACTIVE', operatingMode: 'BALANCED', effectiveDate: new Date().toISOString() }, status: 'BLOCKED', result: 'BLOCKED', violations: [], authorityLevel: 'L1', sourceEventId: 'integ-src-evt' },
+      })), 120_000);
 
-        // event → SQS → Lambda → DDB PutItem (Notification) → DDB Stream INSERT → CDC → NOTIFICATION_CREATED
-        const cdcEvent = await notificationTrap.waitForEvent({
-          detailType: 'NOTIFICATION_CREATED',
-          timeoutMs: 90_000,
-        });
-        expect(cdcEvent.detailType).toBe('NOTIFICATION_CREATED');
-        expect(cdcEvent.detail).toBeDefined();
-      },
-      120_000,
-    );
+    it('creates Notification on WITHDRAWAL_SETTLED and emits NOTIFICATION_CREATED via CDC', () =>
+      expectNotificationCdc(() => eb.putEvent({
+        bus: 'investor', targetService: 'investor-ctrl', detailType: 'WITHDRAWAL_SETTLED',
+        subject: { sk: 'WITHDRAWAL_SETTLED', direction: 'WITHDRAWAL', status: 'settled', transferId: 'integ-wd', amountCents: 50_000, currency: 'USD', executionMode: 'simulation', initiatedAt: new Date().toISOString(), timestamp: new Date().toISOString() },
+      })), 120_000);
+
+    it('creates Notification on GOAL_UPDATED and emits NOTIFICATION_CREATED via CDC', () =>
+      expectNotificationCdc(() => eb.putEvent({
+        bus: 'investor', targetService: 'investor-ctrl', detailType: 'GOAL_UPDATED',
+        subject: { operatingMode: 'BALANCED', goal: { objective: 'INCOME' }, riskProfile: { score: 5 } },
+      })), 120_000);
+
+    it('creates Notification on OPERATING_MODE_CHANGED and emits NOTIFICATION_CREATED via CDC', () =>
+      expectNotificationCdc(() => eb.putEvent({
+        bus: 'investor', targetService: 'investor-ctrl', detailType: 'OPERATING_MODE_CHANGED',
+        subject: { mandateId: 'integ-mandate', level: 'DISCRETIONARY', status: 'ACTIVE', operatingMode: 'AGGRESSIVE', effectiveDate: new Date().toISOString() },
+      })), 120_000);
   });
 
   // ── ORDER_FILLED also creates MonthlyReport ─────────────────────────
