@@ -1,8 +1,9 @@
 ---
 id: ledger-ctrl-funding-reducer-depositid-vs-transferid
-status: parking
+status: queued
+rank: 2
 type: bug
-notes: "SIGNIFICANT (money): ledger account.reducer reads p['depositId']/p['withdrawalId'] but the real FundingSnapshot producer emits transferId → RecordDeposit/RecordWithdrawal schema validation fails → cash balance NEVER credited on DEPOSIT_SETTLED/WITHDRAWAL_SETTLED in production. Co-wrong fixture masked it."
+notes: "SIGNIFICANT (money): ledger account.reducer reads p['depositId']/p['withdrawalId'] but the real FundingSnapshot producer emits transferId → RecordDeposit/RecordWithdrawal schema validation fails → cash balance NEVER credited on DEPOSIT_SETTLED/WITHDRAWAL_SETTLED in production. Co-wrong fixture masked it. PROMOTED to QUEUED 2026-06-19 (rank 2): handed off from the re-scoped consolidated verify ([[typed-test-fixtures-consolidated-integration-e2e-verify]] closed on the fixtures-criterion) as a real money bug the honest FundingSnapshot fixture exposes — the DEPOSIT_SETTLED/WITHDRAWAL_SETTLED → BALANCE_UPDATED integration assertions are RED by design until this is fixed (consumer production change + deploy + e2e). Trigger 'before the rank-5 consolidated verify' has fired (that verify shipped 2026-06-19)."
 references: []
 out_of_scope: []
 spec: null
@@ -61,9 +62,13 @@ Read `p['transferId']` as the deposit/withdrawal id in `account.reducer.ts` (and
 real `FundingSnapshot` DEPOSIT_SETTLED credits the balance + emits BALANCE_UPDATED. Same class as
 [[ledger-ctrl-live-tax-lot-missing-order-fields]] (consumer reads a field the producer doesn't emit).
 
-## ⚠ Blocks rank-5 integration green
+## ⚠ Why this is QUEUED (handed off from the consolidated verify)
 
-[[typed-test-fixtures-consolidated-integration-e2e-verify]] (rank 5) will run ledger-ctrl integration
-incl. `DEPOSIT_SETTLED → BALANCE_UPDATED` against the now-honest fixtures — that assertion will be RED
-until this is fixed. It is a **genuine consumer bug the honest fixture reveals**, not an env flake.
-Promote when starting the ledger funding-balance fix, or before the rank-5 consolidated verify.
+ledger-ctrl integration incl. `DEPOSIT_SETTLED → BALANCE_UPDATED` runs against the now-honest
+`FundingSnapshot` fixtures — that assertion is RED until this is fixed. It is a **genuine consumer bug
+the honest fixture reveals**, not an env flake. [[typed-test-fixtures-consolidated-integration-e2e-verify]]
+closed on the fixtures-criterion (2026-06-19) and explicitly handed its ledger balance-value residual
+here, so this is now a first-class QUEUED workstream (rank 2). The fix is a consumer production change
+(read `p['transferId']`, or rename the `RecordDeposit`/`RecordWithdrawal` schema field) + deploy + a
+regression test asserting a real `FundingSnapshot` DEPOSIT_SETTLED credits the balance and emits
+BALANCE_UPDATED — i.e. a Complex-lane workstream.
