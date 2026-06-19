@@ -17,7 +17,7 @@ out_of_scope:
   - "Re-homing of subsumed items into the implementation epic — done at spec-ship time, not during design"
   - "Non-order money paths (deposits/withdrawals/corporate-actions) — those funding paths are separate; this design is scoped to the order→fill→ledger path"
   - "Bedrock/agent or decision-cycle changes upstream of execution-ctrl ORDER_SUBMITTED emission (beyond defining the ORDER_SUBMITTED contract this path requires)"
-spec: null
+spec: docs/superpowers/specs/2026-06-19-order-execution-money-path-design.md
 plan: null
 topic_memory: []
 validation_gate: null
