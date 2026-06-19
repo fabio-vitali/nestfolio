@@ -142,8 +142,7 @@ rollup: core 0/3 done · captured 0/0 done
 
 ## ACTIVE
 
-_(none)_
-
+- [order-execution-money-path-design](backlog/order-execution-money-path-design.md) [design] — Design workstream (Doc-layer): repair the end-to-end order-execution money path, which empirical evidence (2026-06-19) shows has NEVER functioned in production. The broker-ctrl OrderStateMachine FAILS at its first state for 100% of real orders (dev: 881/881 FAILED, all `States.Runtime` at ReadExecutionMode — `$.tenantId` not found because the real ORDER_SUBMITTED carries identity under `$.context`, order data under `$.subject`, NOT top-level), and the observed ORDER_SUBMITTED subject carries `proposedTrades: []` (empty) — so even past ReadExecutionMode there is no trade data to route. Downstream, even a successful fill would emit a minimal NormalizedOrderEvent (orderId/executionMode/filledQty/averageFillPrice/timestamp) with NO symbol/side/quantity, so ledger-ctrl's RecordFill reducer reads undefined economics → cash balance + positions never updated on fills. This design produces a spec in docs/superpowers/specs/ that defines the canonical command→SF→normalized-event→read-model money-path pattern end-to-end and decomposes it into sequential implementation workstreams (each its own Complex backlog item). SUBSUMES the consumer half (ledger-ctrl-live-tax-lot-missing-order-fields, currently QUEUED rank 1) and the producer half (broker-ctrl-order-sf-input-contract-gap, currently parking); both will be re-homed into the implementation epic minted when this spec ships. Scope decided by user 2026-06-19 (Full money-path design) over the narrow ledger-contract-only and SF-root-cause-first alternatives, on reusability grounds. DESIGN PHASE IS DOC-LAYER — implementation is separate Complex work.
 
 ## QUEUED
 
