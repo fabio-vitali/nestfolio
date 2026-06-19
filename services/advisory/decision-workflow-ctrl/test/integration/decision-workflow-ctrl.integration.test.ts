@@ -300,14 +300,16 @@ describe('decision-workflow-ctrl', () => {
       bus: 'advisory',
       targetService: 'decision-workflow-ctrl',
       detailType: 'ORDER_FILLED',
-      detail: {
+      // DWC starts its SF on the event arrival (by name); it does not read fill economics.
+      // Typed to the producer contract NormalizedOrderEventSchema — DRY subject, identity in context.
+      subject: {
         orderId,
-        tenantId: ctx.tenantId,
-        symbol: 'AAPL',
-        side: 'BUY',
-        quantity: 10,
-        fillPrice: 150,
+        executionMode: 'simulation',
+        filledQty: 10,
+        averageFillPrice: 150,
+        timestamp: new Date().toISOString(),
       },
+      context: { tenantId: ctx.tenantId },
     });
 
     const execution = await waitForSfExecution(sfn, {
@@ -328,12 +330,13 @@ describe('decision-workflow-ctrl', () => {
       bus: 'advisory',
       targetService: 'decision-workflow-ctrl',
       detailType: 'ORDER_REJECTED',
-      detail: {
+      subject: {
         orderId,
-        tenantId: ctx.tenantId,
-        symbol: 'TSLA',
-        reason: 'Margin',
+        executionMode: 'simulation',
+        failureReason: 'Margin',
+        timestamp: new Date().toISOString(),
       },
+      context: { tenantId: ctx.tenantId },
     });
 
     const execution = await waitForSfExecution(sfn, {
@@ -488,11 +491,12 @@ describe('decision-workflow-ctrl', () => {
       bus: 'advisory',
       targetService: 'decision-workflow-ctrl',
       detailType: 'ORDER_CANCELLED',
-      detail: {
+      subject: {
         orderId,
-        tenantId: ctx.tenantId,
-        symbol: 'GOOG',
+        executionMode: 'simulation',
+        timestamp: new Date().toISOString(),
       },
+      context: { tenantId: ctx.tenantId },
     });
 
     const execution = await waitForSfExecution(sfn, {

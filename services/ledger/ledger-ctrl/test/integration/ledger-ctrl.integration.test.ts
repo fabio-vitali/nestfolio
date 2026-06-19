@@ -60,14 +60,17 @@ describe('ledger-ctrl: ORDER_FILLED → LedgerEntry DDB write (smoke)', () => {
       bus: 'ledger',
       targetService: 'ledger-ctrl',
       detailType: 'ORDER_FILLED',
-      detail: {
+      // Typed against NormalizedOrderEventSchema (broker-ctrl/contracts → @nestfolio/test-contracts).
+      // symbol/side/quantity/fillPrice are NOT in the ORDER_* producer contract — broker-ctrl drops
+      // them, so the ledger-ctrl reducer/tax-lot reads of those resolve to undefined in prod: a filed
+      // latent bug (docs/backlog/ledger-ctrl-live-tax-lot-missing-order-fields.md). executionMode
+      // 'simulation' keeps the live-only tax-lot path out of scope here.
+      subject: {
         orderId: 'test-order-integ-001',
-        symbol: 'AAPL',
-        side: 'BUY',
-        quantity: 10,
-        fillPrice: 150.0,
-        filledAt: new Date().toISOString(),
-        executionMode: 'paper',
+        executionMode: 'simulation',
+        filledQty: 10,
+        averageFillPrice: 150.0,
+        timestamp: new Date().toISOString(),
       },
     });
 
@@ -150,14 +153,12 @@ describe('ledger-ctrl: event-listener DDB writes', () => {
       bus: 'ledger',
       targetService: 'ledger-ctrl',
       detailType: 'ORDER_PARTIALLY_FILLED',
-      detail: {
+      subject: {
         orderId: `partial-ddb-${Date.now()}`,
-        symbol: 'MSFT',
-        side: 'BUY',
-        quantity: 3,
-        fillPrice: 420.0,
-        filledAt: new Date().toISOString(),
-        executionMode: 'paper',
+        executionMode: 'simulation',
+        filledQty: 3,
+        averageFillPrice: 420.0,
+        timestamp: new Date().toISOString(),
       },
     });
 
@@ -171,13 +172,11 @@ describe('ledger-ctrl: event-listener DDB writes', () => {
       bus: 'ledger',
       targetService: 'ledger-ctrl',
       detailType: 'ORDER_REJECTED',
-      detail: {
+      subject: {
         orderId: `reject-ddb-${Date.now()}`,
-        symbol: 'TSLA',
-        side: 'BUY',
-        quantity: 5,
-        reason: 'Insufficient margin',
-        rejectedAt: new Date().toISOString(),
+        executionMode: 'simulation',
+        failureReason: 'Insufficient margin',
+        timestamp: new Date().toISOString(),
       },
     });
 
@@ -191,12 +190,10 @@ describe('ledger-ctrl: event-listener DDB writes', () => {
       bus: 'ledger',
       targetService: 'ledger-ctrl',
       detailType: 'ORDER_CANCELLED',
-      detail: {
+      subject: {
         orderId: `cancel-ddb-${Date.now()}`,
-        symbol: 'GOOG',
-        side: 'SELL',
-        quantity: 2,
-        cancelledAt: new Date().toISOString(),
+        executionMode: 'simulation',
+        timestamp: new Date().toISOString(),
       },
     });
 
@@ -232,14 +229,12 @@ describe('ledger-ctrl: CDC chain → BALANCE_UPDATED', () => {
       bus: 'ledger',
       targetService: 'ledger-ctrl',
       detailType: 'ORDER_FILLED',
-      detail: {
+      subject: {
         orderId: `fill-cdc-${Date.now()}`,
-        symbol: 'AAPL',
-        side: 'BUY',
-        quantity: 10,
-        fillPrice: 150.0,
-        filledAt: new Date().toISOString(),
-        executionMode: 'paper',
+        executionMode: 'simulation',
+        filledQty: 10,
+        averageFillPrice: 150.0,
+        timestamp: new Date().toISOString(),
       },
     });
 
@@ -309,14 +304,12 @@ describe('ledger-ctrl: CDC chain → BALANCE_UPDATED', () => {
       bus: 'ledger',
       targetService: 'ledger-ctrl',
       detailType: 'ORDER_PARTIALLY_FILLED',
-      detail: {
+      subject: {
         orderId: `partial-cdc-${Date.now()}`,
-        symbol: 'MSFT',
-        side: 'BUY',
-        quantity: 3,
-        fillPrice: 420.0,
-        filledAt: new Date().toISOString(),
-        executionMode: 'paper',
+        executionMode: 'simulation',
+        filledQty: 3,
+        averageFillPrice: 420.0,
+        timestamp: new Date().toISOString(),
       },
     });
 
@@ -544,13 +537,11 @@ describe('ledger-ctrl: CDC chain → LEDGER_ENTRY_RECORDED', () => {
       bus: 'ledger',
       targetService: 'ledger-ctrl',
       detailType: 'ORDER_REJECTED',
-      detail: {
+      subject: {
         orderId: `reject-cdc-${Date.now()}`,
-        symbol: 'TSLA',
-        side: 'BUY',
-        quantity: 5,
-        reason: 'Insufficient margin',
-        rejectedAt: new Date().toISOString(),
+        executionMode: 'simulation',
+        failureReason: 'Insufficient margin',
+        timestamp: new Date().toISOString(),
       },
     });
 

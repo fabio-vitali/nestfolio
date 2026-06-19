@@ -108,13 +108,14 @@ describe('investor-ctrl', () => {
         subject: { ccId: 'integ-cc', decisionPacketId: 'integ-dp', decisionId: 'integ-decision', taskToken: 'integ-token', mandateSnapshot: { level: 'DISCRETIONARY', status: 'ACTIVE', operatingMode: 'BALANCED', effectiveDate: new Date().toISOString() }, status: 'COMPLETED', result: 'APPROVED', violations: [], authorityLevel: 'L1', sourceEventId: 'integ-src-evt' },
       })), 120_000);
 
-    // ORDER_FILLED / ORDER_REJECTED — deferred ORDER_*/NormalizedOrderEvent family (no producer zod
-    // contract; doubly-blocked on parked production forks). Left as legacy untyped putEvent;
-    // unregistered → gate-clean. See backlog typed-test-fixtures-execution-deferred-cross-domain.
+    // ORDER_FILLED / ORDER_REJECTED — typed against the producer-owned NormalizedOrderEventSchema
+    // (broker-ctrl/contracts → @nestfolio/test-contracts; brokerCtrlEventSubjects now registers the
+    // ORDER_* family). DRY subject — identity is in context; symbol/side/quantity/fillPrice are NOT in
+    // the producer contract and the notification path does not read them.
     it('creates Notification on ORDER_FILLED and emits NOTIFICATION_CREATED via CDC', () =>
       expectNotificationCdc(() => eb.putEvent({
         bus: 'investor', targetService: 'investor-ctrl', detailType: 'ORDER_FILLED',
-        detail: { orderId: 'integ-order', symbol: 'AAPL', side: 'BUY', quantity: 10, fillPrice: 150 },
+        subject: { orderId: 'integ-order', executionMode: 'simulation', filledQty: 10, averageFillPrice: 150, timestamp: new Date().toISOString() },
       })), 120_000);
 
     it('creates Notification on BALANCE_UPDATED and emits NOTIFICATION_CREATED via CDC', () =>
@@ -126,7 +127,7 @@ describe('investor-ctrl', () => {
     it('creates Notification on ORDER_REJECTED and emits NOTIFICATION_CREATED via CDC', () =>
       expectNotificationCdc(() => eb.putEvent({
         bus: 'investor', targetService: 'investor-ctrl', detailType: 'ORDER_REJECTED',
-        detail: { orderId: 'integ-reject', reason: 'Margin' },
+        subject: { orderId: 'integ-reject', executionMode: 'simulation', failureReason: 'Margin', timestamp: new Date().toISOString() },
       })), 120_000);
 
     it('creates Notification on DECISION_BLOCKED and emits NOTIFICATION_CREATED via CDC', () =>
@@ -162,7 +163,7 @@ describe('investor-ctrl', () => {
         bus: 'investor',
         targetService: 'investor-ctrl',
         detailType: 'ORDER_FILLED',
-        detail: { orderId: 'integ-order-report', symbol: 'MSFT', side: 'SELL', quantity: 5, fillPrice: 300 },
+        subject: { orderId: 'integ-order-report', executionMode: 'simulation', filledQty: 5, averageFillPrice: 300, timestamp: new Date().toISOString() },
       });
 
       // ORDER_FILLED handler returns [Notification, MonthlyReport] — two PutItems.

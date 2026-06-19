@@ -102,23 +102,24 @@ describe('scenario 6 — investor accepts decision and sees it executed', () => 
     // Publish directly on the ledger bus so ledger-ctrl's Ingress picks it
     // up — publishing on the execution bus would require the ledger-adpt
     // adapter rule to forward, which doesn't match integration-test: source.
-    // Field names must match ledger-ctrl's RecordFill schema: fillPrice is
-    // per-share dollars (not cents), filledAt is required ISO timestamp.
+    // Typed against the ORDER_FILLED producer contract (NormalizedOrderEventSchema). That contract
+    // carries NO symbol/side/quantity/fillPrice/decisionId — broker-ctrl drops them — so ledger-ctrl's
+    // RecordFill reducer reads undefined for those fields in production: filed class-(b) bug
+    // docs/backlog/ledger-ctrl-live-tax-lot-missing-order-fields.md. The getPortfolio "reflects the
+    // fill" assertion below therefore exercises that broken path end-to-end and will not pass until
+    // the producer contract is extended (tracked in that item) — retained as the e2e proof of impact.
     await eb.putEvent({
       bus: 'ledger',
       targetService: 'ledger-ctrl',
       detailType: 'ORDER_FILLED',
-      detail: {
-        tenantId: tenant.tenantId,
-        userId: tenant.userId,
+      subject: {
         orderId: `e2e-order-${Date.now()}`,
-        decisionId,
-        symbol: 'VTI',
-        side: 'BUY',
-        quantity: 10,
-        fillPrice: 200,
-        filledAt: new Date().toISOString(),
+        executionMode: 'simulation',
+        filledQty: 10,
+        averageFillPrice: 200,
+        timestamp: new Date().toISOString(),
       },
+      context: { tenantId: tenant.tenantId, userId: tenant.userId },
     });
 
     // ASSERT: ledger-bff portfolio eventually reflects the fill

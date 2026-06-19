@@ -63,12 +63,14 @@ describe('investor-ctrl resilience: idempotency', () => {
 
       const eventId = `idemp-fill-${randomUUID()}`;
       const reportId = `${eventId}-report`;
-      const detail = {
+      // Typed against NormalizedOrderEventSchema (the ORDER_FILLED producer contract). symbol/side/
+      // quantity/fillPrice are not in that contract and the notification/report path does not read them.
+      const orderSubject = {
         orderId: `order-idemp-${randomUUID()}`,
-        symbol: 'AAPL',
-        side: 'BUY',
-        quantity: 10,
-        fillPrice: 150,
+        executionMode: 'simulation' as const,
+        filledQty: 10,
+        averageFillPrice: 150,
+        timestamp: new Date().toISOString(),
       };
 
       // First publish
@@ -76,7 +78,7 @@ describe('investor-ctrl resilience: idempotency', () => {
         bus: 'investor',
         targetService: 'investor-ctrl',
         detailType: 'ORDER_FILLED',
-        detail,
+        subject: orderSubject,
         eventId,
       });
 
@@ -95,7 +97,7 @@ describe('investor-ctrl resilience: idempotency', () => {
         bus: 'investor',
         targetService: 'investor-ctrl',
         detailType: 'ORDER_FILLED',
-        detail,
+        subject: orderSubject,
         eventId,
       });
 
@@ -206,8 +208,8 @@ describe('investor-ctrl resilience: order-agnostic', () => {
       const fillEvent = {
         bus: 'investor' as const,
         targetService: 'investor-ctrl',
-        detailType: 'ORDER_FILLED',
-        detail: { orderId: 'pair-order', symbol: 'AAPL', side: 'BUY', quantity: 5, fillPrice: 150 },
+        detailType: 'ORDER_FILLED' as const,
+        subject: { orderId: 'pair-order', executionMode: 'simulation' as const, filledQty: 5, averageFillPrice: 150, timestamp: new Date().toISOString() },
         eventId: fillId,
       };
 

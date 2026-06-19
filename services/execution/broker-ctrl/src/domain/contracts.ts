@@ -94,4 +94,11 @@ export const brokerCtrlEventSubjects = {
   SIM_ORDER_REQUESTED: BrokerOrderRequestSchema,
   SIM_WITHDRAWAL_REQUESTED: SimWithdrawalRequestedSubjectSchema,
   WITHDRAWAL_SETTLED: FundingSnapshotSchema,
+  // ORDER lifecycle — CDC-emitted by the order state machine (NormalizedEvent rows).
+  // Consumed cross-domain by ledger-ctrl + investor-ctrl via @nestfolio/execution-adpt/domain.
+  ORDER_FILLED: NormalizedOrderEventSchema,
+  ORDER_PARTIALLY_FILLED: NormalizedOrderEventSchema,
+  ORDER_REJECTED: NormalizedOrderEventSchema,
+  ORDER_CANCELLED: NormalizedOrderEventSchema,
+  ORDER_ESCALATED: NormalizedOrderEventSchema,
 } as const satisfies Record<string, ZodTypeAny>;

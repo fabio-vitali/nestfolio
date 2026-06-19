@@ -45,7 +45,6 @@ import { createTestContext, EventBridgeClient, type TestContext } from '@nestfol
 import { freshTenant, applyFixtures, onboarded, withHoldings, poll, type FreshTenant } from '..';
 import { DynamoDBClient } from '@aws-sdk/client-dynamodb';
 import { DynamoDBDocumentClient, GetCommand, QueryCommand } from '@aws-sdk/lib-dynamodb';
-import { BrokerCtrlEventTypes } from '@nestfolio/broker-ctrl/events';
 import { InvestorProfileUpdatedSchema, NotificationReadSchema } from '@nestfolio/investor-bff/contracts';
 import { MandateSchema } from '@nestfolio/investor-adpt/domain';
 import { NotificationCreatedSchema, MonthlyReportSchema } from '@nestfolio/investor-ctrl/contracts';
@@ -80,17 +79,17 @@ describe('investor-domain producer contracts match REAL deployed emission', () =
     await eb.putEvent({
       bus: 'investor',
       targetService: 'investor-ctrl',
-      detailType: BrokerCtrlEventTypes.ORDER_FILLED,
-      detail: {
-        tenantId: tenant.tenantId,
-        userId: tenant.userId,
+      detailType: 'ORDER_FILLED',
+      // Typed against NormalizedOrderEventSchema; investor-ctrl's MonthlyReport persists the parsed
+      // subject verbatim and does not read symbol/side/quantity/fillPrice (not in the producer contract).
+      subject: {
         orderId: `e2e-mr-${tenant.tenantId}`,
-        symbol: 'VTI',
-        quantity: 50,
-        fillPrice: 200,
-        filledAt: new Date().toISOString(),
-        side: 'BUY',
+        executionMode: 'simulation',
+        filledQty: 50,
+        averageFillPrice: 200,
+        timestamp: new Date().toISOString(),
       },
+      context: { tenantId: tenant.tenantId, userId: tenant.userId },
     });
 
     ddbClient = new DynamoDBClient({ region: ctx.region });

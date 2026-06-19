@@ -84,14 +84,14 @@ describe('ledger-ctrl resilience: idempotency', () => {
       table.registerCleanup();
 
       const eventId = `idemp-fill-${randomUUID()}`;
+      // Typed against NormalizedOrderEventSchema; symbol/side/quantity/fillPrice are not in the
+      // ORDER_* producer contract (filed: ledger-ctrl-live-tax-lot-missing-order-fields).
       const payload = {
         orderId: `order-idemp-${randomUUID()}`,
-        symbol: 'AAPL',
-        side: 'BUY',
-        quantity: 10,
-        fillPrice: 150.0,
-        filledAt: new Date().toISOString(),
-        executionMode: 'paper',
+        executionMode: 'simulation' as const,
+        filledQty: 10,
+        averageFillPrice: 150.0,
+        timestamp: new Date().toISOString(),
       };
 
       // First publish
@@ -99,7 +99,7 @@ describe('ledger-ctrl resilience: idempotency', () => {
         bus: 'ledger',
         targetService: 'ledger-ctrl',
         detailType: 'ORDER_FILLED',
-        detail: payload,
+        subject: payload,
         eventId,
       });
       await waitForEntryCount(table, ctx.tenantId, 'actual', 1);
@@ -113,7 +113,7 @@ describe('ledger-ctrl resilience: idempotency', () => {
         bus: 'ledger',
         targetService: 'ledger-ctrl',
         detailType: 'ORDER_FILLED',
-        detail: payload,
+        subject: payload,
         eventId,
       });
 
@@ -195,12 +195,10 @@ describe('ledger-ctrl resilience: idempotency', () => {
       const eventId = `idemp-cdc-${randomUUID()}`;
       const payload = {
         orderId: `order-cdc-idemp-${randomUUID()}`,
-        symbol: 'MSFT',
-        side: 'BUY',
-        quantity: 5,
-        fillPrice: 300.0,
-        filledAt: new Date().toISOString(),
-        executionMode: 'paper',
+        executionMode: 'simulation' as const,
+        filledQty: 5,
+        averageFillPrice: 300.0,
+        timestamp: new Date().toISOString(),
       };
 
       // First publish — should produce one BALANCE_UPDATED
@@ -208,7 +206,7 @@ describe('ledger-ctrl resilience: idempotency', () => {
         bus: 'ledger',
         targetService: 'ledger-ctrl',
         detailType: 'ORDER_FILLED',
-        detail: payload,
+        subject: payload,
         eventId,
       });
 
@@ -222,7 +220,7 @@ describe('ledger-ctrl resilience: idempotency', () => {
         bus: 'ledger',
         targetService: 'ledger-ctrl',
         detailType: 'ORDER_FILLED',
-        detail: payload,
+        subject: payload,
         eventId,
       });
 
@@ -275,14 +273,12 @@ describe('ledger-ctrl resilience: order-agnostic pairwise', () => {
         bus: 'ledger',
         targetService: 'ledger-ctrl',
         detailType: 'ORDER_FILLED',
-        detail: {
+        subject: {
           orderId: `fill-pair-A-${randomUUID()}`,
-          symbol: 'AAPL',
-          side: 'BUY',
-          quantity: 10,
-          fillPrice: 150.0,
-          filledAt: new Date().toISOString(),
-          executionMode: 'paper',
+          executionMode: 'simulation',
+          filledQty: 10,
+          averageFillPrice: 150.0,
+          timestamp: new Date().toISOString(),
         },
       });
 
@@ -303,14 +299,12 @@ describe('ledger-ctrl resilience: order-agnostic pairwise', () => {
           bus: 'ledger',
           targetService: 'ledger-ctrl',
           detailType: 'ORDER_FILLED',
-          detail: {
+          subject: {
             orderId: `fill-pair-B-${randomUUID()}`,
-            symbol: 'AAPL',
-            side: 'BUY',
-            quantity: 10,
-            fillPrice: 150.0,
-            filledAt: new Date().toISOString(),
-            executionMode: 'paper',
+            executionMode: 'simulation',
+            filledQty: 10,
+            averageFillPrice: 150.0,
+            timestamp: new Date().toISOString(),
           },
         });
         await waitForSnapshot(tableB, ctxB.tenantId, 'actual');
@@ -372,24 +366,20 @@ describe('ledger-ctrl resilience: order-agnostic full shuffle', () => {
         detailType: 'ORDER_FILLED',
         detail: (suffix: string) => ({
           orderId: `fill1-shuffle-${suffix}-${randomUUID()}`,
-          symbol: 'AAPL',
-          side: 'BUY',
-          quantity: 5,
-          fillPrice: 180.0,
-          filledAt: new Date().toISOString(),
-          executionMode: 'paper',
+          executionMode: 'simulation',
+          filledQty: 5,
+          averageFillPrice: 180.0,
+          timestamp: new Date().toISOString(),
         }),
       },
       {
         detailType: 'ORDER_FILLED',
         detail: (suffix: string) => ({
           orderId: `fill2-shuffle-${suffix}-${randomUUID()}`,
-          symbol: 'MSFT',
-          side: 'BUY',
-          quantity: 3,
-          fillPrice: 420.0,
-          filledAt: new Date().toISOString(),
-          executionMode: 'paper',
+          executionMode: 'simulation',
+          filledQty: 3,
+          averageFillPrice: 420.0,
+          timestamp: new Date().toISOString(),
         }),
       },
     ];
