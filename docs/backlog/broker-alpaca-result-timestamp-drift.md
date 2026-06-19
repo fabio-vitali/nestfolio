@@ -9,6 +9,8 @@ spec: null
 plan: null
 topic_memory: [project_event_subject_contracts.md]
 validation_gate: null
+epic: broker-alpaca-emission-shape-drift
+epic_role: core
 ---
 
 # broker-alpaca AlpacaOrderResult/AlpacaTransferResult field-presence drift

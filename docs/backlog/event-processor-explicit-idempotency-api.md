@@ -13,6 +13,8 @@ spec: null
 plan: null
 topic_memory: []
 validation_gate: null
+epic: event-processor-api-hardening
+epic_role: core
 ---
 
 # event-processor: explicit idempotency-key API

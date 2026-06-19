@@ -9,6 +9,8 @@ spec: null
 plan: null
 topic_memory: []
 validation_gate: null
+epic: dead-code-cleanup
+epic_role: core
 ---
 
 # Prune unused OrderRepository methods

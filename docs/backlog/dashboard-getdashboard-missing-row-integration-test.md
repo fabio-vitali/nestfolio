@@ -9,6 +9,8 @@ spec: null
 plan: null
 topic_memory: []
 validation_gate: null
+epic: integration-coverage-backfill
+epic_role: core
 ---
 
 # Integration regression test for getDashboard missing-InvestorSnapshot guard

@@ -9,6 +9,8 @@ spec: null
 plan: null
 topic_memory: [project_event_subject_contracts.md]
 validation_gate: null
+epic: typecheck-diagnostics-masking
+epic_role: core
 ---
 
 # Investor/advisory/execution service unit+integration suites mask tsc errors (diagnostics:false)

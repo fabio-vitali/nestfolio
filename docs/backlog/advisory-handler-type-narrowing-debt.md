@@ -9,6 +9,8 @@ spec: null
 plan: null
 topic_memory: []
 validation_gate: null
+epic: event-processor-api-hardening
+epic_role: core
 ---
 
 # Advisory handler type-narrowing debt (materializeToTable + intents)

@@ -9,6 +9,8 @@ spec: null
 plan: null
 topic_memory: []
 validation_gate: null
+epic: deploy-tooling-integrity
+epic_role: core
 ---
 
 # detect-deploy-needed: services/*/test/** defaults to deploy=true

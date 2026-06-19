@@ -1,8 +1,8 @@
 ---
 id: typed-test-fixtures-leftovers
-status: parking
+status: dropped
 type: epic
-notes: "Auto-spun-out at the typed-test-fixtures epic ship (2026-06-19): the genuinely-orthogonal captured findings surfaced by the program. Holding bucket pending re-clustering by backlog-themes. Theme epic, 12 members."
+notes: "DROPPED 2026-06-19 by backlog-themes: all 12 members re-clustered into sharper root-cause theme epics (10 re-homed: weight-drift-rebalance, dry-subject-identity-cleanup, untyped-fixture-contract-drift, blocked-decision-reason-from-violations, missing-producer-contract-surface, dead-code-cleanup) and 2 spun out to orphans (account-closure-requested-never-emitted, check-typed-fixtures-has-detail-shorthand-gap). Empty holding bucket dissolved."
 done_when: "Each residual finding spun out of the typed-test-fixtures epic is resolved, dropped, or re-clustered by backlog-themes into a sharper root-cause theme; all members shipped or dropped."
 scope: "The 12 genuinely-orthogonal captured findings surfaced by the typed-test-fixtures program: contract-cleanup (broker-sim non-DRY/stale, route-order non-DRY, dwc-sf-command non-DRY), blocked-on-producer-infra fixture-typing (corporate-action / portfolio-snapshot, investor-web USER_* contracts surface), co-wrong/thin consumer fixtures already migrated but documenting a consumer concern (dashboard-bff DECISION_BLOCKED reason, ledger-ctrl DECISION_PACKET thin shape, sec-prospectus pe-ctrl), a deliberate registry-collision deferral (PORTFOLIO_DRIFT_DETECTED), a gate-hardening edge with zero real sites (check-typed-fixtures shorthand detail), consumer dead-code (yahoo-finance subject.region), and a declared-but-never-emitted event (ACCOUNT_CLOSURE_REQUESTED)."
 out_of_scope:

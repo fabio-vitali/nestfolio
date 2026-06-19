@@ -9,6 +9,8 @@ spec: null
 plan: null
 topic_memory: [project_event_subject_contracts.md]
 validation_gate: null
+epic: ssm-override-warm-cache-test-isolation
+epic_role: core
 ---
 
 # broker-alpaca integration/e2e can leak real Alpaca paper calls

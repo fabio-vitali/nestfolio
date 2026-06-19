@@ -9,7 +9,7 @@ spec: null
 plan: null
 topic_memory: []
 validation_gate: null
-epic: typed-test-fixtures-leftovers
+epic: blocked-decision-reason-from-violations
 epic_role: core
 ---
 

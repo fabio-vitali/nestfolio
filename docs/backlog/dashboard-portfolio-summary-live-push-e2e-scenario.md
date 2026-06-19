@@ -9,6 +9,8 @@ spec: null
 plan: null
 topic_memory: []
 validation_gate: null
+epic: live-push-broadcast-coverage
+epic_role: core
 ---
 
 # Dashboard PortfolioSummary live-push e2e scenario

@@ -9,6 +9,8 @@ spec: null
 plan: null
 topic_memory: []
 validation_gate: null
+epic: ssm-override-warm-cache-test-isolation
+epic_role: core
 ---
 
 # advisory-narrative-ctrl resilience test misses EXPLANATION_GENERATED

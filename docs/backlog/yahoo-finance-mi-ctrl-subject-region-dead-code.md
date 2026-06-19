@@ -9,7 +9,7 @@ spec: null
 plan: null
 topic_memory: []
 validation_gate: null
-epic: typed-test-fixtures-leftovers
+epic: dead-code-cleanup
 epic_role: core
 ---
 

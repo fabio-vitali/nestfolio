@@ -9,6 +9,8 @@ plan: null
 topic_memory: []
 validation_gate: null
 notes: "For integration tests that need to assert AppSync @aws_subscribe broadcasts deliver."
+epic: live-push-broadcast-coverage
+epic_role: core
 ---
 
 # WSS subscription test harness in `libs/test-support`

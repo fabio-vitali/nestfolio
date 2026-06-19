@@ -10,7 +10,7 @@ spec: null
 plan: null
 topic_memory: [project_event_subject_contracts.md]
 validation_gate: null
-epic: typed-test-fixtures-leftovers
+epic: missing-producer-contract-surface
 epic_role: core
 ---
 

@@ -2,7 +2,7 @@
 id: portfolio-drift-detected-registry-collision
 status: parking
 type: bug
-epic: typed-test-fixtures-leftovers
+epic: weight-drift-rebalance
 epic_role: core
 notes: "PORTFOLIO_DRIFT_DETECTED deferred from typed-fixtures registration — one detailType, two incompatible producer shapes (settlement-drift vs weight-drift); flat registry can't hold both."
 references: []

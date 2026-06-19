@@ -9,6 +9,8 @@ spec: null
 plan: null
 topic_memory: []
 validation_gate: null
+epic: ci-pipeline
+epic_role: core
 ---
 
 # `nestfolio-e2e.yml` workflow fails — no AWS credentials available

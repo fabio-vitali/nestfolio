@@ -9,6 +9,8 @@ spec: null
 plan: null
 topic_memory: [project_event_processor.md]
 validation_gate: null
+epic: event-processor-api-hardening
+epic_role: core
 ---
 
 # event-processor IntentResult should be a discriminated union

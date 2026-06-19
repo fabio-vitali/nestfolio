@@ -9,6 +9,8 @@ spec: null
 plan: null
 topic_memory: [project_event_subject_contracts.md]
 validation_gate: null
+epic: integration-coverage-backfill
+epic_role: core
 ---
 
 # Add coverage for the newly-real riskCategory → compliance path

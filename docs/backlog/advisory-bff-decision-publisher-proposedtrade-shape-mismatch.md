@@ -9,6 +9,8 @@ spec: null
 plan: null
 topic_memory: []
 validation_gate: null
+epic: untyped-fixture-contract-drift
+epic_role: core
 ---
 
 # advisory-bff decision-publisher broadcast fails for DECISION_PACKET rows (ProposedTradeInput shape mismatch)

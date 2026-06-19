@@ -9,6 +9,8 @@ spec: null
 plan: null
 topic_memory: []
 validation_gate: null
+epic: integration-coverage-backfill
+epic_role: core
 ---
 
 # Integration test coverage for Phase A (SF state) + Phase B (long-term Memory) advisory flows

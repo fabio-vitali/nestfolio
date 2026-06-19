@@ -11,6 +11,8 @@ spec: null
 plan: null
 topic_memory: []
 validation_gate: null
+epic: advisory-narrative-memory-read-latency
+epic_role: core
 ---
 
 # advisory-narrative-ctrl: eager-write AgentInvocation HEAD row

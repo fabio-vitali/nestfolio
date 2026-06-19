@@ -12,6 +12,8 @@ spec: null
 plan: null
 topic_memory: []
 validation_gate: null
+epic: deploy-tooling-integrity
+epic_role: core
 ---
 
 # Deploy-time integrity check: bundle's resolveEmissions matches EVENT_TYPE_MAP shape

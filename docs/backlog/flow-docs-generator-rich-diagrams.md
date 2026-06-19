@@ -14,6 +14,8 @@ spec: null
 plan: null
 topic_memory: []
 validation_gate: null
+epic: diagram-generator-gaps
+epic_role: core
 ---
 
 # Flow-docs generator — rich sequence-diagram support

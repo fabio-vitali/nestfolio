@@ -9,6 +9,8 @@ spec: null
 plan: null
 topic_memory: [project_event_subject_contracts.md]
 validation_gate: null
+epic: blocked-decision-reason-from-violations
+epic_role: core
 ---
 
 # DWC sfn-callback: blockReason never populated on blocked decisions (behavioral)

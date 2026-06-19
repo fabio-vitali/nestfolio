@@ -9,6 +9,8 @@ spec: null
 plan: null
 topic_memory: []
 validation_gate: null
+epic: typecheck-diagnostics-masking
+epic_role: core
 ---
 
 # DWC snapshot-projector uses `return undefined` for the absent-version drop instead of `skip()`

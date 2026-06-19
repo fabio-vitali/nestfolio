@@ -10,6 +10,8 @@ spec: null
 plan: null
 topic_memory: [project_event_subject_contracts.md]
 validation_gate: null
+epic: dry-subject-identity-cleanup
+epic_role: core
 ---
 
 # Stale identity-in-subject OnboardingCompletedSchema in investor-bff
