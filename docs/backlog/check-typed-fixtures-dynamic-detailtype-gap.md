@@ -11,7 +11,7 @@ out_of_scope:
   - "Wiring the gate into an nx target / pre-commit hook (it is the package.json `check:typed-fixtures` script today) — separate concern; file if it blocks."
   - "Typed migration of the parked ORDER_*/NormalizedOrderEvent family (incl. ORDER_REJECTED) — blocked on out-of-scope production forks per typed-test-fixtures-execution-deferred-cross-domain; left as documented unregistered literals."
   - "Any DRY test-support emit<K>() helper to preserve it.each — YAGNI; unrolling to per-event literal calls suffices."
-spec: null
+spec: docs/superpowers/specs/2026-06-19-check-typed-fixtures-ban-dynamic-detailtype-design.md
 plan: null
 topic_memory: [project_event_subject_contracts.md]
 validation_gate: null
