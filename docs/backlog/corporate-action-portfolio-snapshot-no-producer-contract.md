@@ -10,8 +10,8 @@ spec: null
 plan: null
 topic_memory: [project_event_subject_contracts.md]
 validation_gate: null
-epic: typed-test-fixtures
-epic_role: captured
+epic: typed-test-fixtures-leftovers
+epic_role: core
 ---
 
 # CORPORATE_ACTION_APPLIED / PORTFOLIO_SNAPSHOT_IMPORTED — no producer contract to type fixtures against

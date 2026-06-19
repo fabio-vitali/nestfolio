@@ -9,8 +9,8 @@ spec: null
 plan: null
 topic_memory: []
 validation_gate: null
-epic: typed-test-fixtures
-epic_role: captured
+epic: typed-test-fixtures-leftovers
+epic_role: core
 ---
 
 # ledger-ctrl DECISION_PACKET_CREATED fixture sent thin non-matching shape

@@ -1,6 +1,6 @@
 ---
 id: typed-test-fixtures
-status: active
+status: shipped
 type: epic
 notes: "Type-check every test fixture (unit/integration/e2e) against the producer-owned zod contracts so co-wrong fixtures are COMPILE errors (+ a runtime parse backstop), closing the [[event-subject-contracts]] 'fixture passed, real producer differed' gap workspace-wide. Promoted to active delivery epic 2026-06-16; first member typed-test-fixtures-phase0 in flight. Design: docs/superpowers/specs/2026-06-16-typed-test-fixtures-design.md. Motivated by two pre-existing co-wrong fixtures surfaced validating compliance-ctrl-mandate-snapshot-parse-subject (Bug A: identity-in-subject integration fixtures; Bug B: e2e RECOMMENDATION_PROPOSED missing required fields)."
 done_when: "Mechanism shipped (producer event->schema maps + composed registry + typed putEvent with per-call context override + runtime parse backstop + typed TableAssertions); all ~290 putEvent call-sites across the 4 domains migrated to the typed API; every surfaced co-wrong fixture fixed or its latent contract bug filed; regression gate forbids untyped putEvent in migrated domains. Every core member shipped or dropped."
@@ -14,7 +14,7 @@ references:
 spec: docs/superpowers/specs/2026-06-16-typed-test-fixtures-design.md
 plan: null
 topic_memory: [project_event_subject_contracts.md]
-validation_gate: null
+validation_gate: "Epic shipped 2026-06-19. All 12 core members terminal: phase0 (mechanism + compliance-ctrl Bug A/B) → phase1-investor → phase2-advisory → phase3-execution → phase4-ledger → cross-domain-consumer-migration (funding *_SETTLED) → cross-domain-order-events (ORDER_*) → funding-lifecycle-detected-failed (DEPOSIT_DETECTED, last core member, merged 9d6b6340) + the 3 contract-gap fixes (check-typed-fixtures-dynamic-detailtype-gap, onboarding-mandatelevel-contract-gap, operating-mode-authority-e2e-recommendation-fixture) + the consolidated integration/e2e verify. Mechanism shipped: producer event→schema maps + composed EventSubjects registry (89 events) + typed putEvent with per-call context override + runtime parse backstop + typed TableAssertions. Regression gate: check-typed-fixtures green (0 violations, 451 files, 89 registered events) — forbids untyped putEvent in migrated domains. Every surfaced co-wrong fixture fixed or its latent contract bug filed. CAPTURED AUDIT (close ritual): re-tested all 13 open captured members against done_when — NONE load-bearing (the green gate proves the all-sites + gate clauses hold independently; clause 'co-wrong fixture fixed OR latent bug filed' is satisfied by each being filed). dwc-decision-packet-schema-missing-optional-fields was already RESOLVED (Phase 2 Task 1 production+test fix) → marked shipped. The other 12 genuinely-orthogonal captured findings auto-spun-out into the new [[typed-test-fixtures-leftovers]] theme epic (status: parking) for re-clustering by backlog-themes."
 ---
 
 # Typed test fixtures (workspace-wide)

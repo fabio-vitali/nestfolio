@@ -1,14 +1,14 @@
 ---
 id: dwc-decision-packet-schema-missing-optional-fields
-status: parking
+status: shipped
 type: bug
-notes: "DecisionPacketSchema was missing taskToken/confirmedAt/rejectedAt; publisher-schemas.ts stripped them from the CDC subject, breaking confirm/reject flow"
+notes: "DecisionPacketSchema was missing taskToken/confirmedAt/rejectedAt; publisher-schemas.ts stripped them from the CDC subject, breaking confirm/reject flow. RESOLVED in typed-test-fixtures Phase 2 Task 1 (production + test fix)."
 references: []
 out_of_scope: []
 spec: null
 plan: null
 topic_memory: []
-validation_gate: null
+validation_gate: "Resolved during typed-test-fixtures Phase 2 Task 1: added taskToken/confirmedAt/rejectedAt as z.string().optional() to DecisionPacketSchema (services/advisory/decision-workflow-ctrl/src/domain/contracts.ts) — a PRODUCTION fix (publisher-schemas.ts schema.parse no longer strips them from the CDC subject, so advisory-bff DecisionReadModel now carries taskToken and the confirm/reject flow no longer silent-fails) AND a test-layer fix (typed fixtures supply them in the typed subject). Confirmed present in the merged decision-workflow-ctrl service card. Confirm/reject e2e validation assigned to + covered by the shipped [[typed-test-fixtures-consolidated-integration-e2e-verify]]. Surfaced + closed by the captured audit at the typed-test-fixtures epic ship 2026-06-19."
 epic: typed-test-fixtures
 epic_role: captured
 ---

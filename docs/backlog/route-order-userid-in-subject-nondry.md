@@ -9,8 +9,8 @@ spec: null
 plan: null
 topic_memory: []
 validation_gate: null
-epic: typed-test-fixtures
-epic_role: captured
+epic: typed-test-fixtures-leftovers
+epic_role: core
 ---
 
 # broker-ctrl route-order.ts — userId duplicated onto subject (non-DRY)

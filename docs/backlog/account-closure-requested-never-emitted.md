@@ -9,8 +9,8 @@ spec: null
 plan: null
 topic_memory: []
 validation_gate: null
-epic: typed-test-fixtures
-epic_role: captured
+epic: typed-test-fixtures-leftovers
+epic_role: core
 ---
 
 # ACCOUNT_CLOSURE_REQUESTED — declared but never emitted

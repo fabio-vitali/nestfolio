@@ -2,8 +2,8 @@
 id: check-typed-fixtures-has-detail-shorthand-gap
 status: parking
 type: tooling
-epic: typed-test-fixtures
-epic_role: captured
+epic: typed-test-fixtures-leftovers
+epic_role: core
 notes: "check-typed-fixtures HAS_DETAIL matches only /\\bdetail\\s*:/ — a putEvent({ detailType: 'REGISTERED', detail }) with shorthand `detail` escapes the legacy-detail violation. ZERO real sites today (dynamic ban covers the rest); trivial 1-line fix. Captured under typed-test-fixtures."
 references: []
 out_of_scope: []
