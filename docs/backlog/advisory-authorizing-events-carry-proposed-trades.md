@@ -1,6 +1,6 @@
 ---
 id: advisory-authorizing-events-carry-proposed-trades
-status: active
+status: shipped
 epic: order-execution-money-path
 epic_role: core
 type: refactor
@@ -15,7 +15,7 @@ out_of_scope:
 spec: docs/superpowers/specs/2026-06-19-order-execution-money-path-design.md
 plan: docs/superpowers/plans/2026-06-19-ws1-advisory-authorizing-events-proposed-trades.md
 topic_memory: []
-validation_gate: null
+validation_gate: "Shipped on feat/advisory-authorizing-events-carry-proposed-trades. Code: c891e351 (compliance-ctrl writes proposedTrades onto ComplianceCheck row + ComplianceCheckSchema → DECISION_APPROVED/BLOCKED), 3a5a2f8f (advisory-bff confirm-decision.fn.js stamps proposedTrades from ctx.prev.result onto UserConfirmation row + UserConfirmationSchema → USER_CONFIRMED), 45f5989f (fallback fix — DECISION_BLOCKED mandate-missing path also carries proposedTrades; deployed-dev integration caught the happy-path-only gap), d2e087d9 (service-card regen). Both fields OPTIONAL + opaque (z.array(z.unknown()).optional()); typed parse deferred to WS-2. Static: affected closure (compliance-ctrl/advisory-bff/advisory-adpt/decision-workflow-ctrl/execution-ctrl/test-contracts) test+lint green; additive optional field → existing typed fixtures valid, check-typed-fixtures unaffected. Deploy: dev-compliance-ctrl + dev-advisory-bff UPDATE_COMPLETE (confirmDecision resolver fn updated). Integration vs deployed dev: compliance-ctrl 15/15 (proposedTrades round-trips on DECISION_APPROVED/BLOCKED subject), advisory-bff 10/10 (confirmDecision UserConfirmation row + USER_CONFIRMED subject carry proposedTrades). Final whole-branch review (opus): Ready to merge, zero must-fix. WS-1 unblocks WS-2 (execution-ctrl reads proposedTrades off the authorizing event it already consumes)."
 ---
 
 # WS-1 — authorizing events carry proposedTrades
