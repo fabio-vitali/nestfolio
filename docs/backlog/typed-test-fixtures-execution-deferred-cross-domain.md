@@ -1,14 +1,15 @@
 ---
 id: typed-test-fixtures-execution-deferred-cross-domain
-status: parking
+status: shipped
 type: refactor
-notes: "ORDER_*/NormalizedOrderEvent cross-domain consumer fixtures — doubly blocked (flat detailType→schema registry collision + investor-ctrl fixtures fabricate fields NormalizedOrderEventSchema lacks). Entangled with parked production forks ledger-ctrl-live-tax-lot-missing-order-fields + broker-ctrl-order-sf-input-contract-gap, so genuinely orthogonal to what the epic can finish alone → captured. Migratable cross-domain consumers (ALPACA/funding-settled/circuit-breaker/etc.) split out to typed-test-fixtures-cross-domain-consumer-migration (core)."
-references: []
+notes: "RESOLVED 2026-06-19 by typed-test-fixtures-cross-domain-order-events. Was: ORDER_*/NormalizedOrderEvent cross-domain consumer fixtures — doubly blocked (flat detailType→schema registry collision + investor-ctrl fixtures fabricate fields NormalizedOrderEventSchema lacks). Both blockers cleared: ORDER_* registered in brokerCtrlEventSubjects (no collision — distinct from SIM_ORDER_*/ALPACA_ORDER_*), and the fixtures were retyped to the DRY NormalizedOrderEvent shape (fabricated symbol/side/quantity/fillPrice dropped). The entangled production forks (ledger-ctrl-live-tax-lot-missing-order-fields, broker-ctrl-order-sf-input-contract-gap) remain filed + open — the fixtures now match the real producer contract and the balance-value tests are attributed to those money bugs, per spec §2/§7 (test layer only)."
+references:
+  - docs/backlog/typed-test-fixtures-cross-domain-order-events.md
 out_of_scope: []
 spec: null
 plan: null
 topic_memory: []
-validation_gate: null
+validation_gate: "Superseded by typed-test-fixtures-cross-domain-order-events (merged main 16edd2c5): ORDER_* registered (gate 88 events) + all ORDER_* fixtures typed; the deferral's two blockers no longer exist."
 epic: typed-test-fixtures
 epic_role: captured
 ---
