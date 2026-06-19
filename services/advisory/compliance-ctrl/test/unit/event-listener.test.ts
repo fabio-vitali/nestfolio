@@ -256,6 +256,10 @@ describe('event-listener handler', () => {
           // Bug D regression: dual-field on the MANDATE_MISSING
           // fallback path too — same CDC subject contract.
           decisionId: 'dp-nomandante',
+          // WS-1 regression: the fallback BLOCKED path must ALSO carry
+          // proposedTrades (deployed-dev integration emits DECISION_BLOCKED
+          // via this path when no mandate is seeded).
+          proposedTrades: decisionPayload.proposedTrades,
         }),
       });
       expect(evaluateSpy).not.toHaveBeenCalled();

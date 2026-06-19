@@ -70,6 +70,10 @@ async function processDecisionPacket(
       result: 'BLOCKED',
       violations: [{ rule: 'MANDATE_MISSING', description: 'No mandate found for user', severity: 'BLOCKING' }],
       authorityLevel: 'L2',
+      // WS-1: carry proposedTrades on the fallback BLOCKED path too (it is on the
+      // inbound subject), so EVERY ComplianceCheck emission carries it — the
+      // happy path is not the only producer of DECISION_BLOCKED.
+      proposedTrades: subject.proposedTrades,
       sourceEventId: ctx.eventId,
     };
     return record('ComplianceCheck', { tenantId, ...fallbackSubject }, { pk: complianceCheckPk(tenantId, ccId), sk: 'ComplianceCheck' });
