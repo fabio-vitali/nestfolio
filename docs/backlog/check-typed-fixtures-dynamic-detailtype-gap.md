@@ -1,6 +1,6 @@
 ---
 id: check-typed-fixtures-dynamic-detailtype-gap
-status: active
+status: shipped
 rank: null
 type: tooling
 epic: typed-test-fixtures
@@ -14,7 +14,7 @@ out_of_scope:
 spec: docs/superpowers/specs/2026-06-19-check-typed-fixtures-ban-dynamic-detailtype-design.md
 plan: docs/superpowers/plans/2026-06-19-check-typed-fixtures-ban-dynamic-detailtype.md
 topic_memory: [project_event_subject_contracts.md]
-validation_gate: null
+validation_gate: "Gate hardened (commits 514bde4c refactor+test, a63a1129 dynamic-ban+comment-strip) + both it.each blocks unrolled (02897502 notificationEvents ×12, 6191c7a0 circuitBreakerEvents ×3). Static gates GREEN: node --test tools/check-typed-fixtures.test.mjs = 12/12 pass; node tools/check-typed-fixtures.mjs = OK 0 violations repo-wide (only the legit unregistered ORDER_FILLED compound note); 13 migrated typed subjects tsc-clean (0 NEW errors — the 2 residual cdcEvent.detail.subject-unknown errors are pre-existing investor-services-latent-tsc-errors, untouched); nx investor-ctrl test 69/69 + lint pass. Shorthand-detail follow-up filed (2fe3b81b, captured). Integration/e2e runtime confirmation DECOUPLED to typed-test-fixtures-consolidated-integration-e2e-verify per the epic's per-phase pattern (dev reachable acct 771924376645; no deploy needed — test-only)."
 ---
 
 # check-typed-fixtures gate blind to dynamic `detailType` putEvent
