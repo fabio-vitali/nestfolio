@@ -42,4 +42,22 @@ describe('advisory-bff mutation resolvers persist region', () => {
     expect(op.operation).toBe('PutItem');
     expect(op.attributeValues.region).toEqual({ S: 'us-east-1' });
   });
+
+  it('confirm-decision writes proposedTrades from the readback row onto the UserConfirmation row', () => {
+    const op = confirmRequest({
+      stash,
+      arguments: { decisionId: 'decision-1' },
+      prev: { result: { taskToken: 'tok-1', proposedTrades: [{ symbol: 'VTI', side: 'BUY', quantityOrAmountCents: 500_000 }] } },
+    });
+    expect(op.attributeValues.proposedTrades).toBeDefined();
+  });
+
+  it('confirm-decision omits proposedTrades when the readback row has none', () => {
+    const op = confirmRequest({
+      stash,
+      arguments: { decisionId: 'decision-1' },
+      prev: { result: {} },
+    });
+    expect(op.attributeValues.proposedTrades).toBeUndefined();
+  });
 });

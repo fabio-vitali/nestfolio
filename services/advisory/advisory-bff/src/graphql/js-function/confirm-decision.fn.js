@@ -24,6 +24,7 @@ export function request(ctx) {
   // the DecisionPacket. The MFE reflects the action optimistically (see
   // advisory-mfe).
   const taskToken = ctx.prev?.result?.taskToken;
+  const proposedTrades = ctx.prev?.result?.proposedTrades;
 
   const now = util.time.nowISO8601();
   const pk = `Decision#${tenantId}#${decisionId}`;
@@ -39,6 +40,9 @@ export function request(ctx) {
   };
   if (taskToken) {
     userConfirmationAttrs.taskToken = taskToken;
+  }
+  if (proposedTrades) {
+    userConfirmationAttrs.proposedTrades = proposedTrades;
   }
 
   return {

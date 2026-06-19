@@ -73,6 +73,10 @@ export const UserConfirmationSchema = z.object({
   confirmedBy: z.string(),
   timestamp: z.string(),
   taskToken: z.string().optional(),
+  // Carried for the execution domain (WS-1 of the order-execution money path).
+  // Opaque — typed parse at the execution-ctrl consumer (WS-2). Optional: the
+  // DecisionReadModel readback row may omit it (minimal cycle-status builder).
+  proposedTrades: z.array(z.unknown()).optional(),
 });
 export type UserConfirmation = z.infer<typeof UserConfirmationSchema>;
 

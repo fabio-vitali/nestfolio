@@ -593,6 +593,8 @@ describe('advisory-bff', () => {
       expect(confirmations[0]['__typename']).toBe('UserConfirmation');
       expect(confirmations[0]['decisionId']).toBe(decisionId);
       expect(confirmations[0]['taskToken']).toBe('tok-confirm');
+      // WS-1: proposedTrades copied from the DecisionReadModel onto the UserConfirmation row
+      expect(Array.isArray(confirmations[0]['proposedTrades'])).toBe(true);
 
       // Assert: CDC re-emits USER_CONFIRMED.
       const event = await trap.waitForEvent({
@@ -600,6 +602,9 @@ describe('advisory-bff', () => {
         timeoutMs: 30_000,
       });
       expect(event.detailType).toBe('USER_CONFIRMED');
+      // WS-1: proposedTrades flows out on the USER_CONFIRMED subject
+      const ucSubject = (event.detail as Record<string, unknown>).subject as Record<string, unknown>;
+      expect(Array.isArray(ucSubject['proposedTrades'])).toBe(true);
     }, 120_000);
 
     it('rejectDecision writes the UserRejection intent row + re-emits USER_REJECTED', async () => {
