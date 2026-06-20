@@ -93,7 +93,10 @@ describe('execution-ctrl', () => {
         timestamp: new Date().toISOString(),
         proposedTrades: [trade('VTI')],
       },
-      context: { tenantId: `integ-tenant-${Date.now()}` },
+      // No context override: the order must carry ctx.tenantId so the EventBusTrap
+      // rule (which filters detail.context.tenantId === ctx.tenantId) captures its
+      // ORDER_* CDC event. A custom tenantId here makes the emitted event invisible
+      // to the trap — the order is created correctly but never matched.
     });
 
     const event = await trap.waitForEvent<BusEventPayload>({
