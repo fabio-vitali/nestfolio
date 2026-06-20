@@ -15,7 +15,7 @@ out_of_scope:
   - "Non-order money paths (deposits/withdrawals/corporate-actions)."
   - "StagedOrderProcessor scheduled market-open promotion e2e (its contract gains per-order STAGED rows here, but the cron promotion is not e2e-gated)."
 spec: docs/superpowers/specs/2026-06-19-order-execution-money-path-design.md
-plan: null
+plan: docs/superpowers/plans/2026-06-20-ws2-execution-ctrl-per-trade-order-expansion.md
 topic_memory: []
 validation_gate: null
 ---
