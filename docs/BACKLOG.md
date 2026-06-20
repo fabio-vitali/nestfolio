@@ -146,7 +146,7 @@ rollup: core 0/3 done · captured 0/0 done
 - core · parking · [portfolio-drift-detected-registry-collision](backlog/portfolio-drift-detected-registry-collision.md)
 - core · parking · [weight-drift-detector](backlog/weight-drift-detector.md)
 
-**Parking health:** 21 theme epic(s), 29 orphan(s) — drive orphans → 0 with `/backlog-themes`
+**Parking health:** 21 theme epic(s), 30 orphan(s) — drive orphans → 0 with `/backlog-themes`
 
 ## ACTIVE
 
@@ -204,6 +204,7 @@ _(none)_
 - [event-processor-intent-result-discriminated-union](backlog/event-processor-intent-result-discriminated-union.md) [refactor] — IntentResult._tag is `string`, not a discriminated union like WriteIntent — executor returns lose downstream narrowing. `[epic:event-processor-api-hardening · core]`
 - [execution-ctrl-mandate-recheck-order-boundary](backlog/execution-ctrl-mandate-recheck-order-boundary.md) [refactor] — Defense-in-depth — re-read mandate before broker submission on L1 auto-execute.
 - [execution-ctrl-orderrepository-prune-unused-methods](backlog/execution-ctrl-orderrepository-prune-unused-methods.md) [refactor] — Surfaced 2026-06-09 when the dead OrderLifecycleService was deleted (salvaged to main from the dropped residual-generic-subject-casts-cleanup workstream). After that delete, OrderRepository.createOrder + createStagedOrder (services/execution/execution-ctrl/src/repositories/order.repository.ts) are unused — only updateOrderStatus stays live (called by staged-order-processor.ts; the live event-listener path creates orders via the record() intent, not the repository). Promote when touching execution-ctrl's repository, or fold into a dead-code sweep. Verify zero callers (grep) before pruning. `[epic:dead-code-cleanup · core]`
+- [execution-ctrl-pause-resume-events-unwired](backlog/execution-ctrl-pause-resume-events-unwired.md) [bug] — EXECUTION_PAUSED/EXECUTION_RESUMED declared in execution-ctrl events.ts but wired to no Egress CDC mapping or handler — declared-but-unwired.
 - [flow-docs-generator-rich-diagrams](backlog/flow-docs-generator-rich-diagrams.md) [design] — Extend tools/generate-flow-docs.mjs + flows/SCHEMA.md so .flow.yaml can express the rich sequence diagrams currently only achievable via hand-edits to the generated .md. `[epic:diagram-generator-gaps · core]`
 - [generalise-appsync-iam-publisher-lib](backlog/generalise-appsync-iam-publisher-lib.md) [refactor] — Three callers — rule-of-three threshold; copies all do their own SigV4 setup. `[epic:rule-of-three-lib-extractions · core]`
 - [integration-deep-coldstart-flakes-post-trap-hardening](backlog/integration-deep-coldstart-flakes-post-trap-hardening.md) [bug] — Trap-empty hardening reduced lockstep-polling flakes from 5-7/run baseline to ~2/run average. Residual flakes have a different signature: cold-start-bound paths whose tests already use explicit `timeoutMs` overrides of 90-300s, and a Jest VM-teardown race in OrphanReaper. Filed as a single umbrella because the cases share the cold-start cause, not because they share a fix.
