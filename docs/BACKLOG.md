@@ -140,7 +140,7 @@ rollup: core 0/3 done · captured 0/0 done
 - core · parking · [portfolio-drift-detected-registry-collision](backlog/portfolio-drift-detected-registry-collision.md)
 - core · parking · [weight-drift-detector](backlog/weight-drift-detector.md)
 
-**Parking health:** 20 theme epic(s), 31 orphan(s) — drive orphans → 0 with `/backlog-themes`
+**Parking health:** 20 theme epic(s), 32 orphan(s) — drive orphans → 0 with `/backlog-themes`
 
 ## ACTIVE
 
@@ -180,6 +180,7 @@ _(none)_
 - [broker-sim-inbound-schemas-nondry-stale](backlog/broker-sim-inbound-schemas-nondry-stale.md) [bug] — broker-sim-adpt schemas.ts inbound schemas (SimOrderRequestedSchema/SimDepositInitiatedSchema/SimWithdrawalRequestedSchema) carry tenantId/userId in the subject (non-DRY); SimWithdrawalRequestedSchema also has a stale `amount` field the handler no longer reads (it parseSubjects WithdrawalInitiatedSchema and reads amountCents). Consumer-side schemas superseded by Phase-3 producer-owned DRY schemas in broker-ctrl. `[epic:dry-subject-identity-cleanup · core]`
 - [bump-tsconfig-es2022-to-es2023](backlog/bump-tsconfig-es2022-to-es2023.md) [tooling] — Enable .toSpliced/.toReversed/.with workspace-wide; promote on second use case.
 - [c4-frontend-representation](backlog/c4-frontend-representation.md) [tooling] — MFEs in C4 diagrams at C1 + C2 level (planned, not started). `[epic:diagram-generator-gaps · core]`
+- [cdc-system-tenant-source-tag-test-leak](backlog/cdc-system-tenant-source-tag-test-leak.md) [bug] — CDC source-tag (isTestTenant=integ- prefix) misses SYSTEM-tenant test events → they emit prod source, leak to prod consumers.
 - [cdk-bundle-staleness-deploy-integrity](backlog/cdk-bundle-staleness-deploy-integrity.md) [tooling] — Hypothesis: 2026-05-13 dev-investor-bff deploy produced a Lambda bundle whose change-data-capture.ts logic lagged behind source. Surfaced via update-operating-mode-cdc-silent. Need a deploy-time integrity check that the bundle's resolveEmissions actually matches the EVENT_TYPE_MAP shape it'll be asked to process. `[epic:deploy-tooling-integrity · core]`
 - [check-typed-fixtures-has-detail-shorthand-gap](backlog/check-typed-fixtures-has-detail-shorthand-gap.md) [tooling] — check-typed-fixtures HAS_DETAIL matches only /\bdetail\s*:/ — a putEvent({ detailType: 'REGISTERED', detail }) with shorthand `detail` escapes the legacy-detail violation. ZERO real sites today (dynamic ban covers the rest); trivial 1-line fix. Captured under typed-test-fixtures.
 - [ci-pipeline-bring-up](backlog/ci-pipeline-bring-up.md) [infra] — Bring all 5 GitHub workflows green for the first time — OIDC role deploy, secrets, charter check, security policy, no-Pro gating model. `[epic:ci-pipeline · core]`
