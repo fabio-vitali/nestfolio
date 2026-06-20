@@ -15,9 +15,12 @@ import {
 //   Order       → pk: `Order#${tenantId}#${orderId}`       sk: 'Order'
 //   StagedOrder → pk: `StagedOrder#${tenantId}#${orderId}` sk: 'StagedOrder'
 //
-// The handler sets `orderId = ctx.eventId`, so tests that control eventId
-// know deterministically which partitions to query. The plan's earlier
-// `T#${tenantId}` partition does not exist here — we count per-eventId.
+// Since WS-2 the handler expands each authorizing event into one Order row per
+// ProposedTrade, with `orderId = `${eventId}#${index}``. These fixtures inject
+// exactly ONE trade per event, so the deterministic orderId is `${eventId}#0`.
+// Duplicate-eventId redelivery reproduces the same orderId ⇒ same pk ⇒ the
+// record() `attribute_not_exists(pk)` guard dedups it (the idempotency property
+// under test). The `T#${tenantId}` partition does not exist here.
 
 /**
  * Count all Order/StagedOrder items written for a given eventId.
@@ -28,15 +31,17 @@ async function countItemsForEventId(
   tenantId: string,
   eventId: string,
 ): Promise<number> {
+  // WS-2 per-trade expansion: one trade per event ⇒ orderId `${eventId}#0`.
+  const orderId = `${eventId}#0`;
   const orderCount = await countItems(
     table,
     'execution-ctrl',
-    `Order#${tenantId}#${eventId}`,
+    `Order#${tenantId}#${orderId}`,
   );
   const stagedCount = await countItems(
     table,
     'execution-ctrl',
-    `StagedOrder#${tenantId}#${eventId}`,
+    `StagedOrder#${tenantId}#${orderId}`,
   );
   return orderCount + stagedCount;
 }
@@ -69,6 +74,9 @@ describe('execution-ctrl resilience: idempotency', () => {
         result: 'APPROVED' as const,
         violations: [],
         authorityLevel: 'L1' as const,
+        // WS-2: an authorizing event must carry proposedTrades or the handler
+        // skip()s (nothing to execute). One trade ⇒ one Order row at `${eventId}#0`.
+        proposedTrades: [{ symbol: 'VTI', assetClass: 'EQUITY', side: 'BUY' as const, quantityOrAmountCents: 50000, targetWeightPercent: 50, rationale: 'idemp' }],
         sourceEventId: `idemp-src-${randomUUID()}`,
       };
 
@@ -155,6 +163,9 @@ async function runPairwiseSequence(
         result: 'APPROVED' as const,
         violations: [],
         authorityLevel: 'L1' as const,
+        // WS-2: carry the trade so the handler expands it into one Order row
+        // (`${eventId}#0`) rather than skip()-ing the trade-less event.
+        proposedTrades: [{ symbol: order[i].symbol, assetClass: 'EQUITY', side: 'BUY' as const, quantityOrAmountCents: order[i].quantityOrAmountCents, targetWeightPercent: order[i].targetWeightPercent, rationale: 'pair' }],
         sourceEventId: `pair-${label}-${i}-src-${randomUUID()}`,
       },
       eventId,
