@@ -33,11 +33,16 @@ describe('execution-ctrl', () => {
     await ctx.cleanup.runAll();
   }, 60_000);
 
+  // ── helpers ───────────────────────────────────────────────────────
+
+  function trade(symbol: string, side: 'BUY' | 'SELL' = 'BUY', quantityOrAmountCents = 50000) {
+    return { symbol, assetClass: 'EQUITY', side, quantityOrAmountCents, targetWeightPercent: 50, rationale: 'integ' };
+  }
+
   // ── DECISION_APPROVED ─────────────────────────────────────────────
 
-  it('should create Order on DECISION_APPROVED and emit CDC event', async () => {
+  it('expands a 2-trade DECISION_APPROVED into 2 per-symbol Order CDC events', async () => {
     const decisionPacketId = `integ-decision-${Date.now()}`;
-
     await eb.putEvent({
       bus: 'execution',
       targetService: 'execution-ctrl',
@@ -52,42 +57,51 @@ describe('execution-ctrl', () => {
         result: 'APPROVED' as const,
         violations: [],
         authorityLevel: 'L1' as const,
+        proposedTrades: [trade('VTI'), trade('BND', 'SELL', 30000)],
         sourceEventId: `integ-src-${Date.now()}`,
       },
     });
 
-    // CDC event proves: EB → SQS → Lambda → DDB write → DDB Stream → CDC Lambda → EB
-    const event = await trap.waitForEvent<BusEventPayload>({ timeoutMs: 90_000 });
-    expect(['ORDER_SUBMITTED', 'ORDER_STAGED', 'ORDER_REJECTED']).toContain(event.detailType);
-    expect(event.detail.subject).toEqual(
-      expect.objectContaining({ decisionPacketId }),
-    );
+    const match = (d: { subject?: { decisionPacketId?: string } }) => d?.subject?.decisionPacketId === decisionPacketId;
+    const e1 = await trap.waitForEvent<BusEventPayload>({ match, timeoutMs: 90_000 });
+    const e2 = await trap.waitForEvent<BusEventPayload>({ match, timeoutMs: 90_000 });
+
+    for (const e of [e1, e2]) {
+      expect(['ORDER_SUBMITTED', 'ORDER_STAGED', 'ORDER_REJECTED']).toContain(e.detailType);
+      expect(e.detail.subject).toEqual(expect.objectContaining({
+        decisionPacketId,
+        symbol: expect.any(String),
+        side: expect.stringMatching(/^(BUY|SELL)$/),
+        quantityOrAmountCents: expect.any(Number),
+      }));
+    }
+    expect([e1, e2].map((e) => (e.detail.subject as { symbol: string }).symbol).sort()).toEqual(['BND', 'VTI']);
   }, 120_000);
 
   // ── USER_CONFIRMED ────────────────────────────────────────────────
 
-  it('should create Order on USER_CONFIRMED and emit CDC event', async () => {
-    const decisionPacketId = `integ-user-confirmed-${Date.now()}`;
-
+  it('expands a USER_CONFIRMED carrying proposedTrades into a per-symbol Order CDC event', async () => {
+    const decisionId = `integ-user-confirmed-${Date.now()}`;
     await eb.putEvent({
       bus: 'execution',
       targetService: 'execution-ctrl',
       detailType: 'USER_CONFIRMED',
-      // (a) fixture-only fix: legacy detail had decisionPacketId+proposedTrades which don't
-      // match UserConfirmationSchema (the real advisory-bff CDC subject). Handler reads
-      // subject.decisionId (mapped → decisionPacketId) via parseSubject(UserConfirmationSchema).
       subject: {
-        decisionId: decisionPacketId,
+        decisionId,
         confirmedAt: new Date().toISOString(),
         confirmedBy: 'integ-test-user',
         timestamp: new Date().toISOString(),
+        proposedTrades: [trade('VTI')],
       },
       context: { tenantId: `integ-tenant-${Date.now()}` },
     });
 
-    // USER_CONFIRMED routes to same processApprovedDecision handler
-    const event = await trap.waitForEvent({ timeoutMs: 90_000 });
+    const event = await trap.waitForEvent<BusEventPayload>({
+      match: (d: { subject?: { decisionPacketId?: string } }) => d?.subject?.decisionPacketId === decisionId,
+      timeoutMs: 90_000,
+    });
     expect(['ORDER_SUBMITTED', 'ORDER_STAGED', 'ORDER_REJECTED']).toContain(event.detailType);
+    expect(event.detail.subject).toEqual(expect.objectContaining({ decisionPacketId: decisionId, symbol: 'VTI' }));
   }, 120_000);
 
   // ── ACCOUNT_CLOSURE_REQUESTED ─────────────────────────────────────
