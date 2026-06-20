@@ -1,12 +1,14 @@
 ---
 id: advisory-market-data-adapters-fetch-cdc-empty-buffer
-status: queued
+status: active
 type: bug
 rank: 3
 notes: "Surfaced 2026-06-19 by the typed-test-fixtures consolidated integration verify. The advisory market-data adapter integration suites (alpha-vantage-adpt, fred-adpt, sec-edgar-adpt, yahoo-finance-adpt, marketwatch-adpt) fail their FETCH_*_REQUESTED → <PROVIDER>_UPDATED CDC-chain tests with EventBusTrap 'timeout … Captured-but-unmatched buffer: []' (empty buffer). Reproduces SERIALLY (parallel=1), so it is NOT parallel/trap contention. ZERO ZodErrors — NOT a typed-fixture regression (these suites' fixtures were already typed in Phase 2). CloudWatch on fred-adpt during the serial re-run: the FetchTrigger handler log group (dev-fred-adpt-FetchTriggerLogGroup…) had 0 invocations in-window, while its IngressHandler (112) + EgressPublisher (14) were active — i.e. the injected FETCH_FRED_REQUESTED is not triggering the fetch handler, so no provider row is written and no *_UPDATED CDC fires. Other advisory services in the same window PASSED (advisory-bff 10/10, compliance-ctrl 15/15, market-intelligence-ctrl 5/5), so the dev env is delivering CDC generally — this is specific to the market-data adapters' FETCH path. Two adjacent advisory agent-CDC failures observed the same window (advisory-narrative-ctrl NARRATIVE_FAILED trap matched 2 events not 1 — predicate/trap-pollution; portfolio-engine-ctrl PORTFOLIO_COMPLETED empty buffer) likely share the env-window cause. Need: per-adapter CloudWatch on the FetchTrigger invocation to settle env-delivery-degraded vs a real FETCH_* routing/wiring gap. PROMOTED to QUEUED 2026-06-19 (rank 3): the typed-test-fixtures consolidated verify re-scoped/closed on the fixtures-criterion and handed its market-data full-green residual here. A dedicated 2026-06-19 re-probe reproduced ALL 5 *_UPDATED CDC empty-buffer failures (100% across 5 services, 2 runs same day = consistent, NOT a flake per feedback-flake-means-broken); DDB-write tests pass while *_UPDATED never emits → likely a real CDC/FETCH wiring gap, so 'wait for a healthy env window' is the wrong framing. This needs investigation/fix, not waiting."
 references:
   - docs/backlog/typed-test-fixtures-consolidated-integration-e2e-verify.md
-out_of_scope: []
+out_of_scope:
+  - "The SYSTEM-tenant CDC source-tagging leak: changeDataCapture keys isTestTenant on tenantId.startsWith('integ-'), so global-aggregate test events (tenantId='SYSTEM') emit with the PRODUCTION source (bus@svc) instead of integration-test:svc, leaking test events to within-advisory production consumers (likely behind the adjacent AN-ctrl/PE-ctrl trap anomalies). Architecturally harder (SYSTEM is test/prod-indistinguishable at the CDC layer) and affects OTHER services' tests, not these 5 — filed separately."
+  - "The adjacent advisory agent-CDC failures (advisory-narrative-ctrl NARRATIVE_FAILED trap matched 2 events; portfolio-engine-ctrl PORTFOLIO_COMPLETED empty buffer) — separate items, not the market-data trap-tenant bug."
 spec: null
 plan: null
 topic_memory: []
