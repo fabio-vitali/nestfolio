@@ -9,7 +9,7 @@ out_of_scope:
   - "The sibling ORDER_FILLED tax-lot field-drop bug (ledger-ctrl-live-tax-lot-missing-order-fields) is re-homed to the order-execution-money-path epic (WS-4); not fixed here."
   - "Other reducer cases (CORPORATE_ACTION_APPLIED audit store, DECISION_PACKET_CREATED shadow-fill) — unrelated, untouched."
   - "investor-bff Deposit/WithdrawalRequest lifecycle projection (already surfaces correctly) — out of scope; this fixes only the ledger-authoritative CashBalance path."
-spec: null
+spec: docs/superpowers/specs/2026-06-20-ledger-funding-transferid-fix-design.md
 plan: null
 topic_memory: [project_event_subject_contracts.md]
 validation_gate: null
