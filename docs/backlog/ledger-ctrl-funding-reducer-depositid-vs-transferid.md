@@ -1,6 +1,6 @@
 ---
 id: ledger-ctrl-funding-reducer-depositid-vs-transferid
-status: active
+status: shipped
 type: bug
 notes: "SIGNIFICANT (money): ledger account.reducer reads p['depositId']/p['withdrawalId'] but the real FundingSnapshot producer emits transferId → RecordDeposit/RecordWithdrawal schema validation fails → cash balance NEVER credited on DEPOSIT_SETTLED/WITHDRAWAL_SETTLED in production. Co-wrong fixture masked it. PROMOTED to QUEUED 2026-06-19 (rank 2): handed off from the re-scoped consolidated verify ([[typed-test-fixtures-consolidated-integration-e2e-verify]] closed on the fixtures-criterion) as a real money bug the honest FundingSnapshot fixture exposes — the DEPOSIT_SETTLED/WITHDRAWAL_SETTLED → BALANCE_UPDATED integration assertions are RED by design until this is fixed (consumer production change + deploy + e2e). Trigger 'before the rank-5 consolidated verify' has fired (that verify shipped 2026-06-19)."
 references: []
@@ -12,7 +12,7 @@ out_of_scope:
 spec: docs/superpowers/specs/2026-06-20-ledger-funding-transferid-fix-design.md
 plan: docs/superpowers/plans/2026-06-20-ledger-funding-transferid-fix.md
 topic_memory: [project_event_subject_contracts.md]
-validation_gate: null
+validation_gate: "Fix commit 310c60fb (reducer reads FundingSnapshotSchema.parse(p).transferId, settledAt ?? timestamp). Unit: account.reducer.test 9/9 green (red→green TDD: honest FundingSnapshot fixtures fail on old reducer, pass on fix); full ledger-ctrl 117/117 + lint green; affected test+lint green (32 projects, --skip-nx-cache). Deployed dev-ledger-ctrl (UPDATE_COMPLETE 32s, ReducerFn+Ingress+Egress bundles updated). Integration against deployed dev: DEPOSIT_SETTLED → BALANCE_UPDATED + WITHDRAWAL_SETTLED → BALANCE_UPDATED GREEN (the RED-by-design tests this workstream fixes). Card-drift/import-boundary/read-model-drift clean. PRE-EXISTING failures left red, proven NOT caused by this change (diff touches only funding reducer branches + funding test + docs; ORDER reducer/event-listener byte-identical to origin/main; funding BALANCE_UPDATED fired via the same egress → not env): ORDER_FILLED/ORDER_PARTIALLY_FILLED → BALANCE_UPDATED (empty buffer — reducer RecordFill gets undefined symbol/side/quantity, documented at event-listener.ts:49-53, owned by order-execution-money-path epic / ledger-ctrl-live-tax-lot-missing-order-fields) and the resilience full-shuffle test (stale depositId-shape deposit fixture + stale ORDER fixtures). Filed post-merge: resilience shuffle stale-fixture finding + broker-ctrl Subject-suffix typed-subject-drift finding (pre-existing, surfaced by audit gate)."
 epic: typed-subject-consumer-contract-gaps
 epic_role: core
 ---
