@@ -101,7 +101,7 @@ describe('execution-ctrl', () => {
       timeoutMs: 90_000,
     });
     expect(['ORDER_SUBMITTED', 'ORDER_STAGED', 'ORDER_REJECTED']).toContain(event.detailType);
-    expect(event.detail.subject).toEqual(expect.objectContaining({ decisionPacketId: decisionId, symbol: 'VTI' }));
+    expect(event.detail.subject).toEqual(expect.objectContaining({ decisionPacketId: decisionId, symbol: 'VTI', side: 'BUY', quantityOrAmountCents: 50000 }));
   }, 120_000);
 
   // ── ACCOUNT_CLOSURE_REQUESTED ─────────────────────────────────────
