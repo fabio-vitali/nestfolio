@@ -1,6 +1,6 @@
 ---
 id: execution-ctrl-per-trade-order-expansion
-status: active
+status: shipped
 epic: order-execution-money-path
 epic_role: core
 rank: 1
@@ -17,7 +17,7 @@ out_of_scope:
 spec: docs/superpowers/specs/2026-06-19-order-execution-money-path-design.md
 plan: docs/superpowers/plans/2026-06-20-ws2-execution-ctrl-per-trade-order-expansion.md
 topic_memory: []
-validation_gate: null
+validation_gate: "SHIPPED 2026-06-20 (worktree branch worktree-ws2-per-trade-order-expansion, merged to main). Implementation commits: 192b8209 (SafetyChecksService→instruments:string[]), ebd116a0 (per-trade expansion core: OrderSchema/StagedOrderSchema carry symbol/side/quantityOrAmountCents; event-listener parses authorizing-event proposedTrades→ProposedTrade[] and emits N Order rows keyed Order#tenant#${eventId}#${index}; per-trade safety + independent SUBMITTED/STAGED/REJECTED fate; zero-trades→skip(); dead OrderSubmittedSchema deleted), acea8953/c8dd7037 (per-trade CDC integration test), 4413e5b0 (service card). VALIDATION: unit 58/58 green + execution-ctrl:typecheck + lint 0-err (6.2 affected gate green incl. e2e-apps lint = no consumer type-break). Deployed dev-execution-ctrl ✅ (3 Lambdas). Integration GREEN on deployed dev: 2 suites/5 tests, 0 timeouts — DECISION_APPROVED expands to 2 per-symbol ORDER_STAGED, USER_CONFIRMED to 1, asserting symbol/side/quantityOrAmountCents; DDB-verified per-trade Order rows. Final whole-branch review (opus): READY TO MERGE, 0 Critical/0 Important. Two test-fixture regressions WS-2 caused were repaired in-scope: resilience suite (253c360d: trade-less injections + stale ${eventId} pk) and the USER_CONFIRMED trap-tenantId mismatch (7b9fd84b). Broker SF remains broken until WS-3 (expected — slice is independently deployable). Side-finding filed: EXECUTION_PAUSED/RESUMED declared-but-unwired."
 ---
 
 # WS-2 — execution-ctrl per-trade order expansion
