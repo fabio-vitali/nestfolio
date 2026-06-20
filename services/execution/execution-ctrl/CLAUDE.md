@@ -43,16 +43,21 @@ Stack: `services/execution/execution-ctrl/src/service.stack.ts`
 
 ## Event Payload Contracts (domain/contracts.ts → @nestfolio/execution-ctrl/contracts)
 Producer-owned zod CDC subject contracts, exported via `@nestfolio/execution-ctrl/contracts` (NOT re-exported through the `/domain` barrel). DRY domain subjects — identity travels in the event context (RequestContext), not on the subject.
-- OrderSchema / Order — ORDER_CREATED / ORDER_SUBMITTED / ORDER_STAGED / ORDER_REJECTED / ORDER_UPDATED subject (the `Order` row, sk='Order'). Fields: orderId, decisionPacketId, proposedTrades (array — typed loosely as z.unknown() until the Advisory slice converts ProposedTrade to zod), status (SUBMITTED|STAGED|REJECTED|PENDING), reason?, sourceEventId?, timestamp.
-- StagedOrderSchema / StagedOrder — STAGED_ORDER_CREATED / STAGED_ORDER_UPDATED subject (the `StagedOrder` row, sk='StagedOrder'). Fields: orderId, proposedTrades (array — z.unknown(), same loose typing), stagedAt, timestamp.
+
+Single-symbol per row: one Order row is written per `ProposedTrade` entry in the authorizing event's `proposedTrades[]`. The event-listener expands DECISION_APPROVED / USER_CONFIRMED into N per-trade rows. `orderId = ${authorizingEventId}#${index}` — deterministic and idempotent across redeliveries.
+
+- OrderSchema / Order — ORDER_CREATED / ORDER_SUBMITTED / ORDER_STAGED / ORDER_REJECTED / ORDER_UPDATED subject (the `Order` row, sk='Order'). Fields: orderId, decisionPacketId, symbol (string), side (BUY|SELL), quantityOrAmountCents (number), status (SUBMITTED|STAGED|REJECTED|PENDING), reason?, sourceEventId?, timestamp.
+- StagedOrderSchema / StagedOrder — STAGED_ORDER_CREATED / STAGED_ORDER_UPDATED subject (the `StagedOrder` row, sk='StagedOrder'). Fields: orderId, symbol (string), side (BUY|SELL), quantityOrAmountCents (number), stagedAt, timestamp.
 
 ## Tests
 ### Unit (`test/unit/`)
 - event-listener.test.ts
 - market-hours.service.test.ts
 - order.repository.test.ts
+- publisher-schemas.test.ts
 - safety-checks.service.test.ts
 - staged-order-processor.test.ts
+- domain/contracts.test.ts
 
 ### Integration (`test/integration/`)
 - execution-ctrl.integration.test.ts
