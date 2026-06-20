@@ -38,7 +38,17 @@ export class EventBusTrap {
   async deploy(params: {
     bus: string;
     detailType: string | string[];
+    /**
+     * Tenant the rule (and warmup canary) filter on. Defaults to `ctx.tenantId`
+     * — the per-test `integ-…` tenant — which gives each trap per-test isolation.
+     * Override with a fixed tenant (e.g. `'SYSTEM'`) for GLOBAL aggregates whose
+     * producer emits a system tenant rather than the caller's: their CDC events
+     * carry `context.tenantId='SYSTEM'`, so a `ctx.tenantId` filter would never
+     * match. The 5 advisory market-data adapters are the canonical case.
+     */
+    tenantId?: string;
   }): Promise<void> {
+    const tenantId = params.tenantId ?? this.ctx.tenantId;
     this.busArn = await this.ctx.ssm.busArn(params.bus);
     const timestamp = Date.now();
     const suffix = Math.random().toString(36).slice(2, 8);
@@ -76,7 +86,7 @@ export class EventBusTrap {
         'detail-type': [...detailTypes, '__INTEG_CANARY'],
         detail: {
           context: {
-            tenantId: [this.ctx.tenantId],
+            tenantId: [tenantId],
           },
         },
       }),
@@ -115,7 +125,7 @@ export class EventBusTrap {
       EventBusName: this.busArn,
       Source: 'integration-test:canary',
       DetailType: '__INTEG_CANARY',
-      Detail: JSON.stringify({ context: { tenantId: this.ctx.tenantId } }),
+      Detail: JSON.stringify({ context: { tenantId } }),
     };
 
     const canaryTimeout = this.ctx.timings.canaryTimeout;

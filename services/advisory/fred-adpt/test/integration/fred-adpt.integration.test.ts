@@ -58,6 +58,8 @@ describe('fred-adpt (mocked)', () => {
     await trap.deploy({
       bus: 'advisory',
       detailType: 'FRED_INDICATORS_UPDATED',
+      // Global aggregate — producer emits context.tenantId='SYSTEM' (see fetch-trigger.ts)
+      tenantId: 'SYSTEM',
     });
   }, 90_000);
 
@@ -83,7 +85,7 @@ describe('fred-adpt (mocked)', () => {
 
     const event = await trap.waitForEvent<BusEventPayload>({ timeoutMs: 60_000 });
     expect(event.detailType).toBe('FRED_INDICATORS_UPDATED');
-    expect(event.detail.context.tenantId).toBe(ctx.tenantId);
+    expect(event.detail.context.tenantId).toBe('SYSTEM');
   }, 120_000);
 
   it('should handle multiple series in a single invocation', async () => {

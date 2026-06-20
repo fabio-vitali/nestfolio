@@ -44,6 +44,8 @@ describe('yahoo-finance-adpt (mocked)', () => {
     await trap.deploy({
       bus: 'advisory',
       detailType: 'YAHOO_FINANCE_UPDATED',
+      // Global aggregate — producer emits context.tenantId='SYSTEM' (see fetch-trigger.ts)
+      tenantId: 'SYSTEM',
     });
   }, 90_000);
 
@@ -108,6 +110,6 @@ describe('yahoo-finance-adpt (mocked)', () => {
 
     const event = await trap.waitForEvent<BusEventPayload>({ timeoutMs: 60_000 });
     expect(event.detailType).toBe('YAHOO_FINANCE_UPDATED');
-    expect(event.detail.context.tenantId).toBe(ctx.tenantId);
+    expect(event.detail.context.tenantId).toBe('SYSTEM');
   }, 120_000);
 });

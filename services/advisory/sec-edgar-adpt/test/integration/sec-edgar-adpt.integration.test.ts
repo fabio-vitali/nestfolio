@@ -62,6 +62,8 @@ describe('sec-edgar-adpt (mocked)', () => {
     await trap.deploy({
       bus: 'advisory',
       detailType: ['SEC_8K_FILED', 'SEC_PROSPECTUS_UPDATED', 'SEC_10K_UPDATED'],
+      // Global aggregate — producer emits context.tenantId='SYSTEM' (see fetch-trigger.ts)
+      tenantId: 'SYSTEM',
     });
   }, 90_000);
 

@@ -62,6 +62,8 @@ describe('alpha-vantage-adpt (mocked)', () => {
         'ALPHA_VANTAGE_NEWS_UPDATED',
         'ALPHA_VANTAGE_ECONOMIC_INDICATOR_UPDATED',
       ],
+      // Global aggregate — producer emits context.tenantId='SYSTEM' (see fetch-trigger.ts)
+      tenantId: 'SYSTEM',
     });
   }, 90_000);
 
@@ -89,7 +91,7 @@ describe('alpha-vantage-adpt (mocked)', () => {
     // Verify CDC event
     const event = await trap.waitForEvent<BusEventPayload>({ detailType: 'ALPHA_VANTAGE_NEWS_UPDATED' });
     expect(event.detailType).toBe('ALPHA_VANTAGE_NEWS_UPDATED');
-    expect(event.detail.context.tenantId).toBe(ctx.tenantId);
+    expect(event.detail.context.tenantId).toBe('SYSTEM');
   }, 120_000);
 
   it('should fetch economic indicators and emit ALPHA_VANTAGE_ECONOMIC_INDICATOR_UPDATED', async () => {
