@@ -10,7 +10,7 @@ out_of_scope:
   - "Other reducer cases (CORPORATE_ACTION_APPLIED audit store, DECISION_PACKET_CREATED shadow-fill) — unrelated, untouched."
   - "investor-bff Deposit/WithdrawalRequest lifecycle projection (already surfaces correctly) — out of scope; this fixes only the ledger-authoritative CashBalance path."
 spec: docs/superpowers/specs/2026-06-20-ledger-funding-transferid-fix-design.md
-plan: null
+plan: docs/superpowers/plans/2026-06-20-ledger-funding-transferid-fix.md
 topic_memory: [project_event_subject_contracts.md]
 validation_gate: null
 epic: typed-subject-consumer-contract-gaps
