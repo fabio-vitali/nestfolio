@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { renderIndex } from '../lib/index-render.mjs';
+import { renderIndex, resolveShippedDate } from '../lib/index-render.mjs';
 
 const file = (id, fm) => ({
   id, filename: `${id}.md`, path: `/dummy/${id}.md`,
@@ -81,6 +81,36 @@ test('renderIndex shows EPICS block with rollup, and tags members in LATER', () 
   // the epic file itself is NOT duplicated into ACTIVE (lives only in EPICS)
   const activeSection = out.split('## ACTIVE')[1].split('## QUEUED')[0];
   assert.ok(!activeSection.includes('(backlog/e1.md)'));
+});
+
+test('resolveShippedDate: explicit closed wins over dirty/git/today', () => {
+  assert.equal(
+    resolveShippedDate({ closed: '2026-01-01', dirty: true, gitDate: '2026-02-02', today: '2026-03-03' }),
+    '2026-01-01',
+  );
+});
+
+// The settle-fix invariant: a dirty file (ship being committed now) resolves to today,
+// NOT its stale last-commit date — so --fix yields the same date before & after commit.
+test('resolveShippedDate: dirty file resolves to today, ignoring stale git date', () => {
+  assert.equal(
+    resolveShippedDate({ closed: undefined, dirty: true, gitDate: '2026-06-19', today: '2026-06-20' }),
+    '2026-06-20',
+  );
+});
+
+test('resolveShippedDate: clean file uses its last-commit date', () => {
+  assert.equal(
+    resolveShippedDate({ closed: undefined, dirty: false, gitDate: '2026-06-19', today: '2026-06-20' }),
+    '2026-06-19',
+  );
+});
+
+test('resolveShippedDate: clean file with no git history falls back to sentinel', () => {
+  assert.equal(
+    resolveShippedDate({ closed: undefined, dirty: false, gitDate: null, today: '2026-06-20' }),
+    '0000-00-00',
+  );
 });
 
 test('renderIndex counts parking theme epics and orphans in health line', () => {

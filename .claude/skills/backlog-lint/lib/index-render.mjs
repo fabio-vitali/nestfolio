@@ -1,5 +1,6 @@
 import { execSync } from 'node:child_process';
 import { readFileSync, existsSync } from 'node:fs';
+import { join } from 'node:path';
 import { isEpic, epicRole, TERMINAL } from './rules.mjs';
 
 const HEADER = `# Nestfolio Backlog
@@ -19,10 +20,46 @@ function lineFor(f) {
   return `[${f.id}](backlog/${f.id}.md) ${type}${notes}`.trim() + epicTag;
 }
 
-function gitClosedDate(path) {
+const todayISO = () => new Date().toISOString().slice(0, 10);
+
+function gitLastCommitDate(path) {
   try {
     return execSync(`git log -1 --format=%ad --date=short -- "${path}"`).toString().trim() || null;
   } catch { return null; }
+}
+
+// Absolute paths of every file with pending (staged or unstaged) changes, computed
+// once. A shipped file with uncommitted changes is being recorded *now*, so its last
+// COMMITTED date is stale — see resolveShippedDate.
+function gitDirtySet() {
+  try {
+    const root = execSync('git rev-parse --show-toplevel').toString().trim();
+    const out = execSync('git status --porcelain', { cwd: root }).toString();
+    const set = new Set();
+    for (const line of out.split('\n')) {
+      if (!line.trim()) continue;
+      let rel = line.slice(3);                       // strip the "XY " status prefix
+      const arrow = rel.indexOf(' -> ');             // rename: "old -> new" → keep new
+      if (arrow !== -1) rel = rel.slice(arrow + 4);
+      set.add(join(root, rel.replace(/^"|"$/g, '')));  // de-quote space-containing paths
+    }
+    return set;
+  } catch { return new Set(); }
+}
+
+// Pure: resolve a shipped item's "Recently Shipped" date. Precedence:
+//   1. explicit `closed:` frontmatter always wins (deterministic override);
+//   2. else a DIRTY file (uncommitted ship being recorded now) → `today`, because its
+//      last-commit date predates this ship — reading it would make `--fix` produce a
+//      stale date that then "settles" forward once the ship commit lands;
+//   3. else the last committed date;
+//   4. else a sentinel that sorts to the bottom.
+// (2) makes the date identical whether `--fix` runs before or after the ship commit,
+// without the legacy-backfill risk of stamping `closed:` onto every shipped file.
+export function resolveShippedDate({ closed, dirty, gitDate, today }) {
+  if (closed) return closed;
+  if (dirty) return today;
+  return gitDate ?? '0000-00-00';
 }
 
 // One rollup block per live epic: done_when + core/captured progress + member list.
@@ -67,8 +104,21 @@ export function renderIndex(files) {
     .sort((a, b) => (a.frontmatter.rank ?? 0) - (b.frontmatter.rank ?? 0));
   const parking = nonEpic.filter(f => f.frontmatter?.status === 'parking');
   const shippedAll = files.filter(f => f.frontmatter?.status === 'shipped'); // incl. shipped epics
+  const dirty = gitDirtySet();
+  const today = todayISO();
   const shippedRecent = shippedAll
-    .map(f => ({ f, date: f.frontmatter.closed ?? gitClosedDate(f.path) ?? '0000-00-00' }))
+    .map(f => {
+      const isDirty = dirty.has(f.path);
+      return {
+        f,
+        date: resolveShippedDate({
+          closed: f.frontmatter.closed,
+          dirty: isDirty,
+          gitDate: isDirty ? null : gitLastCommitDate(f.path), // skip git log for dirty files
+          today,
+        }),
+      };
+    })
     .sort((a, b) => b.date.localeCompare(a.date))
     .slice(0, 10);
 
