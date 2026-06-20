@@ -1,6 +1,5 @@
 import { logger, requireEnv } from '@nestfolio/event-processor';
 import { DynamoDBClient } from '@aws-sdk/client-dynamodb';
-import type { ProposedTrade } from '@nestfolio/advisory-adpt/domain';
 import { OrderRepository } from '../repositories/order.repository';
 import { SafetyChecksService } from '../services/safety-checks.service';
 
@@ -30,10 +29,10 @@ export function createStagedOrderProcessor(deps: StagedOrderProcessorDeps): () =
     for (const staged of stagedOrders) {
       const tenantId = staged['tenantId'] as string;
       const orderId = staged['orderId'] as string;
-      const proposedTrades = (staged['proposedTrades'] ?? []) as ProposedTrade[];
+      const symbol = staged['symbol'] as string;
 
       try {
-        const safetyResult = await deps.safetyChecks.runAllChecks(tenantId, proposedTrades.map((t) => t.symbol));
+        const safetyResult = await deps.safetyChecks.runAllChecks(tenantId, symbol ? [symbol] : []);
 
         if (safetyResult.passed) {
           await deps.repository.updateOrderStatus(tenantId, orderId, 'SUBMITTED');

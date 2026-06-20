@@ -185,10 +185,7 @@ export class OrderRepository extends TableRepository {
       instruments: string[],
     ): Promise<Record<string, unknown>[]> => {
       const staged = await this.getStagedOrders(tenantId);
-      return staged.filter((order) => {
-        const trades = (order['proposedTrades'] as Array<{ symbol: string }>) ?? [];
-        return trades.some((t) => instruments.includes(t.symbol));
-      });
+      return staged.filter((order) => instruments.includes(order['symbol'] as string));
     },
   );
 }

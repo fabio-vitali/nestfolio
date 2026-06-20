@@ -9,14 +9,15 @@ import { z } from 'zod';
  * The live event-listener path writes SUBMITTED/STAGED/REJECTED; 'PENDING' is the dead
  * OrderRepository.createOrder value (kept for completeness).
  *
- * `proposedTrades` nests advisory-produced ProposedTrade[] (advisory-adpt/domain). It is
- * converted to zod in the Advisory slice (4); typed loosely here. execution-ctrl imports
- * the ProposedTrade interface UNCHANGED.
+ * Single-symbol per row: one Order per ProposedTrade in the authorizing event's proposedTrades[].
+ * orderId = `${authorizingEventId}#${index}` — deterministic, idempotent across redeliveries.
  */
 export const OrderSchema = z.object({
   orderId: z.string(),
   decisionPacketId: z.string(),
-  proposedTrades: z.array(z.unknown()),
+  symbol: z.string(),
+  side: z.enum(['BUY', 'SELL']),
+  quantityOrAmountCents: z.number(),
   status: z.enum(['SUBMITTED', 'STAGED', 'REJECTED', 'PENDING']),
   reason: z.string().optional(),
   sourceEventId: z.string().optional(),
@@ -24,11 +25,16 @@ export const OrderSchema = z.object({
 });
 export type Order = z.infer<typeof OrderSchema>;
 
-/** StagedOrder subject — the `StagedOrder` row (sk='StagedOrder') written when the market is
- * closed, CDC-emitted as STAGED_ORDER_CREATED / STAGED_ORDER_UPDATED. */
+/**
+ * StagedOrder subject — the `StagedOrder` row (sk='StagedOrder') written when the market is
+ * closed, CDC-emitted as STAGED_ORDER_CREATED / STAGED_ORDER_UPDATED.
+ * Single-symbol sibling to the Order row; orderId matches the parent Order.
+ */
 export const StagedOrderSchema = z.object({
   orderId: z.string(),
-  proposedTrades: z.array(z.unknown()),
+  symbol: z.string(),
+  side: z.enum(['BUY', 'SELL']),
+  quantityOrAmountCents: z.number(),
   stagedAt: z.string(),
   timestamp: z.string(),
 });

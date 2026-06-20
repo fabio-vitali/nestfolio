@@ -78,37 +78,37 @@ import { OrderRepository } from '../../src/repositories/order.repository';
 import { SafetyChecksService } from '../../src/services/safety-checks.service';
 import { MarketHoursService } from '../../src/services/market-hours.service';
 
-// Valid ComplianceCheck subject fixture (matches ComplianceCheckSchema exactly).
-// proposedTrades ride RECOMMENDATION_PROPOSED, not this event — the order is created with [].
-function complianceCheckSubject(decisionPacketId: string): Record<string, unknown> {
+function trade(symbol: string, side: 'BUY' | 'SELL' = 'BUY', quantityOrAmountCents = 50000): Record<string, unknown> {
+  return { symbol, assetClass: 'EQUITY', side, quantityOrAmountCents, targetWeightPercent: 50, rationale: 'r' };
+}
+
+function complianceCheckSubject(decisionPacketId: string, proposedTrades: Record<string, unknown>[]): Record<string, unknown> {
   return {
     ccId: 'cc-test',
     decisionPacketId,
     decisionId: decisionPacketId,
     taskToken: 'tok',
-    mandateSnapshot: {
-      level: 'DISCRETIONARY',
-      status: 'ACTIVE',
-      operatingMode: 'BALANCED',
-      effectiveDate: '2025-01-01',
-    },
+    mandateSnapshot: { level: 'DISCRETIONARY', status: 'ACTIVE', operatingMode: 'BALANCED', effectiveDate: '2025-01-01' },
     status: 'COMPLETED',
     result: 'APPROVED',
     violations: [],
     authorityLevel: 'L1',
+    proposedTrades,
     sourceEventId: 'src-evt',
   };
 }
 
-// Valid UserConfirmation subject fixture (matches UserConfirmationSchema exactly).
-function userConfirmationSubject(decisionId: string): Record<string, unknown> {
+function userConfirmationSubject(decisionId: string, proposedTrades: Record<string, unknown>[]): Record<string, unknown> {
   return {
     decisionId,
     confirmedAt: '2025-01-01T00:00:00.000Z',
     confirmedBy: 'user-1',
     timestamp: '2025-01-01T00:00:00.000Z',
+    proposedTrades,
   };
 }
+
+const pass = { passed: true as const, checks: { reconciliationLock: false, conflictingStagedOrders: false, coolDown: false } };
 
 describe('event-listener handler', () => {
   const ORIGINAL_ENV = process.env;
@@ -132,100 +132,85 @@ describe('event-listener handler', () => {
 
   // --- WriteIntent tests ---
 
-  it('DECISION_APPROVED + safety passing + market open → returns record(Order) with status SUBMITTED', async () => {
-    jest.spyOn(safetyChecks, 'runAllChecks').mockResolvedValueOnce({
-      passed: true,
-      checks: { reconciliationLock: false, conflictingStagedOrders: false, coolDown: false },
-    });
+  it('DECISION_APPROVED with 2 trades + safety pass + market open → 2 SUBMITTED Order records, one per symbol', async () => {
+    jest.spyOn(safetyChecks, 'runAllChecks').mockResolvedValue(pass);
     jest.spyOn(marketHours, 'isMarketOpen').mockResolvedValueOnce(true);
 
-    const sqsRecord = fakeSqsRecord('DECISION_APPROVED', complianceCheckSubject('dp-1'), { eventId: 'evt-1', tenantId: 't1' });
-
+    const sqsRecord = fakeSqsRecord('DECISION_APPROVED', complianceCheckSubject('dp-1', [trade('VTI'), trade('BND', 'SELL', 30000)]), { eventId: 'evt-1', tenantId: 't1' });
     const result = await harness.process([sqsRecord]);
-    expect(result.batchItemFailures).toHaveLength(0);
-    expect(result.intents).toHaveLength(1);
-    expect(result.intents[0]).toMatchObject({ _tag: 'record', typename: 'Order', fields: expect.objectContaining({ status: 'SUBMITTED' }) });
-  });
 
-  it('DECISION_APPROVED + safety failing → returns record(Order) with status REJECTED', async () => {
-    jest.spyOn(safetyChecks, 'runAllChecks').mockResolvedValueOnce({
-      passed: false,
-      reason: 'Cool down period active',
-      checks: { reconciliationLock: false, conflictingStagedOrders: false, coolDown: true },
-    });
-
-    const sqsRecord = fakeSqsRecord('DECISION_APPROVED', complianceCheckSubject('dp-2'), { eventId: 'evt-2', tenantId: 't1' });
-
-    const result = await harness.process([sqsRecord]);
-    expect(result.batchItemFailures).toHaveLength(0);
-    expect(result.intents).toHaveLength(1);
-    expect(result.intents[0]).toMatchObject({ _tag: 'record', typename: 'Order', fields: expect.objectContaining({ status: 'REJECTED', reason: 'Cool down period active' }) });
-  });
-
-  it('DECISION_APPROVED + market closed → returns record(Order, STAGED) + record(StagedOrder)', async () => {
-    jest.spyOn(safetyChecks, 'runAllChecks').mockResolvedValueOnce({
-      passed: true,
-      checks: { reconciliationLock: false, conflictingStagedOrders: false, coolDown: false },
-    });
-    jest.spyOn(marketHours, 'isMarketOpen').mockResolvedValueOnce(false);
-
-    const sqsRecord = fakeSqsRecord('DECISION_APPROVED', complianceCheckSubject('dp-3'), { eventId: 'evt-3', tenantId: 't1' });
-
-    const result = await harness.process([sqsRecord]);
     expect(result.batchItemFailures).toHaveLength(0);
     expect(result.intents).toHaveLength(2);
-    expect(result.intents[0]).toMatchObject({ _tag: 'record', typename: 'Order', fields: expect.objectContaining({ status: 'STAGED' }) });
-    expect(result.intents[1]).toMatchObject({ _tag: 'record', typename: 'StagedOrder', fields: expect.objectContaining({ orderId: 'evt-3', tenantId: 't1' }) });
+    const orders = result.intents.filter((i: any) => i.typename === 'Order');
+    expect(orders).toHaveLength(2);
+    expect(orders.map((o: any) => o.overrides.pk).sort()).toEqual(['Order#t1#evt-1#0', 'Order#t1#evt-1#1']);
+    expect(orders.map((o: any) => o.fields.symbol).sort()).toEqual(['BND', 'VTI']);
+    orders.forEach((o: any) => {
+      expect(o.fields).toEqual(expect.objectContaining({ status: 'SUBMITTED', decisionPacketId: 'dp-1' }));
+      expect(o.fields).not.toHaveProperty('proposedTrades');
+    });
   });
 
-  it('USER_CONFIRMED + safety passing + market open → returns record(Order) with status SUBMITTED', async () => {
-    jest.spyOn(safetyChecks, 'runAllChecks').mockResolvedValueOnce({
-      passed: true,
-      checks: { reconciliationLock: false, conflictingStagedOrders: false, coolDown: false },
-    });
+  it('per-trade independence: one symbol fails safety → that order REJECTED, the other SUBMITTED', async () => {
+    jest.spyOn(safetyChecks, 'runAllChecks').mockImplementation(async (_t: string, instruments: string[]) =>
+      instruments.includes('BAD')
+        ? { passed: false, reason: 'Cool down period active', checks: { reconciliationLock: false, conflictingStagedOrders: false, coolDown: true } }
+        : pass,
+    );
     jest.spyOn(marketHours, 'isMarketOpen').mockResolvedValueOnce(true);
 
-    const sqsRecord = fakeSqsRecord('USER_CONFIRMED', userConfirmationSubject('dec-id-4'), { eventId: 'evt-4', tenantId: 't1' });
-
+    const sqsRecord = fakeSqsRecord('DECISION_APPROVED', complianceCheckSubject('dp-2', [trade('GOOD'), trade('BAD')]), { eventId: 'evt-2', tenantId: 't1' });
     const result = await harness.process([sqsRecord]);
+
     expect(result.batchItemFailures).toHaveLength(0);
-    expect(result.intents).toHaveLength(1);
-    expect(result.intents[0]).toMatchObject({ _tag: 'record', typename: 'Order', fields: expect.objectContaining({ status: 'SUBMITTED' }) });
+    const bySymbol = Object.fromEntries(result.intents.map((i: any) => [i.fields.symbol, i.fields]));
+    expect(bySymbol['GOOD'].status).toBe('SUBMITTED');
+    expect(bySymbol['BAD']).toEqual(expect.objectContaining({ status: 'REJECTED', reason: 'Cool down period active' }));
   });
 
-  it('ACCOUNT_CLOSURE_REQUESTED → returns skip()', async () => {
-    const sqsRecord = fakeSqsRecord('ACCOUNT_CLOSURE_REQUESTED', {}, { eventId: 'evt-ac', tenantId: 't1' });
+  it('DECISION_APPROVED + market closed → per trade: STAGED Order + StagedOrder sibling', async () => {
+    jest.spyOn(safetyChecks, 'runAllChecks').mockResolvedValue(pass);
+    jest.spyOn(marketHours, 'isMarketOpen').mockResolvedValueOnce(false);
 
+    const sqsRecord = fakeSqsRecord('DECISION_APPROVED', complianceCheckSubject('dp-3', [trade('VTI')]), { eventId: 'evt-3', tenantId: 't1' });
     const result = await harness.process([sqsRecord]);
+
+    expect(result.intents).toHaveLength(2);
+    const order = result.intents.find((i: any) => i.typename === 'Order');
+    const staged = result.intents.find((i: any) => i.typename === 'StagedOrder');
+    expect(order.fields).toEqual(expect.objectContaining({ status: 'STAGED', symbol: 'VTI' }));
+    expect(staged.fields).toEqual(expect.objectContaining({ orderId: 'evt-3#0', symbol: 'VTI', tenantId: 't1' }));
+    expect(staged.overrides.pk).toBe('StagedOrder#t1#evt-3#0');
+  });
+
+  it('USER_CONFIRMED with trades → SUBMITTED Order using subject.decisionId as decisionPacketId', async () => {
+    jest.spyOn(safetyChecks, 'runAllChecks').mockResolvedValue(pass);
+    jest.spyOn(marketHours, 'isMarketOpen').mockResolvedValueOnce(true);
+
+    const sqsRecord = fakeSqsRecord('USER_CONFIRMED', userConfirmationSubject('dec-id-4', [trade('VTI')]), { eventId: 'evt-4', tenantId: 't1' });
+    const result = await harness.process([sqsRecord]);
+
+    expect(result.intents).toHaveLength(1);
+    expect(result.intents[0].fields).toEqual(expect.objectContaining({ status: 'SUBMITTED', decisionPacketId: 'dec-id-4', symbol: 'VTI' }));
+  });
+
+  it('approved decision with zero trades → skip() (no Order rows)', async () => {
+    const sqsRecord = fakeSqsRecord('DECISION_APPROVED', complianceCheckSubject('dp-empty', []), { eventId: 'evt-empty', tenantId: 't1' });
+    const result = await harness.process([sqsRecord]);
+
     expect(result.batchItemFailures).toHaveLength(0);
     expect(result.intents).toHaveLength(1);
     expect(result.intents[0]).toMatchObject({ _tag: 'skip' });
   });
 
-  it('USER_CONFIRMED uses subject.decisionId as the packet id (no decisionPacketId on the event)', async () => {
-    jest.spyOn(safetyChecks, 'runAllChecks').mockResolvedValueOnce({
-      passed: true,
-      checks: { reconciliationLock: false, conflictingStagedOrders: false, coolDown: false },
-    });
-    jest.spyOn(marketHours, 'isMarketOpen').mockResolvedValueOnce(true);
-
-    const sqsRecord = fakeSqsRecord('USER_CONFIRMED', {
-      decisionId: 'dec-123',
-      confirmedAt: 't',
-      confirmedBy: 'u',
-      timestamp: 't',
-    }, { eventId: 'ord-1', tenantId: 'T' });
-
+  it('ACCOUNT_CLOSURE_REQUESTED → returns skip()', async () => {
+    const sqsRecord = fakeSqsRecord('ACCOUNT_CLOSURE_REQUESTED', {}, { eventId: 'evt-ac', tenantId: 't1' });
     const result = await harness.process([sqsRecord]);
-    expect(result.batchItemFailures).toHaveLength(0);
-    const intent = result.intents[0];
-    const order = (Array.isArray(intent) ? intent[0] : intent);
-    expect(order.fields.decisionPacketId).toBe('dec-123');
+    expect(result.intents[0]).toMatchObject({ _tag: 'skip' });
   });
 
   it('should skip unknown event types gracefully', async () => {
     const sqsRecord = fakeSqsRecord('UNKNOWN_EVENT', {}, { eventId: 'evt-unk', tenantId: 't1' });
-
     const result = await harness.process([sqsRecord]);
     expect(result.batchItemFailures).toHaveLength(0);
     expect(result.skipped).toBe(1);
@@ -233,28 +218,9 @@ describe('event-listener handler', () => {
 
   it('should report batch item failures for processing errors', async () => {
     jest.spyOn(safetyChecks, 'runAllChecks').mockRejectedValueOnce(new Error('Safety check error'));
-
-    const sqsRecord = fakeSqsRecord('DECISION_APPROVED', complianceCheckSubject('dp-fail'), { eventId: 'evt-fail', tenantId: 't1' });
-
+    const sqsRecord = fakeSqsRecord('DECISION_APPROVED', complianceCheckSubject('dp-fail', [trade('VTI')]), { eventId: 'evt-fail', tenantId: 't1' });
     const result = await harness.process([sqsRecord]);
     expect(result.batchItemFailures).toHaveLength(1);
     expect(result.errors).toHaveLength(1);
-  });
-
-  it('Order record pk/sk matches repository layout', async () => {
-    jest.spyOn(safetyChecks, 'runAllChecks').mockResolvedValueOnce({
-      passed: true,
-      checks: { reconciliationLock: false, conflictingStagedOrders: false, coolDown: false },
-    });
-    jest.spyOn(marketHours, 'isMarketOpen').mockResolvedValueOnce(true);
-
-    const sqsRecord = fakeSqsRecord('DECISION_APPROVED', complianceCheckSubject('dp-pk'), { eventId: 'order-id-99', tenantId: 'tenant-x' });
-
-    const result = await harness.process([sqsRecord]);
-    expect(result.intents[0]).toMatchObject({
-      _tag: 'record',
-      typename: 'Order',
-      overrides: { pk: 'Order#tenant-x#order-id-99', sk: 'Order' },
-    });
   });
 });

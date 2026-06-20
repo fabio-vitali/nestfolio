@@ -333,7 +333,9 @@ describe('OrderRepository', () => {
           __typename: 'StagedOrder',
           tenantId: 't1',
           orderId: 'ord-1',
-          proposedTrades: [{ symbol: 'VTI', side: 'BUY', quantityOrAmountCents: 10 }],
+          symbol: 'VTI',
+          side: 'BUY',
+          quantityOrAmountCents: 10,
         },
         {
           pk: 'StagedOrder#t1#ord-2',
@@ -341,7 +343,9 @@ describe('OrderRepository', () => {
           __typename: 'StagedOrder',
           tenantId: 't1',
           orderId: 'ord-2',
-          proposedTrades: [{ symbol: 'BND', side: 'BUY', quantityOrAmountCents: 5 }],
+          symbol: 'BND',
+          side: 'BUY',
+          quantityOrAmountCents: 5,
         },
       ];
       mockSend.mockResolvedValueOnce({ Items: staged });
