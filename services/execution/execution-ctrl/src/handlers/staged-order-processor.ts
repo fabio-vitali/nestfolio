@@ -33,7 +33,7 @@ export function createStagedOrderProcessor(deps: StagedOrderProcessorDeps): () =
       const proposedTrades = (staged['proposedTrades'] ?? []) as ProposedTrade[];
 
       try {
-        const safetyResult = await deps.safetyChecks.runAllChecks(tenantId, proposedTrades);
+        const safetyResult = await deps.safetyChecks.runAllChecks(tenantId, proposedTrades.map((t) => t.symbol));
 
         if (safetyResult.passed) {
           await deps.repository.updateOrderStatus(tenantId, orderId, 'SUBMITTED');

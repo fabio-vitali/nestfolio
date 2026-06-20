@@ -1,6 +1,5 @@
 import { logger } from '@nestfolio/event-processor';
 import { withMethodLogging } from '@nestfolio/event-processor';
-import type { ProposedTrade } from '@nestfolio/advisory-adpt/domain';
 import { OrderRepository } from '../repositories/order.repository';
 
 export interface SafetyCheckResult {
@@ -53,9 +52,7 @@ export class SafetyChecksService {
   );
 
   readonly runAllChecks = this.log('runAllChecks',
-    async (tenantId: string, proposedTrades: ProposedTrade[]): Promise<SafetyCheckResult> => {
-      const instruments = proposedTrades.map((t) => t.symbol);
-
+    async (tenantId: string, instruments: string[]): Promise<SafetyCheckResult> => {
       const reconciliationLock = await this.checkReconciliationLock(tenantId);
       if (reconciliationLock) {
         return {

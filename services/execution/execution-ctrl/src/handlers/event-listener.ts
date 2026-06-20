@@ -47,7 +47,7 @@ async function processApprovedDecision(
 
   logger.info('Processing approved decision', { tenantId, decisionPacketId, orderId, tradeCount: proposedTrades.length });
 
-  const safetyResult = await deps.safetyChecks.runAllChecks(tenantId, proposedTrades);
+  const safetyResult = await deps.safetyChecks.runAllChecks(tenantId, proposedTrades.map((t) => t.symbol));
 
   if (!safetyResult.passed) {
     logger.info('Safety checks failed, rejecting order', { orderId, reason: safetyResult.reason });

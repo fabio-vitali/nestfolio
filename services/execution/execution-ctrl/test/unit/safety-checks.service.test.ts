@@ -78,12 +78,10 @@ describe('SafetyChecksService', () => {
   });
 
   describe('runAllChecks', () => {
-    const proposedTrades = [
-      { symbol: 'VTI', assetClass: 'EQUITY', side: 'BUY' as const, quantityOrAmountCents: 10, targetWeightPercent: 50, rationale: 'Buy VTI' },
-    ];
+    const instruments = ['VTI'];
 
     it('should pass when all checks clear', async () => {
-      const result = await service.runAllChecks('t1', proposedTrades);
+      const result = await service.runAllChecks('t1', instruments);
 
       expect(result.passed).toBe(true);
       expect(result.checks).toEqual({
@@ -98,7 +96,7 @@ describe('SafetyChecksService', () => {
         { orderId: 'ord-1', proposedTrades: [{ symbol: 'VTI' }] },
       ]);
 
-      const result = await service.runAllChecks('t1', proposedTrades);
+      const result = await service.runAllChecks('t1', instruments);
 
       expect(result.passed).toBe(false);
       expect(result.reason).toContain('Conflicting staged orders');
@@ -109,7 +107,7 @@ describe('SafetyChecksService', () => {
       const futureDate = new Date(Date.now() + 60000).toISOString();
       mockRepository.getCoolDown.mockResolvedValue({ expiresAt: futureDate });
 
-      const result = await service.runAllChecks('t1', proposedTrades);
+      const result = await service.runAllChecks('t1', instruments);
 
       expect(result.passed).toBe(false);
       expect(result.reason).toContain('Cool down');
