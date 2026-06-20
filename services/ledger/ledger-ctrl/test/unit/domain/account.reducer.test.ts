@@ -2,22 +2,45 @@ import { INITIAL_ACCOUNT_STATE } from '../../../src/domain/account-state';
 import { accountReducer } from '../../../src/domain/account.reducer';
 
 describe('accountReducer', () => {
-  it('applies DEPOSIT_SETTLED', () => {
+  it('applies DEPOSIT_SETTLED (honest FundingSnapshot shape credits balance)', () => {
     const next = accountReducer(INITIAL_ACCOUNT_STATE, {
       eventId: 'e1', eventType: 'DEPOSIT_SETTLED', sequenceNo: 1,
       timestamp: '2026-03-12T00:00:00Z',
-      payload: { depositId: 'd1', amountCents: 500_00, settledAt: '2026-03-12T00:00:00Z' },
+      payload: {
+        sk: 'DEPOSIT_SETTLED', direction: 'DEPOSIT', status: 'settled',
+        transferId: 'd1', amountCents: 500_00, currency: 'USD', executionMode: 'simulation',
+        initiatedAt: '2026-03-12T00:00:00Z', settledAt: '2026-03-12T00:00:00Z',
+        timestamp: '2026-03-12T00:00:00Z',
+      },
     });
     expect(next.cashBalanceCents).toBe(INITIAL_ACCOUNT_STATE.cashBalanceCents + 500_00);
   });
 
-  it('applies WITHDRAWAL_SETTLED', () => {
+  it('applies WITHDRAWAL_SETTLED (honest FundingSnapshot shape debits balance)', () => {
     const next = accountReducer(INITIAL_ACCOUNT_STATE, {
       eventId: 'e2', eventType: 'WITHDRAWAL_SETTLED', sequenceNo: 1,
       timestamp: '2026-03-12T00:00:00Z',
-      payload: { withdrawalId: 'w1', amountCents: 200_00, settledAt: '2026-03-12T00:00:00Z' },
+      payload: {
+        sk: 'WITHDRAWAL_SETTLED', direction: 'WITHDRAWAL', status: 'settled',
+        transferId: 'w1', amountCents: 200_00, currency: 'USD', executionMode: 'simulation',
+        initiatedAt: '2026-03-12T00:00:00Z', settledAt: '2026-03-12T00:00:00Z',
+        timestamp: '2026-03-12T00:00:00Z',
+      },
     });
     expect(next.cashBalanceCents).toBe(INITIAL_ACCOUNT_STATE.cashBalanceCents - 200_00);
+  });
+
+  it('DEPOSIT_SETTLED with no settledAt falls back to timestamp (still credits)', () => {
+    const next = accountReducer(INITIAL_ACCOUNT_STATE, {
+      eventId: 'e1c', eventType: 'DEPOSIT_SETTLED', sequenceNo: 1,
+      timestamp: '2026-03-12T00:00:00Z',
+      payload: {
+        sk: 'DEPOSIT_SETTLED', direction: 'DEPOSIT', status: 'settled',
+        transferId: 'd2', amountCents: 300_00, currency: 'USD', executionMode: 'simulation',
+        initiatedAt: '2026-03-12T00:00:00Z', timestamp: '2026-03-12T00:00:00Z',
+      },
+    });
+    expect(next.cashBalanceCents).toBe(INITIAL_ACCOUNT_STATE.cashBalanceCents + 300_00);
   });
 
   it('ignores DEPOSIT_DETECTED (no cash effect)', () => {

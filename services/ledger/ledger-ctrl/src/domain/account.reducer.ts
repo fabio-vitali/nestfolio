@@ -3,6 +3,7 @@ import {
   applyCommand,
 } from '@nestfolio/event-processor/sourcing';
 import { type AccountState } from './account-state';
+import { FundingSnapshotSchema } from '@nestfolio/execution-adpt/domain';
 import { RecordDeposit } from './record-deposit';
 import { RecordWithdrawal } from './record-withdrawal';
 import { RecordFill } from './record-fill';
@@ -13,18 +14,20 @@ export const accountReducer: EventReducer<AccountState> = (state, entry) => {
 
   switch (entry.eventType) {
     case 'DEPOSIT_SETTLED': {
+      const funding = FundingSnapshotSchema.parse(p);
       const result = applyCommand(RecordDeposit, {
-        depositId: p['depositId'] as string,
-        amountCents: p['amountCents'] as number,
-        depositedAt: p['settledAt'] as string,
+        depositId: funding.transferId,
+        amountCents: funding.amountCents,
+        depositedAt: funding.settledAt ?? funding.timestamp,
       }, state);
       return result.ok ? result.value.nextState : state;
     }
     case 'WITHDRAWAL_SETTLED': {
+      const funding = FundingSnapshotSchema.parse(p);
       const result = applyCommand(RecordWithdrawal, {
-        withdrawalId: p['withdrawalId'] as string,
-        amountCents: p['amountCents'] as number,
-        withdrawnAt: p['settledAt'] as string,
+        withdrawalId: funding.transferId,
+        amountCents: funding.amountCents,
+        withdrawnAt: funding.settledAt ?? funding.timestamp,
       }, state);
       return result.ok ? result.value.nextState : state;
     }
