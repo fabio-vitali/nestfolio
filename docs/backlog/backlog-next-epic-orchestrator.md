@@ -1,6 +1,6 @@
 ---
 id: backlog-next-epic-orchestrator
-status: active
+status: shipped
 type: tooling
 notes: "Split /backlog-next into a pure member worker + a new /backlog-next-epic orchestrator that runs a whole epic as one branch/one PR, batches expensive e2e at epic pre-done, and offers an --auto mode (auto-resolve+log, hard floor)."
 references: []
@@ -13,7 +13,7 @@ out_of_scope:
 spec: docs/superpowers/specs/2026-06-21-backlog-next-epic-orchestrator-design.md
 plan: null
 topic_memory: []
-validation_gate: null
+validation_gate: "Shipped 2026-06-21 on feat/backlog-next-epic-orchestrator. (1) /backlog-next stripped of epic dispatch (Step 1a gone), redirects type:epic ids, gained an Epic-member mode section (commit 4bfd3b39). (2) preflight/postflight --lane=epic-member added behind a main() guard; epic-member preflight skips on-main/main-ahead/stale-worktree+snapshot/daemon, epic-member postflight runs checks 1-3 only (375e0d5d). (3) /backlog-next-epic orchestrator skill + tested epic-members.mjs resolver (222def28). (4) CLAUDE.md names the epic entry point (5d3274bb). Tests: node --test across backlog-next + backlog-next-epic = 22/22 pass (lane-classification 4, classify-changes 8, epic-members 9, +1 suite). backlog-lint: 329 files, all 11 rules pass. detect-deploy-needed=Tier0/no-deploy, detect-doc-derivation=none, affected-projects=[] (docs/.claude only, no service code). epic-members.mjs live-smoke on typecheck-diagnostics-masking returned the correct next core member."
 requires_deploy: false
 ---
 
