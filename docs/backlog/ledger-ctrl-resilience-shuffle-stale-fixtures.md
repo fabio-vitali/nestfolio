@@ -1,14 +1,14 @@
 ---
 id: ledger-ctrl-resilience-shuffle-stale-fixtures
-status: parking
+status: shipped
 type: bug
-notes: "ledger-ctrl resilience full-shuffle integration test red: stale depositId deposit fixture + filledQty/no-symbol ORDER fixtures."
+notes: "ledger-ctrl resilience full-shuffle integration test red: stale depositId deposit fixture + filledQty/no-symbol ORDER fixtures. RESOLVED in WS-4."
 references: []
 out_of_scope: []
 spec: null
 plan: null
 topic_memory: []
-validation_gate: null
+validation_gate: "Resolved as part of WS-4 (ledger-ctrl-live-tax-lot-missing-order-fields, commit bac4c534 on feat/epic-order-execution-money-path): migrated the order-agnostic full-shuffle fixtures to honest post-WS-3 shapes — DEPOSIT_SETTLED → FundingSnapshotSchema (transferId/direction/status/currency/executionMode/initiatedAt/timestamp), both ORDER_FILLED → carry symbol/side. With WS-4's listener normalization, RecordFill now applies real economics. `NESTFOLIO_INTEG_PREFIX=dev pnpm nx run ledger-ctrl:test-integration` → 19/19 green (2 suites), including the order-agnostic full shuffle. Discovered during WS-4's per-member integration gate."
 epic: order-execution-money-path
 epic_role: captured
 ---
