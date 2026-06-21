@@ -140,7 +140,7 @@ rollup: core 0/3 done · captured 0/0 done
 - core · parking · [portfolio-drift-detected-registry-collision](backlog/portfolio-drift-detected-registry-collision.md)
 - core · parking · [weight-drift-detector](backlog/weight-drift-detector.md)
 
-**Parking health:** 19 theme epic(s), 32 orphan(s) — drive orphans → 0 with `/backlog-themes`
+**Parking health:** 19 theme epic(s), 33 orphan(s) — drive orphans → 0 with `/backlog-themes`
 
 ## ACTIVE
 
@@ -168,6 +168,7 @@ _(none)_
 - [agent-tracer-bedrock-converse-token-extraction](backlog/agent-tracer-bedrock-converse-token-extraction.md) [bug] — AgentTracer.handleLLMEnd returns 0 input/output tokens for ChatBedrockConverse — usage field path mismatch. Diagnostic envelopes lose cost/decode signal.
 - [agentcore-maxvms-prod-quota-increase](backlog/agentcore-maxvms-prod-quota-increase.md) [infra] — Request a Bedrock AgentCore maxVms (concurrent micro-VM) Service Quotas increase for production accounts. Sandbox deliberately keeps the low quota for cost; native SQS retry (agentcore-invocation-resilience) absorbs sandbox saturation. Sandbox-side alternative: cap ESM maxConcurrency / reservedConcurrency across agent-invoking ingress handlers.
 - [an-ctrl-wrap-agent-output-vestigial](backlog/an-ctrl-wrap-agent-output-vestigial.md) [refactor] — advisory-narrative-ctrl handler still wraps result via wrapAgentOutput but the wrap is unread after the callback refactor `[epic:dead-code-cleanup · core]`
+- [backlog-next-epic-member-subagent-isolation](backlog/backlog-next-epic-member-subagent-isolation.md) [tooling] — Tier-2 context fix for /backlog-next-epic --auto: run each epic member as a subagent so per-member investigation/edits/test-output stay out of the orchestrator's context; orchestrator keeps only compact ship-summaries. Tier-1 (per-member checkpoint+clear) already shipped.
 - [broker-alpaca-account-snapshot-equity-string-drift](backlog/broker-alpaca-account-snapshot-equity-string-drift.md) [bug] — broker-alpaca AlpacaAccountSnapshot stores equity/buyingPower as RAW Alpaca API strings (event-listener processAccountCheck writes `account.data.equity`/`buying_point` verbatim), NOT Number()-converted like positions (which use Number(p.qty)). The typed-subject-contracts-execution slice corrected the contract to z.string().nullable() to match reality — but the asymmetry (positions numeric, equity/buyingPower string) is a latent producer inconsistency. Promote when touching broker-alpaca account-snapshot or when a consumer needs numeric equity/buyingPower. `[epic:broker-alpaca-emission-shape-drift · core]`
 - [broker-alpaca-adpt-latent-tsc-errors](backlog/broker-alpaca-adpt-latent-tsc-errors.md) [bug] — broker-alpaca-adpt has latent tsc errors masked by jest diagnostics:false; not e2e-blocking `[epic:typecheck-diagnostics-masking · core]`
 - [broker-alpaca-adpt-resilience-trap-collapse](backlog/broker-alpaca-adpt-resilience-trap-collapse.md) [refactor] — broker-alpaca-adpt.resilience.integration.test.ts creates 2 EventBusTrap rules in beforeAll — same anti-pattern that caused advisory-adpt + investor-adpt EB-rule-propagation flakes (shipped 2026-05-13). Hasn't been observed flaking yet; pre-emptive collapse to 1-trap-with-2-detailtypes.
