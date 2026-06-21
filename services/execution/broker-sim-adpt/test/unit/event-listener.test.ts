@@ -158,7 +158,7 @@ describe('event-listener handler', () => {
       userId: 'u-1',
       symbol: 'VTI',
       side: 'BUY',
-      quantity: 10,
+      amountCents: 50000,
     }, { eventId: 'evt-1', tenantId: 't-1', userId: 'u-1' });
 
     const result = await harness.process([record]);
@@ -199,13 +199,13 @@ describe('event-listener handler', () => {
     const record = fakeSqsRecord('SIM_ORDER_REQUESTED', {
       tenantId: 't-1',
       userId: 'u-1',
-      // Missing: orderId, symbol, side, quantity
+      // Missing: orderId, symbol, side, amountCents
     }, { eventId: 'evt-missing-fields', tenantId: 't-1', userId: 'u-1' });
 
     const result = await harness.process([record]);
     expect(result.batchItemFailures).toHaveLength(1);
     expect(result.errors).toHaveLength(1);
-    expect(result.errors[0].error.message).toContain('Missing required ORDER_SUBMITTED fields');
+    expect(result.errors[0].error.message).toContain('Missing required SIM_ORDER_REQUESTED fields');
   });
 
   it('should skip unknown event types gracefully', async () => {
@@ -226,7 +226,7 @@ describe('event-listener handler', () => {
       userId: 'u-1',
       symbol: 'VTI',
       side: 'BUY',
-      quantity: 10,
+      amountCents: 50000,
     }, { eventId: 'evt-fail', tenantId: 't-1', userId: 'u-1' });
 
     const result = await harness.process([record]);
@@ -253,7 +253,7 @@ describe('event-listener handler', () => {
       userId: 'u-1',
       symbol: 'VTI',
       side: 'BUY',
-      quantity: 10,
+      amountCents: 50000,
     }, { eventId: 'evt-dup-order', tenantId: 't-1', userId: 'u-1' });
 
     const result = await harness.process([record]);
@@ -477,7 +477,7 @@ describe('event-listener handler', () => {
       userId: 'u-1',
       symbol: 'VTI',
       side: 'BUY',
-      quantity: 2,
+      amountCents: 50000,
     }, { eventId: 'evt-init', tenantId: 't-1', userId: 'u-1' });
 
     const result = await harness.process([record]);

@@ -48,96 +48,102 @@ describe('SimulationEngineService', () => {
     engine = new SimulationEngineService(mockRepo, mockMarketData);
   });
 
-  describe('processOrderSubmitted', () => {
-    it('should fill a BUY order when sufficient cash is available', async () => {
-      mockMarketData.getPrice.mockResolvedValue(250.50);
+  describe('processOrderSubmitted (amount-denominated request)', () => {
+    // The 4th argument is now amountCents (dollar amount). The engine converts to shares
+    // at the fill price: shares = (amountCents / 100) / fillPrice.
+    it('should convert a BUY amount to shares at the fill price and fill', async () => {
+      mockMarketData.getPrice.mockResolvedValue(200);
       mockRepo.getCashBalance.mockResolvedValue({ balance: 100000 });
       mockRepo.getPosition.mockResolvedValue(null);
       mockRepo.executeTrade.mockResolvedValue(undefined);
 
+      // $500 (50000 cents) at $200 → 2.5 shares
       const result = await engine.processOrderSubmitted(
-        'order-1', 'VTI', 'BUY', 10, TEST_CTX as any,
+        'order-1', 'VTI', 'BUY', 50000, TEST_CTX as any,
       );
 
       expect(result.status).toBe('FILLED');
       expect(result.orderId).toBe('order-1');
-      expect(result.fillPrice).toBe(250.50);
-      expect(result.fillQuantity).toBe(10);
-      expect(result.totalValue).toBe(2505);
+      expect(result.fillPrice).toBe(200);
+      expect(result.fillQuantity).toBe(2.5);
+      expect(result.totalValue).toBe(500);
 
       expect(mockRepo.executeTrade).toHaveBeenCalledWith({
         tradeId: 'order-1',
         orderId: 'order-1',
         symbol: 'VTI',
         side: 'BUY',
-        quantity: 10,
-        fillPrice: 250.50,
-        totalValue: 2505,
+        quantity: 2.5,
+        fillPrice: 200,
+        totalValue: 500,
         cashBefore: 100000,
-        cashAfter: 97495,
+        cashAfter: 99500,
       }, TEST_CTX);
     });
 
-    it('should reject a BUY order when insufficient cash', async () => {
-      mockMarketData.getPrice.mockResolvedValue(250.50);
-      mockRepo.getCashBalance.mockResolvedValue({ balance: 1000 });
+    it('should reject a BUY order when insufficient cash for the amount', async () => {
+      mockMarketData.getPrice.mockResolvedValue(200);
+      mockRepo.getCashBalance.mockResolvedValue({ balance: 100 });
       mockRepo.getPosition.mockResolvedValue(null);
 
       const result = await engine.processOrderSubmitted(
-        'order-1', 'VTI', 'BUY', 10, TEST_CTX as any,
+        'order-1', 'VTI', 'BUY', 50000, TEST_CTX as any,
       );
 
       expect(result.status).toBe('REJECTED');
       expect(result.rejectReason).toContain('Insufficient cash');
-      expect(result.rejectReason).toContain('1000');
-      expect(result.rejectReason).toContain('2505');
+      expect(result.rejectReason).toContain('100');
+      expect(result.rejectReason).toContain('500');
       expect(mockRepo.executeTrade).not.toHaveBeenCalled();
     });
 
-    it('should fill a SELL order when sufficient position exists', async () => {
-      mockMarketData.getPrice.mockResolvedValue(250.50);
+    it('should fill a SELL amount (converted to shares) when sufficient position exists', async () => {
+      mockMarketData.getPrice.mockResolvedValue(200);
       mockRepo.getCashBalance.mockResolvedValue({ balance: 50000 });
       mockRepo.getPosition.mockResolvedValue({ quantity: 20 });
       mockRepo.executeTrade.mockResolvedValue(undefined);
 
+      // $500 at $200 → 2.5 shares, position 20 ≥ 2.5
       const result = await engine.processOrderSubmitted(
-        'order-1', 'VTI', 'SELL', 5, TEST_CTX as any,
+        'order-1', 'VTI', 'SELL', 50000, TEST_CTX as any,
       );
 
       expect(result.status).toBe('FILLED');
-      expect(result.fillPrice).toBe(250.50);
-      expect(result.fillQuantity).toBe(5);
-      expect(result.totalValue).toBe(1252.50);
+      expect(result.fillPrice).toBe(200);
+      expect(result.fillQuantity).toBe(2.5);
+      expect(result.totalValue).toBe(500);
 
       expect(mockRepo.executeTrade).toHaveBeenCalledWith(expect.objectContaining({
         side: 'SELL',
-        cashAfter: 51252.50,
+        quantity: 2.5,
+        cashAfter: 50500,
       }), TEST_CTX);
     });
 
-    it('should reject a SELL order when insufficient position', async () => {
-      mockMarketData.getPrice.mockResolvedValue(250.50);
+    it('should reject a SELL order when the position is smaller than the derived shares', async () => {
+      mockMarketData.getPrice.mockResolvedValue(200);
       mockRepo.getCashBalance.mockResolvedValue({ balance: 50000 });
-      mockRepo.getPosition.mockResolvedValue({ quantity: 3 });
+      mockRepo.getPosition.mockResolvedValue({ quantity: 1 });
 
+      // $500 at $200 → 2.5 shares, position 1 < 2.5
       const result = await engine.processOrderSubmitted(
-        'order-1', 'VTI', 'SELL', 10, TEST_CTX as any,
+        'order-1', 'VTI', 'SELL', 50000, TEST_CTX as any,
       );
 
       expect(result.status).toBe('REJECTED');
       expect(result.rejectReason).toContain('Insufficient position');
-      expect(result.rejectReason).toContain('3');
-      expect(result.rejectReason).toContain('10');
+      expect(result.rejectReason).toContain('1');
+      expect(result.rejectReason).toContain('2.5');
       expect(mockRepo.executeTrade).not.toHaveBeenCalled();
     });
 
     it('should reject a SELL order when no position exists', async () => {
-      mockMarketData.getPrice.mockResolvedValue(250.50);
+      mockMarketData.getPrice.mockResolvedValue(200);
       mockRepo.getCashBalance.mockResolvedValue({ balance: 50000 });
       mockRepo.getPosition.mockResolvedValue(null);
 
       const result = await engine.processOrderSubmitted(
-        'order-1', 'VTI', 'SELL', 5, TEST_CTX as any,
+        'order-1', 'VTI', 'SELL', 50000, TEST_CTX as any,
       );
 
       expect(result.status).toBe('REJECTED');
@@ -145,11 +151,11 @@ describe('SimulationEngineService', () => {
       expect(mockRepo.executeTrade).not.toHaveBeenCalled();
     });
 
-    it('should reject order for unknown symbol', async () => {
+    it('should reject order for unknown symbol (before any conversion)', async () => {
       mockMarketData.getPrice.mockResolvedValue(null);
 
       const result = await engine.processOrderSubmitted(
-        'order-1', 'UNKNOWN', 'BUY', 10, TEST_CTX as any,
+        'order-1', 'UNKNOWN', 'BUY', 50000, TEST_CTX as any,
       );
 
       expect(result.status).toBe('REJECTED');
@@ -158,19 +164,19 @@ describe('SimulationEngineService', () => {
       expect(mockRepo.executeTrade).not.toHaveBeenCalled();
     });
 
-    it('should throw NotRetryableError for zero quantity', async () => {
+    it('should throw NotRetryableError for zero amount', async () => {
       await expect(
         engine.processOrderSubmitted('order-1', 'VTI', 'BUY', 0, TEST_CTX as any),
-      ).rejects.toThrow('Invalid quantity: 0');
+      ).rejects.toThrow('Invalid amount: 0');
 
       expect(mockMarketData.getPrice).not.toHaveBeenCalled();
       expect(mockRepo.executeTrade).not.toHaveBeenCalled();
     });
 
-    it('should throw NotRetryableError for negative quantity', async () => {
+    it('should throw NotRetryableError for negative amount', async () => {
       await expect(
         engine.processOrderSubmitted('order-1', 'VTI', 'SELL', -5, TEST_CTX as any),
-      ).rejects.toThrow('Invalid quantity: -5');
+      ).rejects.toThrow('Invalid amount: -5');
 
       expect(mockMarketData.getPrice).not.toHaveBeenCalled();
       expect(mockRepo.executeTrade).not.toHaveBeenCalled();
@@ -182,7 +188,7 @@ describe('SimulationEngineService', () => {
       mockRepo.getPosition.mockResolvedValue(null);
 
       const result = await engine.processOrderSubmitted(
-        'order-1', 'VTI', 'BUY', 1, TEST_CTX as any,
+        'order-1', 'VTI', 'BUY', 50000, TEST_CTX as any,
       );
 
       expect(result.status).toBe('REJECTED');

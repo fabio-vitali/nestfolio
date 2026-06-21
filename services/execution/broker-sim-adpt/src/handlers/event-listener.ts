@@ -27,11 +27,12 @@ export function createHandlers(deps: EventListenerDeps) {
       const orderId = subject.orderId as string;
       const symbol = subject.symbol as string;
       const side = subject.side as 'BUY' | 'SELL';
-      const quantity = subject.quantity as number;
+      // The order request is dollar-amount-denominated (cents); the engine converts to shares.
+      const amountCents = subject.amountCents as number;
 
-      if (!orderId || !symbol || !side || quantity === undefined) {
+      if (!orderId || !symbol || !side || amountCents === undefined) {
         throw new NotRetryableError(
-          `Missing required ORDER_SUBMITTED fields: orderId=${orderId}, symbol=${symbol}, side=${side}, quantity=${quantity}`,
+          `Missing required SIM_ORDER_REQUESTED fields: orderId=${orderId}, symbol=${symbol}, side=${side}, amountCents=${amountCents}`,
         );
       }
 
@@ -48,7 +49,7 @@ export function createHandlers(deps: EventListenerDeps) {
           orderId,
           symbol,
           side,
-          quantity,
+          amountCents,
           reqCtx,
         );
 
