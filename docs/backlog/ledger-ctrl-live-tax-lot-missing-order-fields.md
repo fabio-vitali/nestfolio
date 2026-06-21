@@ -1,6 +1,6 @@
 ---
 id: ledger-ctrl-live-tax-lot-missing-order-fields
-status: parking
+status: active
 epic: order-execution-money-path
 epic_role: core
 type: bug
@@ -9,9 +9,13 @@ references:
   - services/ledger/ledger-ctrl/src/domain/account.reducer.ts
   - apps/e2e-feature-tests/src/advisory/accept-decision.e2e.test.ts
   - docs/backlog/typed-test-fixtures-cross-domain-order-events.md
-out_of_scope: []
+out_of_scope:
+  - "producer-side symbol/side emission on ORDER_FILLED — shipped in WS-3 broker-ctrl-order-sf-input-contract-gap"
+  - "tightening NormalizedOrderEventSchema symbol/side to required + repo-wide ORDER_* fixture churn — not needed: the consumer normalizes the actual payload and RecordFillSchema is the strict validation boundary"
+  - "real-path accept-decision e2e + flow-spec sync — WS-5 order-execution-money-path-real-e2e"
+  - "the shadow-fill (simulated) ledger path — already writes the canonical {quantity,fillPrice,filledAt} shape; unchanged"
 spec: docs/superpowers/specs/2026-06-19-order-execution-money-path-design.md
-plan: null
+plan: docs/superpowers/plans/2026-06-21-ws4-ledger-ctrl-typed-recordfill.md
 topic_memory: []
 validation_gate: null
 ---
