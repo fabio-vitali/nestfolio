@@ -20,6 +20,7 @@ import { advisoryBffEventSubjects } from '@nestfolio/advisory-bff/contracts';
 import { brokerAlpacaAdptEventSubjects } from '@nestfolio/broker-alpaca-adpt/contracts';
 import { brokerCtrlEventSubjects } from '@nestfolio/broker-ctrl/contracts';
 import { brokerSimAdptEventSubjects } from '@nestfolio/broker-sim-adpt/contracts';
+import { executionCtrlEventSubjects } from '@nestfolio/execution-ctrl/contracts';
 
 /**
  * The single typed registry of `event detailType → producer subject schema`, composed
@@ -52,6 +53,7 @@ export const EventSubjects = {
   ...brokerAlpacaAdptEventSubjects,
   ...brokerCtrlEventSubjects,
   ...brokerSimAdptEventSubjects,
+  ...executionCtrlEventSubjects,
 } as const satisfies Record<string, ZodTypeAny>;
 
 /** Union of all registered event names (detailTypes). */
