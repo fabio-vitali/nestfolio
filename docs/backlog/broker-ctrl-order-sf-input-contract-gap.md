@@ -10,9 +10,9 @@ out_of_scope:
   - "execution-ctrl producer changes (per-trade Order expansion + ORDER_SUBMITTED enrichment) — shipped in WS-2 execution-ctrl-per-trade-order-expansion"
   - "ledger-ctrl consumer typing of RecordFill (break D consumer) — WS-4 ledger-ctrl-live-tax-lot-missing-order-fields"
   - "real-path accept-decision e2e + execution-ctrl integration test + flow-spec sync — WS-5 order-execution-money-path-real-e2e"
-  - "amount→shares conversion logic inside broker-sim-adpt beyond aligning route-order/BrokerOrderSchema denomination to what the adapter already expects"
+  - "broker-alpaca-adpt amount→shares (live path) — live e2e is out of the epic; sim path is the gate"
 spec: docs/superpowers/specs/2026-06-19-order-execution-money-path-design.md
-plan: null
+plan: docs/superpowers/plans/2026-06-21-ws3-broker-ctrl-order-sf-input-contract.md
 topic_memory: [project_event_subject_contracts.md]
 ---
 
