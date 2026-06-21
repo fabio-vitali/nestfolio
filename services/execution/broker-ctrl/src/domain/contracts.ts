@@ -13,6 +13,10 @@ import { AlpacaTransferRequestSchema, FundingSnapshotSchema } from '@nestfolio/e
  */
 export const NormalizedOrderEventSchema = z.object({
   orderId: z.string(),
+  // symbol/side are bound from the order at routing ($.subject) and immutable request→fill,
+  // so every emitted ORDER_* NormalizedEvent (FILLED/REJECTED/ESCALATED) carries them — required.
+  symbol: z.string(),
+  side: z.enum(['BUY', 'SELL']),
   executionMode: z.enum(['simulation', 'live']),
   filledQty: z.number().optional(),
   averageFillPrice: z.number().optional(),

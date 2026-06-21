@@ -10,25 +10,35 @@ describe('broker-ctrl contracts', () => {
     const row = {
       pk: 'NormalizedEvent#t#o1', sk: 'ORDER_FILLED#2026', __typename: 'NormalizedEvent',
       tenantId: 't', userId: 'u', region: 'us-east-1',
-      orderId: 'o1', executionMode: 'simulation', filledQty: 10, averageFillPrice: 200,
+      orderId: 'o1', symbol: 'VTI', side: 'BUY', executionMode: 'simulation', filledQty: 10, averageFillPrice: 200,
       timestamp: '2026-06-10T00:00:00.000Z',
     };
     const parsed = NormalizedOrderEventSchema.parse(row);
     expect('tenantId' in parsed).toBe(false);
     expect(parsed.orderId).toBe('o1');
+    expect(parsed.symbol).toBe('VTI');
+    expect(parsed.side).toBe('BUY');
     expect(parsed.filledQty).toBe(10);
   });
 
   it('NormalizedOrderEventSchema parses a REJECTED order subject (failureReason, no fill)', () => {
     expect(NormalizedOrderEventSchema.parse({
-      orderId: 'o1', executionMode: 'live', failureReason: 'insufficient buying power',
+      orderId: 'o1', symbol: 'VTI', side: 'BUY', executionMode: 'live', failureReason: 'insufficient buying power',
       timestamp: '2026-06-10T00:00:00.000Z',
     }).failureReason).toBe('insufficient buying power');
   });
 
+  it('NormalizedOrderEventSchema requires symbol and side (WS-3 break D producer)', () => {
+    const base = { orderId: 'o1', symbol: 'VTI', side: 'BUY' as const, executionMode: 'simulation' as const, timestamp: '2026-06-10T00:00:00.000Z' };
+    expect(NormalizedOrderEventSchema.safeParse(base).success).toBe(true);
+    expect(NormalizedOrderEventSchema.safeParse({ ...base, symbol: undefined }).success).toBe(false);
+    expect(NormalizedOrderEventSchema.safeParse({ ...base, side: undefined }).success).toBe(false);
+    expect(NormalizedOrderEventSchema.safeParse({ ...base, side: 'HOLD' }).success).toBe(false);
+  });
+
   it('NormalizedOrderEventSchema rejects an unknown executionMode', () => {
     expect(() => NormalizedOrderEventSchema.parse({
-      orderId: 'o1', executionMode: 'paper', timestamp: '2026-06-10T00:00:00.000Z',
+      orderId: 'o1', symbol: 'VTI', side: 'BUY', executionMode: 'paper', timestamp: '2026-06-10T00:00:00.000Z',
     })).toThrow();
   });
 
