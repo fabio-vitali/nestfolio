@@ -269,8 +269,8 @@ describe('Order Lifecycle Integration', () => {
           tenantId: 't-1',
           subject: {
             orderId: 'order-100',
-            filledQuantity: 10,
-            averageFillPrice: 243.50,
+            quantity: 10,
+            fillPrice: 243.50,
           },
         },
       }]);

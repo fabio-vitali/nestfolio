@@ -54,14 +54,21 @@ async function resolveCallback(payload: EventPayload, ctx: EventContext) {
 
   const failureClass = classifyFailure(ctx.eventType, payload.subject);
 
+  // The sim adapter emits a VirtualTrade subject (`quantity`/`fillPrice`); the alpaca adapter
+  // uses `filledQuantity`/`averageFillPrice`. Normalize both to the SF's {filledQty, averageFillPrice}.
+  const isSim = ctx.eventType.startsWith('SIM_');
+  const filledQty = isSim ? payload.subject.quantity : payload.subject.filledQuantity;
+  const averageFillPrice = isSim ? payload.subject.fillPrice : payload.subject.averageFillPrice;
+  const failureReason = (payload.subject.rejectionReason ?? payload.subject.rejectReason) as string | undefined;
+
   await sfn.send(new SendTaskSuccessCommand({
     taskToken,
     output: JSON.stringify({
       status: mapEventToStatus(ctx.eventType),
-      filledQty: payload.subject.filledQuantity,
-      averageFillPrice: payload.subject.averageFillPrice,
+      filledQty,
+      averageFillPrice,
       failureClass,
-      failureReason: payload.subject.rejectionReason,
+      failureReason,
     }),
   }));
 
