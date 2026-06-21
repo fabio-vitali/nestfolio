@@ -21,7 +21,7 @@ Stack: services/execution/broker-sim-adpt/src/service.stack.ts
 - CDC: DynamoDB Streams → broker-sim-adpt-egress (Lambda)
 
 ## Handlers
-- event-listener.ts — SQS Ingress handler (event-processor pipeline); SIM_DEPOSIT_INITIATED parses `DepositInitiatedSchema` (investor-adpt/domain) via `parseSubject` + threads `amountCents`; SIM_WITHDRAWAL_REQUESTED parses `WithdrawalInitiatedSchema` (investor-adpt/domain) via `parseSubject` + converts `amountCents` to dollars for the virtual ledger (mirrors the deposit handler)
+- event-listener.ts — SQS Ingress handler (event-processor pipeline); SIM_ORDER_REQUESTED reads the order's `amountCents` (dollar request) and the simulation engine converts it to a fractional share quantity at the fill price (`shares = (amountCents/100)/fillPrice` — WS-3); SIM_DEPOSIT_INITIATED parses `DepositInitiatedSchema` (investor-adpt/domain) via `parseSubject` + threads `amountCents`; SIM_WITHDRAWAL_REQUESTED parses `WithdrawalInitiatedSchema` (investor-adpt/domain) via `parseSubject` + converts `amountCents` to dollars for the virtual ledger (mirrors the deposit handler)
 - event-publisher.ts — CDC Egress handler (event-processor pipeline, typed-subject mode)
 - publisher-schemas.ts — typed-subject registry: maps each emitted __typename → its producer zod contract (subjectSchemas) + exemptTypenames; the publisher emits schema.parse(row) (the DRY subject) for covered types, the fat row for exempt.
 
