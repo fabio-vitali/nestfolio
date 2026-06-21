@@ -357,15 +357,24 @@ describe('ledger-ctrl resilience: order-agnostic full shuffle', () => {
       {
         detailType: 'DEPOSIT_SETTLED',
         detail: (suffix: string) => ({
-          depositId: `dep-shuffle-${suffix}-${randomUUID()}`,
+          sk: 'DEPOSIT_SETTLED',
+          direction: 'DEPOSIT',
+          status: 'settled',
+          transferId: `dep-shuffle-${suffix}-${randomUUID()}`,
           amountCents: 1_000_000,
+          currency: 'USD',
+          executionMode: 'simulation',
+          initiatedAt: new Date().toISOString(),
           settledAt: new Date().toISOString(),
+          timestamp: new Date().toISOString(),
         }),
       },
       {
         detailType: 'ORDER_FILLED',
         detail: (suffix: string) => ({
           orderId: `fill1-shuffle-${suffix}-${randomUUID()}`,
+          symbol: 'VTI',
+          side: 'BUY',
           executionMode: 'simulation',
           filledQty: 5,
           averageFillPrice: 180.0,
@@ -376,6 +385,8 @@ describe('ledger-ctrl resilience: order-agnostic full shuffle', () => {
         detailType: 'ORDER_FILLED',
         detail: (suffix: string) => ({
           orderId: `fill2-shuffle-${suffix}-${randomUUID()}`,
+          symbol: 'QQQ',
+          side: 'BUY',
           executionMode: 'simulation',
           filledQty: 3,
           averageFillPrice: 420.0,
