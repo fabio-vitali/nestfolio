@@ -9,7 +9,7 @@ notes: "WS-5 of the order-execution money-path repair (spec 2026-06-19-order-exe
 references: []
 out_of_scope:
   - "Playwright full-journey assertion of confirm→portfolio (market-hours dependent) — not the CI gate per spec §5; the epic E6 Playwright run is scoped to the touched journeys only"
-  - "A real-Alpaca (live) e2e — out of the epic (needs real keys + the 24h OrderPollingStateMachine)"
+  - "The full real-Alpaca live decision-cycle e2e through the 24h OrderPollingStateMachine — still out. WS-5 DID bring broker-alpaca amountCents→notional order submission in scope (forced by the shared BrokerOrderRequestSchema rename); the real-Alpaca-paper contract-emission e2e covers notional placement"
   - "broker-sim-adpt SIM_ORDER_REJECTED emission (captured member broker-sim-adpt-no-sim-order-rejected-emission) — the real-path e2e drives a funded BUY that fills, not a rejection"
 spec: docs/superpowers/specs/2026-06-19-order-execution-money-path-design.md
 plan: docs/superpowers/plans/2026-06-21-ws5-real-path-e2e-integration-flowsync.md
