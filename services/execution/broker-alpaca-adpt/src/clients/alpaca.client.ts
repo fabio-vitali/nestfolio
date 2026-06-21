@@ -9,7 +9,9 @@ import type {
 
 export interface AlpacaOrderParams {
   symbol: string;
-  qty: number;
+  // Exactly one of qty (shares) or notional (dollar amount) — Alpaca supports notional market orders.
+  qty?: number;
+  notional?: number;
   side: 'buy' | 'sell';
   type: 'market' | 'limit';
   time_in_force: 'day' | 'gtc' | 'ioc';

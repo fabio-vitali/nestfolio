@@ -142,13 +142,13 @@ function createHandlers(deps: {
         return record('AlpacaOrderResult', {
           __typename: 'AlpacaOrderResult', tenantId: ctx.tenantId, nestfolioOrderId: s.orderId,
           alpacaOrderId: '', status: 'REJECTED', rejectionReason: 'BROKER_UNAVAILABLE',
-          symbol: s.symbol, side: s.side, requestedQty: s.quantity,
+          symbol: s.symbol, side: s.side, requestedQty: (s.amountCents as number) / 100,
         }, { pk: `OrderMapping#${ctx.tenantId}#${s.orderId as string}`, sk: 'OrderMapping' });
       }
       try {
         const s = payload.subject;
         const result = await ordersService.submitOrder(
-          ctx.tenantId, s.orderId as string, s.symbol as string, s.side as string, s.quantity as number,
+          ctx.tenantId, s.orderId as string, s.symbol as string, s.side as string, s.amountCents as number,
         );
         return record('AlpacaOrderResult', result, { pk: result.pk, sk: result.sk });
       } catch (error) {
@@ -158,7 +158,7 @@ function createHandlers(deps: {
         return record('AlpacaOrderResult', {
           __typename: 'AlpacaOrderResult', tenantId: ctx.tenantId, nestfolioOrderId: s.orderId,
           alpacaOrderId: '', status: 'REJECTED', rejectionReason: reason,
-          symbol: s.symbol, side: s.side, requestedQty: s.quantity,
+          symbol: s.symbol, side: s.side, requestedQty: (s.amountCents as number) / 100,
         }, { pk: `OrderMapping#${ctx.tenantId}#${s.orderId as string}`, sk: 'OrderMapping' });
       }
     },
@@ -303,7 +303,7 @@ describe('broker-alpaca-adpt event-listener handler', () => {
           orderId: 'nf-order-1',
           symbol: 'AAPL',
           side: 'BUY',
-          quantity: 5,
+          amountCents: 50000,
         }, { tenantId: 'tenant-1', eventId: 'evt-1' }),
       ]);
 
@@ -335,7 +335,7 @@ describe('broker-alpaca-adpt event-listener handler', () => {
           orderId: 'nf-order-2',
           symbol: 'TSLA',
           side: 'BUY',
-          quantity: 10,
+          amountCents: 100000,
         }, { tenantId: 'tenant-1', eventId: 'evt-2' }),
       ]);
 
