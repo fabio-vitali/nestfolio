@@ -1,6 +1,6 @@
 ---
 id: order-execution-money-path-real-e2e
-status: active
+status: shipped
 epic: order-execution-money-path
 epic_role: core
 rank: null
@@ -14,7 +14,19 @@ out_of_scope:
 spec: docs/superpowers/specs/2026-06-19-order-execution-money-path-design.md
 plan: docs/superpowers/plans/2026-06-21-ws5-real-path-e2e-integration-flowsync.md
 topic_memory: []
-validation_gate: null
+validation_gate: |
+  WS-5 shipped in epic-member mode (order-execution-money-path); the expensive real-path
+  e2e (accept-decision scenario 6 + execution-contract-emission notional) + scoped Playwright
+  are HOISTED to the epic E6 batched gate per /backlog-next-epic — they are NOT run per-member.
+  Per-member gate GREEN @ 4729fb96:
+  - broker-alpaca-adpt:test-integration — 2 suites / 10 tests PASS (mock-Alpaca). The resilience
+    idempotency ALPACA_ORDER_REQUESTED fixture was the one fixture missed by the WS-3 quantity→amountCents
+    rename; migrated this member (4729fb96), root-caused via the putEvent typed-subject schema.parse reject.
+  - execution-ctrl:test-integration — 2 suites / 5 tests PASS (covers ORDER_SUBMITTED hops 1-2).
+  - true-affected test+lint across 32 projects, check-typed-fixtures, read-model-drift, full e2e tsc
+    compile — GREEN @ abfb3968 (tree unchanged since, only the resilience fixture added after).
+  - broker-alpaca-adpt deployed to dev: ✅ dev-broker-alpaca-adpt (CFN UPDATE_COMPLETE, 43s).
+  Epic-level validation_gate (real-path e2e evidence) is recorded on the epic file at E6/E7 ship.
 ---
 
 # WS-5 — real-path e2e + integration + flow-spec sync
