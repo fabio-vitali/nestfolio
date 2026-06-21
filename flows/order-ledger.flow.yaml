@@ -31,8 +31,7 @@ steps:
   - service: ledger-ctrl
     receives: ORDER_FILLED | ORDER_PARTIALLY_FILLED | ORDER_REJECTED | ORDER_CANCELLED
     via: LedgerBus -> SQS -> ledger-ctrl-ingress
-    state_change: Writes LedgerEntry record (__typename LedgerEntry) to DDB with sequenceNo; for ORDER_FILLED with live executionMode also opens/closes tax lots via TaxLotManager
-    note: Live tax-lot open/close is gated on executionMode==='live', but the symbol/side/quantity/fillPrice field reads currently resolve undefined in prod (NormalizedOrderEvent contract drops them) — latent bug, see docs/backlog/ledger-ctrl-live-tax-lot-missing-order-fields.md
+    state_change: Normalizes the ORDER_FILLED subject (symbol/side from $.subject, quantity←filledQty, fillPrice←averageFillPrice, filledAt←ctx.timestamp; order-execution-money-path WS-4) into the canonical RecordFill payload and writes a LedgerEntry record (__typename LedgerEntry) to DDB with sequenceNo; for ORDER_FILLED with live executionMode also opens/closes tax lots via TaxLotManager from the typed subject
     emits: none (state change only; LedgerEntry:INSERT triggers reducer via DDB Stream)
     idempotent: true
 
