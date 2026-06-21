@@ -76,7 +76,7 @@ describe('broker-alpaca-adpt', () => {
       bus: 'execution',
       targetService: 'broker-alpaca-adpt',
       detailType: 'ALPACA_ORDER_REQUESTED',
-      subject: { orderId, symbol: 'AAPL', side: 'BUY', quantity: 5 },
+      subject: { orderId, symbol: 'AAPL', side: 'BUY', amountCents: 50000 },
     });
 
     // Assert: initial DDB write (PLACED)
@@ -100,7 +100,7 @@ describe('broker-alpaca-adpt', () => {
       bus: 'execution',
       targetService: 'broker-alpaca-adpt',
       detailType: 'ALPACA_ORDER_REQUESTED',
-      subject: { orderId, symbol: 'AAPL', side: 'BUY', quantity: 5 },
+      subject: { orderId, symbol: 'AAPL', side: 'BUY', amountCents: 50000 },
     });
 
     const item = await table.waitForItem({
@@ -252,7 +252,7 @@ describe('broker-alpaca-adpt', () => {
         bus: 'execution',
         targetService: 'broker-alpaca-adpt',
         detailType: 'ALPACA_ORDER_REQUESTED',
-        subject: { orderId, symbol: 'AAPL', side: 'BUY', quantity: 5 },
+        subject: { orderId, symbol: 'AAPL', side: 'BUY', amountCents: 50000 },
       });
 
       const item = await table.waitForItem({
@@ -294,7 +294,7 @@ describe('broker-alpaca-adpt', () => {
         bus: 'execution',
         targetService: 'broker-alpaca-adpt',
         detailType: 'ALPACA_ORDER_REQUESTED',
-        subject: { orderId, symbol: 'AAPL', side: 'BUY', quantity: 5 },
+        subject: { orderId, symbol: 'AAPL', side: 'BUY', amountCents: 50000 },
       });
 
       // Handler: submitOrder fails 3x (503) → healthCheck fails (503) → opens breaker

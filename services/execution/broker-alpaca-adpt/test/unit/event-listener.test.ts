@@ -545,7 +545,7 @@ describe('broker-alpaca-adpt event-listener handler', () => {
     it('ALPACA_ORDER_REQUESTED → REJECTED with BROKER_UNAVAILABLE, no API call', async () => {
       const result = await harness.process([
         fakeSqsRecord(AlpacaAdptEventTypes.ALPACA_ORDER_REQUESTED, {
-          orderId: 'nf-order-cb-1', symbol: 'AAPL', side: 'BUY', quantity: 5,
+          orderId: 'nf-order-cb-1', symbol: 'AAPL', side: 'BUY', amountCents: 50000,
         }, { tenantId: 'tenant-1', eventId: 'evt-cb-1' }),
       ]);
 
@@ -632,7 +632,7 @@ describe('broker-alpaca-adpt event-listener handler', () => {
 
       const result = await harness.process([
         fakeSqsRecord(AlpacaAdptEventTypes.ALPACA_ORDER_REQUESTED, {
-          orderId: 'nf-order-fail-1', symbol: 'AAPL', side: 'BUY', quantity: 5,
+          orderId: 'nf-order-fail-1', symbol: 'AAPL', side: 'BUY', amountCents: 50000,
         }, { tenantId: 'tenant-1', eventId: 'evt-fail-1' }),
       ]);
 
