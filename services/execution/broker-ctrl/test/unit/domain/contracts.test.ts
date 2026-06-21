@@ -28,11 +28,15 @@ describe('broker-ctrl contracts', () => {
     }).failureReason).toBe('insufficient buying power');
   });
 
-  it('NormalizedOrderEventSchema requires symbol and side (WS-3 break D producer)', () => {
+  it('NormalizedOrderEventSchema carries symbol/side, optional at the producer boundary (WS-3 break D producer)', () => {
     const base = { orderId: 'o1', symbol: 'VTI', side: 'BUY' as const, executionMode: 'simulation' as const, timestamp: '2026-06-10T00:00:00.000Z' };
-    expect(NormalizedOrderEventSchema.safeParse(base).success).toBe(true);
-    expect(NormalizedOrderEventSchema.safeParse({ ...base, symbol: undefined }).success).toBe(false);
-    expect(NormalizedOrderEventSchema.safeParse({ ...base, side: undefined }).success).toBe(false);
+    const parsed = NormalizedOrderEventSchema.parse(base);
+    expect(parsed.symbol).toBe('VTI');
+    expect(parsed.side).toBe('BUY');
+    // Optional here — the producer (order SF) always writes them, but the re-exported contract
+    // stays backward-compatible; the consumer tightens to required (WS-4).
+    expect(NormalizedOrderEventSchema.safeParse({ ...base, symbol: undefined, side: undefined }).success).toBe(true);
+    // an invalid side value is still rejected
     expect(NormalizedOrderEventSchema.safeParse({ ...base, side: 'HOLD' }).success).toBe(false);
   });
 

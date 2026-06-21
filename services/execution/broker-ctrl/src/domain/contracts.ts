@@ -13,10 +13,13 @@ import { AlpacaTransferRequestSchema, FundingSnapshotSchema } from '@nestfolio/e
  */
 export const NormalizedOrderEventSchema = z.object({
   orderId: z.string(),
-  // symbol/side are bound from the order at routing ($.subject) and immutable request→fill,
-  // so every emitted ORDER_* NormalizedEvent (FILLED/REJECTED/ESCALATED) carries them — required.
-  symbol: z.string(),
-  side: z.enum(['BUY', 'SELL']),
+  // symbol/side are bound from the order at routing ($.subject) and the order SF now always
+  // writes them on every emitted ORDER_* NormalizedEvent (WS-3 break D producer). Kept OPTIONAL
+  // here because this schema is re-exported via @nestfolio/execution-adpt/domain and consumed
+  // cross-domain; tightening to required is the consumer's call (WS-4 ledger RecordFill typing),
+  // which updates the cross-service fixtures at the same time.
+  symbol: z.string().optional(),
+  side: z.enum(['BUY', 'SELL']).optional(),
   executionMode: z.enum(['simulation', 'live']),
   filledQty: z.number().optional(),
   averageFillPrice: z.number().optional(),
