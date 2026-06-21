@@ -61,26 +61,48 @@ test('renderIndex caps Recently Shipped at 10', () => {
   assert.ok(matches.length <= 10, `expected ≤10, got ${matches.length}`);
 });
 
-test('renderIndex shows EPICS block with rollup, and tags members in LATER', () => {
+test('renderIndex shows EPICS rollup; ACTIVE-epic members are NOT duplicated into flat sections', () => {
   const files = [
     file('e1', { type: 'epic', status: 'active', notes: 'cleanup',
       done_when: 'all core shipped', scope: 'tsc', out_of_scope: ['x'] }),
     file('m1', { status: 'shipped', epic: 'e1', epic_role: 'core', validation_gate: 'ok', notes: 'fix a' }),
     file('m2', { status: 'parking', epic: 'e1', epic_role: 'captured', notes: 'fix b' }),
+    file('q-mem', { status: 'queued', rank: 1, epic: 'e1', epic_role: 'core', notes: 'fix c' }),
     file('orphan', { status: 'parking', notes: 'lonely' }),
   ];
   const out = renderIndex(files);
   assert.match(out, /## EPICS/);
   assert.match(out, /\[e1\]\(backlog\/e1\.md\) `\[epic · active\]`/);
   assert.match(out, /done_when: all core shipped/);
-  assert.match(out, /rollup: core 1\/1 done · captured 0\/1 done/);
+  assert.match(out, /rollup: core 1\/2 done · captured 0\/1 done/);
   // health line: e1 is active (not a parking theme epic) → 0 theme epics, 1 orphan
   assert.match(out, /Parking health:\*\* 0 theme epic\(s\), 1 orphan\(s\)/);
-  // captured member carries an epic tag in its LATER listing
-  assert.match(out, /\[epic:e1 · captured\]/);
+  // members of the ACTIVE epic appear in the rollup...
+  assert.match(out, /- captured · parking · \[m2\]\(backlog\/m2\.md\)/);
+  assert.match(out, /- core · queued · \[q-mem\]\(backlog\/q-mem\.md\)/);
+  // ...and are NOT duplicated into the flat QUEUED/LATER sections (orchestrated by
+  // /backlog-next-epic; must not be picked standalone by /backlog-next).
+  const queuedSection = out.split('## QUEUED')[1].split('## LATER')[0];
+  const laterSection = out.split('## LATER')[1].split('## Recently Shipped')[0];
+  assert.ok(!queuedSection.includes('(backlog/q-mem.md)'), 'active-epic member must not appear flat in QUEUED');
+  assert.ok(!laterSection.includes('(backlog/m2.md)'), 'active-epic member must not appear flat in LATER');
+  // a true orphan still appears flat in LATER
+  assert.ok(laterSection.includes('(backlog/orphan.md)'));
   // the epic file itself is NOT duplicated into ACTIVE (lives only in EPICS)
   const activeSection = out.split('## ACTIVE')[1].split('## QUEUED')[0];
   assert.ok(!activeSection.includes('(backlog/e1.md)'));
+});
+
+test('renderIndex KEEPS theme/queued-epic members in flat sections (only ACTIVE-epic members are hidden)', () => {
+  const files = [
+    file('theme', { type: 'epic', status: 'parking', notes: 'bucket' }),
+    file('tm-mem', { status: 'parking', epic: 'theme', epic_role: 'core', notes: 'theme member' }),
+  ];
+  const out = renderIndex(files);
+  // theme epic is NOT active → its member retains the flat listing + tag (2026-06-16 model).
+  const laterSection = out.split('## LATER')[1].split('## Recently Shipped')[0];
+  assert.ok(laterSection.includes('(backlog/tm-mem.md)'));
+  assert.match(out, /\[epic:theme · core\]/);
 });
 
 test('resolveShippedDate: explicit closed wins over dirty/git/today', () => {

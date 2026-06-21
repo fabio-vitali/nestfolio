@@ -128,6 +128,18 @@ nothing about members, `done_when`, or rule 11. Those live only in the orchestra
 | `--auto` recommended-pick rule | most reusable/generalizable (CLAUDE.md constraint) | first-listed / fastest option |
 | Epic-member gate variant | reuse `preflight`/`postflight` with a lane flag | a separate gate script (duplicate logic) |
 
+## Post-review refinements (2026-06-21 ultracode review)
+
+An adversarial multi-agent review (56 agents) surfaced 5 majors + should-fixes, all folded in before merge:
+
+1. **Resume gate (major #1).** A `Resume gate` runs before E0: if the run-state file exists, skip E1/E3, run E2 idempotently (worktree/branch existence guards), and jump to E4. E3 is fresh-run-only and never overwrites the accumulated decision log.
+2. **One-PR invariant (major #2).** `executing-plans`/`subagent-driven-development` end with an unconditional `finishing-a-development-branch` handoff. The worker's Step 5 epic-member delta now **drives only their task-execution phase and STOPS before that handoff**, returning control to the orchestrator (E8 owns the single merge/PR).
+3. **E6 failure path (major #3).** A hard batched-e2e failure routes to `systematic-debugging` → re-open the regressing member (back to E6) or file a `queued` epic member (back to E4). E7 ship now requires BOTH rule-9 (exit 10) **and** green batched e2e — exit 10 is necessary, not sufficient.
+4. **`--auto` sub-skill taxonomy (major #4).** Decisions are raised *inside* sub-skills, which `--auto` cannot blindly intercept, so E5 enumerates handling: `type: design` members **always pause** (brainstorming's approval gate is never self-approved); `finishing`'s menu → auto Option 2 (Push+PR); other in-member forks → reusable-recommended pick + log; **catch-all → any unenumerated prompt is treated as floor (pause)**. The floor stays advisory but is backed by the harness/CLAUDE.md confirmation layer.
+5. **Picker bypass (major #5).** `index-render.mjs` excludes active-epic members from the flat ACTIVE/QUEUED/LATER sections (rollup canonical), AND the worker adds an epic-member guard: a bare `/backlog-next` redirects any item whose `epic:` points to an active epic (exception: the orchestrator-driven epic-member invocation proceeds).
+
+Should-fixes folded: run-state drops the `members` mirror (frontmatter is the single source of truth); E7.3 spins out captured members **manually** (orchestrator creates `<id>-leftovers` + repoints) since `lint --fix` does not; E6 documents env-var (not regex) e2e scoping per the strips-quotes hazard; E8 documents PR-body composition + the dual-write `BACKLOG.md` merge-conflict resolution; `--auto` debug budget is bounded (≤3 cycles → floor); standard Step 7 passes `--id`. `epic-members.mjs` is kept deliberately self-contained (liftability over de-duplication) — documented in-code.
+
 ## Verification
 
 - `/backlog-next <non-epic-id>` behaves identically to today (Doc-layer + Complex); a

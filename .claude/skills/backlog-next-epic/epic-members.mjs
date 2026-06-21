@@ -25,7 +25,15 @@ import { fileURLToPath } from 'node:url';
 const OPEN_STATUSES = new Set(['active', 'queued', 'parking']);
 
 /** Minimal frontmatter reader for the flat scalar/`epic:`/`rank:` fields we need.
- * (Lists and nested YAML are irrelevant here — we only read scalars.) */
+ * (Lists and nested YAML are irrelevant here — we only read scalars.)
+ *
+ * DELIBERATELY self-contained (only `node:` imports) rather than reusing
+ * backlog-lint/lib/frontmatter.mjs's `yaml` parser: this resolver is meant to lift
+ * as-is into any repo adopting the backlog model, so coupling it to the lint lib
+ * would defeat its purpose. The only divergence vs the canonical parser is
+ * `rank: null` → the string "null", which is unreachable here (rule 6 forces every
+ * `queued` member to carry a numeric rank, and rank is read only for queued
+ * members). Keep it dependency-light. */
 export function parseFrontmatter(text) {
   const m = text.match(/^---\n([\s\S]*?)\n---/);
   if (!m) return {};

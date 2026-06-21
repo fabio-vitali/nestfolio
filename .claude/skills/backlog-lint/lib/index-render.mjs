@@ -99,10 +99,20 @@ export function renderIndex(files) {
       || (a.frontmatter?.rank ?? 0) - (b.frontmatter?.rank ?? 0)
       || a.id.localeCompare(b.id));
 
-  const active = nonEpic.filter(f => f.frontmatter?.status === 'active');
-  const queued = nonEpic.filter(f => f.frontmatter?.status === 'queued')
+  // Members of an ACTIVE delivery epic are shown ONLY in that epic's rollup, never
+  // flat — they are orchestrated by /backlog-next-epic and must not be surfaced as
+  // standalone picks by /backlog-next. (Theme-/queued-epic members keep their flat
+  // listing with the [epic:X·role] tag, per the 2026-06-16 rendering model.)
+  const activeEpicIds = new Set(
+    epics.filter(e => e.frontmatter?.status === 'active').map(e => e.id),
+  );
+  const isActiveEpicMember = (f) =>
+    f.frontmatter?.epic != null && activeEpicIds.has(f.frontmatter.epic);
+
+  const active = nonEpic.filter(f => f.frontmatter?.status === 'active' && !isActiveEpicMember(f));
+  const queued = nonEpic.filter(f => f.frontmatter?.status === 'queued' && !isActiveEpicMember(f))
     .sort((a, b) => (a.frontmatter.rank ?? 0) - (b.frontmatter.rank ?? 0));
-  const parking = nonEpic.filter(f => f.frontmatter?.status === 'parking');
+  const parking = nonEpic.filter(f => f.frontmatter?.status === 'parking' && !isActiveEpicMember(f));
   const shippedAll = files.filter(f => f.frontmatter?.status === 'shipped'); // incl. shipped epics
   const dirty = gitDirtySet();
   const today = todayISO();
