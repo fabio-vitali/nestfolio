@@ -82,6 +82,27 @@ export class OrderWorkflowDefinition extends Construct {
     });
 
     // ---------------------------------------------------------------
+    // 2b. CheckExecutionMode — tolerate an absent ExecutionMode row
+    //
+    // The ExecutionMode cache row is written ONLY at go-live (investor-bff
+    // confirmGoLive); a simulation-mode investor pre-go-live has no row, and even
+    // a real EXECUTION_MODE_CHANGED write can still be in-flight when an order
+    // arrives. ReadExecutionMode's GetItem then returns no Item, and RouteOrder's
+    // `$.executionMode.Item.mode.S` read throws an UNCATCHABLE States.Runtime,
+    // failing the whole order (the historical "FAILED at ReadExecutionMode").
+    // Guard the read with a Choice: present → use it; absent → default to
+    // simulation (the onboarded default AND the safe no-real-money direction).
+    // See feedback-states-runtime-uncatchable: Catch on States.Runtime never
+    // fires, so absent-row tolerance MUST be a Choice-on-isPresent, not a Catch.
+    // ---------------------------------------------------------------
+    const defaultExecutionMode = new sfn.Pass(this, 'DefaultExecutionMode', {
+      result: sfn.Result.fromObject({ Item: { mode: { S: 'simulation' } } }),
+      resultPath: '$.executionMode',
+    });
+
+    const checkExecutionMode = new sfn.Choice(this, 'CheckExecutionMode');
+
+    // ---------------------------------------------------------------
     // 3. ClassifyResult — Choice on adapter result
     // ---------------------------------------------------------------
     const classifyResult = new sfn.Choice(this, 'ClassifyResult');
@@ -345,8 +366,14 @@ export class OrderWorkflowDefinition extends Construct {
       .when(sfn.Condition.stringEquals('$.adapterResult.status', 'PARTIALLY_FILLED'), markPartialFill)
       .otherwise(markRejected);
 
-    // Main chain: ReadExecutionMode → RouteOrder
-    const definition = readExecutionMode.next(routeOrder);
+    // ExecutionMode present → RouteOrder reads it; absent → default to simulation, then RouteOrder.
+    checkExecutionMode
+      .when(sfn.Condition.isPresent('$.executionMode.Item.mode.S'), routeOrder)
+      .otherwise(defaultExecutionMode);
+    defaultExecutionMode.next(routeOrder);
+
+    // Main chain: ReadExecutionMode → CheckExecutionMode → RouteOrder
+    const definition = readExecutionMode.next(checkExecutionMode);
 
     // CDK merges .next() into stateJson as the happy-path Next field.
     // Catch→Next references (e.g. 'HandleTimeout') resolve via CDK construct IDs.

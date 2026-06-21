@@ -62,6 +62,24 @@ describe('BrokerCtrlStack', () => {
     expect(def).not.toContain("ExecutionMode#{}', $.tenantId");
   });
 
+  it('order SF tolerates an absent ExecutionMode row by defaulting to simulation (absent-cache resilience)', () => {
+    const def = orderSmDefinition(template);
+    // The ExecutionMode cache row is written only at go-live (investor-bff
+    // confirmGoLive); a simulation-mode investor pre-go-live — or a mode-cache
+    // write that has not yet settled — has no row, so ReadExecutionMode's GetItem
+    // returns no Item. RouteOrder's `$.executionMode.Item.mode.S` read would then
+    // throw an UNCATCHABLE States.Runtime and fail the whole order. A Choice guards
+    // the read: present → use it; absent → default to simulation (the onboarded
+    // default, and the safe no-real-money direction). See feedback-states-runtime-uncatchable.
+    expect(def).toContain('CheckExecutionMode');
+    expect(def).toContain('DefaultExecutionMode');
+    // isPresent guard on the exact path RouteOrder consumes
+    expect(def).toContain('$.executionMode.Item.mode.S');
+    expect(def).toContain('"IsPresent":true');
+    // the absent-row default routes to the simulation adapter
+    expect(def).toContain('simulation');
+  });
+
   it('NormalizedEvent PutItems write symbol and side, and no flat-envelope identity read survives (break A + D producer)', () => {
     const def = orderSmDefinition(template);
     // Every state reads identity from $.context / order data from $.subject — no flat reads anywhere
