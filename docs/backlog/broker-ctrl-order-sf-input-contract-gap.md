@@ -1,12 +1,16 @@
 ---
 id: broker-ctrl-order-sf-input-contract-gap
-status: parking
+status: active
 epic: order-execution-money-path
 epic_role: core
 type: bug
 notes: "POTENTIALLY SIGNIFICANT (investigate before parking long). broker-ctrl's OrderStateMachine reads order fields (tenantId/orderId/symbol/side/quantity) from the TOP of its input ($.detail.* via RuleTargetInput.fromEventPath('$.detail')), but the real ORDER_SUBMITTED is CDC-emitted from execution-ctrl's Order row whose subject carries {orderId, decisionPacketId, proposedTrades, status} — NOT symbol/side/quantity, and nested under the standard subject/context envelope. No integration OR e2e test drives the order-execution SF end-to-end, so this path appears UNEXERCISED. If real: L1 auto-execute orders never route through the SF correctly (ReadExecutionMode would build ExecutionMode#<undefined>). The typed-subject-contracts-execution e2e gate could NOT drive it and documented NormalizedOrderEvent as a boundary. Promote/investigate: confirm whether real orders execute via this SF in prod (CloudWatch on a real DECISION_APPROVED→order), and reconcile the SF input contract with the actual ORDER_SUBMITTED shape. WS-3 of order-execution-money-path (spec 2026-06-19-order-execution-money-path-design.md): CONFIRMED REAL 2026-06-19 — dev SF 881/881 FAILED at ReadExecutionMode ($.tenantId not found; identity is under $.context, order data under $.subject). Scope under the money-path design = break A (fix ASL JSONPath: identity from $.context, order data from $.subject) PLUS break D producer (MarkFilledNormalizedEvent + NormalizedOrderEventSchema gain symbol/side, composed from the bound order $.subject). Gated behind WS-1+WS-2 (needs single-symbol ORDER_SUBMITTED carrying symbol/side/amount); promote to QUEUED when WS-2 ships. Complex lane."
 references: []
-out_of_scope: []
+out_of_scope:
+  - "execution-ctrl producer changes (per-trade Order expansion + ORDER_SUBMITTED enrichment) — shipped in WS-2 execution-ctrl-per-trade-order-expansion"
+  - "ledger-ctrl consumer typing of RecordFill (break D consumer) — WS-4 ledger-ctrl-live-tax-lot-missing-order-fields"
+  - "real-path accept-decision e2e + execution-ctrl integration test + flow-spec sync — WS-5 order-execution-money-path-real-e2e"
+  - "amount→shares conversion logic inside broker-sim-adpt beyond aligning route-order/BrokerOrderSchema denomination to what the adapter already expects"
 spec: docs/superpowers/specs/2026-06-19-order-execution-money-path-design.md
 plan: null
 topic_memory: [project_event_subject_contracts.md]
