@@ -144,8 +144,7 @@ rollup: core 0/3 done · captured 0/0 done
 
 ## ACTIVE
 
-_(none)_
-
+- [backlog-next-epic-orchestrator](backlog/backlog-next-epic-orchestrator.md) [tooling] — Split /backlog-next into a pure member worker + a new /backlog-next-epic orchestrator that runs a whole epic as one branch/one PR, batches expensive e2e at epic pre-done, and offers an --auto mode (auto-resolve+log, hard floor).
 
 ## QUEUED
 
