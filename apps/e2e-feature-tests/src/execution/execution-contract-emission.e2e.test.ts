@@ -659,12 +659,32 @@ describe('execution-domain DRY-wire emission — Order subject (Task 9)', () => 
       // DECISION_APPROVED → execution-ctrl event-listener writes Order row (INSERT)
       // → CDC ORDER_SUBMITTED | ORDER_STAGED | ORDER_REJECTED.
       // subject = OrderSchema.parse(row) — DRY.
+      //
+      // The authorizing event MUST carry proposedTrades: post-WS-1 DECISION_APPROVED
+      // carries them, and the event-listener correctly skip()s (no Order written) when
+      // they are absent ("nothing to execute"). A bare approvedComplianceCheck therefore
+      // emits nothing and the trap times out — drive a real per-trade expansion here.
       const eb = new EventBridgeClient(ctx);
       await eb.putEvent({
         bus: 'execution',
         targetService: 'execution-ctrl',
         detailType: 'DECISION_APPROVED',
-        subject: approvedComplianceCheck(`e2e-dp-dry-${randomUUID()}`),
+        subject: {
+          ...approvedComplianceCheck(`e2e-dp-dry-${randomUUID()}`),
+          // Full ProposedTrade — execution-ctrl's event-listener parses each entry with
+          // the strict ProposedTradeSchema (symbol/assetClass/side/quantityOrAmountCents/
+          // targetWeightPercent/rationale). A partial entry throws a ZodError → DLQ → no Order.
+          proposedTrades: [
+            {
+              symbol: 'VTI',
+              assetClass: 'EQUITY',
+              side: 'BUY',
+              quantityOrAmountCents: 500_000,
+              targetWeightPercent: 100,
+              rationale: 'e2e DRY-wire order',
+            },
+          ],
+        },
       });
 
       // Wait for the live CDC emission. 300s window (matching the ledger + investor
