@@ -18,7 +18,9 @@ export interface RouteOrderEvent {
     userId: string;
     symbol: string;
     side: 'BUY' | 'SELL';
-    quantity: number;
+    // Dollar amount in cents (the order request denomination). The adapter converts
+    // amount→shares at the fill price (see broker-sim-adpt simulation engine).
+    amountCents: number;
   };
   executionMode: string;
   taskToken: string;
@@ -35,7 +37,7 @@ export async function handler(event: RouteOrderEvent) {
     orderId: order.orderId,
     executionMode,
     routedTo: executionMode === 'live' ? 'alpaca' : 'sim',
-    requestedQty: order.quantity,
+    requestedAmountCents: order.amountCents,
     instrumentId: order.symbol,
     fillTaskToken: taskToken,
   });
@@ -54,7 +56,7 @@ export async function handler(event: RouteOrderEvent) {
       userId: order.userId,
       symbol: order.symbol,
       side: order.side,
-      quantity: order.quantity,
+      amountCents: order.amountCents,
     },
     context: { tenantId: order.tenantId, userId: order.userId, region: REGION },
   };

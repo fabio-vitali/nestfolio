@@ -46,7 +46,7 @@ describe('broker-ctrl contracts', () => {
     const parsed = BrokerOrderSchema.parse({
       tenantId: 't', pk: 'BrokerOrder#t#o1', sk: 'BrokerOrder', __typename: 'BrokerOrder',
       orderId: 'o1', executionMode: 'live', state: 'AWAITING_FILL', routedTo: 'alpaca',
-      requestedQty: 10, filledQty: 0, remainingQty: 10, retryCount: 0,
+      requestedAmountCents: 50000, filledQty: 0, retryCount: 0,
       instrumentId: 'VTI', routedAt: '2026-06-10T00:00:00.000Z',
     });
     expect('tenantId' in parsed).toBe(false);
@@ -56,7 +56,7 @@ describe('broker-ctrl contracts', () => {
   it('BrokerOrderSchema rejects an invalid state', () => {
     expect(() => BrokerOrderSchema.parse({
       orderId: 'o1', executionMode: 'live', state: 'PAUSED', routedTo: 'alpaca',
-      requestedQty: 10, filledQty: 0, remainingQty: 10, retryCount: 0,
+      requestedAmountCents: 50000, filledQty: 0, retryCount: 0,
       instrumentId: 'VTI', routedAt: '2026-06-10T00:00:00.000Z',
     })).toThrow();
   });
@@ -64,7 +64,7 @@ describe('broker-ctrl contracts', () => {
   it('BrokerOrderSchema parses when all optional fields are omitted', () => {
     const parsed = BrokerOrderSchema.parse({
       orderId: 'o1', executionMode: 'simulation', state: 'ROUTING', routedTo: 'sim',
-      requestedQty: 5, filledQty: 0, remainingQty: 5, retryCount: 0,
+      requestedAmountCents: 25000, filledQty: 0, retryCount: 0,
       instrumentId: 'VTI', routedAt: '2026-06-10T00:00:00.000Z',
     });
     expect(parsed.fillTaskToken).toBeUndefined();
