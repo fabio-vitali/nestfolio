@@ -89,6 +89,22 @@ function slugify(s) {
   return s.toLowerCase().replace(/[^a-z0-9.]+/g, '-').replace(/^-|-$/g, '');
 }
 
+// Extract markdown ATX-heading slugs, SKIPPING fenced code blocks — otherwise a
+// `# shell comment` at column 0 inside a ```fence``` would falsely resolve a
+// reference anchor (rule 3, false-positive resolution). Toggling on ``` / ~~~
+// delimiters is sufficient for the spec/design docs this validates.
+function extractHeadings(content) {
+  const slugs = [];
+  let inFence = false;
+  for (const line of content.split('\n')) {
+    if (/^\s*(```|~~~)/.test(line)) { inFence = !inFence; continue; }
+    if (inFence) continue;
+    const m = line.match(/^#+\s+(.+)$/);
+    if (m) slugs.push(slugify(m[1]));
+  }
+  return slugs;
+}
+
 export function ruleReferencesValid(file, repoRoot) {
   if (!['design', 'spec'].includes(file.frontmatter?.type)) return [];
   const refs = file.frontmatter.references;
@@ -106,8 +122,7 @@ export function ruleReferencesValid(file, repoRoot) {
       continue;
     }
     if (anchor) {
-      const content = readFileSync(fullPath, 'utf8');
-      const headings = [...content.matchAll(/^#+\s+(.+)$/gm)].map(m => slugify(m[1]));
+      const headings = extractHeadings(readFileSync(fullPath, 'utf8'));
       if (!headings.includes(anchor.toLowerCase())) {
         violations.push(v('references-valid', file,
           `${file.id}: anchor "#${anchor}" not found in ${pathPart}`));
@@ -135,21 +150,27 @@ export function ruleActiveEpicFields(file) {
   return violations;
 }
 
-// Rule 9 (closure): a shipped epic must have no member still pointing at it in a
-// non-terminal state. Core members must be resolved/dropped (they define done);
-// captured members must be resolved/dropped OR re-homed (e.g. to <epic>-leftovers).
-// Terminal members may keep pointing at the closed epic as provenance.
+// Rule 9 (closure): a TERMINAL epic (shipped OR dropped) must have no member still
+// pointing at it in a non-terminal state — otherwise the member is invisible to
+// triage (a closed epic renders no rollup, and an epic-pointered member is not an
+// orphan). Core members must be resolved/dropped (they define done); captured
+// members must be resolved/dropped OR re-homed (e.g. to <epic>-leftovers). A
+// member of a *dropped* epic whose work is still wanted is re-homed (repoint epic:
+// at a live epic, or remove the pointer → standalone parking). Terminal members
+// may keep pointing at the closed epic as provenance. (Dropped is included for
+// symmetry: rule 9 used to guard only shipped, leaving dropped-epic members silent.)
 export function ruleEpicClosure(file, files) {
-  if (!isEpic(file) || file.frontmatter?.status !== 'shipped') return [];
+  if (!isEpic(file) || !TERMINAL.has(file.frontmatter?.status)) return [];
+  const epicStatus = file.frontmatter.status;
   const violations = [];
   for (const m of membersOf(file.id, files)) {
     if (TERMINAL.has(m.frontmatter?.status)) continue;
     const role = epicRole(m);
     const remedy = role === 'captured'
-      ? `re-home it (e.g. to ${file.id}-leftovers) or resolve/drop it`
-      : `resolve or drop it`;
+      ? `re-home it (e.g. to ${file.id}-leftovers, or remove the epic: pointer) or resolve/drop it`
+      : `resolve or drop it, or re-home it (repoint epic: at a live epic / remove the pointer)`;
     violations.push(v('epic-closure', file,
-      `${file.id}: shipped epic has non-terminal ${role} member ${m.id} (status: ${m.frontmatter?.status}) — ${remedy} (rule 9)`));
+      `${file.id}: ${epicStatus} epic has non-terminal ${role} member ${m.id} (status: ${m.frontmatter?.status}) — ${remedy} (rule 9)`));
   }
   return violations;
 }

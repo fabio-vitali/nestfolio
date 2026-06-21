@@ -128,6 +128,15 @@ test('rule 3: design type with bad anchor — fail', () => {
   assert.match(violations[0].message, /anchor.*not found/i);
 });
 
+test('rule 3: anchor matching only a `#` line INSIDE a code block — fail (not a real heading)', () => {
+  // `# fake-heading-in-codeblock` lives inside a ```bash fence in the fixture — it is
+  // a shell comment, not a markdown heading, so the anchor must NOT resolve.
+  const f = file('a', { type: 'spec', references: ['sample-target.md#fake-heading-in-codeblock'] });
+  const violations = ruleReferencesValid(f, fixturesDir);
+  assert.equal(violations.length, 1);
+  assert.match(violations[0].message, /anchor.*not found/i);
+});
+
 test('rule 3: non-design types skip the check', () => {
   const f = file('a', { type: 'bug', references: [] });
   assert.deepEqual(ruleReferencesValid(f, fixturesDir), []);
