@@ -3,6 +3,15 @@ import { App } from 'aws-cdk-lib';
 import { Template, Match } from 'aws-cdk-lib/assertions';
 import { BrokerCtrlStack } from '../../src/service.stack';
 
+function orderSmDefinition(template: Template): string {
+  const sms = template.findResources('AWS::StepFunctions::StateMachine');
+  const defs = Object.values(sms).map((sm: any) => {
+    const d = sm.Properties?.DefinitionString;
+    return d?.['Fn::Join'] ? d['Fn::Join'][1].join('') : (typeof d === 'string' ? d : JSON.stringify(d));
+  });
+  return defs.find((d: string) => d.includes('ReadExecutionMode'))!;
+}
+
 describe('BrokerCtrlStack', () => {
   let template: Template;
 
@@ -39,6 +48,32 @@ describe('BrokerCtrlStack', () => {
       d.includes('ReadExecutionMode'),
     );
     expect(orderSM).toBeDefined();
+  });
+
+  it('order SF reads identity from $.context and order data from $.subject (break A)', () => {
+    const def = orderSmDefinition(template);
+    expect(def).toContain("ExecutionMode#{}', $.context.tenantId");
+    expect(def).toContain('$.subject.orderId');
+    expect(def).toContain('$.subject.symbol');
+    expect(def).toContain('$.subject.side');
+    expect(def).toContain('$.subject.quantityOrAmountCents');
+    expect(def).toContain('$.context.userId');
+    // the broken flat identity read is gone
+    expect(def).not.toContain("ExecutionMode#{}', $.tenantId");
+  });
+
+  it('NormalizedEvent PutItems write symbol and side, and no flat-envelope identity read survives (break A + D producer)', () => {
+    const def = orderSmDefinition(template);
+    // Every state reads identity from $.context / order data from $.subject — no flat reads anywhere
+    // (this is what catches a missed state, e.g. the deeply-nested HandleTimeout branch).
+    expect(def).not.toContain('"$.tenantId"');
+    expect(def).not.toContain('"$.orderId"');
+    expect(def).not.toContain('"$.userId"');
+    expect(def).not.toContain('"$.region"');
+    // symbol/side written in both Lambda payloads (RouteOrder + WaitForMoreFills)
+    // AND all three NormalizedEvent PutItems (Filled + Rejected + Escalated) = 5 occurrences.
+    expect((def.match(/\$\.subject\.symbol/g) ?? []).length).toBeGreaterThanOrEqual(5);
+    expect((def.match(/\$\.subject\.side/g) ?? []).length).toBeGreaterThanOrEqual(5);
   });
 
   it('creates an EventBridge rule for ORDER_SUBMITTED trigger', () => {
