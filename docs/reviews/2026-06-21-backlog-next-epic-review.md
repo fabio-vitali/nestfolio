@@ -7,8 +7,10 @@
 > `feat/backlog-next-epic-orchestrator` before merge (see the design spec's
 > "Post-review refinements" section and the fix commit). The two `--auto`/picker decisions were
 > resolved with the user (strict pause + advisory floor; index exclusion + worker guard).
-> Pre-existing out-of-scope nits (rule-3 anchors in code blocks; parking-member-of-shipped-epic
-> invisibility) are left for a follow-up backlog item.
+> The two pre-existing `backlog-lint` nits were ALSO fixed in this branch on request: rule-3
+> anchor resolution now skips fenced code blocks; rule 9 (epic closure) now covers **dropped**
+> epics too (was shipped-only), so a non-terminal member of any terminal epic can no longer go
+> silent. Both carry regression tests.
 
 ## Verdict
 Not safe to merge as-is. The core feature set is well-designed and the `epic-members.mjs` resolver is clean, dependency-light, and well-tested — but four confirmed coherence defects break load-bearing capabilities the orchestrator advertises: epic resume crashes, the one-PR invariant leaks via a downstream sub-skill, the batched-e2e gate has no failure path, and `--auto` can't actually override blocking prompts raised inside sub-skills. The flat-section picker can also grab an epic member directly, bypassing the orchestrator. Fix the four majors plus the picker-redirect gap; the rest are minors/nits and a few genuine user-decision calls.

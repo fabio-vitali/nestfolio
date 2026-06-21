@@ -123,6 +123,27 @@ test('rule 9: active (not shipped) epic skips the closure check', () => {
   assert.deepEqual(ruleEpicClosure(files[0], files), []);
 });
 
+test('rule 9: DROPPED epic with a non-terminal member — fail (terminal epics also drain)', () => {
+  // Previously rule 9 guarded only `shipped`, so a member of a dropped epic was
+  // silent (no rollup, not an orphan). Dropped is now covered for symmetry.
+  const files = [
+    epic('e1', { status: 'dropped' }),
+    file('m1', { status: 'parking', epic: 'e1', epic_role: 'core' }),
+  ];
+  const v = ruleEpicClosure(files[0], files);
+  assert.equal(v.length, 1);
+  assert.match(v[0].message, /dropped epic has non-terminal core member/i);
+});
+
+test('rule 9: dropped epic with all members terminal — pass (provenance pointers OK)', () => {
+  const files = [
+    epic('e1', { status: 'dropped' }),
+    file('m1', { status: 'dropped', epic: 'e1', epic_role: 'core' }),
+    file('m2', { status: 'shipped', epic: 'e1', epic_role: 'captured' }),
+  ];
+  assert.deepEqual(ruleEpicClosure(files[0], files), []);
+});
+
 // ── Captured-member audit surface (close-ritual aid) ───────────────────────
 test('captured audit: active epic surfaces its open captured members', () => {
   const files = [
