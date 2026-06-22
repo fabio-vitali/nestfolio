@@ -9,6 +9,7 @@ import {
   isDrainable,
   selectNextMember,
   loadRecords,
+  activeEpics,
 } from '../epic-members.mjs';
 
 test('loadRecords parses identically to the lint gate: inline comments + rank:null', () => {
@@ -102,4 +103,23 @@ test('queued ordering: missing rank sorts after explicit ranks', () => {
     { id: 'a-rank5', status: 'queued', rank: 5, role: 'core' },
   ];
   assert.equal(selectNextMember(members), 'a-rank5');
+});
+
+test('activeEpics: only type:epic + status:active, sorted; ignores active non-epics and inactive epics', () => {
+  const recs = [
+    { id: 'epic-a', fm: { type: 'epic', status: 'active' } },
+    { id: 'epic-b', fm: { type: 'epic', status: 'active' } },
+    { id: 'epic-parked', fm: { type: 'epic', status: 'parking' } },     // inactive epic → excluded
+    { id: 'epic-shipped', fm: { type: 'epic', status: 'shipped' } },    // terminal → excluded
+    { id: 'active-member', fm: { type: 'tooling', status: 'active', epic: 'epic-a' } }, // non-epic → excluded
+  ];
+  assert.deepEqual(activeEpics(recs), ['epic-a', 'epic-b']);
+});
+
+test('activeEpics: none active → empty array (rule-11 guard clear)', () => {
+  const recs = [
+    { id: 'epic-parked', fm: { type: 'epic', status: 'parking' } },
+    { id: 'item', fm: { type: 'bug', status: 'queued', rank: 1 } },
+  ];
+  assert.deepEqual(activeEpics(recs), []);
 });

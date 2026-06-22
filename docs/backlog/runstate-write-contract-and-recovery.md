@@ -1,6 +1,7 @@
 ---
 id: runstate-write-contract-and-recovery
-status: parking
+status: shipped
+closed: 2026-06-22
 type: tooling
 notes: "The epic run-state JSON (crash-recovery backbone) has no prescribed write mechanism (a prior run hand-wrote malformed JSON), drifted its schema (invented ws*_decisions/paused_at), uses a cwd-relative path that can misclassify RESUME as FRESH, and isn't invalidated when a member is re-opened."
 references: []
@@ -8,7 +9,7 @@ out_of_scope: []
 spec: null
 plan: null
 topic_memory: []
-validation_gate: null
+validation_gate: "Built .claude/skills/backlog-next-epic/runstate.mjs (library + thin CLI) + test/runstate.test.mjs (12 tests). F-11: all writes go parse->mutate->JSON.stringify via the helper; parseRunState self-heals malformed JSON into a clean error (no raw throw at resume) — covers the exact `],\\n  ,\\n  paused_at:` corruption shape. F-12: closed 6-key schema (epic,branch,worktree,auto,decisions,e2e + optional e8); validateRunState rejects invented keys (paused_at, wsN_decisions); appendDecision pushes ONE flat decisions[] tagged by member, append-only by construction. F-13: runStatePath uses `git rev-parse --path-format=absolute --git-common-dir` at every site (resume gate, E3, E8) — cwd-independent, no RESUME->FRESH misclassification. F-14: e2e shape {commands,outcome,sha}; e2eIsFresh + `runstate.mjs e2e-fresh` gate added to E7 ship-preconditions (a re-opened member moves HEAD -> stale -> back to E6). SKILL.md E3/E5/E6/E7/E8 + resume gate rewired to the helper. Gate: full skill suite 104/104 (node --test), backlog-lint 11/11, helper dogfooded on live run-state (get validates; e2e-fresh STALE pre-E6; append round-trips). No deploy/e2e (skill scripts; batched e2e is epic E6)."
 epic: backlog-skills-hardening
 epic_role: core
 ---

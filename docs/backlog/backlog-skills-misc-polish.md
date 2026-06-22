@@ -1,6 +1,7 @@
 ---
 id: backlog-skills-misc-polish
-status: parking
+status: shipped
+closed: 2026-06-22
 type: tooling
 notes: "Low-severity perf/prose singletons from the 2026-06-22 skills audit: lint --fix spawns ~388 git subprocesses/run; BACKLOG.md date drifts across midnight; node --test <dir> fails on Node 24 + non-hermetic render tests; --auto debug budget is a magic number; E1 rule-11 guard is prose-only."
 references: []
@@ -8,7 +9,7 @@ out_of_scope: []
 spec: null
 plan: null
 topic_memory: []
-validation_gate: null
+validation_gate: "All 5 findings fixed on feat/epic-backlog-skills-hardening. F-29: index-render.mjs batches git into ONE `git log --name-only` pass (gitLastCommitDateMap) — lint --fix 26.4s→0.61s (43x). F-30: closed: stamped at ship time is the authoritative Recently-Shipped date (fixes across-midnight drift); resolveShippedDate comment + both ship steps updated. F-31: renderIndex accepts injectable gitInfo {dirty,dateMap} (collectGitInfo default) — render tests now hermetic (no `git log -- /dummy` spew); glob test command (`node --test <glob>`, not <dir> on Node 24) documented in all 3 SKILL.md. F-9: E4.3 debug-budget '3' now carries a cost/diagnosis rationale. F-32: epic-members.mjs gains --active-epics (reuses canonical parser, no grep) + 2 tests; E1 rule-11 guard cites the command. Gate: skill suite 92/92 (node --test), backlog-lint 11/11 green, lint --fix 0.61s, no git spew. No deploy/e2e (skill scripts/prose; batched e2e is epic E6)."
 epic: backlog-skills-hardening
 epic_role: core
 ---

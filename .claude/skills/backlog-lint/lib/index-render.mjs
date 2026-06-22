@@ -27,10 +27,28 @@ function lineFor(f) {
 
 const todayISO = () => new Date().toISOString().slice(0, 10);
 
-function gitLastCommitDate(path) {
+// Last-commit date for EVERY tracked file under docs/backlog, resolved in ONE
+// `git log` pass (newest commit wins) instead of one subprocess per shipped file.
+// The previous per-file approach spawned ~N git processes × 2 render passes (~25s
+// on the live backlog — F-29). Keyed by absolute path to match `f.path`.
+function gitLastCommitDateMap() {
   try {
-    return execSync(`git log -1 --format=%ad --date=short -- "${path}"`).toString().trim() || null;
-  } catch { return null; }
+    const root = execSync('git rev-parse --show-toplevel').toString().trim();
+    const out = execSync(
+      'git log --no-renames --date=short --format=%x00%ad --name-only -- docs/backlog',
+      { cwd: root, maxBuffer: 64 * 1024 * 1024 },
+    ).toString();
+    const map = new Map();
+    let cur = null;
+    for (const line of out.split('\n')) {
+      if (line.startsWith('\x00')) { cur = line.slice(1).trim() || null; continue; }
+      const rel = line.trim();
+      if (!rel) continue;
+      const abs = join(root, rel);
+      if (!map.has(abs)) map.set(abs, cur);   // log is newest-first → first hit is newest
+    }
+    return map;
+  } catch { return new Map(); }
 }
 
 // Absolute paths of every file with pending (staged or unstaged) changes, computed
@@ -52,15 +70,24 @@ function gitDirtySet() {
   } catch { return new Set(); }
 }
 
+// All git-derived render inputs, gathered once (≤2 subprocesses total) and injectable
+// so renderIndex can run fully hermetically in tests — pass an explicit gitInfo to avoid
+// shelling out to git at all. Production callers use the default. (F-29 perf / F-31 hermeticity)
+export function collectGitInfo() {
+  return { dirty: gitDirtySet(), dateMap: gitLastCommitDateMap() };
+}
+
 // Pure: resolve a shipped item's "Recently Shipped" date. Precedence:
-//   1. explicit `closed:` frontmatter always wins (deterministic override);
-//   2. else a DIRTY file (uncommitted ship being recorded now) → `today`, because its
-//      last-commit date predates this ship — reading it would make `--fix` produce a
-//      stale date that then "settles" forward once the ship commit lands;
-//   3. else the last committed date;
+//   1. explicit `closed:` frontmatter always wins — the AUTHORITATIVE date, now stamped
+//      at ship time by both ship steps (/backlog-next 6.5, /backlog-next-epic E7.4), so the
+//      recorded date never depends on commit timing. This fixes the across-midnight drift
+//      where a dirty→today write disagreed with a later git-commit-date regen (F-30);
+//   2. else a DIRTY file (an uncommitted ship recorded without `closed:`) → `today`, a
+//      fallback that keeps `--fix` stable before vs after the ship commit;
+//   3. else the last committed date (batched lookup);
 //   4. else a sentinel that sorts to the bottom.
-// (2) makes the date identical whether `--fix` runs before or after the ship commit,
-// without the legacy-backfill risk of stamping `closed:` onto every shipped file.
+// Stamping `closed:` per-item at ship time (precedence 1) is the durable fix; (2) remains a
+// safety net for items shipped without it and for pre-F-30 history (no backfill needed).
 export function resolveShippedDate({ closed, dirty, gitDate, today }) {
   if (closed) return closed;
   if (dirty) return today;
@@ -95,7 +122,7 @@ function renderEpicBlock(epic, files) {
   return lines.join('\n');
 }
 
-export function renderIndex(files) {
+export function renderIndex(files, gitInfo = collectGitInfo()) {
   const epics = files.filter(isEpic);
   const nonEpic = files.filter(f => !isEpic(f));
 
@@ -121,7 +148,7 @@ export function renderIndex(files) {
     .sort((a, b) => (a.frontmatter.rank ?? 0) - (b.frontmatter.rank ?? 0));
   const parking = nonEpic.filter(f => f.frontmatter?.status === 'parking' && !isActiveEpicMember(f));
   const shippedAll = files.filter(f => f.frontmatter?.status === 'shipped'); // incl. shipped epics
-  const dirty = gitDirtySet();
+  const { dirty, dateMap } = gitInfo;
   const today = todayISO();
   const shippedRecent = shippedAll
     .map(f => {
@@ -131,7 +158,7 @@ export function renderIndex(files) {
         date: resolveShippedDate({
           closed: f.frontmatter.closed,
           dirty: isDirty,
-          gitDate: isDirty ? null : gitLastCommitDate(f.path), // skip git log for dirty files
+          gitDate: isDirty ? null : (dateMap.get(f.path) ?? null), // batched lookup; dirty skips it
           today,
         }),
       };

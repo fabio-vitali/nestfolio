@@ -80,3 +80,13 @@ NESTFOLIO_MEMORY_DIR=/tmp/test-mem node .claude/skills/backlog-lint/lint.mjs --f
 - A missing `topic_memory:` entry that should exist but wasn't added during exec.
 
 These decay slowly and should be caught at the per-ship boundary review.
+
+## Tests
+
+The lib (`frontmatter`, `rules`, `index-render`, `dossier-sync`) is covered by `node:test` suites under `test/`. Use the **glob** form — `node --test <dir>` does not discover suites on Node 24:
+
+```bash
+node --test .claude/skills/backlog-lint/test/*.test.mjs
+```
+
+The `index-render` tests are **hermetic**: pass an explicit `gitInfo` (`{ dirty: Set, dateMap: Map }`) to `renderIndex` so it never shells out to git. The default `collectGitInfo()` batches all git reads into ≤2 subprocesses for production `--fix` (keeps `lint --fix` sub-second on the live backlog).

@@ -5,7 +5,7 @@ description: Workstream router for starting the next backlog item. Picks from do
 
 ## When to invoke
 
-User-triggered via `/backlog-next` only. `disable-model-invocation: true` in the frontmatter mechanically blocks auto-invocation and preloading into subagents — agents cannot trigger this skill from natural phrasing.
+Two sanctioned entry points: a user typing `/backlog-next` (standalone), **or** the `/backlog-next-epic` orchestrator driving this skill in epic-member mode. This skill is deliberately **NOT** `disable-model-invocation` (unlike `/backlog-next-epic`) — that key was removed on purpose so the orchestrator can invoke it via the Skill tool, which loads this SKILL.md **inline into the orchestrator's own context** (not a detached subagent; that inline-execution model is what the seam, the E4.5 checkpoint, and the parked Tier-2 subagent-isolation item all reason about). Outside those two paths, do not auto-fire it: the Step-1 active-in-flight guard + the epic-member guard below are the runtime backstops against a stray invocation.
 
 Accepts an optional `<id>` argument (`/backlog-next <id>`) that overrides the deterministic rank pick in Step 1. Without an argument, the default rule applies (resume single ACTIVE, else top-ranked QUEUED). The argument does NOT bypass any status rules — see Step 1 for the per-status dispatch.
 
@@ -133,11 +133,11 @@ AFFECTED=$(node tools/affected-projects.mjs --base=origin/main --with-target=tes
 
 Then run only the **involved** `apps/e2e-feature-tests` scenarios — pick from the workstream's context (which flows/services it touched). **NEVER the full e2e suite. NEVER Playwright.** See [[feedback-always-rerun-e2e]]. If any scenario fails-then-passes on a rerun, pull CloudWatch evidence from the failing window before continuing and run a second confirmation pass — flakes are real failures, not noise. See [[feedback-flake-means-broken]]. Dev-account operations need no confirmation — see [[feedback-sole-dev-no-shared-caution]].
 
-**6.5 Ship the backlog file.** Edit `docs/backlog/<id>.md` → `status: shipped`, fill `validation_gate:` with concrete evidence (commit SHA, deploy log line, integ/e2e command output). Commit.
+**6.5 Ship the backlog file.** Edit `docs/backlog/<id>.md` → `status: shipped`, fill `validation_gate:` with concrete evidence (commit SHA, deploy log line, integ/e2e command output), **and stamp `closed: <today>`** (the authoritative Recently-Shipped date — see the 6.6 note). Commit.
 
 **6.6 Regen index.** `node .claude/skills/backlog-lint/lint.mjs --fix`. Commit.
 
-> The shipped item's "Recently Shipped" date is derived in `index-render.mjs` as `closed: ?? (dirty → today) ?? git-last-commit-date`. The **dirty → today** rule makes the date stable whether you run `--fix` before or after the ship commit — so batching 6.5+6.6 into one commit no longer "settles" the date forward on a second `--fix`. Set `closed: <date>` in frontmatter only when you need to record a ship date other than today (e.g. backfilling history).
+> The shipped item's "Recently Shipped" date is derived in `index-render.mjs` as `closed: ?? (dirty → today) ?? git-last-commit-date`. **Always stamp `closed: <today>` at ship time (6.5)** — it is the authoritative date and the only one immune to the across-midnight drift where a `dirty → today` write disagreed with a later `git-commit-date` regen and tripped postflight `[index-matches]` (F-30). The `dirty → today` and git-date fallbacks remain only for items shipped without `closed:` and for pre-F-30 history (no backfill needed). Set `closed:` to a date other than today only when backfilling.
 
 **6.7 Complex lane only:** route to `superpowers:finishing-a-development-branch` for merge / PR / branch cleanup. Do NOT handle the merge manually. **If the local-merge option is chosen, push `main` afterward** — `git push origin main`. The local-merge path does NOT push, but postflight's `main-sync` check AND the next run's preflight both require local `main` == `origin/main` (a local-but-unpushed merge leaves `main` ahead and blocks the next workstream). Pushing the project's own `main` is the routine completion — prior shipped workstreams are already on `origin/main`; it is a dev-account op, not a production/real-money action ([[feedback-sole-dev-no-shared-caution]]). The PR option pushes as part of its own flow.
 
@@ -159,7 +159,11 @@ This is the **durable fix for the `ExitWorktree`-always-fails problem** and it *
 ### 7. Postflight (enforced)
 
 ```bash
-node .claude/skills/backlog-next/postflight.mjs --lane=<doc-layer|simple|complex|epic-member> --id=<id> [--branch=<feat-branch>]
+# Complex lane: Step 6.8 just removed the worktree, which may be your pinned cwd. Run from $MAIN
+# (a guaranteed-live dir) so postflight can start at all — its REPO_ROOT then resolves from the
+# git-common-dir parent and survives the removed worktree (F-23). Doc-layer/simple: cwd is fine.
+MAIN=$(git -C "$(git rev-parse --git-common-dir)/.." rev-parse --show-toplevel 2>/dev/null || pwd)
+(cd "$MAIN" && node .claude/skills/backlog-next/postflight.mjs --lane=<doc-layer|simple|complex|epic-member> --id=<id> [--branch=<feat-branch>])
 ```
 
 Hard-fails if: working tree is dirty, `backlog-lint` violates a rule, the shipped item's frontmatter is incomplete, the feature branch wasn't merged + deleted (Complex), or stale worktrees remain. Fix before declaring the job done. (`--lane=epic-member` runs only checks 1–3 — tree-clean, lint, shipped frontmatter — because the member stays on the epic branch; the merge/sync/branch-delete checks belong to the epic-level close run by `/backlog-next-epic`.)
@@ -191,3 +195,9 @@ Everything else (Step 1b effort marker, Step 2 verify references, Steps 6.1–6.
 ## Related
 
 `backlog-next-epic` (the epic orchestrator that drives this skill in epic-member mode), `backlog-add`, `backlog-lint`, `superpowers:brainstorming` / `writing-plans` / `using-git-worktrees` / `executing-plans` / `finishing-a-development-branch`. Supporting files in this skill: `deploy-paths.md`, `doc-derivation-paths.md`, `preflight.mjs`, `postflight.mjs`, `detect-deploy-needed.mjs`, `detect-doc-derivation.mjs`.
+
+**Run the tests** (use the **glob** form — `node --test <dir>` does not discover suites on Node 24):
+
+```bash
+node --test .claude/skills/backlog-next/test/*.test.mjs
+```
