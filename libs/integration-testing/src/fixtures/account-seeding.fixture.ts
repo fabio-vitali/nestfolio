@@ -1,6 +1,6 @@
 import { DynamoDBClient, PutItemCommand, DeleteItemCommand } from '@aws-sdk/client-dynamodb';
 import { marshall } from '@aws-sdk/util-dynamodb';
-import { createTestAwsClient, type TestContext } from '@nestfolio/test-support';
+import type { TestContext } from '@nestfolio/test-support';
 
 export interface AccountSeedOptions {
   readonly cashBalanceCents?: number;
@@ -19,7 +19,7 @@ export class AccountSeedingFixture {
 
   constructor(ctx: TestContext) {
     this.ctx = ctx;
-    this.client = createTestAwsClient(DynamoDBClient, ctx.region);
+    this.client = new DynamoDBClient({ region: ctx.region });
     ctx.cleanup.register('AccountSeedingFixture', async () => {
       for (const { tableName, pk, sk } of this.seededItems.reverse()) {
         try {

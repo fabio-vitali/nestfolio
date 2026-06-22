@@ -1,5 +1,5 @@
 import { SSMClient, GetParameterCommand, PutParameterCommand, DeleteParameterCommand } from '@aws-sdk/client-ssm';
-import { createTestAwsClient, type TestContext } from '@nestfolio/test-support';
+import type { TestContext } from '@nestfolio/test-support';
 
 /**
  * Each instance handles exactly one SSM parameter override.
@@ -23,7 +23,7 @@ export class SsmOverrideFixture {
 
   constructor(ctx: TestContext) {
     this.ctx = ctx;
-    this.client = createTestAwsClient(SSMClient, ctx.region);
+    this.client = new SSMClient({ region: ctx.region });
   }
 
   async override(params: {

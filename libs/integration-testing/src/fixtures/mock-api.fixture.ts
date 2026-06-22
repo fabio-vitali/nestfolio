@@ -7,7 +7,7 @@ import {
   GetFunctionConfigurationCommand, CreateFunctionUrlConfigCommand,
   DeleteFunctionUrlConfigCommand, AddPermissionCommand,
 } from '@aws-sdk/client-lambda';
-import { createTestAwsClient, type TestContext } from '@nestfolio/test-support';
+import type { TestContext } from '@nestfolio/test-support';
 
 const BASIC_EXECUTION_POLICY = 'arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole';
 
@@ -22,8 +22,8 @@ export class MockApiFixture {
 
   constructor(ctx: TestContext) {
     this.ctx = ctx;
-    this.iam = createTestAwsClient(IAMClient, ctx.region);
-    this.lambda = createTestAwsClient(LambdaClient, ctx.region);
+    this.iam = new IAMClient({ region: ctx.region });
+    this.lambda = new LambdaClient({ region: ctx.region });
   }
 
   async deploy(params: {
