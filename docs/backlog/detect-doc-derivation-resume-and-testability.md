@@ -1,10 +1,13 @@
 ---
 id: detect-doc-derivation-resume-and-testability
-status: parking
+status: active
 type: tooling
 notes: "detect-doc-derivation.mjs diffs whole-branch-vs-origin/main so it reports derivation=true on every epic resume (no signal whether derivation is actually outstanding), and it has no import-meta-main guard / no exports so it runs main() at import and is untestable (unlike its detect-deploy-needed sibling)."
 references: []
-out_of_scope: []
+out_of_scope:
+  - "Deep 'derived-doc freshness' detection (diffing source vs the committed derived artifact's content) — the member deliberately chose the simpler member-base delta; a content-freshness check is a separate future concern."
+  - "Generalizing detect-deploy-needed (Step 6.3) to also pass member-start --base — it already accepts --base and was used manually for member-3 isolation; only Step 6.1 / detect-doc-derivation is in scope here."
+  - "Actually executing the derivation skills (generate-c4-diagrams / audit-service / validate-flow) — the detector only identifies WHICH skills to run; that behavior is unchanged."
 spec: null
 plan: null
 topic_memory: []
