@@ -1,13 +1,17 @@
 ---
 id: cdk-bundle-staleness-deploy-integrity
-status: parking
+status: active
 type: tooling
-notes: "Hypothesis: 2026-05-13 dev-investor-bff deploy produced a Lambda bundle whose change-data-capture.ts logic lagged behind source. Surfaced via update-operating-mode-cdc-silent. Need a deploy-time integrity check that the bundle's resolveEmissions actually matches the EVENT_TYPE_MAP shape it'll be asked to process."
+notes: "Hypothesis: 2026-05-13 dev-investor-bff deploy produced a Lambda bundle whose change-data-capture.ts logic lagged behind source. Surfaced via update-operating-mode-cdc-silent. Need a deploy-time integrity check that the bundle's resolveEmissions actually matches the EVENT_TYPE_MAP shape it'll be asked to process. Resolution (epic --auto, user-confirmed): runtime config-vs-capability INIT guard in changeDataCapture (RC0 blast radius), not the build-stamp/post-deploy-grep alternatives."
 references:
   - infrastructure/scripts/deploy.sh
   - libs/event-processor/src/pipelines/change-data-capture.ts
   - libs/cdk-constructs/src/core/event-types.ts
-out_of_scope: []
+out_of_scope:
+  - "The build-time source-stamp + CDK-expected-version assertion approach (rejected: a source-derived stamp can't detect esbuild-cache staleness and touches the shared Egress construct)."
+  - "The post-deploy bundle-marker grep in deploy.sh (rejected: fragile vs minification, deploy-script + AWS-CLI coupled)."
+  - "Catching same-shape logic regressions (e.g. a field-change emission bug) — the INIT guard catches unrecognized/malformed mapping SHAPES, not handler-logic drift within a recognized shape."
+  - "The 3 sibling detect-* members of this epic (separate workstreams)."
 spec: null
 plan: null
 topic_memory: []
