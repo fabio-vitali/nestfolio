@@ -138,7 +138,8 @@ rollup: core 0/3 done · captured 0/0 done
 
 ## ACTIVE
 
-- [test-integration-parallel-dns-exhaustion](backlog/test-integration-parallel-dns-exhaustion.md) [tooling] — run-many -t test-integration at full parallelism exhausts the macOS DNS resolver (getaddrinfo ENOTFOUND on DDB endpoints) → false reds; recovers fully at --parallel=1. Root cause: test SDK clients open fresh sockets/DNS per request (no connection pooling). Fix: shared keep-alive request handler + bounded getaddrinfo retry in the test-support client config.
+_(none)_
+
 
 ## QUEUED
 
@@ -232,6 +233,7 @@ _(none)_
 
 ## Recently Shipped (last 10)
 
+- 2026-06-23 — [test-integration-parallel-dns-exhaustion](backlog/test-integration-parallel-dns-exhaustion.md) [tooling] — run-many -t test-integration at full parallelism exhausts the macOS DNS resolver (getaddrinfo ENOTFOUND) → false reds; recovers at --parallel=1. Fix: a process-wide dns.lookup retry (installDnsResilience) installed once per worker from the integration Jest setup — covers AWS SDK + fetch uniformly at the DNS layer.
 - 2026-06-22 — [auto-decision-discipline-and-merge-ownership](backlog/auto-decision-discipline-and-merge-ownership.md) [tooling] — --auto floor is prose-only + over-broad, and the epic close self-merged the PR on a bare 'go'. Make the floor a decidable scope test surfaced via AskUserQuestion; the close ALWAYS stops at an open PR (cleanup worktree + print PR link), never self-merges. `[epic:backlog-skills-hardening · core]`
 - 2026-06-22 — [backlog-skills-hardening](backlog/backlog-skills-hardening.md) [epic] — Bulletproof the /backlog-next-epic orchestrator + /backlog-next worker workflows. Theme epic aggregating the confirmed weaknesses from the 2026-06-22 skills audit (docs/reviews/2026-06-22-backlog-skills-audit.md), surfaced by the first real --auto epic run (order-execution-money-path, merge #20). 6 core members.
 - 2026-06-22 — [backlog-skills-misc-polish](backlog/backlog-skills-misc-polish.md) [tooling] — Low-severity perf/prose singletons from the 2026-06-22 skills audit: lint --fix spawns ~388 git subprocesses/run; BACKLOG.md date drifts across midnight; node --test <dir> fails on Node 24 + non-hermetic render tests; --auto debug budget is a magic number; E1 rule-11 guard is prose-only. `[epic:backlog-skills-hardening · core]`
@@ -241,4 +243,3 @@ _(none)_
 - 2026-06-22 — [detect-deploy-service-test-path-no-deploy](backlog/detect-deploy-service-test-path-no-deploy.md) [tooling] — detect-deploy-needed.mjs lacks a Tier-0 rule for services/*/test/**, so a test-only service change defaults to deploy=true (false positive). `[epic:deploy-tooling-integrity · core]`
 - 2026-06-22 — [detect-doc-derivation-resume-and-testability](backlog/detect-doc-derivation-resume-and-testability.md) [tooling] — detect-doc-derivation.mjs diffs whole-branch-vs-origin/main so it reports derivation=true on every epic resume (no signal whether derivation is actually outstanding), and it has no import-meta-main guard / no exports so it runs main() at import and is untestable (unlike its detect-deploy-needed sibling). `[epic:deploy-tooling-integrity · core]`
 - 2026-06-22 — [lint-library-total-and-located](backlog/lint-library-total-and-located.md) [tooling] — backlog-lint render crashes opaquely (no filename) on non-string or duplicate-key frontmatter the skills themselves produce; 4 fragmented frontmatter parsers diverge from the lint gate. Make rendering total + parse errors located + unify on one parser. `[epic:backlog-skills-hardening · core]`
-- 2026-06-22 — [orchestrator-worker-seam-prose](backlog/orchestrator-worker-seam-prose.md) [tooling] — Seam-clarity prose residuals on the /backlog-next-epic <-> /backlog-next drive (audit cluster 5: F-26, F-27, F-28, F-4-residual, F-10). Carved out of backlog-next-epic-member-subagent-isolation on 2026-06-22 so the cheap audit-required prose fixes ship now while the (non-audit, explicitly-deferred) Tier-2 subagent-dispatch refactor returns to standalone parking. Atomicity split decided interactively during the epic run. `[epic:backlog-skills-hardening · core]`
