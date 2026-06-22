@@ -17,35 +17,21 @@
  *   10 — epic is drainable (no open core members) → ready to ship
  *   1  — error (epic not found, not a type:epic, etc.)
  */
-import { readdirSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { execSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
+import { loadBacklogFiles } from '../backlog-lint/lib/frontmatter.mjs';
 
 const OPEN_STATUSES = new Set(['active', 'queued', 'parking']);
 
-/** Minimal frontmatter reader for the flat scalar/`epic:`/`rank:` fields we need.
- * (Lists and nested YAML are irrelevant here — we only read scalars.)
- *
- * DELIBERATELY self-contained (only `node:` imports) rather than reusing
- * backlog-lint/lib/frontmatter.mjs's `yaml` parser: this resolver is meant to lift
- * as-is into any repo adopting the backlog model, so coupling it to the lint lib
- * would defeat its purpose. The only divergence vs the canonical parser is
- * `rank: null` → the string "null", which is unreachable here (rule 6 forces every
- * `queued` member to carry a numeric rank, and rank is read only for queued
- * members). Keep it dependency-light. */
-export function parseFrontmatter(text) {
-  const m = text.match(/^---\n([\s\S]*?)\n---/);
-  if (!m) return {};
-  const fm = {};
-  for (const line of m[1].split('\n')) {
-    const kv = line.match(/^([a-z_]+):\s*(.*)$/i);
-    if (!kv) continue;
-    const [, key, rawVal] = kv;
-    const val = rawVal.trim().replace(/^["']|["']$/g, '');
-    if (val !== '') fm[key] = val;
-  }
-  return fm;
+/** The records main() feeds to the resolver, built via the ONE canonical backlog
+ * frontmatter parser (backlog-lint/lib/frontmatter.mjs) — so epic-members resolves
+ * rosters byte-identically to the lint gate. No 4th hand-rolled parser to drift:
+ * inline comments (`status: active # WIP`) and `rank: null` are handled by the real
+ * `yaml` parser, not lost to a regex. A file the canonical loader cannot parse
+ * yields fm:{}, which simply fails the epic filter (the lint gate reports it located). */
+export function loadRecords(dir) {
+  return loadBacklogFiles(dir).map((f) => ({ id: f.id, fm: f.frontmatter ?? {} }));
 }
 
 /** From a list of {id, fm} records, the CORE members of `epicId` (role core or
@@ -56,7 +42,7 @@ export function coreMembers(records, epicId) {
     .map((r) => ({
       id: r.id,
       status: r.fm.status,
-      rank: r.fm.rank !== undefined ? Number(r.fm.rank) : undefined,
+      rank: r.fm.rank != null ? Number(r.fm.rank) : undefined,
       role: r.fm.epic_role || 'core',
     }))
     .filter((m) => m.role === 'core');
@@ -108,9 +94,7 @@ function main() {
   const repoRoot = execSync('git rev-parse --show-toplevel').toString().trim();
   const dir = join(repoRoot, 'docs/backlog');
 
-  const records = readdirSync(dir)
-    .filter((f) => f.endsWith('.md'))
-    .map((f) => ({ id: f.replace(/\.md$/, ''), fm: parseFrontmatter(readFileSync(join(dir, f), 'utf8')) }));
+  const records = loadRecords(dir);
 
   const epic = records.find((r) => r.id === epicId);
   if (!epic) {

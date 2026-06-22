@@ -145,3 +145,23 @@ test('renderIndex counts parking theme epics and orphans in health line', () => 
   // 1 parking theme epic; orphan count excludes the member that belongs to the theme
   assert.match(out, /Parking health:\*\* 1 theme epic\(s\), 1 orphan\(s\)/);
 });
+
+test('renderIndex is total: a non-string notes (YAML list) does not crash the render', () => {
+  const files = [
+    file('a', { status: 'active', out_of_scope: ['y'], notes: '' }),
+    // notes written as a list — e.g. a backlog-add one-liner starting with "-"
+    file('park', { status: 'parking', notes: ['- accidental', '- list'] }),
+  ];
+  const out = renderIndex(files);                  // must not throw
+  assert.match(out, /## LATER/);
+  assert.match(out, /\(backlog\/park\.md\)/);
+});
+
+test('renderIndex excludes a null-frontmatter (unparseable) record without throwing', () => {
+  const files = [
+    file('a', { status: 'active', out_of_scope: ['y'], notes: '' }),
+    { id: 'broken', filename: 'broken.md', path: '/dummy/broken.md', frontmatter: null, body: '', parseError: 'boom' },
+  ];
+  const out = renderIndex(files);                  // must not throw
+  assert.ok(!out.includes('(backlog/broken.md)'), 'unparseable file must not appear in the index');
+});

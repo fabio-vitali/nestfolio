@@ -1,14 +1,18 @@
 ---
 id: lint-library-total-and-located
-status: parking
+status: shipped
 type: tooling
 notes: "backlog-lint render crashes opaquely (no filename) on non-string or duplicate-key frontmatter the skills themselves produce; 4 fragmented frontmatter parsers diverge from the lint gate. Make rendering total + parse errors located + unify on one parser."
 references: []
-out_of_scope: []
-spec: null
-plan: null
+out_of_scope:
+  - "detect-deploy-needed.mjs / detect-doc-derivation.mjs readers (the 2 detect-* parsers) — those are the 3rd/4th forks but are homed in the deploy-tooling-integrity epic (F-1, F-2/F-3); this member unifies only epic-members.mjs onto the canonical lint parser"
+  - "lint --fix performance (F-29 ~25s / per-shipped-file git log fan-out) — owned by backlog-skills-misc-polish"
+  - "--auto decision discipline, merge ownership, run-state, ship/merge mechanics — separate backlog-skills-hardening core members"
+  - "The backlog data-model redesign itself (backlog-redesign) — this hardens the parser/render machinery, not the model"
+spec: docs/superpowers/specs/2026-06-22-lint-library-total-and-located-design.md
+plan: docs/superpowers/plans/2026-06-22-lint-library-total-and-located.md
 topic_memory: []
-validation_gate: null
+validation_gate: "Commits 08ab7ead (total loadBacklogFiles → per-file parseError), 02a73238 (located frontmatter-parseable gate), 20eb05c1 (total str() render), 9ba0dedb (epic-members unified onto canonical loadBacklogFiles — 4th parser deleted), db7cae4a (backlog-add quoted-notes guard). 51/51 node --test across frontmatter/rules/index-render/epic-members suites. `lint.mjs --fix` total: exit 0, '✓ 340 backlog files; all 11 rules pass'. Located proof: a duplicate-key file → exit 1, '[frontmatter-parseable] zzz-scratch-malformed.md: malformed YAML frontmatter — Map keys must be unique', NO raw YAMLParseError stack leak. CLI smoke: `epic-members.mjs backlog-skills-hardening` resolves via the unified loader (next=lint-library-total-and-located, exit 0). Tier-0 change: no deploy, no nx-affected projects, no doc-derivation."
 epic: backlog-skills-hardening
 epic_role: core
 ---

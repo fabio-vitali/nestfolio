@@ -1,25 +1,50 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
+import { join } from 'node:path';
+import { mkdtempSync, writeFileSync, rmSync } from 'node:fs';
+import { tmpdir } from 'node:os';
 import {
-  parseFrontmatter,
   coreMembers,
   openMembers,
   isDrainable,
   selectNextMember,
+  loadRecords,
 } from '../epic-members.mjs';
 
-test('parseFrontmatter reads flat scalar fields and strips quotes', () => {
-  const fm = parseFrontmatter('---\nid: foo\nstatus: queued\nepic: my-epic\nepic_role: core\nrank: 3\nnotes: "hi there"\n---\nbody');
-  assert.equal(fm.id, 'foo');
-  assert.equal(fm.status, 'queued');
-  assert.equal(fm.epic, 'my-epic');
-  assert.equal(fm.epic_role, 'core');
-  assert.equal(fm.rank, '3');
-  assert.equal(fm.notes, 'hi there');
+test('loadRecords parses identically to the lint gate: inline comments + rank:null', () => {
+  const dir = mkdtempSync(join(tmpdir(), 'epic-members-'));
+  // a core member whose status carries an inline comment — must be seen as ACTIVE
+  writeFileSync(join(dir, 'm-wip.md'), `---
+id: m-wip
+epic: E
+epic_role: core
+status: active # WIP
+---
+`);
+  // a captured member whose role carries an inline comment — must be EXCLUDED from core
+  writeFileSync(join(dir, 'm-capt.md'), `---
+id: m-capt
+epic: E
+epic_role: captured # rides along
+status: queued
+rank: null
+---
+`);
+  const records = loadRecords(dir);
+  const core = coreMembers(records, 'E');
+  const ids = core.map(m => m.id).sort();
+  assert.deepEqual(ids, ['m-wip'], 'captured(#comment) excluded; active(#comment) kept as core');
+  assert.equal(core.find(m => m.id === 'm-wip').status, 'active');     // comment stripped
+  assert.equal(selectNextMember(core), 'm-wip');                        // active member resumes
+  rmSync(dir, { recursive: true });
 });
 
-test('parseFrontmatter returns {} when no frontmatter block', () => {
-  assert.deepEqual(parseFrontmatter('no frontmatter here'), {});
+test('coreMembers treats rank:null as undefined (sorts after explicit ranks)', () => {
+  const recs = [
+    { id: 'nullrank', fm: { epic: 'E', status: 'queued', rank: null, epic_role: 'core' } },
+    { id: 'r2', fm: { epic: 'E', status: 'queued', rank: 2, epic_role: 'core' } },
+  ];
+  assert.equal(selectNextMember(coreMembers(recs, 'E')), 'r2');
 });
 
 const records = [

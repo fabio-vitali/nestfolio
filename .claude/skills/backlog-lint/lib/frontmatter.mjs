@@ -10,13 +10,23 @@ export function parseFrontmatter(content) {
   return { frontmatter: parseYaml(m[1]), body: m[2] };
 }
 
+// Total parse boundary: a malformed file (e.g. a duplicate frontmatter key the ship
+// steps can produce) must NOT crash the whole run. Each record carries a parseError
+// (null when clean); ruleFrontmatterParseable surfaces it located-by-filename.
+// parseFrontmatter itself stays single-responsibility (parse or throw); the totality
+// lives here, mirroring the dossier-sync guard.
 export function loadBacklogFiles(dir) {
   return readdirSync(dir)
     .filter(f => f.endsWith('.md') && f !== 'README.md')
     .map(f => {
       const path = join(dir, f);
+      const id = f.replace(/\.md$/, '');
       const content = readFileSync(path, 'utf8');
-      const { frontmatter, body } = parseFrontmatter(content);
-      return { filename: f, id: f.replace(/\.md$/, ''), path, frontmatter, body };
+      try {
+        const { frontmatter, body } = parseFrontmatter(content);
+        return { filename: f, id, path, frontmatter, body, parseError: null };
+      } catch (e) {
+        return { filename: f, id, path, frontmatter: null, body: content, parseError: e.message.split('\n')[0] };
+      }
     });
 }

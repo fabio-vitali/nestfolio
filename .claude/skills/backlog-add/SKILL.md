@@ -85,6 +85,8 @@ validation_gate: null
 <Evidence: file:line refs, hypothesis, cheapest next step. Pointer to topic memory if one exists.>
 ```
 
+> **Always emit `notes:` (and any free-text scalar) as a double-quoted string** — as templated above, never a bare value. A bare one-liner that begins with `-` or `:` parses as a YAML list/map, not a string. The lint read-side is now total (it locates such a file via the `frontmatter-parseable` gate rather than crashing), but quoting keeps the write correct at the source.
+
 ## File template (theme epic — router branch 3)
 
 When minting a new theme epic to aggregate a root-cause cluster:

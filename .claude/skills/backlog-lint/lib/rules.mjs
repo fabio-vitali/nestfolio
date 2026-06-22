@@ -13,6 +13,17 @@ export const epicRole = (f) => f.frontmatter?.epic_role ?? 'core';
 export const membersOf = (epicId, files) =>
   files.filter(f => f.frontmatter?.epic === epicId);
 
+// Structural precondition gate (NOT a numbered rule): a file whose YAML frontmatter
+// could not be parsed is reported located-by-filename, so a malformed file never
+// crashes the run unlocated. Relies on loadBacklogFiles' total parseError field.
+export function ruleFrontmatterParseable(file) {
+  if (file.parseError) {
+    return [v('frontmatter-parseable', file,
+      `${file.filename}: malformed YAML frontmatter — ${file.parseError}`)];
+  }
+  return [];
+}
+
 export function ruleIdMatchesFilename(file) {
   const expected = file.filename.replace(/\.md$/, '');
   if (file.frontmatter?.id !== expected) {
