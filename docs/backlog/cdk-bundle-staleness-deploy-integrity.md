@@ -1,7 +1,8 @@
 ---
 id: cdk-bundle-staleness-deploy-integrity
-status: active
+status: shipped
 type: tooling
+closed: 2026-06-22
 notes: "Hypothesis: 2026-05-13 dev-investor-bff deploy produced a Lambda bundle whose change-data-capture.ts logic lagged behind source. Surfaced via update-operating-mode-cdc-silent. Need a deploy-time integrity check that the bundle's resolveEmissions actually matches the EVENT_TYPE_MAP shape it'll be asked to process. Resolution (epic --auto, user-confirmed): runtime config-vs-capability INIT guard in changeDataCapture (RC0 blast radius), not the build-stamp/post-deploy-grep alternatives."
 references:
   - infrastructure/scripts/deploy.sh
@@ -15,7 +16,7 @@ out_of_scope:
 spec: null
 plan: null
 topic_memory: []
-validation_gate: null
+validation_gate: "Runtime config-vs-capability INIT guard in changeDataCapture (commit 2c57ecbc): exported classifyMappingShape discriminator (mirrors resolveEmissions' branch order) + assertRuntimeConfigResolvable, throws loud at INIT on any EVENT_TYPE_MAP mapping shape the bundle cannot resolve (stale-bundle class), unconditionally for every CDC service. Validation: (1) change-data-capture.test.ts 28/28 incl. 5 new guard tests (classifier + INIT-throw + legacy-mode + all-valid no-throw); (2) true-affected test+lint GREEN across 35 projects; (3) REAL deployed-config scan — classifier run over 4 dev EVENT_TYPE_MAPs (investor-bff, broker-alpaca-adpt, execution-ctrl, advisory-bff) covering all 4 shape types: every mapping resolves, guard is a no-op for production configs. Per-member 28-service deploy deferred to the epic E6 batched deploy (event-processor consumer fan-out = E6 scope); E6 real-deploys the guard into every CDC Lambda (INIT-exercised) + e2e CDC flows."
 epic: deploy-tooling-integrity
 epic_role: core
 ---
