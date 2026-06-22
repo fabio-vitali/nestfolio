@@ -114,7 +114,11 @@ export function retryTransientDns<A, R>(
         return await handler(args);
       } catch (error) {
         if (attempt >= attempts - 1 || !isTransientDnsError(error)) throw error;
-        await sleep(jitter(DNS_RETRY_BASE_MS * 2 ** attempt));
+        const delay = jitter(DNS_RETRY_BASE_MS * 2 ** attempt);
+        // Harness observability: makes an absorbed DNS blip visible in CI / sweep logs.
+        // eslint-disable-next-line no-console
+        console.warn(`[test-support] transient DNS failure; retry ${attempt + 1}/${attempts - 1} after ${Math.round(delay)}ms`);
+        await sleep(delay);
       }
     }
   };
