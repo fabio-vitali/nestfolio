@@ -5,6 +5,7 @@ import { fileURLToPath } from 'node:url';
 import { ruleIdMatchesFilename, ruleSingleActive, ruleQueuedRanks } from '../lib/rules.mjs';
 import { ruleActiveOutOfScope, ruleShippedValidationGate } from '../lib/rules.mjs';
 import { ruleReferencesValid, rulePromotionTriggerGated } from '../lib/rules.mjs';
+import { ruleFrontmatterParseable } from '../lib/rules.mjs';
 
 const fixturesDir = dirname(fileURLToPath(import.meta.url)) + '/fixtures';
 
@@ -167,4 +168,19 @@ test('rule 8: queued + no trigger anywhere — pass', () => {
 test('rule 8: parking + trigger in notes — skipped (only queued is gated)', () => {
   const f = file('a', { status: 'parking', notes: 'Promote when the forks resolve.' });
   assert.deepEqual(rulePromotionTriggerGated(f), []);
+});
+
+// ── frontmatter-parseable: located gate for malformed YAML ─────────────────
+test('frontmatter-parseable: located violation naming the file when parseError set', () => {
+  const f = { id: 'bad', filename: 'bad.md', path: '/dummy/bad.md',
+              frontmatter: null, body: '', parseError: 'Map keys must be unique' };
+  const violations = ruleFrontmatterParseable(f);
+  assert.equal(violations.length, 1);
+  assert.equal(violations[0].rule, 'frontmatter-parseable');
+  assert.equal(violations[0].file, 'bad.md');
+  assert.match(violations[0].message, /bad\.md.*malformed YAML/i);
+});
+
+test('frontmatter-parseable: no violation for a cleanly parsed file', () => {
+  assert.deepEqual(ruleFrontmatterParseable(file('ok')), []);
 });
