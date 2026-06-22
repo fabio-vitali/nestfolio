@@ -7,13 +7,15 @@
  * bash in /backlog-next Step 1a, now a tested pure helper.
  *
  * Usage:
- *   node epic-members.mjs <epic-id>
+ *   node epic-members.mjs <epic-id>      # roster + next core member (or drainable)
+ *   node epic-members.mjs --active-epics # rule-11 guard: ids of all active epics (E1)
  *
  * Output (stdout): the epic's resolved roster + the selected next core member,
- * or a "drainable" marker when no open core member remains.
+ * or a "drainable" marker when no open core member remains. With --active-epics:
+ * one active-epic id per line (or "(none)").
  *
  * Exit codes:
- *   0  — a next core member was selected (printed as `next=<id>`)
+ *   0  — a next core member was selected (printed as `next=<id>`), OR --active-epics query ran
  *   10 — epic is drainable (no open core members) → ready to ship
  *   1  — error (epic not found, not a type:epic, etc.)
  */
@@ -58,6 +60,17 @@ export function isDrainable(members) {
   return openMembers(members).length === 0;
 }
 
+/** Ids of all `type: epic` files currently `status: active` — the rule-11 / single-active-epic
+ * surface. Reuses the ONE canonical parser (no grep), so the E1 pre-promotion guard cannot
+ * drift from the lint gate. The E0 preflight does NOT cover this: at promotion time the target
+ * is still parking, so 0-or-1 epics are active and the guard is load-bearing (F-32). */
+export function activeEpics(records) {
+  return records
+    .filter((r) => r.fm.type === 'epic' && r.fm.status === 'active')
+    .map((r) => r.id)
+    .sort((a, b) => a.localeCompare(b));
+}
+
 /**
  * The next CORE member to work, by the deterministic ordering:
  *   1. a core member already `active` → resume it (the in-flight slice);
@@ -85,16 +98,25 @@ export function selectNextMember(members) {
 }
 
 function main() {
-  const epicId = process.argv[2];
-  if (!epicId) {
-    console.error('Usage: epic-members.mjs <epic-id>');
-    process.exit(1);
-  }
-
+  const args = process.argv.slice(2);
   const repoRoot = execSync('git rev-parse --show-toplevel').toString().trim();
   const dir = join(repoRoot, 'docs/backlog');
-
   const records = loadRecords(dir);
+
+  // Rule-11 / E1 pre-promotion guard: list every currently-active epic (one id per line,
+  // or "(none)"). The orchestrator stops if any id other than the target it is about to
+  // promote appears. Always exits 0 — it's a query, not a gate.
+  if (args.includes('--active-epics')) {
+    const ids = activeEpics(records);
+    console.log(ids.length ? ids.join('\n') : '(none)');
+    process.exit(0);
+  }
+
+  const epicId = args[0];
+  if (!epicId) {
+    console.error('Usage: epic-members.mjs <epic-id> | --active-epics');
+    process.exit(1);
+  }
 
   const epic = records.find((r) => r.id === epicId);
   if (!epic) {

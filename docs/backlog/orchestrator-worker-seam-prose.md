@@ -1,6 +1,7 @@
 ---
 id: orchestrator-worker-seam-prose
 status: shipped
+closed: 2026-06-22
 type: tooling
 notes: "Seam-clarity prose residuals on the /backlog-next-epic <-> /backlog-next drive (audit cluster 5: F-26, F-27, F-28, F-4-residual, F-10). Carved out of backlog-next-epic-member-subagent-isolation on 2026-06-22 so the cheap audit-required prose fixes ship now while the (non-audit, explicitly-deferred) Tier-2 subagent-dispatch refactor returns to standalone parking. Atomicity split decided interactively during the epic run."
 references: []

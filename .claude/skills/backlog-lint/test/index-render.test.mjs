@@ -7,6 +7,10 @@ const file = (id, fm) => ({
   frontmatter: { id, type: 'bug', notes: '', ...fm }, body: '',
 });
 
+// Hermetic git stub — injected so renderIndex never shells out to real git during tests
+// (previously a per-fixture `git log -- /dummy/...` spewed `fatal: Invalid path`). F-31.
+const NO_GIT = { dirty: new Set(), dateMap: new Map() };
+
 test('renderIndex includes all four sections in order', () => {
   const files = [
     file('act-x', { status: 'active', out_of_scope: ['y'], type: 'spec', notes: 'in flight' }),
@@ -15,7 +19,7 @@ test('renderIndex includes all four sections in order', () => {
     file('park-a', { status: 'parking', notes: 'someday' }),
     file('ship-1', { status: 'shipped', validation_gate: '5/5', notes: 'done', closed: '2026-05-06' }),
   ];
-  const out = renderIndex(files);
+  const out = renderIndex(files, NO_GIT);
   assert.match(out, /## ACTIVE/);
   assert.match(out, /## QUEUED/);
   assert.match(out, /## LATER/);
@@ -30,7 +34,7 @@ test('renderIndex links by id-relative path and includes notes one-liner', () =>
   const files = [
     file('act-x', { status: 'active', out_of_scope: ['y'], type: 'spec', notes: 'in flight' }),
   ];
-  const out = renderIndex(files);
+  const out = renderIndex(files, NO_GIT);
   assert.match(out, /\[act-x\]\(backlog\/act-x\.md\)/);
   assert.match(out, /in flight/);
   assert.match(out, /\[spec\]/);
@@ -43,7 +47,7 @@ test('renderIndex orders QUEUED by rank', () => {
     file('q-1', { status: 'queued', rank: 1, notes: 'first' }),
     file('q-2', { status: 'queued', rank: 2, notes: 'second' }),
   ];
-  const out = renderIndex(files);
+  const out = renderIndex(files, NO_GIT);
   const queuedSection = out.split('## QUEUED')[1].split('## LATER')[0];
   assert.ok(queuedSection.indexOf('q-1') < queuedSection.indexOf('q-2'));
   assert.ok(queuedSection.indexOf('q-2') < queuedSection.indexOf('q-3'));
@@ -55,7 +59,7 @@ test('renderIndex caps Recently Shipped at 10', () => {
     shipped.push(file(`s-${i}`, { status: 'shipped', validation_gate: 'ok', notes: '' }));
   }
   const files = [file('a', { status: 'active', out_of_scope: ['y'], notes: '' }), ...shipped];
-  const out = renderIndex(files);
+  const out = renderIndex(files, NO_GIT);
   const section = out.split('## Recently Shipped')[1];
   const matches = section.match(/\[s-\d+\]/g) ?? [];
   assert.ok(matches.length <= 10, `expected ≤10, got ${matches.length}`);
@@ -70,7 +74,7 @@ test('renderIndex shows EPICS rollup; ACTIVE-epic members are NOT duplicated int
     file('q-mem', { status: 'queued', rank: 1, epic: 'e1', epic_role: 'core', notes: 'fix c' }),
     file('orphan', { status: 'parking', notes: 'lonely' }),
   ];
-  const out = renderIndex(files);
+  const out = renderIndex(files, NO_GIT);
   assert.match(out, /## EPICS/);
   assert.match(out, /\[e1\]\(backlog\/e1\.md\) `\[epic · active\]`/);
   assert.match(out, /done_when: all core shipped/);
@@ -98,7 +102,7 @@ test('renderIndex KEEPS theme/queued-epic members in flat sections (only ACTIVE-
     file('theme', { type: 'epic', status: 'parking', notes: 'bucket' }),
     file('tm-mem', { status: 'parking', epic: 'theme', epic_role: 'core', notes: 'theme member' }),
   ];
-  const out = renderIndex(files);
+  const out = renderIndex(files, NO_GIT);
   // theme epic is NOT active → its member retains the flat listing + tag (2026-06-16 model).
   const laterSection = out.split('## LATER')[1].split('## Recently Shipped')[0];
   assert.ok(laterSection.includes('(backlog/tm-mem.md)'));
@@ -141,7 +145,7 @@ test('renderIndex counts parking theme epics and orphans in health line', () => 
     file('member', { status: 'parking', epic: 'theme', epic_role: 'core', notes: '' }),
     file('orphan', { status: 'parking', notes: '' }),
   ];
-  const out = renderIndex(files);
+  const out = renderIndex(files, NO_GIT);
   // 1 parking theme epic; orphan count excludes the member that belongs to the theme
   assert.match(out, /Parking health:\*\* 1 theme epic\(s\), 1 orphan\(s\)/);
 });
@@ -152,7 +156,7 @@ test('renderIndex is total: a non-string notes (YAML list) does not crash the re
     // notes written as a list — e.g. a backlog-add one-liner starting with "-"
     file('park', { status: 'parking', notes: ['- accidental', '- list'] }),
   ];
-  const out = renderIndex(files);                  // must not throw
+  const out = renderIndex(files, NO_GIT);                  // must not throw
   assert.match(out, /## LATER/);
   assert.match(out, /\(backlog\/park\.md\)/);
 });
@@ -162,6 +166,18 @@ test('renderIndex excludes a null-frontmatter (unparseable) record without throw
     file('a', { status: 'active', out_of_scope: ['y'], notes: '' }),
     { id: 'broken', filename: 'broken.md', path: '/dummy/broken.md', frontmatter: null, body: '', parseError: 'boom' },
   ];
-  const out = renderIndex(files);                  // must not throw
+  const out = renderIndex(files, NO_GIT);                  // must not throw
   assert.ok(!out.includes('(backlog/broken.md)'), 'unparseable file must not appear in the index');
+});
+
+// Regression for the F-29/F-31 refactor: shipped dates come from the injected dateMap
+// (one batched git pass), not a per-file git spawn — and injection makes it fully hermetic.
+test('renderIndex resolves shipped dates from the injected gitInfo.dateMap', () => {
+  const files = [
+    file('a', { status: 'active', out_of_scope: ['y'], notes: '' }),
+    file('ship-x', { status: 'shipped', validation_gate: 'ok', notes: 'done' }),
+  ];
+  const gitInfo = { dirty: new Set(), dateMap: new Map([['/dummy/ship-x.md', '2026-06-15']]) };
+  const out = renderIndex(files, gitInfo);
+  assert.match(out, /2026-06-15 — \[ship-x\]\(backlog\/ship-x\.md\)/);
 });

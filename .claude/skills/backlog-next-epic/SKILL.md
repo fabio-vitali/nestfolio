@@ -51,7 +51,11 @@ Standard lane: tree clean, `main` == `origin/main`, `backlog-lint` green, no sta
 node .claude/skills/backlog-next-epic/epic-members.mjs <epic-id>   # roster + next core member (exit 10 = already drainable)
 ```
 
-- **Rule 11 guard.** If a *different* epic is already `status: active`, stop and ask resume-vs-switch — never promote a second delivery epic.
+- **Rule 11 guard.** Before promoting, list the currently-active epics with the canonical parser (NOT a hand-rolled `grep` — F-32; and the E0 preflight does NOT cover this, since at promotion time only 0-or-1 epics are active):
+  ```bash
+  node .claude/skills/backlog-next-epic/epic-members.mjs --active-epics   # one id per line, or "(none)"
+  ```
+  If it prints any id *other than* the `<epic-id>` you are about to promote, a *different* epic is already `status: active` → stop and ask resume-vs-switch; never promote a second delivery epic. (If it prints the target itself, this is a resume — the resume gate already handled it.)
 - **Promote.** Set the target epic `status: active`; ensure `done_when:` + `scope:` + `out_of_scope:` are present (rule 4). Commit this **promotion marker on `main`** and push (docs-backlog-on-main convention; makes the in-flight epic + its branch name visible for crash-recovery). `node .claude/skills/backlog-lint/lint.mjs --fix`, commit the index.
 - If `epic-members.mjs` already reports the epic **drainable** (exit 10) before any work, still create the worktree (E2) and run the **E6 batched e2e gate on the cumulative state** before shipping — do NOT skip straight to E7 with an unproduced validation_gate. (If the epic genuinely touched no deployable code, E6's deploy/e2e detectors will no-op and E7.3's `validation_gate:` cites per-member evidence + the no-op note.)
 
@@ -94,7 +98,7 @@ Repeat until `epic-members.mjs` reports drainable (exit 10):
 
 1. **Pick** the next core member from `epic-members.mjs` (`next=<member-id>`).
 2. **Run** `/backlog-next <member-id>` in **epic-member mode** — invoke it **via the Skill tool** and pass the epic context (active epic `<id>`, branch `feat/epic-<id>`, worktree). `backlog-next` is intentionally **NOT** `disable-model-invocation` (unlike this orchestrator) precisely so the orchestrator can drive it: the Skill tool loads the worker's SKILL.md **inline into this orchestrator's own context** — that inline run (NOT a detached subagent) IS the intended execution model, and is why member work accumulates in the orchestrator's context (the very growth E4.5 checkpoints and the parked Tier-2 subagent-isolation item address). Do not expect a refusal and do not "recover" by some other path; the Skill-tool call is the seam. The worker applies its § "Epic-member mode" deltas: preflight/postflight `--lane=epic-member`, work inside this worktree, commit on the branch, run **per-member integration tests** only, and **skip** the expensive e2e / finishing / cleanup / push. Critically, the worker drives any `executing-plans`/`subagent-driven-development` only through task-execution and **STOPS before their `finishing-a-development-branch` handoff** (worker Step 5 delta) — that handoff would otherwise merge/PR the epic branch mid-loop and destroy the one-PR invariant.
-3. **Per-member gate.** The member's integration tests (and doc-derivation) must be green before advancing — a failure is NOT a decision: route to `superpowers:systematic-debugging`. In `--auto`, attempt the fix within a **bounded budget — at most 3 debug→re-run cycles**; exceeding it is a named floor item (E5) → **pause** and surface to the user (never loop unbounded burning dev deploys + integration runs).
+3. **Per-member gate.** The member's integration tests (and doc-derivation) must be green before advancing — a failure is NOT a decision: route to `superpowers:systematic-debugging`. In `--auto`, attempt the fix within a **bounded budget — at most 3 debug→re-run cycles** (3 because each cycle is an expensive dev deploy + integration run, and a fix that hasn't converged in three attempts is almost always a missing decision or a wrong assumption — i.e. a floor pause — not a fourth mechanical retry; tune the number only with that cost/diagnosis trade-off in mind — F-9); exceeding it is a named floor item (E5) → **pause** and surface to the user (never loop unbounded burning dev deploys + integration runs).
 4. **Record.** The member's own ship (its frontmatter `status: shipped`, committed on the branch) IS the state — the next loop re-derives progress from `epic-members.mjs`, so there is nothing to mirror into run-state. Append to the run-state `decisions` log only if a fork fired (E5).
 5. **Context checkpoint (between members) — bounds `--auto` context growth.** After a member ships **and** its `--lane=epic-member` postflight passes (a clean, fully-committed state), emit a fixed **STABLE CHECKPOINT** block:
 
@@ -158,7 +162,7 @@ pnpm nx run nestfolio-e2e:e2e                                                # s
 1. **Captured audit.** `lint.mjs` prints the active epic's open captured members. Re-test each against `done_when` (closure-predicate test). Promote any load-bearing one to `core` — then it must be resolved/dropped (it does NOT spin out), which sends you back to E4 for that member.
 2. **Ship preconditions (BOTH required).** (a) Rule 9 — every core member terminal (`epic-members.mjs` exit 10); **and** (b) the E6 batched e2e is **green**. Exit 10 alone is necessary but **NOT sufficient** — a drainable epic whose batched e2e is red or never ran must not ship.
 3. **Spin out genuinely-orthogonal captured members FIRST (manual — `lint --fix` does NOT do this).** `lint --fix` only regenerates the index; `ruleEpicClosure` merely *blocks* the ship if any captured member is still open. So before shipping: if any captured member remains open after the audit, create `docs/backlog/<id>-leftovers.md` (a `type: epic`, `status: parking` theme bucket) and repoint each such member's `epic:` pointer to `<id>-leftovers`. (Skip entirely if there are no open captured members.)
-4. **Ship the epic.** Edit `docs/backlog/<id>.md` → `status: shipped`, fill `validation_gate:` with the batched-e2e evidence + branch SHA (for an E1 short-circuit with no deployable code, cite per-member evidence + the no-op note). Commit on the branch.
+4. **Ship the epic.** Edit `docs/backlog/<id>.md` → `status: shipped`, fill `validation_gate:` with the batched-e2e evidence + branch SHA (for an E1 short-circuit with no deployable code, cite per-member evidence + the no-op note), **and stamp `closed: <today>`** (the authoritative Recently-Shipped date — immune to across-midnight drift; see `/backlog-next` 6.6, F-30). Commit on the branch.
 5. `node .claude/skills/backlog-lint/lint.mjs --fix` — regenerates `docs/BACKLOG.md` + dossiers and confirms rule 9 now passes. Commit.
 
 ### E8. Single PR + cleanup + epic postflight
@@ -209,3 +213,9 @@ This same machinery is what makes the **E4.5 context checkpoint** safe: an inter
 ## Related
 
 `backlog-next` (the member worker this skill drives in epic-member mode), `backlog-lint`, `backlog-add`, `backlog-themes`, `superpowers:finishing-a-development-branch` / `systematic-debugging` / `brainstorming`. Supporting files: `epic-members.mjs` (+ `test/epic-members.test.mjs`). Design: `docs/superpowers/specs/2026-06-21-backlog-next-epic-orchestrator-design.md`.
+
+**Run the tests** (use the **glob** form — `node --test <dir>` does not discover suites on Node 24):
+
+```bash
+node --test .claude/skills/backlog-next-epic/test/*.test.mjs
+```
