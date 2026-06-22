@@ -10,25 +10,39 @@ describe('broker-ctrl contracts', () => {
     const row = {
       pk: 'NormalizedEvent#t#o1', sk: 'ORDER_FILLED#2026', __typename: 'NormalizedEvent',
       tenantId: 't', userId: 'u', region: 'us-east-1',
-      orderId: 'o1', executionMode: 'simulation', filledQty: 10, averageFillPrice: 200,
+      orderId: 'o1', symbol: 'VTI', side: 'BUY', executionMode: 'simulation', filledQty: 10, averageFillPrice: 200,
       timestamp: '2026-06-10T00:00:00.000Z',
     };
     const parsed = NormalizedOrderEventSchema.parse(row);
     expect('tenantId' in parsed).toBe(false);
     expect(parsed.orderId).toBe('o1');
+    expect(parsed.symbol).toBe('VTI');
+    expect(parsed.side).toBe('BUY');
     expect(parsed.filledQty).toBe(10);
   });
 
   it('NormalizedOrderEventSchema parses a REJECTED order subject (failureReason, no fill)', () => {
     expect(NormalizedOrderEventSchema.parse({
-      orderId: 'o1', executionMode: 'live', failureReason: 'insufficient buying power',
+      orderId: 'o1', symbol: 'VTI', side: 'BUY', executionMode: 'live', failureReason: 'insufficient buying power',
       timestamp: '2026-06-10T00:00:00.000Z',
     }).failureReason).toBe('insufficient buying power');
   });
 
+  it('NormalizedOrderEventSchema carries symbol/side, optional at the producer boundary (WS-3 break D producer)', () => {
+    const base = { orderId: 'o1', symbol: 'VTI', side: 'BUY' as const, executionMode: 'simulation' as const, timestamp: '2026-06-10T00:00:00.000Z' };
+    const parsed = NormalizedOrderEventSchema.parse(base);
+    expect(parsed.symbol).toBe('VTI');
+    expect(parsed.side).toBe('BUY');
+    // Optional here — the producer (order SF) always writes them, but the re-exported contract
+    // stays backward-compatible; the consumer tightens to required (WS-4).
+    expect(NormalizedOrderEventSchema.safeParse({ ...base, symbol: undefined, side: undefined }).success).toBe(true);
+    // an invalid side value is still rejected
+    expect(NormalizedOrderEventSchema.safeParse({ ...base, side: 'HOLD' }).success).toBe(false);
+  });
+
   it('NormalizedOrderEventSchema rejects an unknown executionMode', () => {
     expect(() => NormalizedOrderEventSchema.parse({
-      orderId: 'o1', executionMode: 'paper', timestamp: '2026-06-10T00:00:00.000Z',
+      orderId: 'o1', symbol: 'VTI', side: 'BUY', executionMode: 'paper', timestamp: '2026-06-10T00:00:00.000Z',
     })).toThrow();
   });
 
@@ -36,7 +50,7 @@ describe('broker-ctrl contracts', () => {
     const parsed = BrokerOrderSchema.parse({
       tenantId: 't', pk: 'BrokerOrder#t#o1', sk: 'BrokerOrder', __typename: 'BrokerOrder',
       orderId: 'o1', executionMode: 'live', state: 'AWAITING_FILL', routedTo: 'alpaca',
-      requestedQty: 10, filledQty: 0, remainingQty: 10, retryCount: 0,
+      requestedAmountCents: 50000, filledQty: 0, retryCount: 0,
       instrumentId: 'VTI', routedAt: '2026-06-10T00:00:00.000Z',
     });
     expect('tenantId' in parsed).toBe(false);
@@ -46,7 +60,7 @@ describe('broker-ctrl contracts', () => {
   it('BrokerOrderSchema rejects an invalid state', () => {
     expect(() => BrokerOrderSchema.parse({
       orderId: 'o1', executionMode: 'live', state: 'PAUSED', routedTo: 'alpaca',
-      requestedQty: 10, filledQty: 0, remainingQty: 10, retryCount: 0,
+      requestedAmountCents: 50000, filledQty: 0, retryCount: 0,
       instrumentId: 'VTI', routedAt: '2026-06-10T00:00:00.000Z',
     })).toThrow();
   });
@@ -54,7 +68,7 @@ describe('broker-ctrl contracts', () => {
   it('BrokerOrderSchema parses when all optional fields are omitted', () => {
     const parsed = BrokerOrderSchema.parse({
       orderId: 'o1', executionMode: 'simulation', state: 'ROUTING', routedTo: 'sim',
-      requestedQty: 5, filledQty: 0, remainingQty: 5, retryCount: 0,
+      requestedAmountCents: 25000, filledQty: 0, retryCount: 0,
       instrumentId: 'VTI', routedAt: '2026-06-10T00:00:00.000Z',
     });
     expect(parsed.fillTaskToken).toBeUndefined();

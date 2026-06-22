@@ -1,6 +1,6 @@
 ---
 id: ledger-ctrl-live-tax-lot-missing-order-fields
-status: parking
+status: shipped
 epic: order-execution-money-path
 epic_role: core
 type: bug
@@ -9,11 +9,15 @@ references:
   - services/ledger/ledger-ctrl/src/domain/account.reducer.ts
   - apps/e2e-feature-tests/src/advisory/accept-decision.e2e.test.ts
   - docs/backlog/typed-test-fixtures-cross-domain-order-events.md
-out_of_scope: []
+out_of_scope:
+  - "producer-side symbol/side emission on ORDER_FILLED — shipped in WS-3 broker-ctrl-order-sf-input-contract-gap"
+  - "tightening NormalizedOrderEventSchema symbol/side to required + repo-wide ORDER_* fixture churn — not needed: the consumer normalizes the actual payload and RecordFillSchema is the strict validation boundary"
+  - "real-path accept-decision e2e + flow-spec sync — WS-5 order-execution-money-path-real-e2e"
+  - "the shadow-fill (simulated) ledger path — already writes the canonical {quantity,fillPrice,filledAt} shape; unchanged"
 spec: docs/superpowers/specs/2026-06-19-order-execution-money-path-design.md
-plan: null
+plan: docs/superpowers/plans/2026-06-21-ws4-ledger-ctrl-typed-recordfill.md
 topic_memory: []
-validation_gate: null
+validation_gate: "WS-4 of order-execution-money-path, on feat/epic-order-execution-money-path (commits 6566a374 + bac4c534). Fix: processOrderActualEvent normalizes the actual ORDER_FILLED payload to the canonical RecordFill shape (quantity←filledQty, fillPrice←averageFillPrice, filledAt←ctx.timestamp) so the reducer (which, with the shadow-fill path, already reads canonical names) applies real economics — cash balance + positions now update on fills; the live tax-lot block reads the typed parsed subject (symbol/side/filledQty/averageFillPrice), removing the payload.subject boundary cast + as-casts. No NormalizedOrderEventSchema tightening needed (kept optional; RecordFillSchema is the strict consumer boundary). Verified: ledger-ctrl unit suite green; true-affected test+lint across 32 projects green; read-model-drift green. Deployed dev (ledger-ctrl). Per-member integration vs deployed dev GREEN: ledger-ctrl 19/19 (2 suites) — incl. ORDER_FILLED/ORDER_PARTIALLY_FILLED→BALANCE_UPDATED and the order-agnostic full shuffle, after migrating the integration ORDER + shuffle-deposit fixtures to honest post-WS-3 shapes (also resolved captured member ledger-ctrl-resilience-shuffle-stale-fixtures). Expensive accept-decision e2e batched at epic E6."
 ---
 
 # ledger-ctrl live-fill tax-lot reads order fields ORDER_FILLED doesn't carry

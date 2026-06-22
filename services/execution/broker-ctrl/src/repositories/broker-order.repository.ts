@@ -8,7 +8,7 @@ export interface CreateOrderParams {
   orderId: string;
   executionMode: string;
   routedTo: string;
-  requestedQty: number;
+  requestedAmountCents: number;
   instrumentId: string;
   fillTaskToken: string;
 }
@@ -33,9 +33,8 @@ export class BrokerOrderRepository extends TableRepository {
         executionMode: params.executionMode as BrokerOrder['executionMode'],
         routedTo: params.routedTo as BrokerOrder['routedTo'],
         fillTaskToken: params.fillTaskToken,
-        requestedQty: params.requestedQty,
+        requestedAmountCents: params.requestedAmountCents,
         filledQty: 0,
-        remainingQty: params.requestedQty,
         retryCount: 0,
         instrumentId: params.instrumentId,
         routedAt: now,

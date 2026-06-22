@@ -300,6 +300,32 @@ describe('ledger-ctrl event-listener handler', () => {
     expect(payload['fillPrice']).toBe(100.0);
   });
 
+  it('normalizes the actual ORDER_FILLED payload to the canonical RecordFill shape (WS-4 break D consumer)', async () => {
+    mockSend.mockResolvedValue({ Items: [], Attributes: { lastSequence: 1 } });
+
+    await harness.process([
+      fakeSqsRecord('ORDER_FILLED', {
+        orderId: 'order-norm', symbol: 'VTI', side: 'BUY',
+        executionMode: 'simulation', filledQty: 2.5, averageFillPrice: 200,
+        timestamp: '2025-01-01T00:00:00.000Z',
+      }, { tenantId: 't1', eventId: 'evt-norm-1' }),
+    ]);
+
+    const { PutCommand } = jest.requireMock('@aws-sdk/lib-dynamodb') as { PutCommand: jest.Mock };
+    const ledgerPut = PutCommand.mock.calls.find(
+      (c: Array<Record<string, Record<string, unknown>>>) =>
+        ((c[0]?.['Item']?.['payload']) as Record<string, unknown> | undefined)?.['orderId'] === 'order-norm',
+    );
+    expect(ledgerPut).toBeDefined();
+    const payload = (ledgerPut as Array<Record<string, Record<string, unknown>>>)[0]['Item']['payload'] as Record<string, unknown>;
+    // canonical RecordFill names the reducer + shadow-fill path read
+    expect(payload['quantity']).toBe(2.5);       // ← filledQty
+    expect(payload['fillPrice']).toBe(200);      // ← averageFillPrice
+    expect(typeof payload['filledAt']).toBe('string'); // ← ctx.timestamp
+    expect(payload['symbol']).toBe('VTI');
+    expect(payload['side']).toBe('BUY');
+  });
+
   it('should skip unknown event types', async () => {
     const result = await harness.process([
       fakeSqsRecord('UNKNOWN_EVENT', {}, { tenantId: 't1' }),
@@ -339,11 +365,9 @@ describe('ledger-ctrl event-listener handler', () => {
           tenantId: 't1',
           orderId: 'ord-buy-1',
           symbol: 'VTI',
-          // boundary: ORDER_FILLED carries no filledQuantity/quantity — resolves to undefined.
-          // Pre-existing latent bug (docs/backlog/ledger-ctrl-live-tax-lot-missing-order-fields.md);
-          // WS-3 preserves the broken behavior, does not read subject.filledQty here.
-          quantity: undefined,
-          costBasisPerShare: 250.00, // from subject.averageFillPrice (schema field)
+          // WS-4: tax-lot now reads the typed parsed subject — real quantity from filledQty.
+          quantity: 50,
+          costBasisPerShare: 250.00, // from subject.averageFillPrice
         }),
       );
     });
@@ -367,11 +391,9 @@ describe('ledger-ctrl event-listener handler', () => {
         expect.objectContaining({
           tenantId: 't1',
           symbol: 'VTI',
-          // boundary: ORDER_FILLED carries no filledQuantity/quantity — resolves to undefined.
-          // Pre-existing latent bug (docs/backlog/ledger-ctrl-live-tax-lot-missing-order-fields.md);
-          // WS-3 preserves the broken behavior, does not read subject.filledQty here.
-          quantity: undefined,
-          salePrice: 260.00, // from subject.averageFillPrice (schema field)
+          // WS-4: tax-lot now reads the typed parsed subject — real quantity from filledQty.
+          quantity: 30,
+          salePrice: 260.00, // from subject.averageFillPrice
           orderId: 'ord-sell-1',
         }),
       );

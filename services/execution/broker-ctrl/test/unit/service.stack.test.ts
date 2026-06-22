@@ -3,6 +3,15 @@ import { App } from 'aws-cdk-lib';
 import { Template, Match } from 'aws-cdk-lib/assertions';
 import { BrokerCtrlStack } from '../../src/service.stack';
 
+function orderSmDefinition(template: Template): string {
+  const sms = template.findResources('AWS::StepFunctions::StateMachine');
+  const defs = Object.values(sms).map((sm: any) => {
+    const d = sm.Properties?.DefinitionString;
+    return d?.['Fn::Join'] ? d['Fn::Join'][1].join('') : (typeof d === 'string' ? d : JSON.stringify(d));
+  });
+  return defs.find((d: string) => d.includes('ReadExecutionMode'))!;
+}
+
 describe('BrokerCtrlStack', () => {
   let template: Template;
 
@@ -39,6 +48,50 @@ describe('BrokerCtrlStack', () => {
       d.includes('ReadExecutionMode'),
     );
     expect(orderSM).toBeDefined();
+  });
+
+  it('order SF reads identity from $.context and order data from $.subject (break A)', () => {
+    const def = orderSmDefinition(template);
+    expect(def).toContain("ExecutionMode#{}', $.context.tenantId");
+    expect(def).toContain('$.subject.orderId');
+    expect(def).toContain('$.subject.symbol');
+    expect(def).toContain('$.subject.side');
+    expect(def).toContain('$.subject.quantityOrAmountCents');
+    expect(def).toContain('$.context.userId');
+    // the broken flat identity read is gone
+    expect(def).not.toContain("ExecutionMode#{}', $.tenantId");
+  });
+
+  it('order SF tolerates an absent ExecutionMode row by defaulting to simulation (absent-cache resilience)', () => {
+    const def = orderSmDefinition(template);
+    // The ExecutionMode cache row is written only at go-live (investor-bff
+    // confirmGoLive); a simulation-mode investor pre-go-live — or a mode-cache
+    // write that has not yet settled — has no row, so ReadExecutionMode's GetItem
+    // returns no Item. RouteOrder's `$.executionMode.Item.mode.S` read would then
+    // throw an UNCATCHABLE States.Runtime and fail the whole order. A Choice guards
+    // the read: present → use it; absent → default to simulation (the onboarded
+    // default, and the safe no-real-money direction). See feedback-states-runtime-uncatchable.
+    expect(def).toContain('CheckExecutionMode');
+    expect(def).toContain('DefaultExecutionMode');
+    // isPresent guard on the exact path RouteOrder consumes
+    expect(def).toContain('$.executionMode.Item.mode.S');
+    expect(def).toContain('"IsPresent":true');
+    // the absent-row default routes to the simulation adapter
+    expect(def).toContain('simulation');
+  });
+
+  it('NormalizedEvent PutItems write symbol and side, and no flat-envelope identity read survives (break A + D producer)', () => {
+    const def = orderSmDefinition(template);
+    // Every state reads identity from $.context / order data from $.subject — no flat reads anywhere
+    // (this is what catches a missed state, e.g. the deeply-nested HandleTimeout branch).
+    expect(def).not.toContain('"$.tenantId"');
+    expect(def).not.toContain('"$.orderId"');
+    expect(def).not.toContain('"$.userId"');
+    expect(def).not.toContain('"$.region"');
+    // symbol/side written in both Lambda payloads (RouteOrder + WaitForMoreFills)
+    // AND all three NormalizedEvent PutItems (Filled + Rejected + Escalated) = 5 occurrences.
+    expect((def.match(/\$\.subject\.symbol/g) ?? []).length).toBeGreaterThanOrEqual(5);
+    expect((def.match(/\$\.subject\.side/g) ?? []).length).toBeGreaterThanOrEqual(5);
   });
 
   it('creates an EventBridge rule for ORDER_SUBMITTED trigger', () => {

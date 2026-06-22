@@ -85,7 +85,9 @@ describe('broker-alpaca-adpt resilience: idempotency', () => {
 
       const eventId = `idemp-alp-order-${randomUUID()}`;
       const orderId = `idemp-alp-order-${randomUUID()}`;
-      const payload = { orderId, symbol: 'AAPL', side: 'BUY' as const, quantity: 5 };
+      // ALPACA_ORDER_REQUESTED is dollar-amount-denominated (WS-5): the subject
+      // carries amountCents and the adapter submits an Alpaca NOTIONAL order.
+      const payload = { orderId, symbol: 'AAPL', side: 'BUY' as const, amountCents: 50_000 };
 
       // First publish
       await eb.putEvent({

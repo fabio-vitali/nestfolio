@@ -1,6 +1,7 @@
 // Producer-owned event/row subject contracts for execution-ctrl. Imports ONLY zod.
 // Dry aggregates — identity travels in the event context, not on the subject.
 import { z } from 'zod';
+import type { ZodTypeAny } from 'zod';
 
 /**
  * Order subject — the `Order` row (sk='Order') written by event-listener on
@@ -39,3 +40,15 @@ export const StagedOrderSchema = z.object({
   timestamp: z.string(),
 });
 export type StagedOrder = z.infer<typeof StagedOrderSchema>;
+
+/**
+ * Test-fixture event→subject map for execution-ctrl's emissions. Co-located with the producer-owned
+ * schemas; consumed only by `@nestfolio/test-contracts` for typed test fixtures (lets tests inject a
+ * typed ORDER_SUBMITTED to drive the real order→fill→ledger path — order-execution-money-path WS-5).
+ * Only ORDER_SUBMITTED is registered: ORDER_REJECTED/ORDER_CANCELLED are owned in the registry by
+ * broker-ctrl's NormalizedOrderEventSchema (the fill-side rejection), so registering execution-ctrl's
+ * order-creation ORDER_REJECTED here would collide. Grows as typed injection needs more order events.
+ */
+export const executionCtrlEventSubjects = {
+  ORDER_SUBMITTED: OrderSchema,
+} as const satisfies Record<string, ZodTypeAny>;

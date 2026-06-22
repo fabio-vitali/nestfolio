@@ -49,7 +49,7 @@ function rejectOrderAsBrokerUnavailable(ctx: EventContext, payload: EventPayload
     rejectionReason: 'BROKER_UNAVAILABLE',
     symbol: s.symbol as string,
     side: s.side as string,
-    requestedQty: s.quantity as number,
+    requestedQty: (s.amountCents as number) / 100,
   };
   return record('AlpacaOrderResult', {
     __typename: 'AlpacaOrderResult',
@@ -125,7 +125,7 @@ async function processOrderRequested(payload: EventPayload, ctx: EventContext) {
   try {
     const s = payload.subject;
     const result = await ordersService.submitOrder(
-      ctx.tenantId, s.orderId as string, s.symbol as string, s.side as string, s.quantity as number,
+      ctx.tenantId, s.orderId as string, s.symbol as string, s.side as string, s.amountCents as number,
     );
     return record('AlpacaOrderResult', result, {
       pk: result.pk,
@@ -142,7 +142,7 @@ async function processOrderRequested(payload: EventPayload, ctx: EventContext) {
       rejectionReason: reason,
       symbol: s.symbol as string,
       side: s.side as string,
-      requestedQty: s.quantity as number,
+      requestedQty: (s.amountCents as number) / 100,
     };
     return record('AlpacaOrderResult', {
       __typename: 'AlpacaOrderResult',

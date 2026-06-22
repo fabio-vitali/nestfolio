@@ -79,7 +79,7 @@ describe('BrokerOrderRepository', () => {
       orderId: ORDER_ID,
       executionMode: 'PAPER',
       routedTo: 'alpaca',
-      requestedQty: 10,
+      requestedAmountCents: 50000,
       instrumentId: 'AAPL',
       fillTaskToken: 'token-abc',
     };
@@ -99,9 +99,8 @@ describe('BrokerOrderRepository', () => {
       executionMode: 'PAPER',
       routedTo: 'alpaca',
       fillTaskToken: 'token-abc',
-      requestedQty: 10,
+      requestedAmountCents: 50000,
       filledQty: 0,
-      remainingQty: 10,
       retryCount: 0,
       instrumentId: 'AAPL',
       routedAt: FIXED_TIME,
@@ -111,7 +110,7 @@ describe('BrokerOrderRepository', () => {
   it('updateOrderState — transitions state and updates fields', async () => {
     mockSend.mockResolvedValueOnce({});
 
-    await repo.updateOrderState(TENANT_ID, ORDER_ID, 'FILLED', { filledQty: 10, remainingQty: 0 });
+    await repo.updateOrderState(TENANT_ID, ORDER_ID, 'FILLED', { filledQty: 10, retryCount: 0 });
 
     expect(mockSend).toHaveBeenCalledTimes(1);
     const [cmd] = mockSend.mock.calls[0];

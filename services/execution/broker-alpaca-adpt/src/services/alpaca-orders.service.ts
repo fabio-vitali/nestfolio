@@ -8,10 +8,14 @@ export class AlpacaOrdersService {
     private readonly orderRepo: OrderMappingRepository,
   ) {}
 
-  async submitOrder(tenantId: string, orderId: string, symbol: string, side: string, quantity: number) {
+  // The order request is dollar-amount-denominated (cents); submit an Alpaca NOTIONAL market order
+  // (Alpaca resolves the fractional share quantity at the fill price) — order-execution-money-path.
+  // `requestedQty` on the result row carries the requested notional dollars (shares unknown until fill).
+  async submitOrder(tenantId: string, orderId: string, symbol: string, side: string, amountCents: number) {
+    const notionalDollars = amountCents / 100;
     const result = await this.client.submitOrder({
       symbol,
-      qty: quantity,
+      notional: notionalDollars,
       side: side.toLowerCase() as 'buy' | 'sell',
       type: 'market',
       time_in_force: 'day',
@@ -20,7 +24,7 @@ export class AlpacaOrdersService {
 
     if (result.status >= 200 && result.status < 300) {
       const alpacaOrderId = result.data.id;
-      await this.orderRepo.createMapping(tenantId, orderId, alpacaOrderId, symbol, side, quantity);
+      await this.orderRepo.createMapping(tenantId, orderId, alpacaOrderId, symbol, side, notionalDollars);
       logger.info('Order placed', { orderId, alpacaOrderId });
 
       return {
@@ -33,7 +37,7 @@ export class AlpacaOrdersService {
         status: 'PLACED',
         symbol,
         side,
-        requestedQty: quantity,
+        requestedQty: notionalDollars,
       };
     } else {
       logger.warn('Order rejected by Alpaca', { orderId, status: result.status, data: result.data });
@@ -49,7 +53,7 @@ export class AlpacaOrdersService {
         rejectionReason: JSON.stringify(result.data),
         symbol,
         side,
-        requestedQty: quantity,
+        requestedQty: notionalDollars,
       };
     }
   }

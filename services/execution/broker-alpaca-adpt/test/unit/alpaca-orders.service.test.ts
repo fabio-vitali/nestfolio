@@ -19,7 +19,8 @@ const TENANT_ID = 'tenant-1';
 const ORDER_ID = 'order-123';
 const SYMBOL = 'AAPL';
 const SIDE = 'BUY';
-const QUANTITY = 10;
+const AMOUNT_CENTS = 50_000;
+const NOTIONAL_DOLLARS = 500; // AMOUNT_CENTS / 100 — submitted as an Alpaca notional dollar order
 
 describe('AlpacaOrdersService', () => {
   let service: AlpacaOrdersService;
@@ -37,11 +38,11 @@ describe('AlpacaOrdersService', () => {
         data: { id: 'alpaca-order-789' },
       });
 
-      await service.submitOrder(TENANT_ID, ORDER_ID, SYMBOL, SIDE, QUANTITY);
+      await service.submitOrder(TENANT_ID, ORDER_ID, SYMBOL, SIDE, AMOUNT_CENTS);
 
       expect(mockClient.submitOrder).toHaveBeenCalledWith({
         symbol: SYMBOL,
-        qty: QUANTITY,
+        notional: NOTIONAL_DOLLARS,
         side: 'buy',
         type: 'market',
         time_in_force: 'day',
@@ -55,10 +56,10 @@ describe('AlpacaOrdersService', () => {
         data: { id: 'alpaca-order-789' },
       });
 
-      await service.submitOrder(TENANT_ID, ORDER_ID, SYMBOL, SIDE, QUANTITY);
+      await service.submitOrder(TENANT_ID, ORDER_ID, SYMBOL, SIDE, AMOUNT_CENTS);
 
       expect(mockOrderRepo.createMapping).toHaveBeenCalledWith(
-        TENANT_ID, ORDER_ID, 'alpaca-order-789', SYMBOL, SIDE, QUANTITY,
+        TENANT_ID, ORDER_ID, 'alpaca-order-789', SYMBOL, SIDE, NOTIONAL_DOLLARS,
       );
     });
 
@@ -68,7 +69,7 @@ describe('AlpacaOrdersService', () => {
         data: { id: 'alpaca-order-789' },
       });
 
-      const result = await service.submitOrder(TENANT_ID, ORDER_ID, SYMBOL, SIDE, QUANTITY);
+      const result = await service.submitOrder(TENANT_ID, ORDER_ID, SYMBOL, SIDE, AMOUNT_CENTS);
 
       expect(result).toMatchObject({
         pk: `OrderMapping#${TENANT_ID}#${ORDER_ID}`,
@@ -80,7 +81,7 @@ describe('AlpacaOrdersService', () => {
         status: 'PLACED',
         symbol: SYMBOL,
         side: SIDE,
-        requestedQty: QUANTITY,
+        requestedQty: NOTIONAL_DOLLARS,
       });
     });
   });
@@ -92,7 +93,7 @@ describe('AlpacaOrdersService', () => {
         data: { message: 'insufficient buying power' },
       });
 
-      await service.submitOrder(TENANT_ID, ORDER_ID, SYMBOL, SIDE, QUANTITY);
+      await service.submitOrder(TENANT_ID, ORDER_ID, SYMBOL, SIDE, AMOUNT_CENTS);
 
       expect(mockOrderRepo.createMapping).not.toHaveBeenCalled();
     });
@@ -103,7 +104,7 @@ describe('AlpacaOrdersService', () => {
         data: { message: 'insufficient buying power' },
       });
 
-      const result = await service.submitOrder(TENANT_ID, ORDER_ID, SYMBOL, SIDE, QUANTITY);
+      const result = await service.submitOrder(TENANT_ID, ORDER_ID, SYMBOL, SIDE, AMOUNT_CENTS);
 
       expect(result).toMatchObject({
         pk: `OrderMapping#${TENANT_ID}#${ORDER_ID}`,
@@ -115,7 +116,7 @@ describe('AlpacaOrdersService', () => {
         status: 'REJECTED',
         symbol: SYMBOL,
         side: SIDE,
-        requestedQty: QUANTITY,
+        requestedQty: NOTIONAL_DOLLARS,
       });
       expect(result.rejectionReason).toContain('insufficient buying power');
     });
@@ -126,7 +127,7 @@ describe('AlpacaOrdersService', () => {
         data: { message: 'internal error' },
       });
 
-      const result = await service.submitOrder(TENANT_ID, ORDER_ID, SYMBOL, SIDE, QUANTITY);
+      const result = await service.submitOrder(TENANT_ID, ORDER_ID, SYMBOL, SIDE, AMOUNT_CENTS);
 
       expect(result.status).toBe('REJECTED');
     });

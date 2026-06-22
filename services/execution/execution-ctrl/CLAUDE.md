@@ -48,6 +48,7 @@ Single-symbol per row: one Order row is written per `ProposedTrade` entry in the
 
 - OrderSchema / Order — ORDER_CREATED / ORDER_SUBMITTED / ORDER_STAGED / ORDER_REJECTED / ORDER_UPDATED subject (the `Order` row, sk='Order'). Fields: orderId, decisionPacketId, symbol (string), side (BUY|SELL), quantityOrAmountCents (number), status (SUBMITTED|STAGED|REJECTED|PENDING), reason?, sourceEventId?, timestamp.
 - StagedOrderSchema / StagedOrder — STAGED_ORDER_CREATED / STAGED_ORDER_UPDATED subject (the `StagedOrder` row, sk='StagedOrder'). Fields: orderId, symbol (string), side (BUY|SELL), quantityOrAmountCents (number), stagedAt, timestamp.
+- Also exported: `executionCtrlEventSubjects` — test-fixture event→subject map (ORDER_SUBMITTED → OrderSchema) consumed only by `@nestfolio/test-contracts` for typed test fixtures (lets tests inject a typed ORDER_SUBMITTED to drive the real order→fill→ledger path — order-execution-money-path WS-5). Only ORDER_SUBMITTED is registered; ORDER_REJECTED/ORDER_CANCELLED are owned in the registry by broker-ctrl's NormalizedOrderEventSchema (fill-side), so registering execution-ctrl's order-creation ORDER_REJECTED would collide. Not a runtime contract; tree-shaken from Lambda bundles.
 
 ## Tests
 ### Unit (`test/unit/`)

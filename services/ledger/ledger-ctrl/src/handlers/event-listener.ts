@@ -25,8 +25,19 @@ async function processOrderActualEvent(
 ) {
   const subject = parseSubject(payload, NormalizedOrderEventSchema);
 
-  // identity fields come from ctx (DRY subjects); only read genuine payload fields from subject
-  const eventPayload: Record<string, unknown> = { ...subject };
+  // identity fields come from ctx (DRY subjects); only read genuine payload fields from subject.
+  // Normalize the fill economics to the canonical ledger-entry field names the reducer +
+  // the shadow-fill (simulated) path use — {quantity, fillPrice, filledAt} — so RecordFill
+  // receives real economics on actual fills (WS-4 break D consumer). The order SF (WS-3) carries
+  // these as filledQty/averageFillPrice/timestamp on the NormalizedOrderEvent subject.
+  const eventPayload: Record<string, unknown> = {
+    ...subject,
+    ...(subject.filledQty !== undefined && {
+      quantity: subject.filledQty,
+      fillPrice: subject.averageFillPrice,
+      filledAt: ctx.timestamp,
+    }),
+  };
 
   const sequenceNo = await deps.repository.nextSequence(ctx.tenantId, 'actual');
 
@@ -44,33 +55,32 @@ async function processOrderActualEvent(
     logger.info('Duplicate ledger entry, skipping', { eventType: ctx.eventType, eventId: ctx.eventId });
   }
 
-  // Tax lot tracking for live fills
+  // Tax lot tracking for live fills — reads the typed parsed subject (WS-4 break D consumer).
+  // symbol/side/filledQty/averageFillPrice are optional at the producer boundary but the order SF
+  // always writes symbol/side and writes filledQty/averageFillPrice on a fill; guard their presence.
   if (ctx.eventType === ExecutionCrossDomainEventTypes.ORDER_FILLED && subject.executionMode === 'live') {
-    // boundary: NormalizedOrderEventSchema (the ORDER_FILLED contract) does not carry
-    // symbol/side/quantity/fillPrice; broker-ctrl's order SF drops them. These reads
-    // resolve to undefined in production — pre-existing latent bug, see
-    // docs/backlog/ledger-ctrl-live-tax-lot-missing-order-fields.md. WS-3 preserves the
-    // exact prior (broken) behavior; the fix is tracked there.
-    const orderDetail = (payload.subject ?? {}) as Record<string, unknown>;
-    const side = orderDetail['side'] as string;
-    if (side === 'BUY') {
-      await deps.taxLotManager.openLot({
-        tenantId: ctx.tenantId,
-        orderId: subject.orderId,
-        symbol: orderDetail['symbol'] as string,
-        quantity: orderDetail['filledQuantity'] as number ?? orderDetail['quantity'] as number,
-        costBasisPerShare: subject.averageFillPrice ?? orderDetail['fillPrice'] as number,
-        acquiredAt: ctx.timestamp,
-      });
-    } else if (side === 'SELL') {
-      await deps.taxLotManager.closeLots({
-        tenantId: ctx.tenantId,
-        symbol: orderDetail['symbol'] as string,
-        quantity: orderDetail['filledQuantity'] as number ?? orderDetail['quantity'] as number,
-        salePrice: subject.averageFillPrice ?? orderDetail['fillPrice'] as number,
-        soldAt: ctx.timestamp,
-        orderId: subject.orderId,
-      });
+    if (subject.symbol && subject.side && subject.filledQty !== undefined && subject.averageFillPrice !== undefined) {
+      if (subject.side === 'BUY') {
+        await deps.taxLotManager.openLot({
+          tenantId: ctx.tenantId,
+          orderId: subject.orderId,
+          symbol: subject.symbol,
+          quantity: subject.filledQty,
+          costBasisPerShare: subject.averageFillPrice,
+          acquiredAt: ctx.timestamp,
+        });
+      } else {
+        await deps.taxLotManager.closeLots({
+          tenantId: ctx.tenantId,
+          symbol: subject.symbol,
+          quantity: subject.filledQty,
+          salePrice: subject.averageFillPrice,
+          soldAt: ctx.timestamp,
+          orderId: subject.orderId,
+        });
+      }
+    } else {
+      logger.warn('live ORDER_FILLED missing symbol/side/filledQty/averageFillPrice — skipping tax-lot tracking', { orderId: subject.orderId });
     }
   }
 

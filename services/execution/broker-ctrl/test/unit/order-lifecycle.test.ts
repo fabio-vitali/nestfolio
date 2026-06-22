@@ -153,7 +153,7 @@ const baseOrder = {
   userId: 'u-1',
   symbol: 'VTI',
   side: 'BUY' as const,
-  quantity: 10,
+  amountCents: 50000,
 };
 
 /** Extract the Item written by the Nth DDB PutCommand call (0-indexed) */
@@ -233,7 +233,7 @@ describe('Order Lifecycle Integration', () => {
         routedTo: 'sim',
         executionMode: 'simulation',
         fillTaskToken: 'task-token-001',
-        requestedQty: 10,
+        requestedAmountCents: 50000,
         filledQty: 0,
         instrumentId: 'VTI',
       });
@@ -251,7 +251,7 @@ describe('Order Lifecycle Integration', () => {
         orderId: 'order-100',
         symbol: 'VTI',
         side: 'BUY',
-        quantity: 10,
+        amountCents: 50000,
       });
 
       // Step 2: CallbackResolver receives SIM_ORDER_FILLED
@@ -269,8 +269,8 @@ describe('Order Lifecycle Integration', () => {
           tenantId: 't-1',
           subject: {
             orderId: 'order-100',
-            filledQuantity: 10,
-            averageFillPrice: 243.50,
+            quantity: 10,
+            fillPrice: 243.50,
           },
         },
       }]);

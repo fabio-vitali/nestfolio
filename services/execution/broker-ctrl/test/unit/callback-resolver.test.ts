@@ -51,11 +51,13 @@ describe('callback-resolver handler', () => {
     mockDdbSend.mockResolvedValue({});
   });
 
-  it('SIM_ORDER_FILLED → looks up taskToken → SendTaskSuccess with FILLED', async () => {
+  it('SIM_ORDER_FILLED → maps the sim VirtualTrade fields (quantity/fillPrice) → SendTaskSuccess FILLED', async () => {
     mockDdbSend.mockResolvedValueOnce({ Item: { fillTaskToken: 'token-abc' } });
 
+    // The sim emits a VirtualTrade subject with `quantity` (shares) + `fillPrice` —
+    // NOT the alpaca `filledQuantity`/`averageFillPrice` names.
     const record = fakeSqsRecord('SIM_ORDER_FILLED', {
-      orderId: 'order-1', filledQuantity: 10, averageFillPrice: 250.50,
+      orderId: 'order-1', quantity: 2.5, fillPrice: 200,
     }, { eventId: 'evt-1', tenantId: 't-1' });
 
     const result = await handler({ Records: [record] });
@@ -67,7 +69,24 @@ describe('callback-resolver handler', () => {
     expect(sfnCall.input.taskToken).toBe('token-abc');
     expect(output.status).toBe('FILLED');
     expect(output.failureClass).toBe('none');
+    expect(output.filledQty).toBe(2.5);
+    expect(output.averageFillPrice).toBe(200);
+  });
+
+  it('ALPACA_ORDER_FILLED → maps the alpaca fields (filledQuantity/averageFillPrice)', async () => {
+    mockDdbSend.mockResolvedValueOnce({ Item: { fillTaskToken: 'token-alp' } });
+
+    const record = fakeSqsRecord('ALPACA_ORDER_FILLED', {
+      orderId: 'order-1a', filledQuantity: 10, averageFillPrice: 250.5,
+    }, { eventId: 'evt-1a', tenantId: 't-1' });
+
+    const result = await handler({ Records: [record] });
+
+    expect(result.batchItemFailures).toHaveLength(0);
+    const output = JSON.parse(mockSfnSend.mock.calls[0][0].input.output);
+    expect(output.status).toBe('FILLED');
     expect(output.filledQty).toBe(10);
+    expect(output.averageFillPrice).toBe(250.5);
   });
 
   it('ALPACA_ORDER_REJECTED with insufficient funds → deterministic failure', async () => {

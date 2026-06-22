@@ -40,11 +40,10 @@ steps:
     receives: ORDER_SUBMITTED
     via: ExecutionBus -> Orchestration EB rule -> broker-ctrl OrderStateMachine
     state_change: |
-      SF starts; reads ExecutionMode from DDB (ReadExecutionMode GetItem). No circuit-breaker read in this SF — the circuit breaker lives in broker-alpaca-adpt.
-      Invokes RouteOrder Lambda (waitForTaskToken, TimeoutSeconds 300).
-      RouteOrder writes BrokerOrder record with taskToken, emits SIM_ORDER_REQUESTED (sim mode) or ALPACA_ORDER_REQUESTED (live mode) to ExecutionBus via PutEvents.
-    # NOTE: latent gap — SF reads top-level $.detail routing fields but the EB envelope nests payload under .subject;
-    # the canonical ORDER_SUBMITTED -> SF path is unexercised e2e (backlog broker-ctrl-order-sf-input-contract-gap). e2e drives adapters directly.
+      SF starts; reads ExecutionMode from DDB (ReadExecutionMode GetItem keyed on $.context.tenantId). No circuit-breaker read in this SF — the circuit breaker lives in broker-alpaca-adpt.
+      Reads the standard {subject, context} envelope: identity (tenantId/userId/region) from $.context, order data (orderId/symbol/side/quantityOrAmountCents) from $.subject (fixed in order-execution-money-path WS-3).
+      Invokes RouteOrder Lambda (waitForTaskToken, TimeoutSeconds 300) with a flat order reshaped from the envelope.
+      RouteOrder writes BrokerOrder (requestedAmountCents) with taskToken, emits SIM_ORDER_REQUESTED (sim mode) or ALPACA_ORDER_REQUESTED (live mode) to ExecutionBus via PutEvents, carrying amountCents (the dollar request; the adapter converts amount→shares at the fill price).
     emits: SIM_ORDER_REQUESTED or ALPACA_ORDER_REQUESTED (explicit PutEvents from RouteOrder Lambda)
     idempotent: true
 

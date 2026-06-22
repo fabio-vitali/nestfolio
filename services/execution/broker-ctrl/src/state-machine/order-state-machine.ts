@@ -44,7 +44,7 @@ export class OrderWorkflowDefinition extends Construct {
         Parameters: {
           TableName: tableName,
           Key: {
-            pk: { 'S.$': "States.Format('ExecutionMode#{}', $.tenantId)" },
+            pk: { 'S.$': "States.Format('ExecutionMode#{}', $.context.tenantId)" },
             sk: { S: 'ExecutionMode' },
           },
         },
@@ -62,7 +62,16 @@ export class OrderWorkflowDefinition extends Construct {
         Parameters: {
           FunctionName: routeOrderFn.functionArn,
           Payload: {
-            'order.$': '$',
+            // Reshape the envelope into a flat `order` the route-order Lambda consumes:
+            // identity from $.context, order data from $.subject (post-WS-2 ORDER_SUBMITTED).
+            'order': {
+              'tenantId.$': '$.context.tenantId',
+              'orderId.$': '$.subject.orderId',
+              'userId.$': '$.context.userId',
+              'symbol.$': '$.subject.symbol',
+              'side.$': '$.subject.side',
+              'amountCents.$': '$.subject.quantityOrAmountCents',
+            },
             'executionMode.$': '$.executionMode.Item.mode.S',
             'taskToken.$': '$$.Task.Token',
           },
@@ -71,6 +80,27 @@ export class OrderWorkflowDefinition extends Construct {
         ResultPath: '$.adapterResult',
       },
     });
+
+    // ---------------------------------------------------------------
+    // 2b. CheckExecutionMode — tolerate an absent ExecutionMode row
+    //
+    // The ExecutionMode cache row is written ONLY at go-live (investor-bff
+    // confirmGoLive); a simulation-mode investor pre-go-live has no row, and even
+    // a real EXECUTION_MODE_CHANGED write can still be in-flight when an order
+    // arrives. ReadExecutionMode's GetItem then returns no Item, and RouteOrder's
+    // `$.executionMode.Item.mode.S` read throws an UNCATCHABLE States.Runtime,
+    // failing the whole order (the historical "FAILED at ReadExecutionMode").
+    // Guard the read with a Choice: present → use it; absent → default to
+    // simulation (the onboarded default AND the safe no-real-money direction).
+    // See feedback-states-runtime-uncatchable: Catch on States.Runtime never
+    // fires, so absent-row tolerance MUST be a Choice-on-isPresent, not a Catch.
+    // ---------------------------------------------------------------
+    const defaultExecutionMode = new sfn.Pass(this, 'DefaultExecutionMode', {
+      result: sfn.Result.fromObject({ Item: { mode: { S: 'simulation' } } }),
+      resultPath: '$.executionMode',
+    });
+
+    const checkExecutionMode = new sfn.Choice(this, 'CheckExecutionMode');
 
     // ---------------------------------------------------------------
     // 3. ClassifyResult — Choice on adapter result
@@ -87,7 +117,7 @@ export class OrderWorkflowDefinition extends Construct {
         Parameters: {
           TableName: tableName,
           Key: {
-            pk: { 'S.$': "States.Format('BrokerOrder#{}#{}', $.tenantId, $.orderId)" },
+            pk: { 'S.$': "States.Format('BrokerOrder#{}#{}', $.context.tenantId, $.subject.orderId)" },
             sk: { S: 'BrokerOrder' },
           },
           UpdateExpression: 'SET #st = :st, filledQty = :fq, averageFillPrice = :ap, filledAt = :fa',
@@ -110,13 +140,15 @@ export class OrderWorkflowDefinition extends Construct {
         Parameters: {
           TableName: tableName,
           Item: {
-            pk: { 'S.$': "States.Format('NormalizedEvent#{}#{}', $.tenantId, $.orderId)" },
+            pk: { 'S.$': "States.Format('NormalizedEvent#{}#{}', $.context.tenantId, $.subject.orderId)" },
             sk: { 'S.$': "States.Format('ORDER_FILLED#{}', $$.State.EnteredTime)" },
             __typename: { S: 'NormalizedEvent' },
-            tenantId: { 'S.$': '$.tenantId' },
-            userId: { 'S.$': '$.userId' },
-            region: { 'S.$': '$.region' },
-            orderId: { 'S.$': '$.orderId' },
+            tenantId: { 'S.$': '$.context.tenantId' },
+            userId: { 'S.$': '$.context.userId' },
+            region: { 'S.$': '$.context.region' },
+            orderId: { 'S.$': '$.subject.orderId' },
+            symbol: { 'S.$': '$.subject.symbol' },
+            side: { 'S.$': '$.subject.side' },
             executionMode: { 'S.$': '$.executionMode.Item.mode.S' },
             filledQty: { 'N.$': "States.Format('{}', $.adapterResult.filledQty)" },
             averageFillPrice: { 'N.$': "States.Format('{}', $.adapterResult.averageFillPrice)" },
@@ -145,7 +177,7 @@ export class OrderWorkflowDefinition extends Construct {
         Parameters: {
           TableName: tableName,
           Key: {
-            pk: { 'S.$': "States.Format('BrokerOrder#{}#{}', $.tenantId, $.orderId)" },
+            pk: { 'S.$': "States.Format('BrokerOrder#{}#{}', $.context.tenantId, $.subject.orderId)" },
             sk: { S: 'BrokerOrder' },
           },
           UpdateExpression: 'SET #st = :st, filledQty = :fq, averageFillPrice = :ap',
@@ -168,7 +200,16 @@ export class OrderWorkflowDefinition extends Construct {
         Parameters: {
           FunctionName: routeOrderFn.functionArn,
           Payload: {
-            'order.$': '$',
+            // Reshape the envelope into a flat `order` the route-order Lambda consumes:
+            // identity from $.context, order data from $.subject (post-WS-2 ORDER_SUBMITTED).
+            'order': {
+              'tenantId.$': '$.context.tenantId',
+              'orderId.$': '$.subject.orderId',
+              'userId.$': '$.context.userId',
+              'symbol.$': '$.subject.symbol',
+              'side.$': '$.subject.side',
+              'amountCents.$': '$.subject.quantityOrAmountCents',
+            },
             'executionMode.$': '$.executionMode.Item.mode.S',
             'taskToken.$': '$$.Task.Token',
           },
@@ -188,7 +229,7 @@ export class OrderWorkflowDefinition extends Construct {
         Parameters: {
           TableName: tableName,
           Key: {
-            pk: { 'S.$': "States.Format('BrokerOrder#{}#{}', $.tenantId, $.orderId)" },
+            pk: { 'S.$': "States.Format('BrokerOrder#{}#{}', $.context.tenantId, $.subject.orderId)" },
             sk: { S: 'BrokerOrder' },
           },
           UpdateExpression: 'SET #st = :st, failureReason = :fr',
@@ -209,13 +250,15 @@ export class OrderWorkflowDefinition extends Construct {
         Parameters: {
           TableName: tableName,
           Item: {
-            pk: { 'S.$': "States.Format('NormalizedEvent#{}#{}', $.tenantId, $.orderId)" },
+            pk: { 'S.$': "States.Format('NormalizedEvent#{}#{}', $.context.tenantId, $.subject.orderId)" },
             sk: { 'S.$': "States.Format('ORDER_REJECTED#{}', $$.State.EnteredTime)" },
             __typename: { S: 'NormalizedEvent' },
-            tenantId: { 'S.$': '$.tenantId' },
-            userId: { 'S.$': '$.userId' },
-            region: { 'S.$': '$.region' },
-            orderId: { 'S.$': '$.orderId' },
+            tenantId: { 'S.$': '$.context.tenantId' },
+            userId: { 'S.$': '$.context.userId' },
+            region: { 'S.$': '$.context.region' },
+            orderId: { 'S.$': '$.subject.orderId' },
+            symbol: { 'S.$': '$.subject.symbol' },
+            side: { 'S.$': '$.subject.side' },
             executionMode: { 'S.$': '$.executionMode.Item.mode.S' },
             failureReason: { 'S.$': '$.adapterResult.reason' },
             timestamp: { 'S.$': '$$.State.EnteredTime' },
@@ -253,7 +296,7 @@ export class OrderWorkflowDefinition extends Construct {
                 Parameters: {
                   TableName: tableName,
                   Key: {
-                    pk: { 'S.$': "States.Format('BrokerOrder#{}#{}', $.tenantId, $.orderId)" },
+                    pk: { 'S.$': "States.Format('BrokerOrder#{}#{}', $.context.tenantId, $.subject.orderId)" },
                     sk: { S: 'BrokerOrder' },
                   },
                   UpdateExpression: 'SET #st = :st',
@@ -276,13 +319,15 @@ export class OrderWorkflowDefinition extends Construct {
                 Parameters: {
                   TableName: tableName,
                   Item: {
-                    pk: { 'S.$': "States.Format('NormalizedEvent#{}#{}', $.tenantId, $.orderId)" },
+                    pk: { 'S.$': "States.Format('NormalizedEvent#{}#{}', $.context.tenantId, $.subject.orderId)" },
                     sk: { 'S.$': "States.Format('ORDER_ESCALATED#{}', $$.State.EnteredTime)" },
                     __typename: { S: 'NormalizedEvent' },
-                    tenantId: { 'S.$': '$.tenantId' },
-                    userId: { 'S.$': '$.userId' },
-                    region: { 'S.$': '$.region' },
-                    orderId: { 'S.$': '$.orderId' },
+                    tenantId: { 'S.$': '$.context.tenantId' },
+                    userId: { 'S.$': '$.context.userId' },
+                    region: { 'S.$': '$.context.region' },
+                    orderId: { 'S.$': '$.subject.orderId' },
+                    symbol: { 'S.$': '$.subject.symbol' },
+                    side: { 'S.$': '$.subject.side' },
                     executionMode: { 'S.$': '$.executionMode.Item.mode.S' },
                     failureReason: { S: 'Adapter timeout — escalated' },
                     timestamp: { 'S.$': '$$.State.EnteredTime' },
@@ -321,8 +366,14 @@ export class OrderWorkflowDefinition extends Construct {
       .when(sfn.Condition.stringEquals('$.adapterResult.status', 'PARTIALLY_FILLED'), markPartialFill)
       .otherwise(markRejected);
 
-    // Main chain: ReadExecutionMode → RouteOrder
-    const definition = readExecutionMode.next(routeOrder);
+    // ExecutionMode present → RouteOrder reads it; absent → default to simulation, then RouteOrder.
+    checkExecutionMode
+      .when(sfn.Condition.isPresent('$.executionMode.Item.mode.S'), routeOrder)
+      .otherwise(defaultExecutionMode);
+    defaultExecutionMode.next(routeOrder);
+
+    // Main chain: ReadExecutionMode → CheckExecutionMode → RouteOrder
+    const definition = readExecutionMode.next(checkExecutionMode);
 
     // CDK merges .next() into stateJson as the happy-path Next field.
     // Catch→Next references (e.g. 'HandleTimeout') resolve via CDK construct IDs.

@@ -25,12 +25,12 @@ export class SimulationEngineService {
       orderId: string,
       symbol: string,
       side: 'BUY' | 'SELL',
-      quantity: number,
+      amountCents: number,
       ctx: RequestContext,
     ): Promise<FillResult> => {
-      // 0. Validate quantity
-      if (!quantity || quantity <= 0) {
-        throw new NotRetryableError(`Invalid quantity: ${quantity}`);
+      // 0. Validate the requested amount (dollar amount in cents)
+      if (!amountCents || amountCents <= 0) {
+        throw new NotRetryableError(`Invalid amount: ${amountCents}`);
       }
 
       // 1. Get fill price
@@ -40,6 +40,9 @@ export class SimulationEngineService {
         return { orderId, status: 'REJECTED', rejectReason: `Unknown symbol: ${symbol}` };
       }
 
+      // The request is dollar-denominated; the adapter holds the price, so it resolves the
+      // amount to a (fractional) share quantity at the fill price — Alpaca-notional style.
+      const quantity = (amountCents / 100) / fillPrice;
       const totalValue = quantity * fillPrice;
 
       // 2. Load current state

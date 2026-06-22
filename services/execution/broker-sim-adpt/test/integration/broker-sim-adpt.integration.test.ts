@@ -47,7 +47,7 @@ describe('broker-sim-adpt', () => {
       bus: 'execution',
       targetService: 'broker-sim-adpt',
       detailType: 'SIM_ORDER_REQUESTED',
-      subject: { orderId, symbol: 'VTI', side: 'BUY', quantity: 1 },
+      subject: { orderId, symbol: 'VTI', side: 'BUY', amountCents: 50000 },
       context: { userId: ctx.userId },
     });
 

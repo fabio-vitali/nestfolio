@@ -32,6 +32,24 @@ describe('scenario 6 — investor accepts decision and sees it executed', () => 
       }),
     ]);
     decisionId = result.decisionId as string;
+
+    // Seed broker-ctrl's ExecutionMode cache (simulation) for this tenant. In prod investor-bff's
+    // confirmGoLive sets it; onboarding does not. Emitted here (early) so the EXECUTION_MODE_CHANGED →
+    // mode-listener → DDB write settles well before TRIGGER 2's ORDER_SUBMITTED reaches the order SF
+    // (whose ReadExecutionMode GetItem would otherwise return an empty Item).
+    const ebSeed = new EventBridgeClient(ctx);
+    await ebSeed.putEvent({
+      bus: 'execution',
+      targetService: 'broker-ctrl',
+      detailType: 'EXECUTION_MODE_CHANGED',
+      subject: {
+        changeId: `e2e-mode-${tenant.tenantId}`,
+        fromMode: 'simulation',
+        toMode: 'simulation',
+        changedAt: new Date().toISOString(),
+      },
+      context: { tenantId: tenant.tenantId, userId: tenant.userId },
+    });
   }, 600_000);
 
   afterEach(async () => {
@@ -98,25 +116,25 @@ describe('scenario 6 — investor accepts decision and sees it executed', () => 
       { timeoutMs: 60_000 },
     );
 
-    // TRIGGER 2: simulate the downstream fill (bypass real broker pipeline).
-    // Publish directly on the ledger bus so ledger-ctrl's Ingress picks it
-    // up — publishing on the execution bus would require the ledger-adpt
-    // adapter rule to forward, which doesn't match integration-test: source.
-    // Typed against the ORDER_FILLED producer contract (NormalizedOrderEventSchema). That contract
-    // carries NO symbol/side/quantity/fillPrice/decisionId — broker-ctrl drops them — so ledger-ctrl's
-    // RecordFill reducer reads undefined for those fields in production: filed class-(b) bug
-    // docs/backlog/ledger-ctrl-live-tax-lot-missing-order-fields.md. The getPortfolio "reflects the
-    // fill" assertion below therefore exercises that broken path end-to-end and will not pass until
-    // the producer contract is extended (tracked in that item) — retained as the e2e proof of impact.
+    // TRIGGER 2: drive the REAL order→fill→ledger path (order-execution-money-path).
+    // Publish a real ORDER_SUBMITTED on the EXECUTION bus targeted at broker-ctrl — source
+    // `integration-test:broker-ctrl` matches the OrderStateMachine trigger's $or rule, so the SF
+    // fires. The SF reads identity from $.context / order data from $.subject (WS-3), routes to the
+    // sim, which converts amountCents→shares and fills (WS-3); ORDER_FILLED carries symbol/side and
+    // ledger-ctrl records real economics (WS-4). Every downstream hop (SIM_ORDER_REQUESTED → fill →
+    // SIM_ORDER_FILLED → callback → ORDER_FILLED → ledger-adpt → ledger-ctrl) is a real prod-source
+    // PutEvents/CDC emission. This exercises previously-broken hops 3-8 for real, market-hours-independent.
     await eb.putEvent({
-      bus: 'ledger',
-      targetService: 'ledger-ctrl',
-      detailType: 'ORDER_FILLED',
+      bus: 'execution',
+      targetService: 'broker-ctrl',
+      detailType: 'ORDER_SUBMITTED',
       subject: {
         orderId: `e2e-order-${Date.now()}`,
-        executionMode: 'simulation',
-        filledQty: 10,
-        averageFillPrice: 200,
+        decisionPacketId: decisionId,
+        symbol: 'VTI',
+        side: 'BUY',
+        quantityOrAmountCents: 500_000,
+        status: 'SUBMITTED',
         timestamp: new Date().toISOString(),
       },
       context: { tenantId: tenant.tenantId, userId: tenant.userId },

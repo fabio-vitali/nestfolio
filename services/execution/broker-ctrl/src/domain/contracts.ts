@@ -13,6 +13,13 @@ import { AlpacaTransferRequestSchema, FundingSnapshotSchema } from '@nestfolio/e
  */
 export const NormalizedOrderEventSchema = z.object({
   orderId: z.string(),
+  // symbol/side are bound from the order at routing ($.subject) and the order SF now always
+  // writes them on every emitted ORDER_* NormalizedEvent (WS-3 break D producer). Kept OPTIONAL
+  // here because this schema is re-exported via @nestfolio/execution-adpt/domain and consumed
+  // cross-domain; tightening to required is the consumer's call (WS-4 ledger RecordFill typing),
+  // which updates the cross-service fixtures at the same time.
+  symbol: z.string().optional(),
+  side: z.enum(['BUY', 'SELL']).optional(),
   executionMode: z.enum(['simulation', 'live']),
   filledQty: z.number().optional(),
   averageFillPrice: z.number().optional(),
@@ -31,9 +38,9 @@ export const BrokerOrderSchema = z.object({
   state: z.enum(['ROUTING', 'AWAITING_FILL', 'FILLED', 'PARTIALLY_FILLED', 'REJECTED', 'CANCELLED', 'ESCALATED']),
   routedTo: z.enum(['sim', 'alpaca']),
   fillTaskToken: z.string().optional(),
-  requestedQty: z.number(),
+  // The order request is dollar-amount-denominated (cents); shares are not known until fill.
+  requestedAmountCents: z.number(),
   filledQty: z.number(),
-  remainingQty: z.number(),
   averageFillPrice: z.number().optional(),
   retryCount: z.number(),
   instrumentId: z.string(),
@@ -61,7 +68,8 @@ export const BrokerOrderRequestSchema = z.object({
   orderId: z.string(),
   symbol: z.string(),
   side: z.enum(['BUY', 'SELL']),
-  quantity: z.number(),
+  // Dollar amount in cents — the adapter converts amount→shares at the fill price.
+  amountCents: z.number(),
 });
 
 /** DRY subject for the deposit-routing command broker-ctrl emits to broker-sim (SIM_DEPOSIT_INITIATED). */

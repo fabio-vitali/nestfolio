@@ -63,7 +63,7 @@ describe('route-order handler', () => {
     userId: 'u-1',
     symbol: 'VTI',
     side: 'BUY' as const,
-    quantity: 10,
+    amountCents: 50000,
   };
 
   it('should route to simulation adapter when executionMode=simulation', async () => {
@@ -83,6 +83,8 @@ describe('route-order handler', () => {
       state: 'AWAITING_FILL',
       routedTo: 'sim',
       fillTaskToken: 'token-123',
+      requestedAmountCents: 50000,
+      instrumentId: 'VTI',
     });
 
     // Verify EventBridge emit
@@ -133,7 +135,7 @@ describe('route-order handler', () => {
       orderId: 'order-1',
       symbol: 'VTI',
       side: 'BUY',
-      quantity: 10,
+      amountCents: 50000,
     });
   });
 });

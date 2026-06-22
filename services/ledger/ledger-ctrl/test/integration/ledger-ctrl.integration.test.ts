@@ -61,12 +61,13 @@ describe('ledger-ctrl: ORDER_FILLED → LedgerEntry DDB write (smoke)', () => {
       targetService: 'ledger-ctrl',
       detailType: 'ORDER_FILLED',
       // Typed against NormalizedOrderEventSchema (broker-ctrl/contracts → @nestfolio/test-contracts).
-      // symbol/side/quantity/fillPrice are NOT in the ORDER_* producer contract — broker-ctrl drops
-      // them, so the ledger-ctrl reducer/tax-lot reads of those resolve to undefined in prod: a filed
-      // latent bug (docs/backlog/ledger-ctrl-live-tax-lot-missing-order-fields.md). executionMode
+      // Post-WS-3 the order SF carries symbol/side + filledQty/averageFillPrice on ORDER_FILLED, and
+      // the ledger consumer (WS-4) normalizes them into the canonical RecordFill shape. executionMode
       // 'simulation' keeps the live-only tax-lot path out of scope here.
       subject: {
         orderId: 'test-order-integ-001',
+        symbol: 'VTI',
+        side: 'BUY',
         executionMode: 'simulation',
         filledQty: 10,
         averageFillPrice: 150.0,
@@ -155,6 +156,8 @@ describe('ledger-ctrl: event-listener DDB writes', () => {
       detailType: 'ORDER_PARTIALLY_FILLED',
       subject: {
         orderId: `partial-ddb-${Date.now()}`,
+        symbol: 'QQQ',
+        side: 'BUY',
         executionMode: 'simulation',
         filledQty: 3,
         averageFillPrice: 420.0,
@@ -231,6 +234,8 @@ describe('ledger-ctrl: CDC chain → BALANCE_UPDATED', () => {
       detailType: 'ORDER_FILLED',
       subject: {
         orderId: `fill-cdc-${Date.now()}`,
+        symbol: 'VTI',
+        side: 'BUY',
         executionMode: 'simulation',
         filledQty: 10,
         averageFillPrice: 150.0,
@@ -306,6 +311,8 @@ describe('ledger-ctrl: CDC chain → BALANCE_UPDATED', () => {
       detailType: 'ORDER_PARTIALLY_FILLED',
       subject: {
         orderId: `partial-cdc-${Date.now()}`,
+        symbol: 'QQQ',
+        side: 'BUY',
         executionMode: 'simulation',
         filledQty: 3,
         averageFillPrice: 420.0,

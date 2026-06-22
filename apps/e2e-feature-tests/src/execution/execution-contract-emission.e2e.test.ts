@@ -269,9 +269,9 @@ describe('execution-domain producer contracts — SIM path', () => {
       }, 180_000);
 
       // Drive the sim engine DIRECTLY via SIM_ORDER_REQUESTED. broker-sim's
-      // event-listener reads the subject as {orderId, userId, symbol, side,
-      // quantity} (services/execution/broker-sim-adpt/src/handlers/event-listener.ts
-      // SIM_ORDER_REQUESTED handler, lines 24-28). The engine fills the order and
+      // event-listener reads the subject as {orderId, symbol, side, amountCents}
+      // and the engine converts the dollar amount to a fractional share quantity at
+      // the fill price (services/execution/broker-sim-adpt). The engine fills the order and
       // writes a VirtualTrade row (sk=`Trade#${tradeId}`, __typename='VirtualTrade')
       // → CDC SIM_ORDER_FILLED. The emitted subject is validated by VirtualTradeSchema.
       const orderId = `e2e-simord-${randomUUID()}`;
@@ -279,7 +279,7 @@ describe('execution-domain producer contracts — SIM path', () => {
         bus: 'execution',
         targetService: 'broker-sim-adpt',
         detailType: 'SIM_ORDER_REQUESTED',
-        subject: { orderId, symbol: 'VTI', side: 'BUY', quantity: 5 },
+        subject: { orderId, symbol: 'VTI', side: 'BUY', amountCents: 50000 },
         context: { tenantId: tenant.tenantId, userId: tenant.userId },
       });
 
@@ -410,9 +410,9 @@ describe('execution-domain producer contracts — REAL Alpaca paper path', () =>
       const alpacaByTypename = makeByTypename(ddbDoc, alpacaTable, tenant.tenantId);
 
       // Drive a REAL paper order DIRECTLY via ALPACA_ORDER_REQUESTED. broker-alpaca's
-      // processOrderRequested reads the subject as {orderId, symbol, side, quantity}
-      // (services/execution/broker-alpaca-adpt/src/handlers/event-listener.ts
-      // processOrderRequested, lines 122-124). It submits to the real paper API and
+      // processOrderRequested reads the subject as {orderId, symbol, side, amountCents}
+      // and submits an Alpaca NOTIONAL dollar order (amountCents/100), letting Alpaca
+      // resolve the fractional share quantity at fill. It submits to the real paper API and
       // writes an AlpacaOrderResult row (pk=`OrderMapping#${tenantId}#${orderId}`,
       // sk='OrderMapping', __typename='AlpacaOrderResult') → CDC ALPACA_ORDER_*. The
       // emitted subject is validated by AlpacaOrderResultSchema (REJECTED is a valid
@@ -422,7 +422,7 @@ describe('execution-domain producer contracts — REAL Alpaca paper path', () =>
         bus: 'execution',
         targetService: 'broker-alpaca-adpt',
         detailType: 'ALPACA_ORDER_REQUESTED',
-        subject: { orderId, symbol: 'VTI', side: 'BUY', quantity: 1 },
+        subject: { orderId, symbol: 'VTI', side: 'BUY', amountCents: 20000 },
       });
 
       // Generous deadline — real Alpaca API.
@@ -659,12 +659,32 @@ describe('execution-domain DRY-wire emission — Order subject (Task 9)', () => 
       // DECISION_APPROVED → execution-ctrl event-listener writes Order row (INSERT)
       // → CDC ORDER_SUBMITTED | ORDER_STAGED | ORDER_REJECTED.
       // subject = OrderSchema.parse(row) — DRY.
+      //
+      // The authorizing event MUST carry proposedTrades: post-WS-1 DECISION_APPROVED
+      // carries them, and the event-listener correctly skip()s (no Order written) when
+      // they are absent ("nothing to execute"). A bare approvedComplianceCheck therefore
+      // emits nothing and the trap times out — drive a real per-trade expansion here.
       const eb = new EventBridgeClient(ctx);
       await eb.putEvent({
         bus: 'execution',
         targetService: 'execution-ctrl',
         detailType: 'DECISION_APPROVED',
-        subject: approvedComplianceCheck(`e2e-dp-dry-${randomUUID()}`),
+        subject: {
+          ...approvedComplianceCheck(`e2e-dp-dry-${randomUUID()}`),
+          // Full ProposedTrade — execution-ctrl's event-listener parses each entry with
+          // the strict ProposedTradeSchema (symbol/assetClass/side/quantityOrAmountCents/
+          // targetWeightPercent/rationale). A partial entry throws a ZodError → DLQ → no Order.
+          proposedTrades: [
+            {
+              symbol: 'VTI',
+              assetClass: 'EQUITY',
+              side: 'BUY',
+              quantityOrAmountCents: 500_000,
+              targetWeightPercent: 100,
+              rationale: 'e2e DRY-wire order',
+            },
+          ],
+        },
       });
 
       // Wait for the live CDC emission. 300s window (matching the ledger + investor
