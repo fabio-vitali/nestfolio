@@ -35,9 +35,18 @@ export const TIER1 = [
   { re: /^libs\/cdk-constructs\//,              reason: 'deployed library',    service: false },
   { re: /^libs\/agent-orchestrator\//,          reason: 'deployed library',    service: false },
   { re: /^libs\/event-types\//,                 reason: 'deployed library',    service: false },
-  { re: /^libs\/test-support\//,                reason: 'integ-test harness',  service: false },
-  { re: /^libs\/integration-testing\//,         reason: 'integ-test harness',  service: false },
-  { re: /^apps\/investor-web\//,                reason: 'frontend',            service: false },
+  // Test-only harness libs: NOT compiled into any deployed bundle. A change here
+  // requires NO deploy and must NOT seed the true-affected resolver (else a one-line
+  // harness edit fans out to its whole ~27-service consumer closure — the F-1 bug).
+  { re: /^libs\/test-support\//,                reason: 'integ-test harness',  service: false, noRuntimeDeploy: true },
+  { re: /^libs\/integration-testing\//,         reason: 'integ-test harness',  service: false, noRuntimeDeploy: true },
+  // Frontend apps + libs. (investor-web lives under services/ and is matched by the
+  // services rule above.) The MFEs deploy via their own `deploy-mfe` target; the host
+  // shell bundle + the federation singleton lib have no independent deploy target and
+  // are uploaded by `investor-web:deploy-shell` — see DEPLOY_VIA, applied at
+  // deploy-target resolution since the nx graph has no import edge for that coupling.
+  { re: /^apps\/[^/]+-mfe\//,                   reason: 'frontend MFE',        service: false },
+  { re: /^apps\/nestfolio-host\//,              reason: 'frontend shell host', service: false },
   { re: /^libs\/ui\//,                          reason: 'frontend lib',        service: false },
   { re: /^libs\/frontend-deps\//,               reason: 'frontend lib',        service: false },
   { re: /^libs\/shell\//,                       reason: 'frontend lib',        service: false },
@@ -75,14 +84,17 @@ export function classifyChanges(changedFiles) {
   const skipped = [];
   const unknownPaths = [];
   const servicesSet = new Set();
+  const seedFiles = []; // real-deploy-relevant files that seed the true-affected resolver
 
   for (const file of changedFiles) {
     let matched = false;
     for (const rule of TIER1) {
       const m = file.match(rule.re);
       if (m) {
-        triggers.push({ file, reason: rule.reason });
+        const noRuntimeDeploy = rule.noRuntimeDeploy === true;
+        triggers.push({ file, reason: rule.reason, noRuntimeDeploy });
         if (rule.service) servicesSet.add(m[1]);
+        if (!noRuntimeDeploy) seedFiles.push(file);
         matched = true;
         break;
       }
@@ -90,7 +102,8 @@ export function classifyChanges(changedFiles) {
     if (matched) continue;
 
     if (ROOT_DEPLOY.some((re) => re.test(file))) {
-      triggers.push({ file, reason: 'workspace-wide config' });
+      triggers.push({ file, reason: 'workspace-wide config', noRuntimeDeploy: false });
+      seedFiles.push(file);
       continue;
     }
 
@@ -100,16 +113,54 @@ export function classifyChanges(changedFiles) {
     }
 
     unknownPaths.push(file);
+    seedFiles.push(file); // unknown path → conservative deploy, seeds the resolver
   }
 
-  const deploy = triggers.length > 0 || unknownPaths.length > 0;
+  // A deploy is required only if some trigger is a REAL (runtime-deployed) trigger,
+  // or an unknown path forces the conservative default. A change touching ONLY
+  // noRuntimeDeploy harness libs requires no deploy (deploy=false).
+  const deploy = triggers.some((t) => !t.noRuntimeDeploy) || unknownPaths.length > 0;
   return {
     deploy,
     services: [...servicesSet].sort(),
     triggers,
     skipped,
     unknownPaths,
+    seedFiles,
   };
+}
+
+// Deploy-time couplings the nx graph cannot express (no import edge). The shell
+// host bundle (nestfolio-host) and the Native-Federation singleton surface
+// (frontend-deps) have no independent deploy target — they are built and uploaded
+// by `investor-web:deploy-shell` (deploy.sh Phase 4c). A change to either must
+// therefore (re)deploy investor-web. Keyed by nx project name.
+export const DEPLOY_VIA = {
+  'nestfolio-host': 'investor-web',
+  'frontend-deps': 'investor-web',
+};
+
+/**
+ * Map real-deploy seed files to the `deploy.sh --services=` tokens that actually
+ * (re)deploy the affected code. Runs the true-affected resolver to get the full
+ * dependent project closure, then keeps only projects that are independently
+ * deployable (have a `deploy` or `deploy-mfe` nx target), remapping the
+ * graph-invisible shell-bundle projects through DEPLOY_VIA. Non-deployable
+ * projects (intermediate libs, e2e harness apps, the host shell itself) are
+ * dropped or remapped — never emitted raw, so `--services=` is always trustworthy.
+ */
+export function resolveDeployServices(graph, seedFiles) {
+  const tokens = new Set();
+  for (const proj of affectedProjects(graph, { files: seedFiles })) {
+    const targets = graph.nodes[proj]?.data?.targets || {};
+    if (targets.deploy != null || targets['deploy-mfe'] != null) {
+      tokens.add(proj);
+    } else if (DEPLOY_VIA[proj]) {
+      tokens.add(DEPLOY_VIA[proj]);
+    }
+    // else: not independently deployable and no coupling → drop
+  }
+  return [...tokens].sort();
 }
 
 function main() {
@@ -142,18 +193,18 @@ function main() {
     process.exit(10);
   }
 
-  const { deploy: deployNeeded, services: pathServices, triggers, skipped, unknownPaths } = classifyChanges(changedFiles);
+  const { deploy: deployNeeded, services: pathServices, triggers, skipped, unknownPaths, seedFiles } = classifyChanges(changedFiles);
 
-  // True-affected resolver: map the diff to its dependent DEPLOYABLE service
-  // closure (covers shared-lib changes, which path-extraction leaves empty).
-  // Exclude no-deploy (Tier 0) files so a tools/ or docs/ edit never widens it.
+  // True-affected resolver: map the real-deploy seed files (TIER0 + noRuntimeDeploy
+  // harness libs already excluded by classifyChanges) to their dependent DEPLOYABLE
+  // project closure, keeping only independently-deployable apps and remapping the
+  // graph-invisible shell-bundle projects through DEPLOY_VIA. Covers shared-lib and
+  // frontend changes, which bare path-extraction leaves empty.
   let services = pathServices;
   if (deployNeeded) {
     try {
       const graph = loadGraph();
-      const deployRelevant = changedFiles.filter((f) => !TIER0.some((re) => re.test(f)));
-      services = affectedProjects(graph, { files: deployRelevant, type: 'app' })
-        .filter((n) => graph.nodes[n].data.root.startsWith('services/'));
+      services = resolveDeployServices(graph, seedFiles);
     } catch (err) {
       console.error(`[detect-deploy] resolver unavailable (${err.message}); using path-extracted services`);
     }
