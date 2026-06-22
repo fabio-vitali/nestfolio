@@ -1,6 +1,7 @@
 ---
 id: detect-deploy-fanout-and-empty-services
-status: active
+status: shipped
+closed: 2026-06-22
 type: tooling
 notes: "detect-deploy-needed.mjs is wrong two ways for E6's --services=<from-detect>: a test-only harness-lib change (test-support) fans out to its full dependent closure (27 services), and a frontend/libs/ui change returns deploy=true with empty services=[] (resolver filters to root.startsWith('services/')) → silent deploy no-op against stale code."
 references: []
@@ -12,7 +13,7 @@ out_of_scope:
 spec: null
 plan: null
 topic_memory: []
-validation_gate: null
+validation_gate: "Fix in detect-deploy-needed.mjs (commit on feat/epic-deploy-tooling-integrity): noRuntimeDeploy flag on test-support/integration-testing TIER1 rules + classifyChanges seedFiles + new resolveDeployServices(graph, seedFiles) (deployable-target predicate replacing root.startsWith('services/')) + DEPLOY_VIA shell-bundle coupling; dead apps/investor-web rule removed; deploy-paths.md updated. Regression: 13 new tests in test/detect-deploy-resolve.test.mjs, full backlog-next suite 26/26 green (node --test). Verified end-to-end against the LIVE nx graph 2026-06-22: test-support change → deploy=false (was 27-service fan-out); test-support+1 service → that service's closure, harness excluded from seed; libs/ui → [advisory-mfe,dashboard-mfe,investor-mfe,investor-web,ledger-mfe] (was services=[]); libs/shell → [5 MFEs+investor-web]; libs/frontend-deps & apps/nestfolio-host → [investor-web]; apps/advisory-mfe → [advisory-mfe] (was unknown-path→empty). No deploy/integration needed — change is .claude/ + docs/ (Tier 0, zero nx-affected). The pre-existing single-service→27 fan-out via test-lib reverse-reach is OUT OF SCOPE here and filed as captured member detect-deploy-test-lib-reverse-reach-fanout."
 epic: deploy-tooling-integrity
 epic_role: core
 ---
