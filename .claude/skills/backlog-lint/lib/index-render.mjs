@@ -13,9 +13,14 @@ const HEADER = `# Nestfolio Backlog
 const STATUS_ORDER = { active: 0, queued: 1, parking: 2, shipped: 3, dropped: 4 };
 const statusRank = (f) => STATUS_ORDER[f.frontmatter?.status] ?? 9;
 
+// Total scalar coercion: frontmatter values can be non-string (a list/number written
+// by a skill one-liner). Coerce before any string op so render never crashes the --fix write.
+const str = (x) => (typeof x === 'string' ? x : x == null ? '' : String(x));
+
 function lineFor(f) {
-  const type = f.frontmatter.type ? `[${f.frontmatter.type}]` : '';
-  const notes = f.frontmatter.notes?.trim() ? ` — ${f.frontmatter.notes.trim()}` : '';
+  const type = f.frontmatter.type ? `[${str(f.frontmatter.type)}]` : '';
+  const notesStr = str(f.frontmatter.notes).trim();
+  const notes = notesStr ? ` — ${notesStr}` : '';
   const epicTag = f.frontmatter.epic ? ` \`[epic:${f.frontmatter.epic} · ${epicRole(f)}]\`` : '';
   return `[${f.id}](backlog/${f.id}.md) ${type}${notes}`.trim() + epicTag;
 }
@@ -70,9 +75,11 @@ function renderEpicBlock(epic, files) {
   const done = (arr) => arr.filter(m => TERMINAL.has(m.frontmatter?.status)).length;
 
   const status = epic.frontmatter?.status;
-  const notes = epic.frontmatter?.notes?.trim() ? ` — ${epic.frontmatter.notes.trim()}` : '';
+  const notesStr = str(epic.frontmatter?.notes).trim();
+  const notes = notesStr ? ` — ${notesStr}` : '';
   const lines = [`### [${epic.id}](backlog/${epic.id}.md) \`[epic · ${status}]\`${notes}`];
-  if (epic.frontmatter?.done_when?.trim()) lines.push(`done_when: ${epic.frontmatter.done_when.trim()}`);
+  const dwStr = str(epic.frontmatter?.done_when).trim();
+  if (dwStr) lines.push(`done_when: ${dwStr}`);
   lines.push(`rollup: core ${done(core)}/${core.length} done · captured ${done(captured)}/${captured.length} done`);
 
   const ordered = [...members].sort((a, b) =>
