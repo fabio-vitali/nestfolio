@@ -9,7 +9,7 @@ out_of_scope:
   - "lint --fix performance (F-29 ~25s / per-shipped-file git log fan-out) — owned by backlog-skills-misc-polish"
   - "--auto decision discipline, merge ownership, run-state, ship/merge mechanics — separate backlog-skills-hardening core members"
   - "The backlog data-model redesign itself (backlog-redesign) — this hardens the parser/render machinery, not the model"
-spec: null
+spec: docs/superpowers/specs/2026-06-22-lint-library-total-and-located-design.md
 plan: null
 topic_memory: []
 validation_gate: null
