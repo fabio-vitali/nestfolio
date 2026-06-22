@@ -6,13 +6,7 @@
 
 ## EPICS
 
-### [advisory-narrative-memory-read-latency](backlog/advisory-narrative-memory-read-latency.md) `[epic · parking]` — advisory-narrative-ctrl blocks on AgentCore Memory reads before writing its observable HEAD row → 30-40s integration tests. Theme epic, 2 members.
-done_when: advisory-narrative-ctrl's observable HEAD row is visible to tests in ~5-10s (eager write and/or tightened Memory-retry delays) with no dev/prod consistency skew; both members shipped or dropped.
-rollup: core 0/2 done · captured 0/0 done
-- core · parking · [advisory-narrative-ctrl-eager-write-refactor](backlog/advisory-narrative-ctrl-eager-write-refactor.md)
-- core · parking · [advisory-narrative-ctrl-memory-retry-env-plumb](backlog/advisory-narrative-ctrl-memory-retry-env-plumb.md)
-
-### [backlog-skills-hardening](backlog/backlog-skills-hardening.md) `[epic · parking]` — Bulletproof the /backlog-next-epic orchestrator + /backlog-next worker workflows. Theme epic aggregating the confirmed weaknesses from the 2026-06-22 skills audit (docs/reviews/2026-06-22-backlog-skills-audit.md), surfaced by the first real --auto epic run (order-execution-money-path, merge #20). 6 core members.
+### [backlog-skills-hardening](backlog/backlog-skills-hardening.md) `[epic · active]` — Bulletproof the /backlog-next-epic orchestrator + /backlog-next worker workflows. Theme epic aggregating the confirmed weaknesses from the 2026-06-22 skills audit (docs/reviews/2026-06-22-backlog-skills-audit.md), surfaced by the first real --auto epic run (order-execution-money-path, merge #20). 6 core members.
 done_when: Every confirmed weakness from the 2026-06-22 backlog-skills audit is fixed in the skill prose/scripts (or consciously dropped) and an --auto epic runs end-to-end with: no improvised workaround on the orchestrator->worker drive, no opaque backlog-lint crash on malformed frontmatter, durable resumable run-state, and a user-owned merge (close stops at an open PR, never self-merges). All core members shipped or dropped.
 rollup: core 2/6 done · captured 0/0 done
 - core · parking · [backlog-next-epic-member-subagent-isolation](backlog/backlog-next-epic-member-subagent-isolation.md)
@@ -21,6 +15,12 @@ rollup: core 2/6 done · captured 0/0 done
 - core · parking · [ship-and-merge-mechanics](backlog/ship-and-merge-mechanics.md)
 - core · shipped · [auto-decision-discipline-and-merge-ownership](backlog/auto-decision-discipline-and-merge-ownership.md)
 - core · shipped · [lint-library-total-and-located](backlog/lint-library-total-and-located.md)
+
+### [advisory-narrative-memory-read-latency](backlog/advisory-narrative-memory-read-latency.md) `[epic · parking]` — advisory-narrative-ctrl blocks on AgentCore Memory reads before writing its observable HEAD row → 30-40s integration tests. Theme epic, 2 members.
+done_when: advisory-narrative-ctrl's observable HEAD row is visible to tests in ~5-10s (eager write and/or tightened Memory-retry delays) with no dev/prod consistency skew; both members shipped or dropped.
+rollup: core 0/2 done · captured 0/0 done
+- core · parking · [advisory-narrative-ctrl-eager-write-refactor](backlog/advisory-narrative-ctrl-eager-write-refactor.md)
+- core · parking · [advisory-narrative-ctrl-memory-retry-env-plumb](backlog/advisory-narrative-ctrl-memory-retry-env-plumb.md)
 
 ### [blocked-decision-reason-from-violations](backlog/blocked-decision-reason-from-violations.md) `[epic · parking]` — ComplianceCheck/DECISION_BLOCKED carries violations[] but no human-readable reason, so every consumer that wants a block reason degrades. Theme epic, 2 members.
 done_when: A human-readable block reason is derived from violations[] (at the producer or a shared helper) and each consumer surfaces it instead of degrading; both members shipped or dropped.
@@ -147,7 +147,7 @@ rollup: core 0/3 done · captured 0/0 done
 - core · parking · [portfolio-drift-detected-registry-collision](backlog/portfolio-drift-detected-registry-collision.md)
 - core · parking · [weight-drift-detector](backlog/weight-drift-detector.md)
 
-**Parking health:** 21 theme epic(s), 32 orphan(s) — drive orphans → 0 with `/backlog-themes`
+**Parking health:** 20 theme epic(s), 32 orphan(s) — drive orphans → 0 with `/backlog-themes`
 
 ## ACTIVE
 
@@ -175,8 +175,6 @@ _(none)_
 - [agent-tracer-bedrock-converse-token-extraction](backlog/agent-tracer-bedrock-converse-token-extraction.md) [bug] — AgentTracer.handleLLMEnd returns 0 input/output tokens for ChatBedrockConverse — usage field path mismatch. Diagnostic envelopes lose cost/decode signal.
 - [agentcore-maxvms-prod-quota-increase](backlog/agentcore-maxvms-prod-quota-increase.md) [infra] — Request a Bedrock AgentCore maxVms (concurrent micro-VM) Service Quotas increase for production accounts. Sandbox deliberately keeps the low quota for cost; native SQS retry (agentcore-invocation-resilience) absorbs sandbox saturation. Sandbox-side alternative: cap ESM maxConcurrency / reservedConcurrency across agent-invoking ingress handlers.
 - [an-ctrl-wrap-agent-output-vestigial](backlog/an-ctrl-wrap-agent-output-vestigial.md) [refactor] — advisory-narrative-ctrl handler still wraps result via wrapAgentOutput but the wrap is unread after the callback refactor `[epic:dead-code-cleanup · core]`
-- [backlog-next-epic-member-subagent-isolation](backlog/backlog-next-epic-member-subagent-isolation.md) [tooling] — Tier-2 context fix for /backlog-next-epic --auto: run each epic member as a subagent so per-member investigation/edits/test-output stay out of the orchestrator's context; orchestrator keeps only compact ship-summaries. Tier-1 (per-member checkpoint+clear) already shipped. `[epic:backlog-skills-hardening · core]`
-- [backlog-skills-misc-polish](backlog/backlog-skills-misc-polish.md) [tooling] — Low-severity perf/prose singletons from the 2026-06-22 skills audit: lint --fix spawns ~388 git subprocesses/run; BACKLOG.md date drifts across midnight; node --test <dir> fails on Node 24 + non-hermetic render tests; --auto debug budget is a magic number; E1 rule-11 guard is prose-only. `[epic:backlog-skills-hardening · core]`
 - [broker-alpaca-account-snapshot-equity-string-drift](backlog/broker-alpaca-account-snapshot-equity-string-drift.md) [bug] — broker-alpaca AlpacaAccountSnapshot stores equity/buyingPower as RAW Alpaca API strings (event-listener processAccountCheck writes `account.data.equity`/`buying_point` verbatim), NOT Number()-converted like positions (which use Number(p.qty)). The typed-subject-contracts-execution slice corrected the contract to z.string().nullable() to match reality — but the asymmetry (positions numeric, equity/buyingPower string) is a latent producer inconsistency. Promote when touching broker-alpaca account-snapshot or when a consumer needs numeric equity/buyingPower. `[epic:broker-alpaca-emission-shape-drift · core]`
 - [broker-alpaca-adpt-latent-tsc-errors](backlog/broker-alpaca-adpt-latent-tsc-errors.md) [bug] — broker-alpaca-adpt has latent tsc errors masked by jest diagnostics:false; not e2e-blocking `[epic:typecheck-diagnostics-masking · core]`
 - [broker-alpaca-adpt-resilience-trap-collapse](backlog/broker-alpaca-adpt-resilience-trap-collapse.md) [refactor] — broker-alpaca-adpt.resilience.integration.test.ts creates 2 EventBusTrap rules in beforeAll — same anti-pattern that caused advisory-adpt + investor-adpt EB-rule-propagation flakes (shipped 2026-05-13). Hasn't been observed flaking yet; pre-emptive collapse to 1-trap-with-2-detailtypes.
@@ -238,10 +236,8 @@ _(none)_
 - [rebalance-planner-mode-awareness](backlog/rebalance-planner-mode-awareness.md) [refactor] — rebalance-planner stays mode-blind; promote on mode-correlated gap.
 - [rename-nestfolio-integ-prefix-to-prefix](backlog/rename-nestfolio-integ-prefix-to-prefix.md) [refactor] — Verbose NESTFOLIO_INTEG_ namespace is friction; rename atomically + sweep docs.
 - [route-order-userid-in-subject-nondry](backlog/route-order-userid-in-subject-nondry.md) [bug] — broker-ctrl route-order.ts emits SIM_ORDER_REQUESTED / ALPACA_ORDER_REQUESTED with userId IN the subject (non-DRY); identity belongs in context. Phase-3 BrokerOrderRequestSchema is DRY and adapter consumers read identity from context, so no runtime break — but the producer emission carries a redundant identity field. `[epic:dry-subject-identity-cleanup · core]`
-- [runstate-write-contract-and-recovery](backlog/runstate-write-contract-and-recovery.md) [tooling] — The epic run-state JSON (crash-recovery backbone) has no prescribed write mechanism (a prior run hand-wrote malformed JSON), drifted its schema (invented ws*_decisions/paused_at), uses a cwd-relative path that can misclassify RESUME as FRESH, and isn't invalidated when a member is re-opened. `[epic:backlog-skills-hardening · core]`
 - [sec-prospectus-pe-ctrl-fixture-contract-mismatch](backlog/sec-prospectus-pe-ctrl-fixture-contract-mismatch.md) [bug] — PE-ctrl SEC_PROSPECTUS_UPDATED resilience fixtures used { filingId, content } vs real SecFilingSchema `[epic:untyped-fixture-contract-drift · core]`
 - [sf-start-idempotency-at-least-once-redelivery](backlog/sf-start-idempotency-at-least-once-redelivery.md) [refactor] — LOW priority post-collapse — defer until EB redelivery is observed empirically.
-- [ship-and-merge-mechanics](backlog/ship-and-merge-mechanics.md) [tooling] — E6/E7/E8 ship+merge are brittle: E8 merge done manually (bypassing finishing-a-development-branch), postflight crashes on the deleted-worktree cwd (skipping the only epic-scope close gate), per-member tests miss cross-member shared-schema breakage, E6 can false-green, and conflict guidance covers only BACKLOG.md. `[epic:backlog-skills-hardening · core]`
 - [stale-memory-write-comments-phase-a-cleanup](backlog/stale-memory-write-comments-phase-a-cleanup.md) [refactor] — 6 stale comments in decision-workflow-ctrl + cdk-constructs reference writeAgentOutput / BatchCreate / ListMemoryRecords `[epic:dead-code-cleanup · core]`
 - [test-infrastructure-polling-audit](backlog/test-infrastructure-polling-audit.md) [refactor] — App code clean; test infra has 98 justified + 12 should-replace + 126 lower-priority polls.
 - [unified-ingress-refactoring](backlog/unified-ingress-refactoring.md) [refactor] — Single event-listener with ResumeIntent + PublishIntent (planned, not started).
