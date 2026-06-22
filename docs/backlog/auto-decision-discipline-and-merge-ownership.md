@@ -9,7 +9,7 @@ out_of_scope:
   - "The post-merge resume tail mechanics (ff main, delete merged local branch, epic postflight 4-7, drop run-state) + E8.3 postflight cwd-crash + cross-member tsc + e2e false-green + conflict-scope (F-22/F-23/F-21/F-24/F-25) — owned by ship-and-merge-mechanics. THIS member fixes WHO merges (stop-at-open-PR, never self-merge) + the AskUserQuestion floor; ship-and-merge-mechanics owns the resume-and-cleanup plumbing it hands off to."
   - "The orchestrator<->worker callable-seam / subagent-isolation refactor (F-26/F-27/F-28) — owned by backlog-next-epic-member-subagent-isolation. F-8 (worker-mode self-contained floor rule) IS in scope here — it is a decision-discipline rule, not the seam refactor."
   - "detect-deploy-needed.mjs / detect-doc-derivation.mjs gating — deploy-tooling-integrity."
-spec: null
+spec: docs/superpowers/specs/2026-06-22-auto-decision-discipline-and-merge-ownership-design.md
 plan: null
 topic_memory: []
 validation_gate: null
