@@ -55,6 +55,60 @@ export interface ChangeDataCaptureConfig {
 
 type Emission = { eventType: string; previousSubject?: Record<string, unknown> };
 
+export type MappingShape = 'string' | 'passthrough' | 'modify' | 'fieldDispatch';
+
+/**
+ * Deploy-time integrity discriminator. Returns the shape `resolveEmissions` would
+ * resolve `mapping` as, or `null` if no branch structurally handles it.
+ *
+ * INVARIANT: this MUST mirror `resolveEmissions`' discriminant order exactly —
+ * "classifier returns non-null" ⟺ "resolveEmissions can structurally resolve it".
+ * It is deliberately STRICTER than `resolveEmissions`' permissive field-dispatch
+ * fall-through (which reads `.field`/`.map` off any object): an unrecognized shape
+ * here returns `null` instead of being silently treated as a malformed field
+ * dispatch. That strictness is what lets the INIT guard detect a deployed config
+ * carrying a shape the deployed bundle's resolver predates (the stale-bundle class).
+ * When `resolveEmissions` gains a new mapping shape, add it here too.
+ */
+export function classifyMappingShape(mapping: unknown): MappingShape | null {
+  if (typeof mapping === 'string') return 'string';
+  if (mapping === null || typeof mapping !== 'object') return null;
+  const m = mapping as Record<string, unknown>;
+
+  if ('passthrough' in m) {
+    return m.passthrough === true && typeof m.field === 'string' ? 'passthrough' : null;
+  }
+  if ('always' in m || 'onFieldChange' in m) {
+    const hasAlways = typeof m.always === 'string';
+    const hasOnFieldChange = m.onFieldChange != null && typeof m.onFieldChange === 'object';
+    return hasAlways || hasOnFieldChange ? 'modify' : null;
+  }
+  if (typeof m.field === 'string' && m.map != null && typeof m.map === 'object') {
+    return 'fieldDispatch';
+  }
+  return null;
+}
+
+/**
+ * INIT-time deploy integrity check (config-vs-capability). Every mapping in the
+ * deployed `EVENT_TYPE_MAP` must be a shape this bundle's `resolveEmissions` can
+ * resolve. An unrecognized/malformed shape means the deployed code lags the
+ * deployed config (a stale bundle) — throw at INIT so the deploy's first
+ * invocation fails loud, rather than silently dropping emissions per-record.
+ */
+function assertRuntimeConfigResolvable(config: RuntimeConfig, serviceName: string): void {
+  const unresolvable = Object.entries(config)
+    .filter(([, mapping]) => classifyMappingShape(mapping) === null)
+    .map(([key]) => key);
+  if (unresolvable.length > 0) {
+    throw new Error(
+      `changeDataCapture: EVENT_TYPE_MAP contains mapping shape(s) this bundle cannot resolve: ` +
+      `${unresolvable.join(', ')} (service ${serviceName}). The deployed bundle's resolver likely ` +
+      `lags the deployed config (stale bundle) — redeploy this service from current source.`,
+    );
+  }
+}
+
 function deepEqual(a: unknown, b: unknown): boolean {
   if (a === b) return true;
   if (typeof a !== typeof b) return false;
@@ -180,6 +234,10 @@ export function changeDataCapture(
   const runtimeConfig: RuntimeConfig = JSON.parse(process.env.EVENT_TYPE_MAP!);
   const serviceName = process.env.SERVICE_NAME!;
   const busName = config.bus ?? process.env.BUS_NAME!;
+
+  // Deploy-time integrity check — runs for EVERY CDC service (typed or legacy),
+  // unconditionally, before the typed-mode completeness guard below.
+  assertRuntimeConfigResolvable(runtimeConfig, serviceName);
 
   if (config.schemas || config.exemptTypenames) {
     const covered = new Set(Object.keys(config.schemas ?? {}));

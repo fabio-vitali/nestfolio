@@ -54,6 +54,40 @@ test('TIER1: domain-root changes (no service segment) fall through to unknown', 
   assert.equal(result.unknownPaths[0], 'services/advisory/README.md');
 });
 
+test('TIER0: services/<domain>/<service>/test/** is no-deploy (test-only change never builds an artifact)', () => {
+  const result = classifyChanges([
+    'services/investor/investor-bff/test/unit/repositories/investor-profile.repository.test.ts',
+  ]);
+  assert.equal(result.deploy, false);
+  assert.equal(result.skipped.length, 1);
+  assert.equal(result.triggers.length, 0);
+  assert.equal(result.unknownPaths.length, 0, 'a test-only service change must NOT fall through to the conservative deploy=true default');
+  assert.equal(result.seedFiles.length, 0, 'a Tier-0 test file must not seed the true-affected resolver');
+});
+
+test('TIER0: a test-only change mixed with src isolates the deploy to the src service only', () => {
+  const result = classifyChanges([
+    'services/advisory/decision-workflow-ctrl/src/handlers/a.ts',
+    'services/advisory/decision-workflow-ctrl/test/integration/a.int.test.ts',
+  ]);
+  assert.equal(result.deploy, true);
+  assert.deepEqual(result.services, ['decision-workflow-ctrl']);
+  assert.equal(result.skipped.length, 1, 'the test file is skipped');
+  assert.equal(result.unknownPaths.length, 0);
+});
+
+test('TIER1 precedence: services/<domain>/<service>/src/** with "test" in a deeper segment still deploys', () => {
+  // Guard the regex anchor: the Tier-0 rule must match the `/test/` directory segment,
+  // not the substring "test" anywhere — a src file named *.test.ts is runtime-adjacent
+  // fixture/helper under src/ and stays Tier 1.
+  const result = classifyChanges([
+    'services/ledger/ledger-bff/src/handlers/posting.test-helpers.ts',
+  ]);
+  assert.equal(result.deploy, true);
+  assert.deepEqual(result.services, ['ledger-bff']);
+  assert.equal(result.triggers[0].reason, 'Lambda code');
+});
+
 test('TIER0: docs/ and .claude/ are skipped', () => {
   const result = classifyChanges([
     'docs/backlog/foo.md',
