@@ -1,6 +1,6 @@
 ---
 id: detect-doc-derivation-resume-and-testability
-status: active
+status: shipped
 type: tooling
 notes: "detect-doc-derivation.mjs diffs whole-branch-vs-origin/main so it reports derivation=true on every epic resume (no signal whether derivation is actually outstanding), and it has no import-meta-main guard / no exports so it runs main() at import and is untestable (unlike its detect-deploy-needed sibling)."
 references: []
@@ -11,7 +11,8 @@ out_of_scope:
 spec: null
 plan: null
 topic_memory: []
-validation_gate: null
+validation_gate: "Commit f96caf02. F-3 (testability): extracted `export function classifyDerivation(changedFiles, { baseExists })` behind an `import.meta.main` guard (mirrors detect-deploy-needed.mjs:classifyChanges); git access injected as a `baseExists` predicate so the classifier is pure/import-safe — verified `import()` no longer runs main()/git/exit. +11 unit tests (classify-derivation.test.mjs) covering infra→C4, events→flow-spec, event-listener→flow-spec, other-src→card, adapter→audit-domain, new-service sweep, test/+project.json skip, flows, MFE, empty, docs-only-no-derivation. F-2 (resume signal): the detector already accepted --base; wired it via a new /backlog-next epic-member Step 6.1 delta that passes the member-start HEAD (captured at Step 4 adoption). Dogfood: `detect-doc-derivation --base=503568d2` (this member's start) → derivation=false, reporting only the member delta instead of the cumulative branch-vs-origin/main union. Full suite `node --test .claude/skills/backlog-next/test/*.test.mjs` → 40/40 pass. No deploy/integration: contribution is 100% .claude/** Tier-0 (scoped 6.1/6.2/6.3 all empty/false)."
+closed: 2026-06-22
 epic: deploy-tooling-integrity
 epic_role: core
 ---
