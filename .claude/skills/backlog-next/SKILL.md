@@ -1,7 +1,6 @@
 ---
 name: backlog-next
 description: Workstream router for starting the next backlog item. Picks from docs/BACKLOG.md, classifies complexity (doc-layer / simple / complex), enforces preflight/postflight gates, and routes the closing phase to deploy + true-affected-resolver validation + finishing-a-development-branch.
-disable-model-invocation: true
 ---
 
 ## When to invoke
