@@ -27,7 +27,7 @@
  */
 import { execSync } from 'node:child_process';
 import { existsSync, readFileSync, readdirSync, rmSync, statSync } from 'node:fs';
-import { join } from 'node:path';
+import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 export const VALID_LANES = ['doc-layer', 'simple', 'complex', 'epic-member'];
@@ -39,8 +39,20 @@ export function runsComplexChecks(lane) {
   return lane === 'complex';
 }
 
+/** Resolve REPO_ROOT for the CURRENT working tree, robust to a DEAD cwd. `--show-toplevel`
+ * is the right answer per-context — the WORKTREE root for an epic-member run (whose shipped
+ * frontmatter + tree live on the branch) and MAIN for the complex close (run from $MAIN after
+ * the worktree is gone). The only real F-23 failure was a *dead* cwd (postflight invoked right
+ * after the worktree it sat in was removed): guard it by chdir-ing to this script's own dir
+ * (always live — it's the file node is executing) before the git call. Callers also cd to a
+ * live dir first (epic E8.4 / `/backlog-next` Step 7) as the primary defense. */
+function resolveRepoRoot() {
+  try { process.cwd(); } catch { process.chdir(dirname(fileURLToPath(import.meta.url))); }
+  return execSync('git rev-parse --show-toplevel').toString().trim();
+}
+
 function main() {
-  const REPO_ROOT = execSync('git rev-parse --show-toplevel').toString().trim();
+  const REPO_ROOT = resolveRepoRoot();
 
   const args = Object.fromEntries(
     process.argv.slice(2).map((a) => {

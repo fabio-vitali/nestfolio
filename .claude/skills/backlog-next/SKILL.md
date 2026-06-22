@@ -159,7 +159,11 @@ This is the **durable fix for the `ExitWorktree`-always-fails problem** and it *
 ### 7. Postflight (enforced)
 
 ```bash
-node .claude/skills/backlog-next/postflight.mjs --lane=<doc-layer|simple|complex|epic-member> --id=<id> [--branch=<feat-branch>]
+# Complex lane: Step 6.8 just removed the worktree, which may be your pinned cwd. Run from $MAIN
+# (a guaranteed-live dir) so postflight can start at all — its REPO_ROOT then resolves from the
+# git-common-dir parent and survives the removed worktree (F-23). Doc-layer/simple: cwd is fine.
+MAIN=$(git -C "$(git rev-parse --git-common-dir)/.." rev-parse --show-toplevel 2>/dev/null || pwd)
+(cd "$MAIN" && node .claude/skills/backlog-next/postflight.mjs --lane=<doc-layer|simple|complex|epic-member> --id=<id> [--branch=<feat-branch>])
 ```
 
 Hard-fails if: working tree is dirty, `backlog-lint` violates a rule, the shipped item's frontmatter is incomplete, the feature branch wasn't merged + deleted (Complex), or stale worktrees remain. Fix before declaring the job done. (`--lane=epic-member` runs only checks 1–3 — tree-clean, lint, shipped frontmatter — because the member stays on the epic branch; the merge/sync/branch-delete checks belong to the epic-level close run by `/backlog-next-epic`.)
