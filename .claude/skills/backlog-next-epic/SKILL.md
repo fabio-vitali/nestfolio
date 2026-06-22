@@ -32,6 +32,7 @@ Member ordering is the tested helper `epic-members.mjs` (the deterministic pick 
 `/backlog-next-epic <id>` is **resumable and idempotent**. Before anything else, check for the run-state file `<git-common-dir>/backlog-next-epic-<id>.json`:
 
 - **Exists → this is a RESUME.** The epic is already promoted and the branch already exists. **Skip E0, E1 (promotion) and E3 (init).** Run E2 in its idempotent form (it no-ops / re-attaches the worktree if the branch exists but the worktree was pruned), re-enter the worktree as cwd, read (do not overwrite) the run-state, and **jump straight to E4** — the member loop re-derives the next open member from `epic-members.mjs`, so a half-finished run continues correctly (a member left `status: active` resumes in epic-member mode).
+  - **Run-state `e8: PR_OPEN_AWAITING_MERGE` → the PR is already open, awaiting the USER's merge** (do NOT re-enter the member loop). Check the PR state (`gh pr view <n> --json state -q .state`): **`MERGED`** → run **only** the E8.4 post-merge tail (ff `main`, delete the merged branch, epic postflight, drop run-state) and finish; **still `OPEN`** → re-print the PR link and STOP — the merge remains the user's (never `gh pr merge`).
 - **Absent → fresh run.** Proceed E0 → E1 → E2 → E3 → E4 normally.
 
 A resume never re-promotes the epic, never re-creates the branch, and never overwrites the accumulated decision log / e2e evidence in run-state.
@@ -84,6 +85,8 @@ Write `<git-common-dir>/backlog-next-epic-<id>.json` (on a RESUME this file alre
 ```
 
 **Member status is deliberately NOT stored here.** It is derived from each member file's frontmatter via `epic-members.mjs` — **frontmatter is the single source of truth; run-state is an append-only annotation.** Run-state's only jobs: (a) mark a run in flight (the resume gate keys off its existence), (b) carry `auto`, (c) accumulate the `decisions` log and `e2e` evidence across resumes. Keeping member state in exactly one place (frontmatter) avoids a drift-prone second copy.
+
+The run-state also carries an optional `e8: PR_OPEN_AWAITING_MERGE` marker, set by E8.1 when the epic PR is open and awaiting the user's merge — the only sanctioned `e8` value (the closed schema that formalizes it is `runstate-write-contract-and-recovery`).
 
 ### E4. Member loop
 
@@ -160,25 +163,32 @@ pnpm nx run nestfolio-e2e:e2e                                                # s
 
 ### E8. Single PR + cleanup + epic postflight
 
-1. Route to `superpowers:finishing-a-development-branch` for the **one** epic PR (in `--auto`, pre-pick its Option 2 — see E5). Do not handle the merge manually. **Compose the PR body yourself:** `finishing`'s push step does not author a body, so render the run-state `decisions[]` to markdown + a per-member commit summary and set it (`gh pr create`/`gh pr edit --body-file`); if the log is empty, state "no decisions auto-resolved". **Expect a `docs/BACKLOG.md` merge conflict** — the auto-index is written on BOTH `main` (E1 promotion marker + any parallel doc/simple workstream `CLAUDE.md` permits) and the branch (E4/E7). Resolve it **mechanically, never by hand**: take the branch side, then re-run `node .claude/skills/backlog-lint/lint.mjs --fix` on the rebased branch so the index regenerates from the merged frontmatter.
-2. After merge, clean up from the main repo root (NOT `ExitWorktree` — see [[feedback-exitworktree-fails-cwd-pinned]]):
+1. **Open the PR (the close ALWAYS stops here — `--auto` AND interactive).** Route to `superpowers:finishing-a-development-branch` taking the **PR route** (push + create PR). **Compose the PR body yourself:** `finishing`'s push step does not author a body, so render the run-state `decisions[]` to markdown + a per-member commit summary and set it (`gh pr create`/`gh pr edit --body-file`); if the log is empty, state "no decisions auto-resolved". **Expect a `docs/BACKLOG.md` merge conflict** — the auto-index is written on BOTH `main` (E1 promotion marker + any parallel doc/simple workstream `CLAUDE.md` permits) and the branch (E4/E7). Resolve it **mechanically, never by hand**: take the branch side, then re-run `node .claude/skills/backlog-lint/lint.mjs --fix` on the rebased branch so the index regenerates from the merged frontmatter, and push so the PR is mergeable.
+   - **Then STOP via AskUserQuestion — the merge is the user's.** Surface a structured AskUserQuestion (NOT prose): the `(Recommended)` option is *"PR #N is up at `<link>` — I'll review & merge it on GitHub myself; the agent stops here"*; other options cover *"keep iterating / inspect first"*. **No option runs `gh pr merge`; the agent NEVER self-merges and never local-merges the epic branch** (F-33). A bare "go" is not authorization to do anything but stop.
+   - On the stop-and-hand-off confirmation, **clean up the worktree only** — `git worktree remove --force` + `git worktree prune` — **keeping the local + remote branch** so the PR stays mergeable (NO `git branch -d`, NO remote-branch delete). **Print the GitHub PR link.** Set run-state `e8: PR_OPEN_AWAITING_MERGE` (the only sanctioned `e8` value) and STOP. The branch deletion + `main` fast-forward happen in the **post-merge tail** (item 4), on a later resume that detects the PR merged.
+2. **Worktree cleanup at the stop (branch KEPT).** From the main repo root (NOT `ExitWorktree` — see [[feedback-exitworktree-fails-cwd-pinned]]). This runs at the E8.1 stop, BEFORE the user merges, so it must NOT delete the branch or the run-state:
 
 ```bash
 MAIN=$(git -C "$(git rev-parse --git-common-dir)/.." rev-parse --show-toplevel)
-git -C "$MAIN" merge-base --is-ancestor feat/epic-<id> main && echo SAFE-TO-REMOVE
 git -C "$MAIN" worktree remove ".claude/worktrees/epic-<id>" --force
-git -C "$MAIN" branch -d feat/epic-<id>
 git -C "$MAIN" worktree prune
-rm -f "$(git -C "$MAIN" rev-parse --path-format=absolute --git-common-dir)/backlog-next-epic-<id>.json"
+# Branch is KEPT (local + remote) so the PR stays mergeable. Run-state is KEPT as e8: PR_OPEN_AWAITING_MERGE.
 ```
 
-3. **Epic-level postflight** (the full close — this is where checks 4–7 run, deferred from each member):
+3. **Hand off and STOP.** The run ends here with run-state `e8: PR_OPEN_AWAITING_MERGE`. Everything below (the post-merge tail) runs on a LATER `/backlog-next-epic <id>` resume.
+
+4. **Post-merge tail (resume only — after the user merges the PR).** The Resume gate (top of Procedure) detects `e8: PR_OPEN_AWAITING_MERGE` + the PR merged (`gh pr view <n> --json state -q .state` → `MERGED`) and runs ONLY this tail (no re-promotion, no member loop):
 
 ```bash
-node .claude/skills/backlog-next/postflight.mjs --lane=complex --branch=feat/epic-<id> --id=<id>
+MAIN=$(git -C "$(git rev-parse --git-common-dir)/.." rev-parse --show-toplevel)
+git -C "$MAIN" checkout main && git -C "$MAIN" pull --ff-only         # fast-forward main to the merged PR
+git -C "$MAIN" merge-base --is-ancestor feat/epic-<id> main && git -C "$MAIN" branch -d feat/epic-<id>
+git -C "$MAIN" worktree prune
+node .claude/skills/backlog-next/postflight.mjs --lane=complex --branch=feat/epic-<id> --id=<id>   # epic-level checks 4–7
+rm -f "$(git -C "$MAIN" rev-parse --path-format=absolute --git-common-dir)/backlog-next-epic-<id>.json"   # drop run-state
 ```
 
-4. Boundary review of `docs/BACKLOG.md` **once** (re-rank LATER, promote, check Parking health) — not per member.
+   Then a boundary review of `docs/BACKLOG.md` **once** (re-rank LATER, promote, check Parking health) — not per member. (The tail's robustness — postflight surviving a removed cwd, conflict-scope — is hardened by `ship-and-merge-mechanics`; this is the working contract.)
 
 ### E9. Resumability
 
