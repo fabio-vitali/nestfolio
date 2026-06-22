@@ -5,7 +5,7 @@ description: Workstream router for starting the next backlog item. Picks from do
 
 ## When to invoke
 
-User-triggered via `/backlog-next` only. `disable-model-invocation: true` in the frontmatter mechanically blocks auto-invocation and preloading into subagents — agents cannot trigger this skill from natural phrasing.
+Two sanctioned entry points: a user typing `/backlog-next` (standalone), **or** the `/backlog-next-epic` orchestrator driving this skill in epic-member mode. This skill is deliberately **NOT** `disable-model-invocation` (unlike `/backlog-next-epic`) — that key was removed on purpose so the orchestrator can invoke it via the Skill tool, which loads this SKILL.md **inline into the orchestrator's own context** (not a detached subagent; that inline-execution model is what the seam, the E4.5 checkpoint, and the parked Tier-2 subagent-isolation item all reason about). Outside those two paths, do not auto-fire it: the Step-1 active-in-flight guard + the epic-member guard below are the runtime backstops against a stray invocation.
 
 Accepts an optional `<id>` argument (`/backlog-next <id>`) that overrides the deterministic rank pick in Step 1. Without an argument, the default rule applies (resume single ACTIVE, else top-ranked QUEUED). The argument does NOT bypass any status rules — see Step 1 for the per-status dispatch.
 
