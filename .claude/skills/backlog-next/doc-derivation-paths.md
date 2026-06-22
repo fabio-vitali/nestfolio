@@ -2,6 +2,8 @@
 
 Used by `detect-doc-derivation.mjs`. Defines which changed paths require regenerating derived documentation BEFORE the source change is committed (or, in a multi-commit workstream, before the next phase begins).
 
+The detector diffs `<base>...HEAD`; `--base` defaults to `origin/main`. In epic-member mode it is passed the **member-start HEAD** so it reports only the current member's source delta — diffing the cumulative branch against `origin/main` on a resume would always report `derivation=true` while an earlier member's source differs (even after that member committed its regen). Its core is the pure, unit-tested `classifyDerivation(changedFiles, { baseExists })` export (behind an `import.meta.main` guard, mirroring `detect-deploy-needed.mjs`).
+
 ## Mapping table
 
 | Touched path | Regen actions |
@@ -10,7 +12,7 @@ Used by `detect-doc-derivation.mjs`. Defines which changed paths require regener
 | `services/<svc>/domain/events.ts` | Identify affected `flows/*.flow.yaml` (grep for `<svc>` references), regen via `generate-flow-spec`, then `validate-flow` |
 | `services/<svc>/src/event-listener.ts` (subscription config changed) | Same as above — flow spec regen + validate |
 | `services/<svc>/**` (any other file under the service) | `audit-service <svc>` |
-| New service folder created (didn't exist on `origin/main`) | `generate-c4-diagrams` + `audit-service <svc>` + flow spec coverage + `audit-system` (cross-domain consistency) |
+| New service folder created (no `project.json` on the diff base ref) | `generate-c4-diagrams` + `audit-service <svc>` + flow spec coverage + `audit-system` (cross-domain consistency) |
 | Cross-domain adapter rules changed (`services/*-adpt/**`) | All affected `.flow.yaml` regen + `audit-domain` on the consumer-side domain |
 | `apps/investor-web/<mfe>/**` (substantive change, not lockfile/style) | MFE service card regen (if present) |
 | `flows/*.flow.yaml` (hand-edited) | `validate-flow` against current code — these ARE the spec, not derived from it |
