@@ -9,6 +9,8 @@ spec: null
 plan: null
 topic_memory: []
 validation_gate: null
+epic: backlog-skills-hardening
+epic_role: core
 ---
 
 # /backlog-next-epic: run each member as a subagent (orchestrator context isolation)
@@ -55,3 +57,22 @@ protocol), ensure the subagent can enter the shared worktree (cwd-pinned-session
 [[feedback-exitworktree-fails-cwd-pinned]], [[feedback-worktree-entry-cwd-pinned]]), and keep the
 batched-e2e / captured-audit / single-PR invariants. Worth it when epics routinely exceed ~3-4
 members; Tier-1 holds the line until then.
+
+## Seam-residual prose gaps (re-homed 2026-06-22 — audit cluster 5)
+
+This item is the structural fix for the orchestrator↔worker seam. The 2026-06-22 skills audit
+(`docs/reviews/2026-06-22-backlog-skills-audit.md`) surfaced four prose-clarity residuals on the SAME
+seam that are cheap to fix *now* even before the Tier-2 refactor lands — fold them in here:
+
+- **F-26** — E4.2 says "Run `/backlog-next <member-id>`", but `backlog-next` is `disable-model-invocation:true`
+  so a Skill-tool call is mechanically refused; the inline-read is the *intended* design (this item's
+  premise) yet the prose never says so. The run hit the `tool_use_error` and burned a recovery cycle.
+  Fix: one explicit clause in E4.2 — "do NOT call the Skill tool; read `backlog-next/SKILL.md` and
+  execute it inline, applying the Epic-member deltas."
+- **F-27** — E2/Resume says "re-enter the worktree as cwd" but the only tool that does so
+  (`EnterWorktree`) is forbidden in worker mode with no named substitute; name the mechanism in E2.
+- **F-28** — the loop handoff (worker STOP → return to E4.2 → loop-advance) is honor-system prose with
+  no callable seam; add a one-time clarity note (the re-derive via `epic-members.mjs` already exists).
+- **F-4 / F-10** — unbounded `--auto` context (this item's Tier-2 is the structural fix); the Tier-1
+  residual is to make the inter-member `/clear` recommendation *unconditional* and extend the E4.5
+  checkpoint to cover the heaviest E4→E6 boundary.
