@@ -10,7 +10,7 @@ out_of_scope:
   - "The orchestrator<->worker callable-seam / subagent-isolation refactor (F-26/F-27/F-28) — owned by backlog-next-epic-member-subagent-isolation. F-8 (worker-mode self-contained floor rule) IS in scope here — it is a decision-discipline rule, not the seam refactor."
   - "detect-deploy-needed.mjs / detect-doc-derivation.mjs gating — deploy-tooling-integrity."
 spec: docs/superpowers/specs/2026-06-22-auto-decision-discipline-and-merge-ownership-design.md
-plan: null
+plan: docs/superpowers/plans/2026-06-22-auto-decision-discipline-and-merge-ownership.md
 topic_memory: []
 validation_gate: null
 epic: backlog-skills-hardening
