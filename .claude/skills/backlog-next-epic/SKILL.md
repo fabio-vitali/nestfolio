@@ -103,7 +103,7 @@ Repeat until `epic-members.mjs` reports drainable (exit 10):
 ### E5. Decision handling (default vs `--auto`)
 
 A **decision** is an architectural/design fork. Test/build failures are NOT decisions (see E4.3). The canonical decision-log entry shape (referenced by E3 and the spec) is:
-`{ member, decision, options, chosen, rationale (the reuse rationale), rejected }`.
+`{ member, decision, options, chosen, rationale (the reuse rationale), rejected }`. The log is **append-only**: never edit or delete a prior entry — a later reversal is a NEW entry whose `rationale` references the superseded entry by index, so the original (possibly wrong) call stays visible in the PR-review trail (F-6).
 
 **Where decisions actually come from.** Most forks are NOT raised by this orchestrator — they are raised **inside downstream sub-skills** (`brainstorming`, `finishing-a-development-branch`, or an AskUserQuestion the worker itself issues). `--auto` cannot magically intercept an arbitrary prompt buried in a sub-skill, so it must **decide each known sub-skill prompt in advance**, with a conservative catch-all for the rest.
 
@@ -111,16 +111,16 @@ A **decision** is an architectural/design fork. Test/build failures are NOT deci
 
 - **`--auto` mode** — explicit per-source handling:
   1. **`type: design` members → ALWAYS PAUSE.** A design slice routes to `superpowers:brainstorming`, whose hard approval gate requires explicit user sign-off on *every* design. `--auto` does **not** self-approve it — the design is the highest-leverage decision in the whole epic and must never be auto-resolved. Pause, get approval, record, resume. (Equivalently: `type: design` members are not `--auto`-eligible for their design approval.)
-  2. **`finishing-a-development-branch` menu (E8) → auto-pick Option 2 (Push + create PR).** Answer its 4-option menu without pausing; the PR is the review surface and is non-destructive. (Per-member finishing menus don't arise — the worker Step 5 delta stops before them.)
-  3. **In-member architectural forks the worker surfaces** (a non-design AskUserQuestion / mid-execution choice) → resolve by selecting the option the project marks **(Recommended)** = the **most reusable / generalizable / cleanly-abstracted** one (`CLAUDE.md` § "Hard Constraints"; reusability breaks ties). Append to the decision log. Continue.
+  2. **`finishing-a-development-branch` menu (E8) → governed by E8's merge-ownership rule.** Answer the menu by taking the **PR route** (push + create PR) — but the close does NOT end there: it **STOPS at an open PR via AskUserQuestion** for the user to merge. `--auto` **never** runs `gh pr merge` and never local-merges the epic branch (E8). (Per-member finishing menus don't arise — the worker Step 5 delta stops before them.)
+  3. **In-member architectural forks the worker surfaces** (a non-design AskUserQuestion / mid-execution choice) → **before auto-resolving, run the blast-radius gate:** `node .claude/skills/backlog-next-epic/detect-fork-blast-radius.mjs <fork-subject-symbol>`. **Exit 1 (a shared-surface hit) → escalate to the floor** (the fork can ripple into a not-yet-worked member — F-6). **Exit 0** → resolve by selecting the option the project marks **(Recommended)** = the **most reusable / generalizable / cleanly-abstracted** one (`CLAUDE.md` § "Hard Constraints"; reusability breaks ties). **Append** to the decision log (append-only — see above). Continue.
   4. **Catch-all → treat as floor (PAUSE).** Any sub-skill prompt or fork **not** enumerated in 1–3 is unknown territory: do NOT guess — pause and ask. (Conservative by design; close the gap by adding the case here.)
 
   **Hard floor — pause even in `--auto`** (this is advisory prose, but the worst ops are ALSO mechanically gated by the harness / `CLAUDE.md` § "Still requires explicit confirmation", so the floor is not the sole defense):
   - **Irreversible / outward-facing actions** — staging/prod-account ops, real-money/broker actions, `git push --force`, `git reset --hard` on shared branches, `git branch -D`, destructive deletes, mutations outside `dev-*` naming, anything outside this repo.
-  - **No defensible recommended option** — a genuinely balanced fork where reusability does not break the tie, or one whose divergent choices carry large downstream blast radius across remaining members.
+  - **Scope-boundary fork (decidable test)** — pause ONLY when the fork (a) changes the epic's `out_of_scope:` boundary, (b) alters a contract / event / interface / shared-lib export consumed by a not-yet-worked core member (i.e. `detect-fork-blast-radius.mjs` exits 1 for it), or (c) forces rework of an already-shipped member. A genuinely balanced fork where reusability does not break the tie also still pauses. (This replaces the old over-broad "large downstream blast radius" clause that swallowed every fork — F-5.)
   - **Bounded-effort exceeded** — a member's `--auto` debug budget (E4.3, ≤3 cycles) is spent.
 
-  When the floor fires, surface via AskUserQuestion, record the outcome, resume. The decision log is the **asynchronous-review surface** that replaces synchronous approval — it lands in the PR body (E8).
+  When the floor fires, the surface MUST be an **AskUserQuestion** widget with a `(Recommended)` option — a free-text "this is your call" prose pause is a **skill violation** (it is what let an ambiguous "go" collapse into a self-merge — F-7/F-33). Record the outcome (append-only), resume. The decision log is the **asynchronous-review surface** that replaces synchronous approval — it lands in the PR body (E8).
 
 ### E6. Epic pre-done — batched expensive e2e (the new gate)
 
