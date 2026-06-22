@@ -55,9 +55,12 @@ export const testAwsClientConfig = (region: string) => ({
   maxAttempts: 4,
 });
 
-const DNS_RETRY_ATTEMPTS = 4;
-const DNS_RETRY_BASE_MS = 50;
+const DNS_RETRY_ATTEMPTS = 5;
+const DNS_RETRY_BASE_MS = 100;
 const TRANSIENT_DNS_CODES = new Set(['ENOTFOUND', 'EAI_AGAIN']);
+// Matches the message of a name-resolution failure even after it has been
+// re-wrapped (see below).
+const DNS_FAILURE_MESSAGE = /getaddrinfo (ENOTFOUND|EAI_AGAIN)/;
 
 const defaultSleep = (ms: number): Promise<void> => new Promise((resolve) => setTimeout(resolve, ms));
 
@@ -66,11 +69,25 @@ const defaultSleep = (ms: number): Promise<void> => new Promise((resolve) => set
  * request never left the machine, so retrying it is always safe regardless of
  * the operation's idempotency. The SDK's retry strategy does NOT classify these
  * as retryable, which is why the harness retries them itself.
+ *
+ * Detection must be resilient to error re-wrapping. Under Jest's VM realms the
+ * raw `getaddrinfo` error thrown by `node:net` fails BOTH `instanceof Error` and
+ * `instanceof Object` inside `@smithy/middleware-retry`, so its `asSdkError`
+ * helper re-wraps it as `new Error("AWS SDK error wrapper for Error: getaddrinfo
+ * ENOTFOUND …")` — a plain Error with NO `.code`/`.syscall`. So we match the
+ * structured shape when present, fall back to the message, and walk `.cause`.
  */
 export function isTransientDnsError(error: unknown): boolean {
-  if (typeof error !== 'object' || error === null) return false;
-  const { syscall, code } = error as { syscall?: unknown; code?: unknown };
-  return syscall === 'getaddrinfo' && typeof code === 'string' && TRANSIENT_DNS_CODES.has(code);
+  let current: unknown = error;
+  for (let depth = 0; current != null && depth < 5; depth++) {
+    if (typeof current === 'string') return DNS_FAILURE_MESSAGE.test(current);
+    if (typeof current !== 'object') return false;
+    const e = current as { syscall?: unknown; code?: unknown; message?: unknown; cause?: unknown };
+    if (e.syscall === 'getaddrinfo' && typeof e.code === 'string' && TRANSIENT_DNS_CODES.has(e.code)) return true;
+    if (typeof e.message === 'string' && DNS_FAILURE_MESSAGE.test(e.message)) return true;
+    current = e.cause;
+  }
+  return false;
 }
 
 interface DnsRetryOptions {

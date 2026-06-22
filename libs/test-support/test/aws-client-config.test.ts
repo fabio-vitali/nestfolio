@@ -18,6 +18,20 @@ describe('isTransientDnsError', () => {
     expect(isTransientDnsError(dnsError('EAI_AGAIN'))).toBe(true);
   });
 
+  it('detects the @smithy/middleware-retry asSdkError-wrapped form (message only, no code/syscall)', () => {
+    // The real failure mode: under Jest VM realms the raw getaddrinfo error fails
+    // instanceof Error AND instanceof Object inside @smithy/middleware-retry, so it
+    // is re-wrapped as a plain Error whose message is the only surviving signal.
+    const wrapped = new Error('AWS SDK error wrapper for Error: getaddrinfo ENOTFOUND events.us-east-1.amazonaws.com');
+    expect((wrapped as { code?: unknown }).code).toBeUndefined();
+    expect(isTransientDnsError(wrapped)).toBe(true);
+  });
+
+  it('detects a DNS failure nested in error.cause', () => {
+    const outer = new Error('upstream failed', { cause: dnsError('ENOTFOUND') });
+    expect(isTransientDnsError(outer)).toBe(true);
+  });
+
   it('is false for non-DNS syscalls, other codes, and non-errors', () => {
     expect(isTransientDnsError(Object.assign(new Error('reset'), { code: 'ECONNRESET', syscall: 'read' }))).toBe(false);
     expect(isTransientDnsError(dnsError('ECONNREFUSED'))).toBe(false);
@@ -38,6 +52,19 @@ describe('retryTransientDns', () => {
 
     await expect(wrapped({ id: 'x' })).resolves.toBe('ok:x');
     expect(calls).toBe(3);
+  });
+
+  it('retries the asSdkError-wrapped form (the real production failure path)', async () => {
+    let calls = 0;
+    const wrapped = new Error('AWS SDK error wrapper for Error: getaddrinfo ENOTFOUND events.us-east-1.amazonaws.com');
+    const fn = retryTransientDns(async () => {
+      calls += 1;
+      if (calls < 2) throw wrapped;
+      return 'ok';
+    }, noSleep);
+
+    await expect(fn(undefined)).resolves.toBe('ok');
+    expect(calls).toBe(2);
   });
 
   it('gives up after the attempt budget and rethrows the DNS error', async () => {
