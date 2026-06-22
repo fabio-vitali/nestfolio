@@ -1,6 +1,6 @@
 ---
 id: detect-deploy-service-test-path-no-deploy
-status: active
+status: shipped
 type: tooling
 notes: "detect-deploy-needed.mjs lacks a Tier-0 rule for services/*/test/**, so a test-only service change defaults to deploy=true (false positive)."
 references: []
@@ -11,7 +11,8 @@ out_of_scope:
 spec: null
 plan: null
 topic_memory: []
-validation_gate: null
+validation_gate: "Added TIER0 rule `/^services\\/[^/]+\\/[^/]+\\/test\\//` to detect-deploy-needed.mjs (commit 76531866) so a test-only service change is no-deploy and never seeds the true-affected resolver. 3 new regression tests (test-only=no-deploy; test+src isolates to src service; src/**/*.test-helpers.ts stays Tier 1) + deploy-paths.md row. `node --test .claude/skills/backlog-next/test/*.test.mjs` → 29/29 pass. Dogfood: `detect-deploy-needed --base=<member-2-tip>` over this member's own diff → deploy=false, all Tier 0 (was the false-positive class being fixed). No deploy/integration: member contribution is 100% .claude/** + docs/** Tier-0; the cumulative branch deploy belongs to E6 (member-1 event-processor change)."
+closed: 2026-06-22
 epic: deploy-tooling-integrity
 epic_role: core
 ---
