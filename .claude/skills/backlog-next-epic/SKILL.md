@@ -93,7 +93,12 @@ Repeat until `epic-members.mjs` reports drainable (exit 10):
 2. **Run** `/backlog-next <member-id>` in **epic-member mode** — pass the epic context (active epic `<id>`, branch `feat/epic-<id>`, worktree). The worker applies its § "Epic-member mode" deltas: preflight/postflight `--lane=epic-member`, work inside this worktree, commit on the branch, run **per-member integration tests** only, and **skip** the expensive e2e / finishing / cleanup / push. Critically, the worker drives any `executing-plans`/`subagent-driven-development` only through task-execution and **STOPS before their `finishing-a-development-branch` handoff** (worker Step 5 delta) — that handoff would otherwise merge/PR the epic branch mid-loop and destroy the one-PR invariant.
 3. **Per-member gate.** The member's integration tests (and doc-derivation) must be green before advancing — a failure is NOT a decision: route to `superpowers:systematic-debugging`. In `--auto`, attempt the fix within a **bounded budget — at most 3 debug→re-run cycles**; exceeding it is a named floor item (E5) → **pause** and surface to the user (never loop unbounded burning dev deploys + integration runs).
 4. **Record.** The member's own ship (its frontmatter `status: shipped`, committed on the branch) IS the state — the next loop re-derives progress from `epic-members.mjs`, so there is nothing to mirror into run-state. Append to the run-state `decisions` log only if a fork fired (E5).
-5. Loop.
+5. **Context checkpoint (between members) — bounds `--auto` context growth.** After a member ships **and** its `--lane=epic-member` postflight passes (a clean, fully-committed state), emit a fixed **STABLE CHECKPOINT** block:
+
+   > ✅ **Checkpoint — epic `<id>`:** member `<member-id>` shipped. `<k>`/`<n>` core members remaining. Worktree tree clean; all work committed on `feat/epic-<id>` (nothing pushed, no PR yet). Resume with `/backlog-next-epic <id> --auto`.
+
+   Then decide whether to **pause for a context clear**. **Be honest about the constraint: the agent cannot read its own context-window size programmatically** — there is no tool for "%-used", so a literal "pause at X%" is not implementable by the skill. Use the **per-member boundary** instead: it is a deterministic, principled proxy for context growth and a *provably safe* clear point (all epic state lives on disk — run-state JSON + member frontmatter — so resuming re-derives progress and continues at the next open member with zero duplication). In `--auto`, **stop here and recommend the user `/clear` (or restart the terminal) then resume with the command above** whenever the run has accumulated heavy context since the last clear — i.e. the just-finished member involved large file reads, an investigation subagent, debug→re-run loops, or a deploy + e2e. **When unsure, pause:** a needless pause costs one cheap resume; an exhausted context mid-member costs a messy recovery. In non-`--auto` runs just print the block (the user is already interactive) and continue. (Tier-2 follow-up — running each member as a subagent so context barely grows — is tracked in the backlog; see `backlog-next-epic-member-subagent-isolation`.)
+6. Loop.
 
 ### E5. Decision handling (default vs `--auto`)
 
@@ -179,6 +184,8 @@ node .claude/skills/backlog-next/postflight.mjs --lane=complex --branch=feat/epi
 
 If interrupted, re-invoke `/backlog-next-epic <id>` (add `--auto` to resume unattended). The orchestrator reads run-state + `epic-members.mjs`, re-enters the worktree, and continues at the next open member. Same-epic, same-branch — no duplicate promotion or merge.
 
+This same machinery is what makes the **E4.5 context checkpoint** safe: an inter-member `/clear` (or terminal restart) loses only conversation context, never epic state — resuming with `/backlog-next-epic <id> --auto` re-derives everything from disk. Long `--auto` runs over many members are expected to clear at member boundaries; treat a checkpoint clear as routine, not a failure.
+
 ## Common mistakes
 
 - **Merging members individually.** The whole point is one branch / one PR per epic. Members commit to `feat/epic-<id>`; only E8 merges, once.
@@ -187,6 +194,7 @@ If interrupted, re-invoke `/backlog-next-epic <id>` (add `--auto` to resume unat
 - **Misfiling required work as captured.** Captured members spin out at close — if one is load-bearing for `done_when`, the E7 audit must promote it to core (else the epic ships with its done-definition silently unmet).
 - **Skipping the epic-start preflight or the epic postflight.** Both are hard gates (E0, E8.3). The per-member `--lane=epic-member` gates are lighter on purpose; the branch-scope checks live at the epic boundary.
 - **Promoting a second delivery epic.** Rule 11 — one active epic. Resume the in-flight one or finish it first.
+- **Trying to self-measure context to decide when to clear.** The agent has no programmatic read of its own context-window usage, so a "%-used" trigger is not implementable — don't pretend it is. Use the deterministic **E4.5 per-member boundary** + good-faith judgment of member heaviness instead, and when unsure, pause (a resume is cheap; mid-member context exhaustion is not). Letting `--auto` accumulate across many heavy members without a checkpoint clear is how a long epic run degrades.
 
 ## Related
 
