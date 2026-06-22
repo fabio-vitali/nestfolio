@@ -36,6 +36,7 @@ consumer closure.
 
 | Path glob | Why |
 |---|---|
+| `services/*/*/test/**` | Per-service tests — never compiled into a deployed bundle, so a test-only service change requires no deploy and must not seed the true-affected resolver. (TIER1 service rules only match `src/`/`infrastructure/`/`domain/`.) |
 | `apps/e2e-feature-tests/**` | Test harness, not deployed |
 | `apps/nestfolio-e2e/**` | Playwright harness, not deployed |
 | `docs/**` | Documentation |

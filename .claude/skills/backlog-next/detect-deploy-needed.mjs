@@ -54,6 +54,13 @@ export const TIER1 = [
 
 // Tier 0 — never deploy.
 export const TIER0 = [
+  // Per-service tests never compile into a deployed bundle, so a test-only service
+  // change requires NO deploy and must NOT seed the true-affected resolver. The
+  // `/test/` segment is the 3rd path component (after domain + service); the TIER1
+  // service rules only match /src/, /infrastructure/, /domain/, so test paths fall
+  // through to here. (Anchored on the directory segment, so a `src/**/*.test-helpers.ts`
+  // runtime helper stays Tier 1.)
+  /^services\/[^/]+\/[^/]+\/test\//,
   /^apps\/e2e-feature-tests\//,
   /^apps\/nestfolio-e2e\//,
   /^docs\//,
