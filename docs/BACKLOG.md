@@ -8,11 +8,12 @@
 
 ### [deploy-tooling-integrity](backlog/deploy-tooling-integrity.md) `[epic · active]` — Deploy/derivation gating + bundle-freshness tooling can silently do the wrong thing — test-only/harness-lib changes mis-gate; a frontend change returns empty services; doc-derivation always reports on resume; deployed bundles can lag source. Theme epic (loose: deploy-decision + doc-derivation + artifact freshness), 4 members.
 done_when: The deploy decision excludes test-only/harness-lib service changes AND emits a correct non-empty target for frontend/lib changes; detect-doc-derivation reports only outstanding derivation (not cumulative) and is an importable, tested pure function; a deploy-time integrity check confirms the bundle matches source; all core members shipped or dropped.
-rollup: core 1/4 done · captured 0/0 done
+rollup: core 1/4 done · captured 0/1 done
 - core · active · [detect-deploy-fanout-and-empty-services](backlog/detect-deploy-fanout-and-empty-services.md)
 - core · parking · [detect-deploy-service-test-path-no-deploy](backlog/detect-deploy-service-test-path-no-deploy.md)
 - core · parking · [detect-doc-derivation-resume-and-testability](backlog/detect-doc-derivation-resume-and-testability.md)
 - core · shipped · [cdk-bundle-staleness-deploy-integrity](backlog/cdk-bundle-staleness-deploy-integrity.md)
+- captured · parking · [detect-deploy-test-lib-reverse-reach-fanout](backlog/detect-deploy-test-lib-reverse-reach-fanout.md)
 
 ### [advisory-narrative-memory-read-latency](backlog/advisory-narrative-memory-read-latency.md) `[epic · parking]` — advisory-narrative-ctrl blocks on AgentCore Memory reads before writing its observable HEAD row → 30-40s integration tests. Theme epic, 2 members.
 done_when: advisory-narrative-ctrl's observable HEAD row is visible to tests in ~5-10s (eager write and/or tightened Memory-retry delays) with no dev/prod consistency skew; both members shipped or dropped.
