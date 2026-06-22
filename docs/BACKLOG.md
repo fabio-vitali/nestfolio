@@ -9,7 +9,7 @@
 ### [backlog-skills-hardening](backlog/backlog-skills-hardening.md) `[epic · active]` — Bulletproof the /backlog-next-epic orchestrator + /backlog-next worker workflows. Theme epic aggregating the confirmed weaknesses from the 2026-06-22 skills audit (docs/reviews/2026-06-22-backlog-skills-audit.md), surfaced by the first real --auto epic run (order-execution-money-path, merge #20). 6 core members.
 done_when: Every confirmed weakness from the 2026-06-22 backlog-skills audit is fixed in the skill prose/scripts (or consciously dropped) and an --auto epic runs end-to-end with: no improvised workaround on the orchestrator->worker drive, no opaque backlog-lint crash on malformed frontmatter, durable resumable run-state, and a user-owned merge (close stops at an open PR, never self-merges). All core members shipped or dropped.
 rollup: core 2/6 done · captured 0/0 done
-- core · parking · [backlog-next-epic-member-subagent-isolation](backlog/backlog-next-epic-member-subagent-isolation.md)
+- core · active · [orchestrator-worker-seam-prose](backlog/orchestrator-worker-seam-prose.md)
 - core · parking · [backlog-skills-misc-polish](backlog/backlog-skills-misc-polish.md)
 - core · parking · [runstate-write-contract-and-recovery](backlog/runstate-write-contract-and-recovery.md)
 - core · parking · [ship-and-merge-mechanics](backlog/ship-and-merge-mechanics.md)
@@ -147,7 +147,7 @@ rollup: core 0/3 done · captured 0/0 done
 - core · parking · [portfolio-drift-detected-registry-collision](backlog/portfolio-drift-detected-registry-collision.md)
 - core · parking · [weight-drift-detector](backlog/weight-drift-detector.md)
 
-**Parking health:** 20 theme epic(s), 32 orphan(s) — drive orphans → 0 with `/backlog-themes`
+**Parking health:** 20 theme epic(s), 33 orphan(s) — drive orphans → 0 with `/backlog-themes`
 
 ## ACTIVE
 
@@ -175,6 +175,7 @@ _(none)_
 - [agent-tracer-bedrock-converse-token-extraction](backlog/agent-tracer-bedrock-converse-token-extraction.md) [bug] — AgentTracer.handleLLMEnd returns 0 input/output tokens for ChatBedrockConverse — usage field path mismatch. Diagnostic envelopes lose cost/decode signal.
 - [agentcore-maxvms-prod-quota-increase](backlog/agentcore-maxvms-prod-quota-increase.md) [infra] — Request a Bedrock AgentCore maxVms (concurrent micro-VM) Service Quotas increase for production accounts. Sandbox deliberately keeps the low quota for cost; native SQS retry (agentcore-invocation-resilience) absorbs sandbox saturation. Sandbox-side alternative: cap ESM maxConcurrency / reservedConcurrency across agent-invoking ingress handlers.
 - [an-ctrl-wrap-agent-output-vestigial](backlog/an-ctrl-wrap-agent-output-vestigial.md) [refactor] — advisory-narrative-ctrl handler still wraps result via wrapAgentOutput but the wrap is unread after the callback refactor `[epic:dead-code-cleanup · core]`
+- [backlog-next-epic-member-subagent-isolation](backlog/backlog-next-epic-member-subagent-isolation.md) [tooling] — Tier-2 context fix for /backlog-next-epic --auto: run each epic member as a subagent so per-member investigation/edits/test-output stay out of the orchestrator's context; orchestrator keeps only compact ship-summaries. Tier-1 (per-member checkpoint+clear) already shipped. Standalone parking enhancement — NOT an audit finding; carved back out of the backlog-skills-hardening epic on 2026-06-22 (the re-homed seam-prose residuals F-26/27/28/4/10 moved to orchestrator-worker-seam-prose). Promote when epics routinely exceed ~3-4 members.
 - [broker-alpaca-account-snapshot-equity-string-drift](backlog/broker-alpaca-account-snapshot-equity-string-drift.md) [bug] — broker-alpaca AlpacaAccountSnapshot stores equity/buyingPower as RAW Alpaca API strings (event-listener processAccountCheck writes `account.data.equity`/`buying_point` verbatim), NOT Number()-converted like positions (which use Number(p.qty)). The typed-subject-contracts-execution slice corrected the contract to z.string().nullable() to match reality — but the asymmetry (positions numeric, equity/buyingPower string) is a latent producer inconsistency. Promote when touching broker-alpaca account-snapshot or when a consumer needs numeric equity/buyingPower. `[epic:broker-alpaca-emission-shape-drift · core]`
 - [broker-alpaca-adpt-latent-tsc-errors](backlog/broker-alpaca-adpt-latent-tsc-errors.md) [bug] — broker-alpaca-adpt has latent tsc errors masked by jest diagnostics:false; not e2e-blocking `[epic:typecheck-diagnostics-masking · core]`
 - [broker-alpaca-adpt-resilience-trap-collapse](backlog/broker-alpaca-adpt-resilience-trap-collapse.md) [refactor] — broker-alpaca-adpt.resilience.integration.test.ts creates 2 EventBusTrap rules in beforeAll — same anti-pattern that caused advisory-adpt + investor-adpt EB-rule-propagation flakes (shipped 2026-05-13). Hasn't been observed flaking yet; pre-emptive collapse to 1-trap-with-2-detailtypes.

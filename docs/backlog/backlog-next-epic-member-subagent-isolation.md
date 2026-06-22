@@ -2,15 +2,13 @@
 id: backlog-next-epic-member-subagent-isolation
 status: parking
 type: tooling
-notes: "Tier-2 context fix for /backlog-next-epic --auto: run each epic member as a subagent so per-member investigation/edits/test-output stay out of the orchestrator's context; orchestrator keeps only compact ship-summaries. Tier-1 (per-member checkpoint+clear) already shipped."
+notes: "Tier-2 context fix for /backlog-next-epic --auto: run each epic member as a subagent so per-member investigation/edits/test-output stay out of the orchestrator's context; orchestrator keeps only compact ship-summaries. Tier-1 (per-member checkpoint+clear) already shipped. Standalone parking enhancement — NOT an audit finding; carved back out of the backlog-skills-hardening epic on 2026-06-22 (the re-homed seam-prose residuals F-26/27/28/4/10 moved to orchestrator-worker-seam-prose). Promote when epics routinely exceed ~3-4 members."
 references: []
 out_of_scope: []
 spec: null
 plan: null
 topic_memory: []
 validation_gate: null
-epic: backlog-skills-hardening
-epic_role: core
 ---
 
 # /backlog-next-epic: run each member as a subagent (orchestrator context isolation)
@@ -58,21 +56,12 @@ protocol), ensure the subagent can enter the shared worktree (cwd-pinned-session
 batched-e2e / captured-audit / single-PR invariants. Worth it when epics routinely exceed ~3-4
 members; Tier-1 holds the line until then.
 
-## Seam-residual prose gaps (re-homed 2026-06-22 — audit cluster 5)
+## Seam-residual prose gaps — CARVED OUT 2026-06-22
 
-This item is the structural fix for the orchestrator↔worker seam. The 2026-06-22 skills audit
-(`docs/reviews/2026-06-22-backlog-skills-audit.md`) surfaced four prose-clarity residuals on the SAME
-seam that are cheap to fix *now* even before the Tier-2 refactor lands — fold them in here:
-
-- **F-26** — E4.2 says "Run `/backlog-next <member-id>`", but `backlog-next` is `disable-model-invocation:true`
-  so a Skill-tool call is mechanically refused; the inline-read is the *intended* design (this item's
-  premise) yet the prose never says so. The run hit the `tool_use_error` and burned a recovery cycle.
-  Fix: one explicit clause in E4.2 — "do NOT call the Skill tool; read `backlog-next/SKILL.md` and
-  execute it inline, applying the Epic-member deltas."
-- **F-27** — E2/Resume says "re-enter the worktree as cwd" but the only tool that does so
-  (`EnterWorktree`) is forbidden in worker mode with no named substitute; name the mechanism in E2.
-- **F-28** — the loop handoff (worker STOP → return to E4.2 → loop-advance) is honor-system prose with
-  no callable seam; add a one-time clarity note (the re-derive via `epic-members.mjs` already exists).
-- **F-4 / F-10** — unbounded `--auto` context (this item's Tier-2 is the structural fix); the Tier-1
-  residual is to make the inter-member `/clear` recommendation *unconditional* and extend the E4.5
-  checkpoint to cover the heaviest E4→E6 boundary.
+The 2026-06-22 audit re-homed four prose-clarity residuals on the same seam (F-26, F-27, F-28, and
+F-4/F-10's Tier-1 prose residual) onto this item. They were **split back out** on 2026-06-22 into the
+dedicated core member **`orchestrator-worker-seam-prose`** so the cheap, audit-required prose fixes
+could ship inside the `backlog-skills-hardening` epic while this Tier-2 structural refactor stays
+parked. Per CLAUDE.md atomicity (one item = one closure verdict): the residuals are audit findings
+load-bearing for the epic `done_when`; this Tier-2 refactor is a non-audit enhancement orthogonal to
+it. See `orchestrator-worker-seam-prose` for the residual fixes.

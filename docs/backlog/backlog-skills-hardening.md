@@ -36,7 +36,9 @@ Members (derived from `epic:` pointers) — each is a homogeneous root-cause clu
    convention, schema drift, path ambiguity, stale-evidence on member re-open). (F-11..F-14.)
 4. `ship-and-merge-mechanics` — E6/E7/E8 ship+merge brittle (manual merge, postflight cwd crash,
    cross-member type break, e2e false-green, conflict scope). (F-22, F-23, F-21, F-24, F-25.)
-5. `backlog-next-epic-member-subagent-isolation` (re-homed) — orchestrator-worker seam +
-   unbounded context; the Tier-2 subagent-isolation refactor anchors the seam residuals
-   (F-26, F-27, F-28, F-4, F-10).
+5. `orchestrator-worker-seam-prose` — seam-clarity prose residuals on the orchestrator<->worker
+   drive (F-26, F-27, F-28, and F-4/F-10's Tier-1 prose residual). Split out 2026-06-22 from the
+   parked Tier-2 `backlog-next-epic-member-subagent-isolation` (the subagent-dispatch refactor — a
+   non-audit enhancement orthogonal to `done_when`, carved back out to standalone parking) so the
+   cheap audit-required prose ships while Tier-2 stays deferred. (Atomicity split.)
 6. `backlog-skills-misc-polish` — low-severity perf/prose singletons (F-29, F-30, F-31, F-9, F-32).
