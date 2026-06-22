@@ -1,10 +1,14 @@
 ---
 id: lint-library-total-and-located
-status: parking
+status: active
 type: tooling
 notes: "backlog-lint render crashes opaquely (no filename) on non-string or duplicate-key frontmatter the skills themselves produce; 4 fragmented frontmatter parsers diverge from the lint gate. Make rendering total + parse errors located + unify on one parser."
 references: []
-out_of_scope: []
+out_of_scope:
+  - "detect-deploy-needed.mjs / detect-doc-derivation.mjs readers (the 2 detect-* parsers) — those are the 3rd/4th forks but are homed in the deploy-tooling-integrity epic (F-1, F-2/F-3); this member unifies only epic-members.mjs onto the canonical lint parser"
+  - "lint --fix performance (F-29 ~25s / per-shipped-file git log fan-out) — owned by backlog-skills-misc-polish"
+  - "--auto decision discipline, merge ownership, run-state, ship/merge mechanics — separate backlog-skills-hardening core members"
+  - "The backlog data-model redesign itself (backlog-redesign) — this hardens the parser/render machinery, not the model"
 spec: null
 plan: null
 topic_memory: []
