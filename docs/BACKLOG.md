@@ -15,10 +15,10 @@ rollup: core 0/2 done · captured 0/0 done
 ### [backlog-skills-hardening](backlog/backlog-skills-hardening.md) `[epic · parking]` — Bulletproof the /backlog-next-epic orchestrator + /backlog-next worker workflows. Theme epic aggregating the confirmed weaknesses from the 2026-06-22 skills audit (docs/reviews/2026-06-22-backlog-skills-audit.md), surfaced by the first real --auto epic run (order-execution-money-path, merge #20). 6 core members.
 done_when: Every confirmed weakness from the 2026-06-22 backlog-skills audit is fixed in the skill prose/scripts (or consciously dropped) and an --auto epic runs end-to-end with: no improvised workaround on the orchestrator->worker drive, no opaque backlog-lint crash on malformed frontmatter, durable resumable run-state, and a user-owned merge (close stops at an open PR, never self-merges). All core members shipped or dropped.
 rollup: core 0/6 done · captured 0/0 done
+- core · active · [lint-library-total-and-located](backlog/lint-library-total-and-located.md)
 - core · parking · [auto-decision-discipline-and-merge-ownership](backlog/auto-decision-discipline-and-merge-ownership.md)
 - core · parking · [backlog-next-epic-member-subagent-isolation](backlog/backlog-next-epic-member-subagent-isolation.md)
 - core · parking · [backlog-skills-misc-polish](backlog/backlog-skills-misc-polish.md)
-- core · parking · [lint-library-total-and-located](backlog/lint-library-total-and-located.md)
 - core · parking · [runstate-write-contract-and-recovery](backlog/runstate-write-contract-and-recovery.md)
 - core · parking · [ship-and-merge-mechanics](backlog/ship-and-merge-mechanics.md)
 
@@ -151,8 +151,7 @@ rollup: core 0/3 done · captured 0/0 done
 
 ## ACTIVE
 
-_(none)_
-
+- [lint-library-total-and-located](backlog/lint-library-total-and-located.md) [tooling] — backlog-lint render crashes opaquely (no filename) on non-string or duplicate-key frontmatter the skills themselves produce; 4 fragmented frontmatter parsers diverge from the lint gate. Make rendering total + parse errors located + unify on one parser. `[epic:backlog-skills-hardening · core]`
 
 ## QUEUED
 
@@ -226,7 +225,6 @@ _(none)_
 - [ip-ctrl-snapshot-agent-fed-trigger-row](backlog/ip-ctrl-snapshot-agent-fed-trigger-row.md) [bug] — IP-ctrl passes the raw CDC trigger row as the agent's investorProfile; MANDATE_ISSUED feeds it a Mandate row (no goal/riskProfile) → degraded snapshot rebuild.
 - [ledger-bff-order-history-generic-eventtype](backlog/ledger-bff-order-history-generic-eventtype.md) [bug] — getOrderHistory shows generic LEDGER_ENTRY_RECORDED rows (snapshot-summary payload), not real order events — producer derives entries from snapshot diffs.
 - [ledger-ctrl-decision-packet-fixture-thin-shape](backlog/ledger-ctrl-decision-packet-fixture-thin-shape.md) [bug] — ledger-ctrl integration fixtures sent { decisionPacketId, proposedTrades } for DECISION_PACKET_CREATED — a thin shape that never matched DecisionPacketSchema `[epic:untyped-fixture-contract-drift · core]`
-- [lint-library-total-and-located](backlog/lint-library-total-and-located.md) [tooling] — backlog-lint render crashes opaquely (no filename) on non-string or duplicate-key frontmatter the skills themselves produce; 4 fragmented frontmatter parsers diverge from the lint gate. Make rendering total + parse errors located + unify on one parser. `[epic:backlog-skills-hardening · core]`
 - [mandate-reaffirm-operatingmode-required-legacy-dlq](backlog/mandate-reaffirm-operatingmode-required-legacy-dlq.md) [bug] — MANDATE_REAFFIRMED CDC re-validates the full Mandate row via MandateSchema; operatingMode is a required enum, so a legacy Mandate row missing it would ZodError → DLQ. Safe on fresh dev; prod data-hygiene risk.
 - [nestfolio-e2e-eventbridge-client-wrapper-migration](backlog/nestfolio-e2e-eventbridge-client-wrapper-migration.md) [refactor] — apps/nestfolio-e2e/src/fixtures/inject-advisory-update.ts is the lone file in the Playwright app that imports @aws-sdk/client-eventbridge directly — migrate to EventBridgeClient from @nestfolio/test-support for consistency with the Jest e2e app.
 - [nestfolio-e2e-workflow-no-aws-credentials](backlog/nestfolio-e2e-workflow-no-aws-credentials.md) [bug] — Moved to LATER 2026-05-15 — investigation revealed scope is full CI bring-up (OIDC IAM role + secret provisioning), not a workflow YAML edit. Deferred to dedicated CI-pipeline workstream once the system is stable. `[epic:ci-pipeline · core]`
