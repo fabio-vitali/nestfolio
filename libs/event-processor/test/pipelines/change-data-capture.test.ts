@@ -1,4 +1,4 @@
-import { changeDataCapture } from '../../src/pipelines/change-data-capture';
+import { changeDataCapture, classifyMappingShape } from '../../src/pipelines/change-data-capture';
 import { fakeDdbStreamRecord } from '../../src/testing/fake-records';
 import { z } from 'zod';
 
@@ -420,6 +420,65 @@ describe('changeDataCapture', () => {
       const detail = JSON.parse(mockPublish.mock.calls[0][0][0].Detail);
       expect(detail.subject.__typename).toBe('Anything');
       expect(detail.subject.foo).toBe('bar');
+    });
+  });
+
+  // Deploy-time integrity guard: at INIT, every EVENT_TYPE_MAP mapping must be a
+  // shape resolveEmissions can structurally resolve. An unrecognized/malformed
+  // shape means the deployed bundle's resolver lags the deployed config (the
+  // stale-bundle class) — fail loud at INIT, not silently per-record.
+  describe('classifyMappingShape (config-vs-capability discriminator)', () => {
+    it('recognizes every shape resolveEmissions handles', () => {
+      expect(classifyMappingShape('ORDER_CREATED')).toBe('string');
+      expect(classifyMappingShape({ field: 'sk', passthrough: true })).toBe('passthrough');
+      expect(classifyMappingShape({ field: 'status', map: { A: 'X' } })).toBe('fieldDispatch');
+      expect(classifyMappingShape({ field: 'status', map: { A: 'X' }, default: 'Y' })).toBe('fieldDispatch');
+      expect(classifyMappingShape({ always: 'CARRIER', onFieldChange: { f: 'SEMANTIC' } })).toBe('modify');
+      expect(classifyMappingShape({ onFieldChange: { f: 'SEMANTIC' } })).toBe('modify');
+      expect(classifyMappingShape({ always: 'CARRIER' })).toBe('modify');
+    });
+
+    it('returns null for unrecognized or malformed shapes (a stale-bundle / future-shape symptom)', () => {
+      expect(classifyMappingShape({ template: 'X' })).toBeNull();          // unknown future shape
+      expect(classifyMappingShape(42)).toBeNull();                          // non-string scalar
+      expect(classifyMappingShape(null)).toBeNull();
+      expect(classifyMappingShape({ passthrough: true })).toBeNull();       // passthrough w/o field
+      expect(classifyMappingShape({ field: 'sk' })).toBeNull();             // field w/o map and not passthrough
+      expect(classifyMappingShape({ always: 42 })).toBeNull();              // modify w/ non-string always, no onFieldChange
+    });
+  });
+
+  describe('deploy-time integrity guard (INIT)', () => {
+    it('throws at INIT when a mapping shape this bundle cannot resolve is present', () => {
+      process.env.EVENT_TYPE_MAP = JSON.stringify({
+        'Order:INSERT': 'ORDER_CREATED',
+        'Future:INSERT': { template: 'NEW_SHAPE' },
+      });
+      expect(() => changeDataCapture()).toThrow(/Future:INSERT/);
+      expect(() => changeDataCapture()).toThrow(/cannot resolve|stale/i);
+    });
+
+    it('throws at INIT for a malformed passthrough (missing field)', () => {
+      process.env.EVENT_TYPE_MAP = JSON.stringify({
+        'NormalizedEvent:INSERT': { passthrough: true },
+      });
+      expect(() => changeDataCapture()).toThrow(/NormalizedEvent:INSERT/);
+    });
+
+    it('runs in legacy mode too (no schemas) — guards every CDC service', () => {
+      process.env.EVENT_TYPE_MAP = JSON.stringify({ 'Anything:INSERT': 99 });
+      expect(() => changeDataCapture()).toThrow(/Anything:INSERT/);
+    });
+
+    it('does NOT throw for an all-valid-shape config', () => {
+      process.env.EVENT_TYPE_MAP = JSON.stringify({
+        'Order:INSERT': 'ORDER_CREATED',
+        'Result:INSERT': { field: 'status', map: { PASSED: 'CHECK_PASSED' } },
+        'NormalizedEvent:INSERT': { field: 'sk', passthrough: true },
+        'InvestorProfile:MODIFY': { always: 'INVESTOR_PROFILE_UPDATED', onFieldChange: { operatingMode: 'OPERATING_MODE_CHANGED' } },
+        'Mandate:MODIFY': { onFieldChange: { status: 'MANDATE_REVOKED' } },
+      });
+      expect(() => changeDataCapture()).not.toThrow();
     });
   });
 });
