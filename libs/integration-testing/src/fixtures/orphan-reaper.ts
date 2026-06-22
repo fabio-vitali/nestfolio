@@ -13,7 +13,7 @@ import {
   EventBridgeClient, ListRulesCommand, RemoveTargetsCommand,
   ListTargetsByRuleCommand, DeleteRuleCommand,
 } from '@aws-sdk/client-eventbridge';
-import type { TestContext } from '@nestfolio/test-support';
+import { createTestAwsClient, type TestContext } from '@nestfolio/test-support';
 
 const ONE_HOUR_MS = 60 * 60 * 1000;
 const DOMAIN_BUSES = ['advisory', 'investor', 'execution', 'ledger'];
@@ -42,7 +42,7 @@ export class OrphanReaper {
   }
 
   private async reapLambdas(): Promise<void> {
-    const lambda = new LambdaClient({ region: this.region });
+    const lambda = createTestAwsClient(LambdaClient, this.region);
     try {
       const cutoff = Date.now() - ONE_HOUR_MS;
       for await (const page of paginateListFunctions({ client: lambda }, {})) {
@@ -64,7 +64,7 @@ export class OrphanReaper {
   }
 
   private async reapIamRoles(): Promise<void> {
-    const iam = new IAMClient({ region: this.region });
+    const iam = createTestAwsClient(IAMClient, this.region);
     try {
       const cutoff = Date.now() - ONE_HOUR_MS;
       for await (const page of paginateListRoles({ client: iam }, {})) {
@@ -90,7 +90,7 @@ export class OrphanReaper {
   }
 
   private async reapSqsQueues(): Promise<void> {
-    const sqs = new SQSClient({ region: this.region });
+    const sqs = createTestAwsClient(SQSClient, this.region);
     try {
       const cutoff = Date.now() - ONE_HOUR_MS;
       for await (const page of paginateListQueues({ client: sqs }, { QueueNamePrefix: 'integ-trap-' })) {
@@ -111,7 +111,7 @@ export class OrphanReaper {
   }
 
   private async reapEventBridgeRules(): Promise<void> {
-    const eb = new EventBridgeClient({ region: this.region });
+    const eb = createTestAwsClient(EventBridgeClient, this.region);
     try {
       const cutoff = Date.now() - ONE_HOUR_MS;
 

@@ -1,6 +1,6 @@
 import { DynamoDBClient, PutItemCommand, DeleteItemCommand } from '@aws-sdk/client-dynamodb';
 import { marshall } from '@aws-sdk/util-dynamodb';
-import type { TestContext } from '@nestfolio/test-support';
+import { createTestAwsClient, type TestContext } from '@nestfolio/test-support';
 
 export class DdbSeedFixture {
   private readonly client: DynamoDBClient;
@@ -9,7 +9,7 @@ export class DdbSeedFixture {
 
   constructor(ctx: TestContext) {
     this.ctx = ctx;
-    this.client = new DynamoDBClient({ region: ctx.region });
+    this.client = createTestAwsClient(DynamoDBClient, ctx.region);
     this.ctx.cleanup.register('DdbSeedFixture', () => this.teardown());
   }
 

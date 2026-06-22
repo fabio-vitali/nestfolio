@@ -7,7 +7,7 @@ import {
   ReceiveMessageCommand, GetQueueAttributesCommand,
   SetQueueAttributesCommand, DeleteMessageBatchCommand,
 } from '@aws-sdk/client-sqs';
-import { jitter } from '@nestfolio/test-support';
+import { jitter, createTestAwsClient } from '@nestfolio/test-support';
 import type { TestContext } from '@nestfolio/test-support';
 
 export interface CapturedEvent<TDetail = Record<string, unknown>> {
@@ -31,8 +31,8 @@ export class EventBusTrap {
 
   constructor(ctx: TestContext) {
     this.ctx = ctx;
-    this.eb = new EventBridgeClient({ region: ctx.region });
-    this.sqs = new SQSClient({ region: ctx.region });
+    this.eb = createTestAwsClient(EventBridgeClient, ctx.region);
+    this.sqs = createTestAwsClient(SQSClient, ctx.region);
   }
 
   async deploy(params: {

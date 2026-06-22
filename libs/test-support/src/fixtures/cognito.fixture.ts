@@ -5,6 +5,7 @@ import {
   AdminInitiateAuthCommand,
   AdminDeleteUserCommand,
 } from '@aws-sdk/client-cognito-identity-provider';
+import { createTestAwsClient } from '../aws-client-config';
 import type { TestContext } from '../context';
 
 export interface CognitoTokens {
@@ -54,7 +55,7 @@ export class CognitoFixture {
 
   constructor(ctx: TestContext) {
     this.ctx = ctx;
-    this.client = new CognitoIdentityProviderClient({ region: ctx.region });
+    this.client = createTestAwsClient(CognitoIdentityProviderClient, ctx.region);
   }
 
   async setup(): Promise<CognitoTokens> {

@@ -1,6 +1,6 @@
 import { DynamoDBClient, QueryCommand, DeleteItemCommand } from '@aws-sdk/client-dynamodb';
 import { marshall, unmarshall } from '@aws-sdk/util-dynamodb';
-import type { TestContext } from '@nestfolio/test-support';
+import { createTestAwsClient, type TestContext } from '@nestfolio/test-support';
 
 export class StateResetFixture {
   private readonly client: DynamoDBClient;
@@ -8,7 +8,7 @@ export class StateResetFixture {
 
   constructor(ctx: TestContext) {
     this.ctx = ctx;
-    this.client = new DynamoDBClient({ region: ctx.region });
+    this.client = createTestAwsClient(DynamoDBClient, ctx.region);
   }
 
   async reset(entries: Array<{ table: string; pk: string }>): Promise<void> {

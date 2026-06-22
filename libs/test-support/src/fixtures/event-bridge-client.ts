@@ -1,6 +1,7 @@
 import { EventBridgeClient as AwsEBClient, PutEventsCommand } from '@aws-sdk/client-eventbridge';
 import { randomUUID } from 'crypto';
 import { EventSubjects, type RegisteredEventName, type SubjectOf } from '@nestfolio/test-contracts';
+import { createTestAwsClient } from '../aws-client-config';
 import type { TestContext } from '../context';
 
 /**
@@ -20,7 +21,7 @@ export class EventBridgeClient {
 
   constructor(ctx: TestContext) {
     this.ctx = ctx;
-    this.client = new AwsEBClient({ region: ctx.region });
+    this.client = createTestAwsClient(AwsEBClient, ctx.region);
     ctx.cleanup.register('EventBridgeClient', () => {
       this.client.destroy();
       return Promise.resolve();

@@ -1,5 +1,6 @@
 import { SSMClient, GetParameterCommand } from '@aws-sdk/client-ssm';
 import { CloudFormationClient, ListStackResourcesCommand } from '@aws-sdk/client-cloudformation';
+import { createTestAwsClient } from './aws-client-config';
 
 export class SsmCache {
   private readonly client: SSMClient;
@@ -9,8 +10,8 @@ export class SsmCache {
 
   constructor(prefix: string, region: string) {
     this.prefix = prefix;
-    this.client = new SSMClient({ region });
-    this.cfn = new CloudFormationClient({ region });
+    this.client = createTestAwsClient(SSMClient, region);
+    this.cfn = createTestAwsClient(CloudFormationClient, region);
   }
 
   destroy(): void {
