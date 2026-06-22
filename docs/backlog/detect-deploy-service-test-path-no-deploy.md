@@ -1,10 +1,13 @@
 ---
 id: detect-deploy-service-test-path-no-deploy
-status: parking
+status: active
 type: tooling
 notes: "detect-deploy-needed.mjs lacks a Tier-0 rule for services/*/test/**, so a test-only service change defaults to deploy=true (false positive)."
 references: []
-out_of_scope: []
+out_of_scope:
+  - "Lib test paths (libs/*/test/**) reverse-reach fan-out — that is the separate captured member detect-deploy-test-lib-reverse-reach-fanout, a different mechanism (TIER1 lib match), not this services/*/test/** gap."
+  - "The tools/** Tier-0 gap (detect-deploy-tools-path-no-deploy) — already covered by the existing /^tools\\// TIER0 rule; not re-touched here."
+  - "Any change to the deploy-decision for src/infrastructure/domain service paths — only the test/ subtree is added to Tier 0."
 spec: null
 plan: null
 topic_memory: []
