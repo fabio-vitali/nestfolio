@@ -29,7 +29,13 @@ Member ordering is the tested helper `epic-members.mjs` (the deterministic pick 
 
 ### Resume gate (check FIRST, before E0)
 
-`/backlog-next-epic <id>` is **resumable and idempotent**. Before anything else, check for the run-state file `<git-common-dir>/backlog-next-epic-<id>.json`:
+`/backlog-next-epic <id>` is **resumable and idempotent**. Before anything else, read the run-state via the helper (never `cat`/parse the raw file — the helper resolves the cwd-independent absolute path and self-heals a malformed file into a clean error, F-11/F-13):
+
+```bash
+node .claude/skills/backlog-next-epic/runstate.mjs get <id>   # prints the JSON, or "FRESH" (exit 3) if absent, or a clean error (exit 2) if corrupt
+```
+
+Branch on the result:
 
 - **Exists → this is a RESUME.** The epic is already promoted and the branch already exists. **Skip E0, E1 (promotion) and E3 (init).** Run E2 in its idempotent form (it no-ops / re-attaches the worktree if the branch exists but the worktree was pruned), re-enter the worktree as cwd, read (do not overwrite) the run-state, and **jump straight to E4** — the member loop re-derives the next open member from `epic-members.mjs`, so a half-finished run continues correctly (a member left `status: active` resumes in epic-member mode).
   - **Run-state `e8: PR_OPEN_AWAITING_MERGE` → the PR is already open, awaiting the USER's merge** (do NOT re-enter the member loop). Check the PR state (`gh pr view <n> --json state -q .state`): **`MERGED`** → run **only** the E8.4 post-merge tail (ff `main`, delete the merged branch, epic postflight, drop run-state) and finish; **still `OPEN`** → re-print the PR link and STOP — the merge remains the user's (never `gh pr merge`).
@@ -81,16 +87,24 @@ Branch from `origin/main` to bound drift. All subsequent member work happens wit
 
 ### E3. Initialize run-state (fresh run only)
 
-Write `<git-common-dir>/backlog-next-epic-<id>.json` (on a RESUME this file already exists — the resume gate read it; do NOT overwrite):
+Write the run-state via the helper — **never hand-author the raw JSON** (a hand-written file drifted its schema and emitted malformed JSON, F-11/F-12). On a RESUME this file already exists; the resume gate read it — do NOT re-init.
+
+```bash
+node .claude/skills/backlog-next-epic/runstate.mjs init <id> --branch=feat/epic-<id> --worktree=.claude/worktrees/epic-<id> [--auto]
+```
+
+This writes the **closed 6-key schema** (anything else is rejected on write):
 
 ```json
 { "epic": "<id>", "branch": "feat/epic-<id>", "worktree": ".claude/worktrees/epic-<id>",
   "auto": false, "decisions": [], "e2e": null }
 ```
 
+Every later mutation goes through the helper too (`append-decision`, `set-e2e`, `set-e8`) — each does an atomic parse → mutate → `JSON.stringify`, so the file can never go malformed and the schema can never drift (no `paused_at`, no per-member decision arrays — F-12).
+
 **Member status is deliberately NOT stored here.** It is derived from each member file's frontmatter via `epic-members.mjs` — **frontmatter is the single source of truth; run-state is an append-only annotation.** Run-state's only jobs: (a) mark a run in flight (the resume gate keys off its existence), (b) carry `auto`, (c) accumulate the `decisions` log and `e2e` evidence across resumes. Keeping member state in exactly one place (frontmatter) avoids a drift-prone second copy.
 
-The run-state also carries an optional `e8: PR_OPEN_AWAITING_MERGE` marker, set by E8.1 when the epic PR is open and awaiting the user's merge — the only sanctioned `e8` value (the closed schema that formalizes it is `runstate-write-contract-and-recovery`).
+The run-state also carries an optional `e8: PR_OPEN_AWAITING_MERGE` marker, set by E8.1 when the epic PR is open and awaiting the user's merge — the only sanctioned `e8` value (enforced by the closed schema in `runstate.mjs` — `validateRunState` rejects any other `e8` value or extra key).
 
 ### E4. Member loop
 
@@ -110,7 +124,14 @@ Repeat until `epic-members.mjs` reports drainable (exit 10):
 ### E5. Decision handling (default vs `--auto`)
 
 A **decision** is an architectural/design fork. Test/build failures are NOT decisions (see E4.3). The canonical decision-log entry shape (referenced by E3 and the spec) is:
-`{ member, decision, options, chosen, rationale (the reuse rationale), rejected }`. The log is **append-only**: never edit or delete a prior entry — a later reversal is a NEW entry whose `rationale` references the superseded entry by index, so the original (possibly wrong) call stays visible in the PR-review trail (F-6).
+`{ member, decision, options, chosen, rationale (the reuse rationale), rejected }`. Append it **via the helper** — pipe the entry as JSON on stdin; it validates and does the atomic parse → mutate → stringify into the single `decisions[]` (F-12), so the file never goes malformed:
+
+```bash
+echo '{ "member": "<id>", "decision": "...", "options": ["..."], "chosen": "...", "rationale": "...", "rejected": "..." }' \
+  | node .claude/skills/backlog-next-epic/runstate.mjs append-decision <epic-id>
+```
+
+The log is **append-only**: never edit or delete a prior entry — a later reversal is a NEW entry whose `rationale` references the superseded entry by index, so the original (possibly wrong) call stays visible in the PR-review trail (F-6). (The helper only ever appends — there is no edit/remove path by construction.)
 
 **Where decisions actually come from.** Most forks are NOT raised by this orchestrator — they are raised **inside downstream sub-skills** (`brainstorming`, `finishing-a-development-branch`, or an AskUserQuestion the worker itself issues). `--auto` cannot magically intercept an arbitrary prompt buried in a sub-skill, so it must **decide each known sub-skill prompt in advance**, with a conservative catch-all for the rest.
 
@@ -149,7 +170,12 @@ pnpm nx run nestfolio-e2e:e2e                                                # s
 - **Scoping.** The epic boundary is the right place to accept the **full** suites — the cost is amortized across all members, so running them unscoped is defensible. If you DO scope, scope **via env vars, never a `--testPathPatterns`/`--grep` regex argument** — the nx wrapper strips quotes around a regex and silently runs ZERO tests at exit 0 (false green). See [[feedback-e2e-nx-wrapper-strips-quotes]].
 - Choose the **repeat count at epic-start** by risk; if it is ≥ the cost-conscious threshold (e.g. 5 consecutive runs), surface it via AskUserQuestion **even in `--auto`** (cost is floor-adjacent). See [[feedback-e2e-cost-conscious]].
 - A scenario that fails-then-passes is a real failure: pull CloudWatch evidence from the failing window and run a confirmation pass — never dismiss as flake ([[feedback-flake-means-broken]]).
-- Record the e2e evidence in run-state `e2e` (commands + outcome + SHA).
+- Record the e2e evidence via the helper, pinning the SHA to the validated HEAD (the `sha` is what E7/F-14 checks for freshness):
+
+  ```bash
+  echo "{ \"commands\": [\"jest e2e\", \"playwright\"], \"outcome\": \"green\", \"sha\": \"$(git rev-parse HEAD)\" }" \
+    | node .claude/skills/backlog-next-epic/runstate.mjs set-e2e <epic-id>
+  ```
 
 **On a hard (reproducible) e2e failure — DO NOT ship.** The batched gate has lost per-member fault isolation, so recover deliberately:
 1. Route to `superpowers:systematic-debugging` to find the root cause (confirm it's not a flake first, per above).
@@ -160,7 +186,10 @@ pnpm nx run nestfolio-e2e:e2e                                                # s
 ### E7. Captured audit + epic ship
 
 1. **Captured audit.** `lint.mjs` prints the active epic's open captured members. Re-test each against `done_when` (closure-predicate test). Promote any load-bearing one to `core` — then it must be resolved/dropped (it does NOT spin out), which sends you back to E4 for that member.
-2. **Ship preconditions (BOTH required).** (a) Rule 9 — every core member terminal (`epic-members.mjs` exit 10); **and** (b) the E6 batched e2e is **green**. Exit 10 alone is necessary but **NOT sufficient** — a drainable epic whose batched e2e is red or never ran must not ship.
+2. **Ship preconditions (BOTH required).** (a) Rule 9 — every core member terminal (`epic-members.mjs` exit 10); **and** (b) the E6 batched e2e is **green AND fresh**. Exit 10 alone is necessary but **NOT sufficient** — a drainable epic whose batched e2e is red or never ran must not ship. **Freshness (F-14):** the recorded `e2e.sha` must equal current `HEAD` — a re-opened member (E6 recovery) moves HEAD and invalidates the recorded green, forcing a return to E6:
+   ```bash
+   node .claude/skills/backlog-next-epic/runstate.mjs e2e-fresh <epic-id>   # exit 0 = fresh; exit 1 = stale → re-run E6
+   ```
 3. **Spin out genuinely-orthogonal captured members FIRST (manual — `lint --fix` does NOT do this).** `lint --fix` only regenerates the index; `ruleEpicClosure` merely *blocks* the ship if any captured member is still open. So before shipping: if any captured member remains open after the audit, create `docs/backlog/<id>-leftovers.md` (a `type: epic`, `status: parking` theme bucket) and repoint each such member's `epic:` pointer to `<id>-leftovers`. (Skip entirely if there are no open captured members.)
 4. **Ship the epic.** Edit `docs/backlog/<id>.md` → `status: shipped`, fill `validation_gate:` with the batched-e2e evidence + branch SHA (for an E1 short-circuit with no deployable code, cite per-member evidence + the no-op note), **and stamp `closed: <today>`** (the authoritative Recently-Shipped date — immune to across-midnight drift; see `/backlog-next` 6.6, F-30). Commit on the branch.
 5. `node .claude/skills/backlog-lint/lint.mjs --fix` — regenerates `docs/BACKLOG.md` + dossiers and confirms rule 9 now passes. Commit.
@@ -169,7 +198,7 @@ pnpm nx run nestfolio-e2e:e2e                                                # s
 
 1. **Open the PR (the close ALWAYS stops here — `--auto` AND interactive).** Route to `superpowers:finishing-a-development-branch` taking the **PR route** (push + create PR). **Compose the PR body yourself:** `finishing`'s push step does not author a body, so render the run-state `decisions[]` to markdown + a per-member commit summary and set it (`gh pr create`/`gh pr edit --body-file`); if the log is empty, state "no decisions auto-resolved". **Expect a `docs/BACKLOG.md` merge conflict** — the auto-index is written on BOTH `main` (E1 promotion marker + any parallel doc/simple workstream `CLAUDE.md` permits) and the branch (E4/E7). Resolve it **mechanically, never by hand**: take the branch side, then re-run `node .claude/skills/backlog-lint/lint.mjs --fix` on the rebased branch so the index regenerates from the merged frontmatter, and push so the PR is mergeable.
    - **Then STOP via AskUserQuestion — the merge is the user's.** Surface a structured AskUserQuestion (NOT prose): the `(Recommended)` option is *"PR #N is up at `<link>` — I'll review & merge it on GitHub myself; the agent stops here"*; other options cover *"keep iterating / inspect first"*. **No option runs `gh pr merge`; the agent NEVER self-merges and never local-merges the epic branch** (F-33). A bare "go" is not authorization to do anything but stop.
-   - On the stop-and-hand-off confirmation, **clean up the worktree only** — `git worktree remove --force` + `git worktree prune` — **keeping the local + remote branch** so the PR stays mergeable (NO `git branch -d`, NO remote-branch delete). **Print the GitHub PR link.** Set run-state `e8: PR_OPEN_AWAITING_MERGE` (the only sanctioned `e8` value) and STOP. The branch deletion + `main` fast-forward happen in the **post-merge tail** (item 4), on a later resume that detects the PR merged.
+   - On the stop-and-hand-off confirmation, **clean up the worktree only** — `git worktree remove --force` + `git worktree prune` — **keeping the local + remote branch** so the PR stays mergeable (NO `git branch -d`, NO remote-branch delete). **Print the GitHub PR link.** Set the run-state hand-off marker via the helper (`node .claude/skills/backlog-next-epic/runstate.mjs set-e8 <id> PR_OPEN_AWAITING_MERGE` — the only sanctioned `e8` value) and STOP. The branch deletion + `main` fast-forward happen in the **post-merge tail** (item 4), on a later resume that detects the PR merged.
 2. **Worktree cleanup at the stop (branch KEPT).** From the main repo root (NOT `ExitWorktree` — see [[feedback-exitworktree-fails-cwd-pinned]]). This runs at the E8.1 stop, BEFORE the user merges, so it must NOT delete the branch or the run-state:
 
 ```bash
@@ -189,7 +218,7 @@ git -C "$MAIN" checkout main && git -C "$MAIN" pull --ff-only         # fast-for
 git -C "$MAIN" merge-base --is-ancestor feat/epic-<id> main && git -C "$MAIN" branch -d feat/epic-<id>
 git -C "$MAIN" worktree prune
 node .claude/skills/backlog-next/postflight.mjs --lane=complex --branch=feat/epic-<id> --id=<id>   # epic-level checks 4–7
-rm -f "$(git -C "$MAIN" rev-parse --path-format=absolute --git-common-dir)/backlog-next-epic-<id>.json"   # drop run-state
+rm -f "$(node "$MAIN/.claude/skills/backlog-next-epic/runstate.mjs" path <id>)"   # drop run-state (same absolute path the helper writes)
 ```
 
    Then a boundary review of `docs/BACKLOG.md` **once** (re-rank LATER, promote, check Parking health) — not per member. (The tail's robustness — postflight surviving a removed cwd, conflict-scope — is hardened by `ship-and-merge-mechanics`; this is the working contract.)
@@ -212,7 +241,7 @@ This same machinery is what makes the **E4.5 context checkpoint** safe: an inter
 
 ## Related
 
-`backlog-next` (the member worker this skill drives in epic-member mode), `backlog-lint`, `backlog-add`, `backlog-themes`, `superpowers:finishing-a-development-branch` / `systematic-debugging` / `brainstorming`. Supporting files: `epic-members.mjs` (+ `test/epic-members.test.mjs`). Design: `docs/superpowers/specs/2026-06-21-backlog-next-epic-orchestrator-design.md`.
+`backlog-next` (the member worker this skill drives in epic-member mode), `backlog-lint`, `backlog-add`, `backlog-themes`, `superpowers:finishing-a-development-branch` / `systematic-debugging` / `brainstorming`. Supporting files: `epic-members.mjs`, `runstate.mjs` (the closed-schema run-state read-modify-write helper), `detect-fork-blast-radius.mjs` (+ their `test/*.test.mjs`). Design: `docs/superpowers/specs/2026-06-21-backlog-next-epic-orchestrator-design.md`.
 
 **Run the tests** (use the **glob** form — `node --test <dir>` does not discover suites on Node 24):
 
