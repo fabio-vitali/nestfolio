@@ -1,10 +1,14 @@
 ---
 id: auto-decision-discipline-and-merge-ownership
-status: parking
+status: active
 type: tooling
 notes: "--auto floor is prose-only + over-broad, and the epic close self-merged the PR on a bare 'go'. Make the floor a decidable scope test surfaced via AskUserQuestion; the close ALWAYS stops at an open PR (cleanup worktree + print PR link), never self-merges."
 references: []
-out_of_scope: []
+out_of_scope:
+  - "Run-state write-convention / closed schema / path-format / e2e-freshness mechanics (F-11..F-14) — owned by runstate-write-contract-and-recovery. THIS member only mandates the decision-log be append-only (no in-place reversal edit), not the run-state write/schema contract itself."
+  - "The post-merge resume tail mechanics (ff main, delete merged local branch, epic postflight 4-7, drop run-state) + E8.3 postflight cwd-crash + cross-member tsc + e2e false-green + conflict-scope (F-22/F-23/F-21/F-24/F-25) — owned by ship-and-merge-mechanics. THIS member fixes WHO merges (stop-at-open-PR, never self-merge) + the AskUserQuestion floor; ship-and-merge-mechanics owns the resume-and-cleanup plumbing it hands off to."
+  - "The orchestrator<->worker callable-seam / subagent-isolation refactor (F-26/F-27/F-28) — owned by backlog-next-epic-member-subagent-isolation. F-8 (worker-mode self-contained floor rule) IS in scope here — it is a decision-discipline rule, not the seam refactor."
+  - "detect-deploy-needed.mjs / detect-doc-derivation.mjs gating — deploy-tooling-integrity."
 spec: null
 plan: null
 topic_memory: []
