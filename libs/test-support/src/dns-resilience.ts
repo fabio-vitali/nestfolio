@@ -55,6 +55,9 @@ let originalPromisesLookup: typeof dns.promises.lookup | undefined;
 /** Install the DNS retry wrappers. Idempotent. */
 export function installDnsResilience(): void {
   if (originalLookup) return;
+  // One-time banner: confirms the harness DNS safeguard is active in this worker.
+  // eslint-disable-next-line no-console
+  console.warn(`[test-support] DNS resilience installed (transient getaddrinfo retry, ${DNS_RETRY_ATTEMPTS} attempts)`);
   originalLookup = dns.lookup;
   originalPromisesLookup = dns.promises.lookup;
   const base = originalLookup;
