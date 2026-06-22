@@ -1,6 +1,6 @@
 ---
 id: auto-decision-discipline-and-merge-ownership
-status: active
+status: shipped
 type: tooling
 notes: "--auto floor is prose-only + over-broad, and the epic close self-merged the PR on a bare 'go'. Make the floor a decidable scope test surfaced via AskUserQuestion; the close ALWAYS stops at an open PR (cleanup worktree + print PR link), never self-merges."
 references: []
@@ -12,7 +12,7 @@ out_of_scope:
 spec: docs/superpowers/specs/2026-06-22-auto-decision-discipline-and-merge-ownership-design.md
 plan: docs/superpowers/plans/2026-06-22-auto-decision-discipline-and-merge-ownership.md
 topic_memory: []
-validation_gate: null
+validation_gate: "Commits cea6caae (detect-fork-blast-radius.mjs code backstop), fa781109 (E5: decidable floor scope test + blast-radius gate + append-only log + AskUserQuestion-mandatory — F-5/F-6/F-7), a3ed2526 (E8: epic close ALWAYS stops at open PR, never self-merge, e8: PR_OPEN_AWAITING_MERGE marker + resume tail — F-33), 2de6491b (worker self-contained floor — F-8). 3/3 node --test on detect-fork-blast-radius; CLI exit-code 0/1 mapping confirmed (nonexistent symbol → 0, shared-surface hit → 1). Done-when grep checklist across both skills all green: AskUserQuestion-mandatory floor (1), zero 'auto-pick Option 2' remaining (0), blast-radius gate wired (1), append-only log (4), worker floor (1), e8 marker (6); branch-delete appears only in the post-merge tail (1x). lint green (340 files, 11 rules). Tier-0: no deploy, no nx-affected, no doc-derivation."
 epic: backlog-skills-hardening
 epic_role: core
 ---
