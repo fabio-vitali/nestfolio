@@ -10,7 +10,7 @@ out_of_scope:
   - "--auto decision discipline, merge ownership, run-state, ship/merge mechanics — separate backlog-skills-hardening core members"
   - "The backlog data-model redesign itself (backlog-redesign) — this hardens the parser/render machinery, not the model"
 spec: docs/superpowers/specs/2026-06-22-lint-library-total-and-located-design.md
-plan: null
+plan: docs/superpowers/plans/2026-06-22-lint-library-total-and-located.md
 topic_memory: []
 validation_gate: null
 epic: backlog-skills-hardening
