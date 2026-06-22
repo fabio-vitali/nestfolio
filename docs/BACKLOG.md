@@ -6,6 +6,14 @@
 
 ## EPICS
 
+### [deploy-tooling-integrity](backlog/deploy-tooling-integrity.md) `[epic · active]` — Deploy/derivation gating + bundle-freshness tooling can silently do the wrong thing — test-only/harness-lib changes mis-gate; a frontend change returns empty services; doc-derivation always reports on resume; deployed bundles can lag source. Theme epic (loose: deploy-decision + doc-derivation + artifact freshness), 4 members.
+done_when: The deploy decision excludes test-only/harness-lib service changes AND emits a correct non-empty target for frontend/lib changes; detect-doc-derivation reports only outstanding derivation (not cumulative) and is an importable, tested pure function; a deploy-time integrity check confirms the bundle matches source; all core members shipped or dropped.
+rollup: core 0/4 done · captured 0/0 done
+- core · parking · [cdk-bundle-staleness-deploy-integrity](backlog/cdk-bundle-staleness-deploy-integrity.md)
+- core · parking · [detect-deploy-fanout-and-empty-services](backlog/detect-deploy-fanout-and-empty-services.md)
+- core · parking · [detect-deploy-service-test-path-no-deploy](backlog/detect-deploy-service-test-path-no-deploy.md)
+- core · parking · [detect-doc-derivation-resume-and-testability](backlog/detect-doc-derivation-resume-and-testability.md)
+
 ### [advisory-narrative-memory-read-latency](backlog/advisory-narrative-memory-read-latency.md) `[epic · parking]` — advisory-narrative-ctrl blocks on AgentCore Memory reads before writing its observable HEAD row → 30-40s integration tests. Theme epic, 2 members.
 done_when: advisory-narrative-ctrl's observable HEAD row is visible to tests in ~5-10s (eager write and/or tightened Memory-retry delays) with no dev/prod consistency skew; both members shipped or dropped.
 rollup: core 0/2 done · captured 0/0 done
@@ -38,14 +46,6 @@ rollup: core 0/4 done · captured 0/0 done
 - core · parking · [execution-ctrl-orderrepository-prune-unused-methods](backlog/execution-ctrl-orderrepository-prune-unused-methods.md)
 - core · parking · [stale-memory-write-comments-phase-a-cleanup](backlog/stale-memory-write-comments-phase-a-cleanup.md)
 - core · parking · [yahoo-finance-mi-ctrl-subject-region-dead-code](backlog/yahoo-finance-mi-ctrl-subject-region-dead-code.md)
-
-### [deploy-tooling-integrity](backlog/deploy-tooling-integrity.md) `[epic · parking]` — Deploy/derivation gating + bundle-freshness tooling can silently do the wrong thing — test-only/harness-lib changes mis-gate; a frontend change returns empty services; doc-derivation always reports on resume; deployed bundles can lag source. Theme epic (loose: deploy-decision + doc-derivation + artifact freshness), 4 members.
-done_when: The deploy decision excludes test-only/harness-lib service changes AND emits a correct non-empty target for frontend/lib changes; detect-doc-derivation reports only outstanding derivation (not cumulative) and is an importable, tested pure function; a deploy-time integrity check confirms the bundle matches source; all core members shipped or dropped.
-rollup: core 0/4 done · captured 0/0 done
-- core · parking · [cdk-bundle-staleness-deploy-integrity](backlog/cdk-bundle-staleness-deploy-integrity.md)
-- core · parking · [detect-deploy-fanout-and-empty-services](backlog/detect-deploy-fanout-and-empty-services.md)
-- core · parking · [detect-deploy-service-test-path-no-deploy](backlog/detect-deploy-service-test-path-no-deploy.md)
-- core · parking · [detect-doc-derivation-resume-and-testability](backlog/detect-doc-derivation-resume-and-testability.md)
 
 ### [diagram-generator-gaps](backlog/diagram-generator-gaps.md) `[epic · parking]` — Architecture-doc generators have coverage gaps that force hand-edits/omissions — C4 lacks the frontend; flow-docs can't express rich sequence diagrams. Theme epic (loose: two generators), 2 members.
 done_when: Each generator covers its gap (C4 represents MFEs at C1/C2; .flow.yaml can express the rich diagrams currently hand-edited) so generated docs need no manual patching; both members shipped or dropped.
@@ -137,7 +137,7 @@ rollup: core 0/3 done · captured 0/0 done
 - core · parking · [portfolio-drift-detected-registry-collision](backlog/portfolio-drift-detected-registry-collision.md)
 - core · parking · [weight-drift-detector](backlog/weight-drift-detector.md)
 
-**Parking health:** 20 theme epic(s), 34 orphan(s) — drive orphans → 0 with `/backlog-themes`
+**Parking health:** 19 theme epic(s), 34 orphan(s) — drive orphans → 0 with `/backlog-themes`
 
 ## ACTIVE
 
@@ -180,7 +180,6 @@ _(none)_
 - [bump-tsconfig-es2022-to-es2023](backlog/bump-tsconfig-es2022-to-es2023.md) [tooling] — Enable .toSpliced/.toReversed/.with workspace-wide; promote on second use case.
 - [c4-frontend-representation](backlog/c4-frontend-representation.md) [tooling] — MFEs in C4 diagrams at C1 + C2 level (planned, not started). `[epic:diagram-generator-gaps · core]`
 - [cdc-system-tenant-source-tag-test-leak](backlog/cdc-system-tenant-source-tag-test-leak.md) [bug] — CDC source-tag (isTestTenant=integ- prefix) misses SYSTEM-tenant test events → they emit prod source, leak to prod consumers.
-- [cdk-bundle-staleness-deploy-integrity](backlog/cdk-bundle-staleness-deploy-integrity.md) [tooling] — Hypothesis: 2026-05-13 dev-investor-bff deploy produced a Lambda bundle whose change-data-capture.ts logic lagged behind source. Surfaced via update-operating-mode-cdc-silent. Need a deploy-time integrity check that the bundle's resolveEmissions actually matches the EVENT_TYPE_MAP shape it'll be asked to process. `[epic:deploy-tooling-integrity · core]`
 - [check-typed-fixtures-has-detail-shorthand-gap](backlog/check-typed-fixtures-has-detail-shorthand-gap.md) [tooling] — check-typed-fixtures HAS_DETAIL matches only /\bdetail\s*:/ — a putEvent({ detailType: 'REGISTERED', detail }) with shorthand `detail` escapes the legacy-detail violation. ZERO real sites today (dynamic ban covers the rest); trivial 1-line fix. Captured under typed-test-fixtures.
 - [ci-pipeline-bring-up](backlog/ci-pipeline-bring-up.md) [infra] — Bring all 5 GitHub workflows green for the first time — OIDC role deploy, secrets, charter check, security policy, no-Pro gating model. `[epic:ci-pipeline · core]`
 - [corporate-action-portfolio-snapshot-no-producer-contract](backlog/corporate-action-portfolio-snapshot-no-producer-contract.md) [bug] — CORPORATE_ACTION_APPLIED + PORTFOLIO_SNAPSHOT_IMPORTED have no producer zod contract/emitter — consumer fixtures can't be typed without standing up a producer contract first. Split out of typed-test-fixtures-cross-domain-consumer-migration. `[epic:missing-producer-contract-surface · core]`
@@ -188,9 +187,6 @@ _(none)_
 - [dashboard-bff-decision-blocked-reason-field-mismatch](backlog/dashboard-bff-decision-blocked-reason-field-mismatch.md) [bug] — dashboard-bff DECISION_BLOCKED fixture used `reason` absent from ComplianceCheckSchema; real producer emits violations[], consumer description degrades to decisionId `[epic:blocked-decision-reason-from-violations · core]`
 - [dashboard-getdashboard-missing-row-integration-test](backlog/dashboard-getdashboard-missing-row-integration-test.md) [tooling] — Fast integration regression test for the getDashboard investorSnapshot missing-row .sk guard (today only covered by the WS-4 e2e scenario). `[epic:integration-coverage-backfill · core]`
 - [dashboard-portfolio-summary-live-push-e2e-scenario](backlog/dashboard-portfolio-summary-live-push-e2e-scenario.md) [tooling] — No e2e scenario asserts dashboard KPI cards update live (no refresh) after a deposit/fill. dashboard-live-push-portfolio-summary shipped the transport but its delivery is only unit-covered; integration doesn't cover AppSync broadcast, so the live path has zero end-to-end assertion. `[epic:live-push-broadcast-coverage · core]`
-- [detect-deploy-fanout-and-empty-services](backlog/detect-deploy-fanout-and-empty-services.md) [tooling] — detect-deploy-needed.mjs is wrong two ways for E6's --services=<from-detect>: a test-only harness-lib change (test-support) fans out to its full dependent closure (27 services), and a frontend/libs/ui change returns deploy=true with empty services=[] (resolver filters to root.startsWith('services/')) → silent deploy no-op against stale code. `[epic:deploy-tooling-integrity · core]`
-- [detect-deploy-service-test-path-no-deploy](backlog/detect-deploy-service-test-path-no-deploy.md) [tooling] — detect-deploy-needed.mjs lacks a Tier-0 rule for services/*/test/**, so a test-only service change defaults to deploy=true (false positive). `[epic:deploy-tooling-integrity · core]`
-- [detect-doc-derivation-resume-and-testability](backlog/detect-doc-derivation-resume-and-testability.md) [tooling] — detect-doc-derivation.mjs diffs whole-branch-vs-origin/main so it reports derivation=true on every epic resume (no signal whether derivation is actually outstanding), and it has no import-meta-main guard / no exports so it runs main() at import and is untestable (unlike its detect-deploy-needed sibling). `[epic:deploy-tooling-integrity · core]`
 - [dwc-sf-command-subject-tenantid-nondry](backlog/dwc-sf-command-subject-tenantid-nondry.md) [bug] — DWC SF emits CONSTRUCT_PORTFOLIO/GENERATE_NARRATIVE with tenantId in subject — non-DRY; consumers read context `[epic:dry-subject-identity-cleanup · core]`
 - [dwc-sfn-callback-reason-blockreason-gap](backlog/dwc-sfn-callback-reason-blockreason-gap.md) [bug] — RE-HOMED 2026-06-16 out of typed-subject-consumer-contract-gaps: the typed-subject portion is DONE in code — decision-workflow-ctrl/src/handlers/sfn-callback.ts now does `parseSubject(payload, ComplianceCheckSchema)` (line ~80), the phantom `subject.reason` read is removed/documented, and the unit fixture uses the real `violations` shape (NOT a fake `reason`), so the co-wrong-fixture anti-pattern is already corrected. What REMAINS is purely BEHAVIORAL and outside a typed-subject epic's scope: DecisionPacket.blockReason is preserved as `undefined` on the blocked path because the real ComplianceCheck carries `violations: [{rule, description, severity}]` and no `reason` string — so blocked decisions surface no human-readable block reason. Fix: derive blockReason from `violations` (e.g. the first BLOCKING violation's description, or a joined summary) and assert it is populated on a real blocked decision; the fixture already encodes the real shape. Promote when a blocked-decision UX needs the real block reason. `[epic:blocked-decision-reason-from-violations · core]`
 - [dwc-snapshot-projector-drop-skip](backlog/dwc-snapshot-projector-drop-skip.md) [bug] — DWC snapshot-projector returns `undefined` for the drop case; HandlerFn wants skip() — latent TS2769, nothing in nx pipeline compiles src/handlers `[epic:typecheck-diagnostics-masking · core]`
