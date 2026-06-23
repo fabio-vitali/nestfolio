@@ -135,8 +135,11 @@ export function renderIndex(files, gitInfo = collectGitInfo()) {
 
   // Members of an ACTIVE delivery epic are shown ONLY in that epic's rollup, never
   // flat — they are orchestrated by /backlog-next-epic and must not be surfaced as
-  // standalone picks by /backlog-next. (Theme-/queued-epic members keep their flat
-  // listing with the [epic:X·role] tag, per the 2026-06-16 rendering model.)
+  // standalone picks by /backlog-next. Separately, the LATER section hides ALL
+  // epic-assigned parking members (see orphanParking below): they already appear under
+  // their epic's rollup in EPICS, so a flat duplicate is just noise. (Queued-epic
+  // members still appear in QUEUED with the [epic:X·role] tag — only the parking/LATER
+  // half is de-duplicated; supersedes the 2026-06-16 model for parking items.)
   const activeEpicIds = new Set(
     epics.filter(e => e.frontmatter?.status === 'active').map(e => e.id),
   );
@@ -147,6 +150,10 @@ export function renderIndex(files, gitInfo = collectGitInfo()) {
   const queued = nonEpic.filter(f => f.frontmatter?.status === 'queued' && !isActiveEpicMember(f))
     .sort((a, b) => (a.frontmatter.rank ?? 0) - (b.frontmatter.rank ?? 0));
   const parking = nonEpic.filter(f => f.frontmatter?.status === 'parking' && !isActiveEpicMember(f));
+  // LATER lists only ORPHAN parking items — epic-assigned parking members live under
+  // their epic's rollup in EPICS, never flat here. This IS the orphan set (the health
+  // line counts it too).
+  const orphanParking = parking.filter(f => f.frontmatter?.epic == null);
   const shippedAll = files.filter(f => f.frontmatter?.status === 'shipped'); // incl. shipped epics
   const { dirty, dateMap } = gitInfo;
   const today = todayISO();
@@ -169,7 +176,7 @@ export function renderIndex(files, gitInfo = collectGitInfo()) {
   // Parking health: the bounded tracking surface. Theme epics are durable
   // root-cause buckets; orphans are un-clustered standalone parking items to drive → 0.
   const themeEpics = epics.filter(e => e.frontmatter?.status === 'parking').length;
-  const orphans = parking.filter(f => f.frontmatter?.epic == null).length;
+  const orphans = orphanParking.length;
 
   const lines = [HEADER];
   lines.push('## EPICS\n');
@@ -182,8 +189,8 @@ export function renderIndex(files, gitInfo = collectGitInfo()) {
   if (queued.length === 0) lines.push('_(none)_\n');
   queued.forEach((f, i) => lines.push(`${i + 1}. ${lineFor(f)}`));
   lines.push('\n## LATER\n');
-  if (parking.length === 0) lines.push('_(none)_\n');
-  for (const f of parking) lines.push(`- ${lineFor(f)}`);
+  if (orphanParking.length === 0) lines.push('_(none)_\n');
+  for (const f of orphanParking) lines.push(`- ${lineFor(f)}`);
   lines.push('\n## Recently Shipped (last 10)\n');
   if (shippedRecent.length === 0) lines.push('_(none)_\n');
   for (const { f, date } of shippedRecent) lines.push(`- ${date} — ${lineFor(f)}`);

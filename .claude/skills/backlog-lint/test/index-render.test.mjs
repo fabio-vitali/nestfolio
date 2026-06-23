@@ -97,16 +97,27 @@ test('renderIndex shows EPICS rollup; ACTIVE-epic members are NOT duplicated int
   assert.ok(!activeSection.includes('(backlog/e1.md)'));
 });
 
-test('renderIndex KEEPS theme/queued-epic members in flat sections (only ACTIVE-epic members are hidden)', () => {
+test('renderIndex hides epic-assigned PARKING members from LATER but keeps queued-epic members in QUEUED', () => {
   const files = [
     file('theme', { type: 'epic', status: 'parking', notes: 'bucket' }),
     file('tm-mem', { status: 'parking', epic: 'theme', epic_role: 'core', notes: 'theme member' }),
+    file('qe', { type: 'epic', status: 'queued', rank: 1, notes: 'queued bucket' }),
+    file('qe-mem', { status: 'queued', rank: 1, epic: 'qe', epic_role: 'core', notes: 'queued member' }),
+    file('orphan', { status: 'parking', notes: 'lonely' }),
   ];
   const out = renderIndex(files, NO_GIT);
-  // theme epic is NOT active → its member retains the flat listing + tag (2026-06-16 model).
   const laterSection = out.split('## LATER')[1].split('## Recently Shipped')[0];
-  assert.ok(laterSection.includes('(backlog/tm-mem.md)'));
-  assert.match(out, /\[epic:theme · core\]/);
+  const queuedSection = out.split('## QUEUED')[1].split('## LATER')[0];
+  const epicsSection = out.split('## EPICS')[1].split('## ACTIVE')[0];
+  // an epic-assigned PARKING member is NOT duplicated into the flat LATER list...
+  assert.ok(!laterSection.includes('(backlog/tm-mem.md)'), 'epic-assigned parking member must not appear flat in LATER');
+  // ...it appears only under its epic's rollup in EPICS.
+  assert.ok(epicsSection.includes('(backlog/tm-mem.md)'), 'epic member must appear under its epic rollup');
+  // a true orphan still appears flat in LATER.
+  assert.ok(laterSection.includes('(backlog/orphan.md)'));
+  // only the parking/LATER half is de-duplicated — queued-epic members still appear in QUEUED, tagged.
+  assert.ok(queuedSection.includes('(backlog/qe-mem.md)'), 'queued-epic member still appears flat in QUEUED');
+  assert.match(out, /\[epic:qe · core\]/);
 });
 
 test('resolveShippedDate: explicit closed wins over dirty/git/today', () => {
