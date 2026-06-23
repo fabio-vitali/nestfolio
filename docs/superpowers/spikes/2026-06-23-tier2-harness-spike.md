@@ -62,3 +62,42 @@ Two layers — the deterministic layer is DONE; the live end-to-end layer is pos
 This + the §Risk spike (harness primitives: SendMessage continuation, custom-agent-type resolution, allowlist exclusion, nesting, context isolation) + the unit suites (`backlog-next-epic` 41/41, `backlog-next` 40/40) cover every deterministic path.
 
 **(B) Live end-to-end `/backlog-next-epic` dry-run — POST-MERGE / USER-TRIGGERED.** The full 2-member-epic dry-run (orchestrator prose driving a real `epic-member-worker` subagent through dispatch → `SendMessage` payload → parse → resolve/resume → ship) cannot run meaningfully from this pre-merge implementation session: (1) `/backlog-next-epic` loads from the **main** repo's `.claude/skills/`, so the NEW Tier-2 orchestrator is only the active skill **after this PR merges**; (2) it is `disable-model-invocation: true` (user-triggered only); (3) it needs `CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS=1`; (4) it creates a throwaway 2-core-member doc-layer theme epic (a backlog mutation) and spawns real agents (cost). The path list to assert when it runs: happy-path (one-liners + decision log, no file-dumps); crash/resume mid-fork (no re-ask of a persisted ruling); override (worker ADOPTS the imposed value; dedup keeps the `supersedes` entry); blocked → AskUserQuestion (not a prose halt); parse-failure ≤2 repair then floor; inferred too-large → split (not generic floor); multi-fork interactive member NOT force-floored; `wx` lock contention → refuse-and-ask; + the context-isolation proxy (orchestrator per-member delta independent of files-touched). Tracked as a queued follow-up; the rollout already gates Tier-1 removal on **3 successful Tier-2 epics**, so real runs accumulate the live evidence.
+
+## Live run #1 (2026-06-23, `tier2-live-end-to-end-dry-run`) — IN PROGRESS
+
+**Scope decision (user, AskUserQuestion):** *observable-paths live*. Drive ONE real
+2-member doc-layer throwaway epic (`tier2-dryrun-throwaway`) happy-path; live-assert only
+the paths that are genuinely observable; cross-reference the 5 fault-injection paths to
+the 13/13 deterministic helper harness rather than forcing a real LLM worker to misbehave.
+
+**Harness:** epic `tier2-dryrun-throwaway` (parking, 2 core members) →
+`tier2-dryrun-member-a` (trivial 1-file append) + `tier2-dryrun-member-b` (file-heavy
+reads, 1-file append). Both write only `2026-06-23-tier2-dryrun-scratch.md` → no nx
+project affected → E6 deploy/e2e detectors no-op (batched expensive e2e skipped).
+
+**Trigger:** user runs `/backlog-next-epic tier2-dryrun-throwaway --auto`
+(`disable-model-invocation`; `CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS=1` set).
+
+### Observable-paths assertions (live)
+
+| Path | Expected | Result |
+|------|----------|--------|
+| Happy-path, no member file-dumps | Orchestrator context shows only one-line progress notes + the decision log; member A/B reads + test logs stay inside the worker (only `MEMBER-SUMMARY` payloads reach `main`) | _pending live run_ |
+| Context-isolation proxy | Orchestrator per-member context delta for file-heavy member B ≈ trivial member A's (bounded; scales as #forks × fixed payload, NOT files-touched) | _pending live run_ |
+| `wx` concurrency lock | A second `/backlog-next-epic tier2-dryrun-throwaway` while the lock is held → refuse-and-ask (does not start a second orchestrator) | _pending live run_ |
+| Single-branch / single-PR invariant | Both members ship on one `feat/epic-tier2-dryrun-throwaway` branch; close STOPS at an open PR (never self-merges) | _pending live run_ |
+
+### Cross-referenced (NOT driven live — covered 13/13 by helper harness §"(A)")
+
+parse-failure (≤2 repair → floor) · blocked → AskUserQuestion · override-reopen (worker
+ADOPTS imposed value; `supersedes` not deduped) · inferred too-large → split · multi-fork
+interactive member NOT force-floored. These need fault injection a real worker resists;
+the deterministic layer already proves each routing/persistence branch.
+
+### Teardown (after assertions recorded)
+
+Close the open PR unmerged · `git worktree remove --force` + `git branch -d
+feat/epic-tier2-dryrun-throwaway` + `prune` · delete `tier2-dryrun-throwaway` +
+`tier2-dryrun-member-a` + `tier2-dryrun-member-b` + the scratch doc from `main` ·
+`backlog-lint --fix` · then ship `tier2-live-end-to-end-dry-run`. Counts as 1 of the 3
+Tier-2 epics gating `remove-tier1-clear-fallback`.

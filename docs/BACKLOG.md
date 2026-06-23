@@ -144,6 +144,12 @@ rollup: core 0/2 done · captured 0/0 done
 - core · parking · [broker-alpaca-event-listener-test-diverged-copy](backlog/broker-alpaca-event-listener-test-diverged-copy.md)
 - core · parking · [nestfolio-e2e-eventbridge-client-wrapper-migration](backlog/nestfolio-e2e-eventbridge-client-wrapper-migration.md)
 
+### [tier2-dryrun-throwaway](backlog/tier2-dryrun-throwaway.md) `[epic · parking]` — THROWAWAY validation epic for the tier2-live-end-to-end-dry-run workstream. Two trivial doc-layer core members under one type:epic, used to drive a live /backlog-next-epic --auto run and assert the observable Tier-2 paths (no member file-dumps; context-isolation proxy; wx-lock). Created + torn down within that workstream — NOT real product work. Tear-down deletes this epic, both members, and the scratch doc.
+done_when: The live /backlog-next-epic --auto run drives both core members through the epic-member-worker subagent seam to status:shipped on one branch; both members shipped or dropped; results recorded in 2026-06-23-tier2-harness-spike.md; the throwaway epic torn down.
+rollup: core 0/2 done · captured 0/0 done
+- core · parking · [tier2-dryrun-member-a](backlog/tier2-dryrun-member-a.md)
+- core · parking · [tier2-dryrun-member-b](backlog/tier2-dryrun-member-b.md)
+
 ### [typecheck-diagnostics-masking](backlog/typecheck-diagnostics-masking.md) `[epic · parking]` — ts-jest diagnostics:false + esbuild bundling (or no typecheck target at all) means a real tsc --noEmit never gates, so latent type errors / contract drift hide until runtime. Theme epic, 4 members.
 done_when: Each in-scope project's latent tsc errors are cleared AND a tsc --noEmit typecheck target gates them in the nx pipeline so diagnostics:false (or a missing target) can no longer mask them; all members shipped or dropped.
 rollup: core 0/4 done · captured 0/0 done
@@ -166,7 +172,7 @@ rollup: core 0/3 done · captured 0/0 done
 - core · parking · [portfolio-drift-detected-registry-collision](backlog/portfolio-drift-detected-registry-collision.md)
 - core · parking · [weight-drift-detector](backlog/weight-drift-detector.md)
 
-**Parking health:** 25 theme epic(s), 24 orphan(s) — drive orphans → 0 with `/backlog-themes`
+**Parking health:** 26 theme epic(s), 24 orphan(s) — drive orphans → 0 with `/backlog-themes`
 
 ## ACTIVE
 
