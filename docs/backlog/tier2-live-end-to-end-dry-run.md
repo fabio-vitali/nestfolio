@@ -1,8 +1,9 @@
 ---
 id: tier2-live-end-to-end-dry-run
-status: parking
+status: queued
+rank: 1
 type: tooling
-notes: "Post-merge live end-to-end validation of the Tier-2 /backlog-next-epic subagent dispatch shipped in backlog-next-epic-member-subagent-isolation. The new orchestrator/worker skills become the ACTIVE skills only after that PR merges, and /backlog-next-epic is disable-model-invocation (user-triggered) + needs CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS=1, so the full dry-run could not run from the pre-merge implementation session (helper-level path coverage was 13/13 green + the harness spike proved the primitives). Promote once that PR has merged and the Tier-2 skills are live on main."
+notes: "Live end-to-end validation of the Tier-2 /backlog-next-epic subagent dispatch shipped in backlog-next-epic-member-subagent-isolation. The new orchestrator/worker skills are the ACTIVE skills now that PR #23 has merged (merge commit f945ac19), and /backlog-next-epic is disable-model-invocation (user-triggered) + needs CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS=1, so the full dry-run could not run from the pre-merge implementation session (helper-level path coverage was 13/13 green + the harness spike proved the primitives). PROMOTED 2026-06-23: trigger fired — PR #23 merged, Tier-2 skills now live on main, so the live dry-run is runnable."
 references: []
 out_of_scope: []
 spec: null
