@@ -45,16 +45,7 @@ Hard-fails if: working tree is dirty, local `main` is ahead of `origin/main`, `b
 | `shipped` or `dropped` | Almost always a typo. Warn loudly with the file's `validation_gate:` (shipped) or drop reason, and ask for confirmation before doing anything. |
 | not found | Warn, list close matches from `ls docs/backlog/` (use the closest filename stems), and ask for clarification. Do NOT fall back to the default rank pick. |
 
-Then proceed to Step 1b.
-
-### 1b. Honor the effort marker
-
-If the picked item's frontmatter has `effort:` set (e.g. `effort: xhigh`), the item
-was triaged as needing more than the default reasoning budget. Surface it to the
-user before doing any execution work — state the level and the file's stated
-reason — and switch this session to that reasoning effort (or ask the user to
-relaunch at it) **before** routing to a downstream skill. Do not start a marked
-workstream at the default effort. Absent an `effort:` key, use your own judgment.
+Then proceed to Step 2.
 
 ### 2. Verify references
 
@@ -181,7 +172,7 @@ When the `/backlog-next-epic` orchestrator drives this skill, it passes the memb
 - **Step 6.7 / 6.8 (Finish + cleanup).** **SKIP both.** Do NOT route to `finishing-a-development-branch`, do NOT clean up the worktree, do NOT push `main`. The orchestrator does one merge / one PR / one cleanup at epic close.
 - **Step 7 (Postflight).** Run `node .claude/skills/backlog-next/postflight.mjs --lane=epic-member --id=<id>` (checks 1–3 only). Then **return control to `/backlog-next-epic`** — it advances to the next member or moves to the epic pre-done gate.
 
-Everything else (Step 1b effort marker, Step 2 verify references, Steps 6.2–6.3, 6.5–6.6) runs unchanged. (Step 1 "Pick" does not run in epic-member mode — the orchestrator supplies the member id, so the worker starts at Step 1b.)
+Everything else (Step 2 verify references, Steps 6.2–6.3, 6.5–6.6) runs unchanged. (Step 1 "Pick" does not run in epic-member mode — the orchestrator supplies the member id, so the worker starts at Step 2.)
 
 ## Common mistakes
 

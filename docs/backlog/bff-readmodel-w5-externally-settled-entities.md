@@ -1,8 +1,8 @@
 ---
 id: bff-readmodel-w5-externally-settled-entities
 status: shipped
+closed: 2026-06-01
 type: refactor
-effort: xhigh
 out_of_scope:
   - "w6 governance/freeze enforcement (layers 3+4) — tracked in bff-readmodel-w6-governance-freeze."
   - "Re-touching rows already migrated in w1–w4 (ledger/dashboard/advisory P1 projections, investor command-owned rows) except where w5 changes the deposit/withdrawal/cash path."

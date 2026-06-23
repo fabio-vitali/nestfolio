@@ -1,9 +1,9 @@
 ---
 id: bff-readmodel-w3-advisory-decision-packet
 status: shipped
+closed: 2026-05-31
 rank: 3
 type: refactor
-effort: xhigh
 requires_deploy: true
 out_of_scope:
   - "investor-bff CashBalance P1 + command-row confirmation (field-level + condition + seed-by-event) — workstream 4."

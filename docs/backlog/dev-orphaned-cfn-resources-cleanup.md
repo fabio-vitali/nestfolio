@@ -1,9 +1,9 @@
 ---
 id: dev-orphaned-cfn-resources-cleanup
 status: shipped
+closed: 2026-06-15
 type: tooling
 rank: 1
-effort: high
 notes: "Dev account 771924376645 has orphaned CloudFormation-detached resources from past stack replacements. CONFIRMED for broker-ctrl: 7 `dev-broker-ctrl-StateTable962DE04C-*` DynamoDB tables (only `...-1I1HZDP0OPPFH` is active per the deployed ModeIngress TABLE_NAME env) + 5 `dev-broker-ctrl-ModeIngressHandler47F15197-*` Lambdas (only `...-dcOCBjizdJ3A` active). Observed 2026-06-14 while debugging go-live (the sprawl slowed CloudWatch/DDB introspection — couldn't trust list-tables/log-group results). Likely OTHER services have the same orphan pattern (resource replacement with RETAIN deletion policy). Scope: (1) sweep all dev-* stacks for orphaned tables/lambdas/log-groups NOT referenced by their current stack's resources; (2) for each, CONFIRM it is detached from every CFN stack (describe-stack-resources) AND not the SSM-advertised active resource BEFORE deleting; (3) delete orphans (DDB tables are destructive + may be RETAIN'd — verify empty/dead e2e data first); (4) consider why replacements orphaned them (logical-id churn in the cdk-constructs State/Ingress constructs) to prevent recurrence. Queued (user direction 2026-06-14: 'solve just after this one') — own workstream, NOT folded into go-live (it's destructive AWS resource ops, not a code change that merges with the feature branch). Read-only AWS introspection is pre-authorized; the DELETES need explicit care/confirmation per CLAUDE.md."
 references: []
 out_of_scope:
