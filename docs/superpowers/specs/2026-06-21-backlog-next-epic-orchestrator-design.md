@@ -2,6 +2,9 @@
 
 **Date:** 2026-06-21
 **Status:** approved
+
+> **Superseded in part (2026-06-23):** the Tier-1 per-member `/clear` checkpoint and the "inline Skill-tool load is the intended execution model" framing are superseded by **Tier-2** — see `docs/superpowers/specs/2026-06-23-backlog-next-epic-member-subagent-isolation-design.md`. Each epic member now runs as a context-isolated `epic-member-worker` subagent; Tier-1's per-member `/clear` is now a dormant spike-gated fallback mode (kept until 3 successful Tier-2 epics). The epic *model* + orchestration lifecycle (E0–E9, one branch / one PR, batched e2e, captured audit) below are unchanged.
+
 **Builds on:** `docs/superpowers/specs/2026-06-16-backlog-epics-design.md` (the epic *model* —
 frontmatter, the 11 lint rules, core/captured, close ritual). This spec adds an *orchestration*
 layer on top of that model and changes **no** model rule.

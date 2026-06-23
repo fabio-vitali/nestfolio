@@ -31,6 +31,7 @@
  *   node runstate.mjs append-decision <epic-id>  <stdin: decision object>
  *   node runstate.mjs set-e2e         <epic-id>  <stdin: e2e object or "null">
  *   node runstate.mjs set-e8          <epic-id> PR_OPEN_AWAITING_MERGE
+ *   node runstate.mjs clear-e8        <epic-id>                        → remove the optional e8 marker
  *   node runstate.mjs e2e-fresh       <epic-id>                        → exit 0 if e2e.sha === HEAD, else 1 (F-14)
  *
  * Exit codes: 0 ok · 1 usage/validation error / stale e2e · 2 malformed existing file · 3 absent (FRESH).
@@ -118,6 +119,16 @@ export function appendDecision(state, decision) {
   if (typeof decision.member !== 'string' || !decision.member) {
     throw new Error('decision.member (string) is required so the entry is attributable');
   }
+  if (typeof decision.fork_key !== 'string' || !decision.fork_key) {
+    throw new Error('decision.fork_key (string) is required for dedup + decision-aware re-dispatch');
+  }
+  // Override entries (carry `supersedes`) ALWAYS append — they intentionally reuse a fork_key.
+  if (decision.supersedes === undefined) {
+    const dup = state.decisions.some(
+      (d) => d.member === decision.member && d.fork_key === decision.fork_key && d.supersedes === undefined,
+    );
+    if (dup) return state; // idempotent no-op: same fork already logged (subagent + orchestrator both saw it)
+  }
   return { ...state, decisions: [...state.decisions, decision] };
 }
 
@@ -152,7 +163,7 @@ function readStdin() {
 function main() {
   const [cmd, epicId, ...rest] = process.argv.slice(2);
   if (!cmd || !epicId) {
-    console.error('Usage: runstate.mjs <path|get|init|append-decision|set-e2e|set-e8> <epic-id> [...]');
+    console.error('Usage: runstate.mjs <path|get|init|append-decision|set-e2e|set-e8|clear-e8|e2e-fresh> <epic-id> [...]');
     process.exit(1);
   }
   const path = runStatePath(epicId);
@@ -197,6 +208,12 @@ function main() {
       if (marker !== E8_MARKER) { console.error(`set-e8 expects "${E8_MARKER}"`); process.exit(1); }
       save(validateRunState({ ...loadOrExit(), e8: marker }));
       console.log('e8 marker set'); break;
+    }
+    case 'clear-e8': {
+      const state = loadOrExit();
+      const { e8, ...rest } = state;
+      save(validateRunState(rest));
+      console.log('e8 marker cleared'); break;
     }
     case 'e2e-fresh': {
       const state = loadOrExit();
