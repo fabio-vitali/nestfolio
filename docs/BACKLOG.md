@@ -6,6 +6,14 @@
 
 ## EPICS
 
+### [tier2-epic-orchestrator-hardening](backlog/tier2-epic-orchestrator-hardening.md) `[epic · active]` — Residual hardening of the `/backlog-next-epic` Tier-2 subagent-isolation orchestrator harness, surfaced after the subagent-isolation program + first live --auto dry-run shipped. Theme epic, 4 members.
+done_when: Each residual Tier-2 `/backlog-next-epic` orchestrator-harness hardening item is shipped or dropped: the unattended-run irreversible-action floor is a mechanical deny-hook, the dormant Tier-1 `/clear` fallback is removed (after its 3-epic soak), the cwd/payload-format invariants are explicit in the orchestrator prose, and the worktree setup symlinks per-package node_modules. All members shipped or dropped.
+rollup: core 0/4 done · captured 0/0 done
+- core · parking · [epic-member-floor-deny-hook](backlog/epic-member-floor-deny-hook.md)
+- core · parking · [remove-tier1-clear-fallback](backlog/remove-tier1-clear-fallback.md)
+- core · parking · [tier2-orchestrator-prose-cwd-payload-invariants](backlog/tier2-orchestrator-prose-cwd-payload-invariants.md)
+- core · parking · [worktree-missing-per-package-node-modules-symlink](backlog/worktree-missing-per-package-node-modules-symlink.md)
+
 ### [advisory-narrative-memory-read-latency](backlog/advisory-narrative-memory-read-latency.md) `[epic · parking]` — advisory-narrative-ctrl blocks on AgentCore Memory reads before writing its observable HEAD row → 30-40s integration tests. Theme epic, 2 members.
 done_when: advisory-narrative-ctrl's observable HEAD row is visible to tests in ~5-10s (eager write and/or tightened Memory-retry delays) with no dev/prod consistency skew; both members shipped or dropped.
 rollup: core 0/2 done · captured 0/0 done
@@ -158,14 +166,6 @@ rollup: core 0/2 done · captured 0/0 done
 - core · parking · [broker-alpaca-event-listener-test-diverged-copy](backlog/broker-alpaca-event-listener-test-diverged-copy.md)
 - core · parking · [nestfolio-e2e-eventbridge-client-wrapper-migration](backlog/nestfolio-e2e-eventbridge-client-wrapper-migration.md)
 
-### [tier2-epic-orchestrator-hardening](backlog/tier2-epic-orchestrator-hardening.md) `[epic · parking]` — Residual hardening of the `/backlog-next-epic` Tier-2 subagent-isolation orchestrator harness, surfaced after the subagent-isolation program + first live --auto dry-run shipped. Theme epic, 4 members.
-done_when: Each residual Tier-2 `/backlog-next-epic` orchestrator-harness hardening item is shipped or dropped: the unattended-run irreversible-action floor is a mechanical deny-hook, the dormant Tier-1 `/clear` fallback is removed (after its 3-epic soak), the cwd/payload-format invariants are explicit in the orchestrator prose, and the worktree setup symlinks per-package node_modules. All members shipped or dropped.
-rollup: core 0/4 done · captured 0/0 done
-- core · parking · [epic-member-floor-deny-hook](backlog/epic-member-floor-deny-hook.md)
-- core · parking · [remove-tier1-clear-fallback](backlog/remove-tier1-clear-fallback.md)
-- core · parking · [tier2-orchestrator-prose-cwd-payload-invariants](backlog/tier2-orchestrator-prose-cwd-payload-invariants.md)
-- core · parking · [worktree-missing-per-package-node-modules-symlink](backlog/worktree-missing-per-package-node-modules-symlink.md)
-
 ### [typecheck-diagnostics-masking](backlog/typecheck-diagnostics-masking.md) `[epic · parking]` — ts-jest diagnostics:false + esbuild bundling (or no typecheck target at all) means a real tsc --noEmit never gates, so latent type errors / contract drift hide until runtime. Theme epic, 4 members.
 done_when: Each in-scope project's latent tsc errors are cleared AND a tsc --noEmit typecheck target gates them in the nx pipeline so diagnostics:false (or a missing target) can no longer mask them; all members shipped or dropped.
 rollup: core 0/4 done · captured 0/0 done
@@ -188,7 +188,7 @@ rollup: core 0/3 done · captured 0/0 done
 - core · parking · [portfolio-drift-detected-registry-collision](backlog/portfolio-drift-detected-registry-collision.md)
 - core · parking · [weight-drift-detector](backlog/weight-drift-detector.md)
 
-**Parking health:** 28 theme epic(s), 15 orphan(s) — drive orphans → 0 with `/backlog-themes`
+**Parking health:** 27 theme epic(s), 15 orphan(s) — drive orphans → 0 with `/backlog-themes`
 
 ## ACTIVE
 
