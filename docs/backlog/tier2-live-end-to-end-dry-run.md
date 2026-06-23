@@ -1,7 +1,7 @@
 ---
 id: tier2-live-end-to-end-dry-run
-status: queued
-rank: 1
+status: shipped
+closed: 2026-06-23
 type: tooling
 notes: "Live end-to-end validation of the Tier-2 /backlog-next-epic subagent dispatch shipped in backlog-next-epic-member-subagent-isolation. The new orchestrator/worker skills are the ACTIVE skills now that PR #23 has merged (merge commit f945ac19), and /backlog-next-epic is disable-model-invocation (user-triggered) + needs CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS=1, so the full dry-run could not run from the pre-merge implementation session (helper-level path coverage was 13/13 green + the harness spike proved the primitives). PROMOTED 2026-06-23: trigger fired — PR #23 merged, Tier-2 skills now live on main, so the live dry-run is runnable."
 references: []
@@ -9,7 +9,7 @@ out_of_scope: []
 spec: null
 plan: null
 topic_memory: []
-validation_gate: null
+validation_gate: "Live /backlog-next-epic --auto dry-run executed end-to-end on throwaway epic tier2-dryrun-throwaway (2 doc-layer core members) through the Tier-2 epic-member-worker subagent seam (dispatch → SendMessage MEMBER-SUMMARY → member-summary.mjs parse exit-1 → ship). 4/4 observable paths PASS: (1) no member file-dumps — only compact fenced summaries reached the orchestrator; (2) context-isolation proxy — file-heavy member-b (read 5 files in-worker) ≈ trivial member-a orchestrator-context delta; (3) §G wx-lock — second wx acquire threw EEXIST → refuse-and-ask; (4) single-branch/never-self-merge — 8 [member-id]-prefixed commits on one feat/epic branch, --auto STOPPED at E8 AskUserQuestion. 5 adversarial paths cross-referenced to deterministic helper harness 13/13. 3 operator findings recorded (fence-preserving payload relay; worktree-not-main roster/postflight cwd; HEAD-relative checks from worktree). Results + teardown in docs/superpowers/spikes/2026-06-23-tier2-harness-spike.md §'Live run #1'. Throwaway epic fully torn down. Commits cd373c9b (scaffold) → 63594760 (teardown). Counts as 1 of 3 Tier-2 epics gating remove-tier1-clear-fallback."
 ---
 
 # Tier-2 live end-to-end `/backlog-next-epic` dry-run (post-merge)
