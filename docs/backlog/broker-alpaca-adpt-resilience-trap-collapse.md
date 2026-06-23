@@ -10,6 +10,8 @@ spec: null
 plan: null
 topic_memory: []
 validation_gate: null
+epic: integration-test-timing-fragility
+epic_role: core
 ---
 
 # broker-alpaca-adpt.resilience: collapse 2-trap pattern → 1 trap

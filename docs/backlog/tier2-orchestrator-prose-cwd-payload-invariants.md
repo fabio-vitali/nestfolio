@@ -9,6 +9,8 @@ spec: null
 plan: null
 topic_memory: []
 validation_gate: null
+epic: tier2-epic-orchestrator-hardening
+epic_role: core
 ---
 
 # Tier-2 orchestrator prose: make the cwd / payload-format invariants explicit

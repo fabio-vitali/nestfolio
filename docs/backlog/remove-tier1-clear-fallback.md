@@ -9,6 +9,8 @@ spec: null
 plan: null
 topic_memory: []
 validation_gate: null
+epic: tier2-epic-orchestrator-hardening
+epic_role: core
 ---
 
 # Remove the dormant Tier-1 `/clear` fallback (after 3 successful Tier-2 epics)

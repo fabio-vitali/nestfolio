@@ -14,6 +14,8 @@ spec: null
 plan: null
 topic_memory: [project_read_model_redesign.md]
 validation_gate: null
+epic: integration-test-isolation-leaks
+epic_role: core
 ---
 
 # IP-ctrl integration: `materialises…INVESTOR_PROFILE_UPDATED` reads a foreign `ctx.userId`

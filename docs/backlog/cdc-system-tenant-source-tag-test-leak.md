@@ -9,6 +9,8 @@ spec: null
 plan: null
 topic_memory: []
 validation_gate: null
+epic: integration-test-isolation-leaks
+epic_role: core
 ---
 
 # changeDataCapture source-tag heuristic leaks SYSTEM-tenant test events to production consumers

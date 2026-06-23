@@ -91,6 +91,20 @@ rollup: core 0/3 done · captured 0/0 done
 - core · parking · [advisory-riskcategory-compliance-coverage](backlog/advisory-riskcategory-compliance-coverage.md)
 - core · parking · [dashboard-getdashboard-missing-row-integration-test](backlog/dashboard-getdashboard-missing-row-integration-test.md)
 
+### [integration-test-isolation-leaks](backlog/integration-test-isolation-leaks.md) `[epic · parking]` — Integration runs aren't cleanly isolated — an incomplete test/prod (or cross-test) discriminator lets test events/identity bleed. Theme epic, 2 members. Caveat: the ip-ctrl userid-mismatch mechanism is unresolved; clustered on its leading contamination hypothesis.
+done_when: Each in-scope test-isolation leak is closed — SYSTEM-tenant test events no longer emit the production source (a test/prod discriminator that covers non-`integ-` tenants), and the IP-ctrl snapshot foreign-userId contamination is root-caused and eliminated; both members shipped or dropped.
+rollup: core 0/2 done · captured 0/0 done
+- core · parking · [cdc-system-tenant-source-tag-test-leak](backlog/cdc-system-tenant-source-tag-test-leak.md)
+- core · parking · [ip-ctrl-integration-snapshot-userid-mismatch](backlog/ip-ctrl-integration-snapshot-userid-mismatch.md)
+
+### [integration-test-timing-fragility](backlog/integration-test-timing-fragility.md) `[epic · parking]` — Integration tests race AWS eventual-consistency / cold-start without robust synchronization → flakes; the polling audit is the systemic poll→subscribe direction. Theme epic, 4 members.
+done_when: Each in-scope integration-test timing fragility is removed — cold-start-tail / EB-rule-propagation / cross-test-seed races are eliminated by robust wait/synchronization (warm-up, subscription-based waits, or explicit per-test guards) rather than longer timeouts, and the OrphanReaper VM-teardown race is fixed; all members shipped or dropped.
+rollup: core 0/4 done · captured 0/0 done
+- core · parking · [broker-alpaca-adpt-resilience-trap-collapse](backlog/broker-alpaca-adpt-resilience-trap-collapse.md)
+- core · parking · [integration-deep-coldstart-flakes-post-trap-hardening](backlog/integration-deep-coldstart-flakes-post-trap-hardening.md)
+- core · parking · [investor-bff-updateoperatingmode-integration-seed-flake](backlog/investor-bff-updateoperatingmode-integration-seed-flake.md)
+- core · parking · [test-infrastructure-polling-audit](backlog/test-infrastructure-polling-audit.md)
+
 ### [jest-module-resolution-debt](backlog/jest-module-resolution-debt.md) `[epic · parking]` — jest moduleNameMapper drifts from tsconfig paths → @nestfolio/<svc> subpaths resolve in tsc/lint but fail at jest run time. Theme epic, 2 members.
 done_when: jest module resolution is derived from / kept in sync with tsconfig paths so a new @nestfolio subpath can no longer fail only at test run time; both members shipped or dropped.
 rollup: core 0/2 done · captured 0/0 done
@@ -144,6 +158,14 @@ rollup: core 0/2 done · captured 0/0 done
 - core · parking · [broker-alpaca-event-listener-test-diverged-copy](backlog/broker-alpaca-event-listener-test-diverged-copy.md)
 - core · parking · [nestfolio-e2e-eventbridge-client-wrapper-migration](backlog/nestfolio-e2e-eventbridge-client-wrapper-migration.md)
 
+### [tier2-epic-orchestrator-hardening](backlog/tier2-epic-orchestrator-hardening.md) `[epic · parking]` — Residual hardening of the `/backlog-next-epic` Tier-2 subagent-isolation orchestrator harness, surfaced after the subagent-isolation program + first live --auto dry-run shipped. Theme epic, 4 members.
+done_when: Each residual Tier-2 `/backlog-next-epic` orchestrator-harness hardening item is shipped or dropped: the unattended-run irreversible-action floor is a mechanical deny-hook, the dormant Tier-1 `/clear` fallback is removed (after its 3-epic soak), the cwd/payload-format invariants are explicit in the orchestrator prose, and the worktree setup symlinks per-package node_modules. All members shipped or dropped.
+rollup: core 0/4 done · captured 0/0 done
+- core · parking · [epic-member-floor-deny-hook](backlog/epic-member-floor-deny-hook.md)
+- core · parking · [remove-tier1-clear-fallback](backlog/remove-tier1-clear-fallback.md)
+- core · parking · [tier2-orchestrator-prose-cwd-payload-invariants](backlog/tier2-orchestrator-prose-cwd-payload-invariants.md)
+- core · parking · [worktree-missing-per-package-node-modules-symlink](backlog/worktree-missing-per-package-node-modules-symlink.md)
+
 ### [typecheck-diagnostics-masking](backlog/typecheck-diagnostics-masking.md) `[epic · parking]` — ts-jest diagnostics:false + esbuild bundling (or no typecheck target at all) means a real tsc --noEmit never gates, so latent type errors / contract drift hide until runtime. Theme epic, 4 members.
 done_when: Each in-scope project's latent tsc errors are cleared AND a tsc --noEmit typecheck target gates them in the nx pipeline so diagnostics:false (or a missing target) can no longer mask them; all members shipped or dropped.
 rollup: core 0/4 done · captured 0/0 done
@@ -166,7 +188,7 @@ rollup: core 0/3 done · captured 0/0 done
 - core · parking · [portfolio-drift-detected-registry-collision](backlog/portfolio-drift-detected-registry-collision.md)
 - core · parking · [weight-drift-detector](backlog/weight-drift-detector.md)
 
-**Parking health:** 25 theme epic(s), 25 orphan(s) — drive orphans → 0 with `/backlog-themes`
+**Parking health:** 28 theme epic(s), 15 orphan(s) — drive orphans → 0 with `/backlog-themes`
 
 ## ACTIVE
 
@@ -181,30 +203,20 @@ _(none)_
 ## LATER
 
 - [agent-tracer-bedrock-converse-token-extraction](backlog/agent-tracer-bedrock-converse-token-extraction.md) [bug] — AgentTracer.handleLLMEnd returns 0 input/output tokens for ChatBedrockConverse — usage field path mismatch. Diagnostic envelopes lose cost/decode signal.
-- [broker-alpaca-adpt-resilience-trap-collapse](backlog/broker-alpaca-adpt-resilience-trap-collapse.md) [refactor] — broker-alpaca-adpt.resilience.integration.test.ts creates 2 EventBusTrap rules in beforeAll — same anti-pattern that caused advisory-adpt + investor-adpt EB-rule-propagation flakes (shipped 2026-05-13). Hasn't been observed flaking yet; pre-emptive collapse to 1-trap-with-2-detailtypes.
 - [broker-ctrl-alpaca-funding-carrier-pk-divergence](backlog/broker-ctrl-alpaca-funding-carrier-pk-divergence.md) [bug] — Live/ALPACA funding: router keys requested carrier on depositId/withdrawalId but completion normalizer keys on transferId — carry-forward misses if they differ (degrades gracefully). Sim path unaffected.
 - [broker-ctrl-sim-funding-subject-suffix-rename](backlog/broker-ctrl-sim-funding-subject-suffix-rename.md) [refactor] — broker-ctrl contracts.ts Sim*RequestedSubjectSchema names use the Subject suffix → typed-subject-drift gate fails (convention 4).
 - [bump-tsconfig-es2022-to-es2023](backlog/bump-tsconfig-es2022-to-es2023.md) [tooling] — Enable .toSpliced/.toReversed/.with workspace-wide; promote on second use case.
-- [cdc-system-tenant-source-tag-test-leak](backlog/cdc-system-tenant-source-tag-test-leak.md) [bug] — CDC source-tag (isTestTenant=integ- prefix) misses SYSTEM-tenant test events → they emit prod source, leak to prod consumers.
 - [check-typed-fixtures-has-detail-shorthand-gap](backlog/check-typed-fixtures-has-detail-shorthand-gap.md) [tooling] — check-typed-fixtures HAS_DETAIL matches only /\bdetail\s*:/ — a putEvent({ detailType: 'REGISTERED', detail }) with shorthand `detail` escapes the legacy-detail violation. ZERO real sites today (dynamic ban covers the rest); trivial 1-line fix. Captured under typed-test-fixtures.
-- [epic-member-floor-deny-hook](backlog/epic-member-floor-deny-hook.md) [tooling] — The Tier-2 design (2026-06-23-backlog-next-epic-member-subagent-isolation-design.md §D) names this a HARD precondition before any UNATTENDED (GitHub-runner) use of /backlog-next-epic --auto. The harness spike proved a dispatched subagent runs destructive Bash UNPROMPTED — so default permission-prompting is NOT a floor backstop. Today the floor's gates are the blast-radius helper + the worker's irreversible-action checklist + AskUserQuestion-exclusion (sufficient for ATTENDED dev --auto, where a human is present for floor pauses). Promote before wiring /backlog-next-epic --auto onto an unattended runner.
 - [execution-ctrl-mandate-recheck-order-boundary](backlog/execution-ctrl-mandate-recheck-order-boundary.md) [refactor] — Defense-in-depth — re-read mandate before broker submission on L1 auto-execute.
-- [integration-deep-coldstart-flakes-post-trap-hardening](backlog/integration-deep-coldstart-flakes-post-trap-hardening.md) [bug] — Trap-empty hardening reduced lockstep-polling flakes from 5-7/run baseline to ~2/run average. Residual flakes have a different signature: cold-start-bound paths whose tests already use explicit `timeoutMs` overrides of 90-300s, and a Jest VM-teardown race in OrphanReaper. Filed as a single umbrella because the cases share the cold-start cause, not because they share a fix.
 - [integration-suite-lever-5-cdk-bundling](backlog/integration-suite-lever-5-cdk-bundling.md) [refactor] — cdk-constructs:test bundles 57 assets in 32s as it synthesizes per-construct stacks in tests. This sits in the unit suite, not integration. Dossier called out as out-of-scope for integration slowness but worth tracking if unit wall-clock becomes a concern.
-- [investor-bff-updateoperatingmode-integration-seed-flake](backlog/investor-bff-updateoperatingmode-integration-seed-flake.md) [bug] — investor-bff integration updateOperatingMode test flakes (InvalidState: mandate inactive) — fires the mutation with no wait-for-Mandate-ACTIVE guard; depends on a prior test's eventually-consistent seed
 - [investor-mandate-type-layer-cleanup](backlog/investor-mandate-type-layer-cleanup.md) [refactor] — Two pre-existing investor Mandate type-layer cleanups surfaced by typed-subject-contracts-investor review: investor-adpt MandateLevel redundant with MandateSchema.level; investor-bff Mandate interface missing operatingMode.
-- [ip-ctrl-integration-snapshot-userid-mismatch](backlog/ip-ctrl-integration-snapshot-userid-mismatch.md) [bug] — Pre-existing IP-ctrl integration test 'materialises…INVESTOR_PROFILE_UPDATED' fails DETERMINISTICALLY (2/2 runs) reading back the fixture ctx.userId instead of the test's local userId at an exact-pk GetItem. Surfaced during WS-B (read-model-ownership-w-b-version-carriage) validation; proven NOT WS-B-caused. Mechanism unresolved (observed value contradicts the code path).
 - [ip-ctrl-snapshot-agent-fed-trigger-row](backlog/ip-ctrl-snapshot-agent-fed-trigger-row.md) [bug] — IP-ctrl passes the raw CDC trigger row as the agent's investorProfile; MANDATE_ISSUED feeds it a Mandate row (no goal/riskProfile) → degraded snapshot rebuild.
 - [pinned-retry-prompt-interference-agent-factory](backlog/pinned-retry-prompt-interference-agent-factory.md) [bug] — γ.4 retry stacks two corrective directives; cleaner separation needed.
 - [portfolio-engine-service-unavailable-asymmetric-handling](backlog/portfolio-engine-service-unavailable-asymmetric-handling.md) [bug] — portfolio-engine graph returns serviceUnavailable instead of throwing; other 3 advisory agents throw
 - [rebalance-planner-mode-awareness](backlog/rebalance-planner-mode-awareness.md) [refactor] — rebalance-planner stays mode-blind; promote on mode-correlated gap.
-- [remove-tier1-clear-fallback](backlog/remove-tier1-clear-fallback.md) [tooling] — The Tier-2 subagent dispatch (backlog-next-epic-member-subagent-isolation) demoted the Tier-1 per-member /clear checkpoint to a dormant, clearly-labelled fallback (/backlog-next-epic E4.5) and reconciled the prose in E9 + Common mistakes. Per the spec's Goal-2 rollout, KEEP the fallback until 3 successful Tier-2 epics have run (don't delete the only known-working context mechanism before the new one is proven). Promote after 3 successful Tier-2 epics.
 - [rename-nestfolio-integ-prefix-to-prefix](backlog/rename-nestfolio-integ-prefix-to-prefix.md) [refactor] — Verbose NESTFOLIO_INTEG_ namespace is friction; rename atomically + sweep docs.
-- [test-infrastructure-polling-audit](backlog/test-infrastructure-polling-audit.md) [refactor] — App code clean; test infra has 98 justified + 12 should-replace + 126 lower-priority polls.
 - [test-support-typecheck-put-event-type-test-drift](backlog/test-support-typecheck-put-event-type-test-drift.md) [tooling] — test-support:typecheck red on main — put-event.type-test @ts-expect-error drifted off the now-relocated overload error (false-red, not a masked real error)
-- [tier2-orchestrator-prose-cwd-payload-invariants](backlog/tier2-orchestrator-prose-cwd-payload-invariants.md) [tooling] — Tier-2 /backlog-next-epic prose leaves 3 cwd/payload-format invariants implicit (verbatim-fenced payload relay; worktree-not-main roster+postflight cwd; HEAD-relative checks from worktree). Surfaced + worked around in the first live --auto dry-run.
 - [unified-ingress-refactoring](backlog/unified-ingress-refactoring.md) [refactor] — Single event-listener with ResumeIntent + PublishIntent (planned, not started).
-- [worktree-missing-per-package-node-modules-symlink](backlog/worktree-missing-per-package-node-modules-symlink.md) [tooling] — backlog-next(-epic) worktree setup symlinks only ROOT node_modules, not per-package libs/*/node_modules. pnpm puts a package's DIRECT deps under its own node_modules, so affected test+lint for event-processor/agent-orchestrator/cdk-constructs FALSE-REDs in a worktree (resolves on main). Surfaced + worked around in the deploy-tooling-integrity epic.
 
 ## Recently Shipped (last 10)
 

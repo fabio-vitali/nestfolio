@@ -9,6 +9,8 @@ plan: null
 topic_memory: []
 validation_gate: null
 notes: "App code clean; test infra has 98 justified + 12 should-replace + 126 lower-priority polls."
+epic: integration-test-timing-fragility
+epic_role: core
 ---
 
 # Test infrastructure polling audit (2026-05-05)

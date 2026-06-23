@@ -9,6 +9,8 @@ spec: null
 plan: null
 topic_memory: []
 validation_gate: null
+epic: tier2-epic-orchestrator-hardening
+epic_role: core
 ---
 
 # `permissions.deny` / `PreToolUse` deny-hook for the epic-member floor

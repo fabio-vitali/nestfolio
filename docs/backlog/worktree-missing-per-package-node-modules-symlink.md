@@ -9,6 +9,8 @@ spec: null
 plan: null
 topic_memory: []
 validation_gate: null
+epic: tier2-epic-orchestrator-hardening
+epic_role: core
 ---
 
 # Worktree setup symlinks only root node_modules, not per-package libs/*/node_modules

@@ -10,6 +10,8 @@ spec: null
 plan: null
 topic_memory: []
 validation_gate: null
+epic: integration-test-timing-fragility
+epic_role: core
 ---
 
 # investor-bff integration `updateOperatingMode` eventual-consistency seed flake
