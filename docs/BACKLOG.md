@@ -6,12 +6,6 @@
 
 ## EPICS
 
-### [tier2-dryrun-throwaway](backlog/tier2-dryrun-throwaway.md) `[epic · active]` — THROWAWAY validation epic for the tier2-live-end-to-end-dry-run workstream. Two trivial doc-layer core members under one type:epic, used to drive a live /backlog-next-epic --auto run and assert the observable Tier-2 paths (no member file-dumps; context-isolation proxy; wx-lock). Created + torn down within that workstream — NOT real product work. Tear-down deletes this epic, both members, and the scratch doc.
-done_when: The live /backlog-next-epic --auto run drives both core members through the epic-member-worker subagent seam to status:shipped on one branch; both members shipped or dropped; results recorded in 2026-06-23-tier2-harness-spike.md; the throwaway epic torn down.
-rollup: core 0/2 done · captured 0/0 done
-- core · parking · [tier2-dryrun-member-a](backlog/tier2-dryrun-member-a.md)
-- core · parking · [tier2-dryrun-member-b](backlog/tier2-dryrun-member-b.md)
-
 ### [advisory-narrative-memory-read-latency](backlog/advisory-narrative-memory-read-latency.md) `[epic · parking]` — advisory-narrative-ctrl blocks on AgentCore Memory reads before writing its observable HEAD row → 30-40s integration tests. Theme epic, 2 members.
 done_when: advisory-narrative-ctrl's observable HEAD row is visible to tests in ~5-10s (eager write and/or tightened Memory-retry delays) with no dev/prod consistency skew; both members shipped or dropped.
 rollup: core 0/2 done · captured 0/0 done

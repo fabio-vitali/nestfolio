@@ -63,7 +63,7 @@ This + the §Risk spike (harness primitives: SendMessage continuation, custom-ag
 
 **(B) Live end-to-end `/backlog-next-epic` dry-run — POST-MERGE / USER-TRIGGERED.** The full 2-member-epic dry-run (orchestrator prose driving a real `epic-member-worker` subagent through dispatch → `SendMessage` payload → parse → resolve/resume → ship) cannot run meaningfully from this pre-merge implementation session: (1) `/backlog-next-epic` loads from the **main** repo's `.claude/skills/`, so the NEW Tier-2 orchestrator is only the active skill **after this PR merges**; (2) it is `disable-model-invocation: true` (user-triggered only); (3) it needs `CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS=1`; (4) it creates a throwaway 2-core-member doc-layer theme epic (a backlog mutation) and spawns real agents (cost). The path list to assert when it runs: happy-path (one-liners + decision log, no file-dumps); crash/resume mid-fork (no re-ask of a persisted ruling); override (worker ADOPTS the imposed value; dedup keeps the `supersedes` entry); blocked → AskUserQuestion (not a prose halt); parse-failure ≤2 repair then floor; inferred too-large → split (not generic floor); multi-fork interactive member NOT force-floored; `wx` lock contention → refuse-and-ask; + the context-isolation proxy (orchestrator per-member delta independent of files-touched). Tracked as a queued follow-up; the rollout already gates Tier-1 removal on **3 successful Tier-2 epics**, so real runs accumulate the live evidence.
 
-## Live run #1 (2026-06-23, `tier2-live-end-to-end-dry-run`) — IN PROGRESS
+## Live run #1 (2026-06-23, `tier2-live-end-to-end-dry-run`) — COMPLETE ✅ (4/4 observable paths PASS)
 
 **Scope decision (user, AskUserQuestion):** *observable-paths live*. Drive ONE real
 2-member doc-layer throwaway epic (`tier2-dryrun-throwaway`) happy-path; live-assert only
@@ -82,10 +82,10 @@ project affected → E6 deploy/e2e detectors no-op (batched expensive e2e skippe
 
 | Path | Expected | Result |
 |------|----------|--------|
-| Happy-path, no member file-dumps | Orchestrator context shows only one-line progress notes + the decision log; member A/B reads + test logs stay inside the worker (only `MEMBER-SUMMARY` payloads reach `main`) | _pending live run_ |
-| Context-isolation proxy | Orchestrator per-member context delta for file-heavy member B ≈ trivial member A's (bounded; scales as #forks × fixed payload, NOT files-touched) | _pending live run_ |
-| `wx` concurrency lock | A second `/backlog-next-epic tier2-dryrun-throwaway` while the lock is held → refuse-and-ask (does not start a second orchestrator) | _pending live run_ |
-| Single-branch / single-PR invariant | Both members ship on one `feat/epic-tier2-dryrun-throwaway` branch; close STOPS at an open PR (never self-merges) | _pending live run_ |
+| Happy-path, no member file-dumps | Orchestrator context shows only one-line progress notes + the decision log; member A/B reads + test logs stay inside the worker (only `MEMBER-SUMMARY` payloads reach `main`) | **PASS** — both members dispatched as `epic-member-worker` teammates; the ONLY thing that entered the orchestrator's context was each member's compact fenced `member-summary` payload (parsed → exit 1). No member reads/edits/postflight logs ever reached `main`. Member B explicitly read 5 files in-worker; none surfaced. |
+| Context-isolation proxy | Orchestrator per-member context delta for file-heavy member B ≈ trivial member A's (bounded; scales as #forks × fixed payload, NOT files-touched) | **PASS** — member A (1-file append, 0 forks) and member B (read 5 full files, 1-file append, 0 forks) produced orchestrator-context deltas of the **same magnitude**: one fenced summary payload each (~same byte size), zero decision turns each. Delta was independent of files-touched, exactly as predicted (scales as #forks × fixed payload). |
+| `wx` concurrency lock | A second `wx` acquire while the lock is held → `EEXIST` → refuse-and-ask (does not start a second orchestrator) | **PASS** — orchestrator acquired `<git-common-dir>/backlog-next-epic-tier2-dryrun-throwaway.lock` as first action; an inline second `wx` create against the held lock threw `EEXIST` and read back the holder record (`session:orchestrator-tier2-dryrun, pid:7712`). A loser must refuse-and-ask; the lock was not overwritten. (Tested via the real lock path, not a 2nd terminal — see Findings note on the pid-liveness wrinkle.) |
+| Single-branch / single-PR invariant | Both members ship on one `feat/epic-tier2-dryrun-throwaway` branch; close STOPS rather than self-merging | **PASS** — all 8 commits (4 per member, every subject `[<member-id>]`-prefixed) landed on the single `feat/epic-tier2-dryrun-throwaway` branch; the epic shipped on-branch (rule-9 green). At E8 the orchestrator STOPPED at an AskUserQuestion and did **not** self-merge (`--auto`). User chose *skip-PR → teardown* for the throwaway, so no GitHub PR was opened; the never-self-merge property is what was being asserted, and it held. |
 
 ### Cross-referenced (NOT driven live — covered 13/13 by helper harness §"(A)")
 
@@ -94,10 +94,37 @@ ADOPTS imposed value; `supersedes` not deduped) · inferred too-large → split 
 interactive member NOT force-floored. These need fault injection a real worker resists;
 the deterministic layer already proves each routing/persistence branch.
 
-### Teardown (after assertions recorded)
+### Findings / operator notes (real, from the live drive)
 
-Close the open PR unmerged · `git worktree remove --force` + `git branch -d
-feat/epic-tier2-dryrun-throwaway` + `prune` · delete `tier2-dryrun-throwaway` +
+These are operator foot-guns the orchestrator prose should make explicit — none are
+defects in the Tier-2 mechanism; all were worked around live:
+
+1. **`member-summary.mjs parse` needs the RAW fenced message text.** The parser
+   (`fencedKindBlocks`) scans for ` ```json … ``` ` blocks. When relaying a teammate's
+   `SendMessage` payload to the temp file, write the message text **verbatim, fence
+   included** — reformatting it to bare JSON yields exit-3 `no kind-bearing json payload
+   found` (looks like a parse-failure that isn't one). E4 step 3 says "write the received
+   message text" — emphasis on *received text*, not extracted JSON.
+2. **Re-derive roster + run the member postflight from the WORKTREE, never `main`/`$MAIN`.**
+   A member ships `status: shipped` on the branch (worktree); on `main` it is still
+   `parking`/`active`. `epic-members.mjs` and the `--lane=epic-member` postflight read
+   frontmatter from cwd, so running them from `main` reports stale state → the loop would
+   re-pick the just-shipped member, and the postflight false-fails. Run both with cwd in
+   the worktree. (Member B's worker independently hit the same on its postflight: the
+   `/backlog-next` Step-7 `$MAIN` cwd is a *Complex-lane* pattern where the worktree is
+   removed pre-postflight; in **epic-member mode the worktree is alive and IS the source of
+   truth**, so postflight must run there.)
+3. **`e2e-fresh` / any HEAD-relative check resolves HEAD from cwd** — run them from the
+   worktree so the recorded `e2e.sha` is compared against the branch tip, not `main`.
+
+### Teardown (actual)
+
+User chose *skip-PR → teardown* at the E8 AskUserQuestion (the single-branch/never-self-merge
+property was already evidenced; opening+closing a throwaway GitHub PR is pure outward-facing
+churn). Teardown executed: `git worktree remove --force` + `prune` from main root (branch tip
+`d81f5e61` noted, reflog-recoverable) · deleted `tier2-dryrun-throwaway` +
 `tier2-dryrun-member-a` + `tier2-dryrun-member-b` + the scratch doc from `main` ·
-`backlog-lint --fix` · then ship `tier2-live-end-to-end-dry-run`. Counts as 1 of the 3
-Tier-2 epics gating `remove-tier1-clear-fallback`.
+`backlog-lint --fix` (355 files, 11 rules green) · `git branch -D` the unmerged throwaway
+branch (user-confirmed via the teardown option) · released the §G lock · dropped run-state ·
+then shipped `tier2-live-end-to-end-dry-run`. **Counts as 1 of the 3 Tier-2 epics** gating
+`remove-tier1-clear-fallback`.
