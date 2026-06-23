@@ -9,6 +9,8 @@ spec: null
 plan: null
 topic_memory: [project_read_model_redesign.md]
 validation_gate: null
+epic: bff-read-model-semantic-gaps
+epic_role: core
 ---
 
 # getOrderHistory shows generic LEDGER_ENTRY_RECORDED entries, not real order events

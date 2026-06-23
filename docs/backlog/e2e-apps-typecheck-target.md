@@ -9,6 +9,8 @@ spec: null
 plan: null
 topic_memory: []
 validation_gate: null
+epic: typecheck-diagnostics-masking
+epic_role: core
 ---
 
 # Add a `typecheck` target to the e2e apps

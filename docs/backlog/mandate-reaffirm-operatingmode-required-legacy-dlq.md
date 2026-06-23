@@ -9,6 +9,8 @@ spec: null
 plan: null
 topic_memory: []
 validation_gate: null
+epic: prod-environment-hardening
+epic_role: core
 ---
 
 # MANDATE_REAFFIRMED can DLQ on legacy Mandate rows missing `operatingMode`

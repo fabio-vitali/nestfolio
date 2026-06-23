@@ -9,6 +9,8 @@ spec: null
 plan: null
 topic_memory: []
 validation_gate: null
+epic: at-least-once-dedup-gaps
+epic_role: core
 ---
 
 # Heal escalation path is not deduped across concurrent heals

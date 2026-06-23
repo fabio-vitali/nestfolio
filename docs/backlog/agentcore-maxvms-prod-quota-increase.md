@@ -10,6 +10,8 @@ spec: null
 plan: null
 topic_memory: []
 validation_gate: null
+epic: prod-environment-hardening
+epic_role: core
 ---
 
 # Production `maxVms` quota increase for AgentCore

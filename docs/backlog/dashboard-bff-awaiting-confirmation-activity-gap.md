@@ -9,6 +9,8 @@ plan: null
 topic_memory: []
 validation_gate: null
 notes: "dashboard-bff recent-activity may be missing an 'awaiting confirmation' feed item. The dead USER_CONFIRMATION_REQUESTED handler (removed by incident-escalation-path-b 2026-06-15) was its only producer; since the Task-1.5 taskToken redesign no event fires, so an L2 decision entering AWAITING_CONFIRMATION may not surface in the activity feed. Surfaced 2026-06-15."
+epic: bff-read-model-semantic-gaps
+epic_role: core
 ---
 
 # dashboard-bff recent-activity: no "awaiting confirmation" item

@@ -9,6 +9,8 @@ spec: null
 plan: null
 topic_memory: ["project_event_subject_contracts.md"]
 validation_gate: null
+epic: event-name-integrity
+epic_role: core
 ---
 
 # Adapters re-declare cross-domain event names instead of re-exporting the producer constant

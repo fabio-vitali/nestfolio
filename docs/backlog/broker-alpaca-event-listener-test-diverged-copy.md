@@ -9,6 +9,8 @@ spec: null
 plan: null
 topic_memory: [project_event_subject_contracts.md]
 validation_gate: null
+epic: test-uses-divergent-copy-not-canonical
+epic_role: core
 ---
 
 # broker-alpaca event-listener.test.ts is a diverged copy, not a module import

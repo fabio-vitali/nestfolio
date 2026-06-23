@@ -9,6 +9,8 @@ spec: null
 plan: null
 topic_memory: []
 validation_gate: null
+epic: event-name-integrity
+epic_role: core
 ---
 
 # execution-ctrl EXECUTION_PAUSED / EXECUTION_RESUMED declared but unwired

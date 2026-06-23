@@ -12,6 +12,8 @@ spec: null
 plan: null
 topic_memory: []
 validation_gate: null
+epic: test-uses-divergent-copy-not-canonical
+epic_role: core
 ---
 
 # Migrate nestfolio-e2e's inject-advisory-update.ts to test-support EventBridgeClient wrapper

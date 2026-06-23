@@ -9,6 +9,8 @@ plan: null
 topic_memory: []
 validation_gate: null
 notes: "LOW priority post-collapse — defer until EB redelivery is observed empirically."
+epic: at-least-once-dedup-gaps
+epic_role: core
 ---
 
 # SF-start idempotency for AWS at-least-once redelivery (LOW priority post-collapse)
