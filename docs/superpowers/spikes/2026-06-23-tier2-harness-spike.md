@@ -48,3 +48,17 @@ mechanism is sound. The spike forced corrections that would otherwise have been 
 
 Throwaway `.claude/agents/_spike-probe.md` deleted; `spikeprobe`/`spikeprobe2`/`spikeprobe3`
 teammates shut down.
+
+## Dry-run path coverage (2026-06-23, Task 8)
+
+Two layers — the deterministic layer is DONE; the live end-to-end layer is post-merge / user-triggered.
+
+**(A) Helper-level path coverage — DONE, deterministic (`13/13` green).** A throwaway harness (run from the worktree root; not committed — the durable coverage is the unit suites) exercised the exact routing/persistence logic the orchestrator prose drives, without a live orchestrator:
+- `member-summary.mjs` exit-code routing — happy → exit 1; `needs-decision` → 0; `blocked` → 2; parse-failure (garbage / malformed / ambiguous-two-kinds) → 3; a narrative example-fence is ignored and the last operative block wins.
+- `fork-key.mjs` determinism — same `(member, structured-subject)` → same key across a simulated re-dispatch; distinct subjects differ (distinct forks never collapse).
+- `runstate.mjs appendDecision` — a non-superseding `(member, fork_key)` duplicate no-ops (no double-log); a `supersedes` override ALWAYS appends (dedup never drops it); 4 distinct fork_keys all append (a multi-fork interactive member is not force-floored).
+- §G lock primitive — exclusive `wx` create is atomic; a second acquire throws `EEXIST` → refuse-and-ask.
+
+This + the §Risk spike (harness primitives: SendMessage continuation, custom-agent-type resolution, allowlist exclusion, nesting, context isolation) + the unit suites (`backlog-next-epic` 41/41, `backlog-next` 40/40) cover every deterministic path.
+
+**(B) Live end-to-end `/backlog-next-epic` dry-run — POST-MERGE / USER-TRIGGERED.** The full 2-member-epic dry-run (orchestrator prose driving a real `epic-member-worker` subagent through dispatch → `SendMessage` payload → parse → resolve/resume → ship) cannot run meaningfully from this pre-merge implementation session: (1) `/backlog-next-epic` loads from the **main** repo's `.claude/skills/`, so the NEW Tier-2 orchestrator is only the active skill **after this PR merges**; (2) it is `disable-model-invocation: true` (user-triggered only); (3) it needs `CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS=1`; (4) it creates a throwaway 2-core-member doc-layer theme epic (a backlog mutation) and spawns real agents (cost). The path list to assert when it runs: happy-path (one-liners + decision log, no file-dumps); crash/resume mid-fork (no re-ask of a persisted ruling); override (worker ADOPTS the imposed value; dedup keeps the `supersedes` entry); blocked → AskUserQuestion (not a prose halt); parse-failure ≤2 repair then floor; inferred too-large → split (not generic floor); multi-fork interactive member NOT force-floored; `wx` lock contention → refuse-and-ask; + the context-isolation proxy (orchestrator per-member delta independent of files-touched). Tracked as a queued follow-up; the rollout already gates Tier-1 removal on **3 successful Tier-2 epics**, so real runs accumulate the live evidence.
