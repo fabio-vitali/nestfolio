@@ -1,6 +1,6 @@
 ---
 id: tier2-live-end-to-end-dry-run
-status: shipped
+status: dropped
 closed: 2026-06-23
 type: tooling
 notes: "Live end-to-end validation of the Tier-2 /backlog-next-epic subagent dispatch shipped in backlog-next-epic-member-subagent-isolation. The new orchestrator/worker skills are the ACTIVE skills now that PR #23 has merged (merge commit f945ac19), and /backlog-next-epic is disable-model-invocation (user-triggered) + needs CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS=1, so the full dry-run could not run from the pre-merge implementation session (helper-level path coverage was 13/13 green + the harness spike proved the primitives). PROMOTED 2026-06-23: trigger fired — PR #23 merged, Tier-2 skills now live on main, so the live dry-run is runnable."
@@ -13,6 +13,12 @@ validation_gate: "Live /backlog-next-epic --auto dry-run executed end-to-end on 
 ---
 
 # Tier-2 live end-to-end `/backlog-next-epic` dry-run (post-merge)
+
+> **DROPPED 2026-06-23 — Tier-2 reverted to Tier-1.** This dry-run validated the Tier-2 subagent seam
+> on a 2-member *trivial doc-layer* throwaway epic and passed — but that success was misleading: the
+> members read files directly, so the isolation never faced a nested sub-agent. The very next run on a
+> real member exposed the leak + the lost worker powers and the whole Tier-2 program was reverted. See
+> [[backlog-next-epic-member-subagent-isolation]] and [[tier2-epic-orchestrator-hardening]].
 
 The deterministic layer is already covered (member-summary/fork-key/runstate unit suites + a 13/13 helper-level path-coverage harness + the `2026-06-23-tier2-harness-spike.md` primitives). This item is the **live** layer that can only run once the Tier-2 skills are active on `main`.
 

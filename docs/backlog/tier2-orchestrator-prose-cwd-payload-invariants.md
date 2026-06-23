@@ -1,6 +1,7 @@
 ---
 id: tier2-orchestrator-prose-cwd-payload-invariants
-status: parking
+status: dropped
+closed: 2026-06-23
 type: tooling
 notes: "Tier-2 /backlog-next-epic prose leaves 3 cwd/payload-format invariants implicit (verbatim-fenced payload relay; worktree-not-main roster+postflight cwd; HEAD-relative checks from worktree). Surfaced + worked around in the first live --auto dry-run."
 references: []

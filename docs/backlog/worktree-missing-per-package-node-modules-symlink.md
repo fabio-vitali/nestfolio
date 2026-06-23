@@ -9,11 +9,14 @@ spec: null
 plan: null
 topic_memory: []
 validation_gate: null
-epic: tier2-epic-orchestrator-hardening
-epic_role: core
 ---
 
 # Worktree setup symlinks only root node_modules, not per-package libs/*/node_modules
+
+> **Un-pointed 2026-06-23** from the dropped `tier2-epic-orchestrator-hardening` epic back to
+> standalone parking. This is a general `backlog-next(-epic)` worktree-setup bug, independent of the
+> reverted Tier-2 work — it survives the revert and stays a parking orphan (re-cluster via
+> `/backlog-themes` into a worktree-fidelity theme if one is minted).
 
 ## Root cause
 

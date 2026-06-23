@@ -72,18 +72,17 @@ test('parseRunState ok on a valid serialized state round-trip', () => {
 // F-12: every decision lands in the ONE decisions[], tagged by member, append-only.
 test('appendDecision appends to the single decisions[] and requires member', () => {
   let s = fresh();
-  s = appendDecision(s, { member: 'm1', fork_key: 'k1', decision: 'd', chosen: 'a' });
-  s = appendDecision(s, { member: 'm2', fork_key: 'k2', decision: 'd2', chosen: 'b' });
+  s = appendDecision(s, { member: 'm1', decision: 'd', chosen: 'a' });
+  s = appendDecision(s, { member: 'm2', decision: 'd2', chosen: 'b' });
   assert.equal(s.decisions.length, 2);
   assert.deepEqual(s.decisions.map((d) => d.member), ['m1', 'm2']);
   assert.throws(() => appendDecision(s, { decision: 'no member' }), /decision\.member/);
 });
 
 test('appendDecision is append-only: prior entries are preserved verbatim', () => {
-  const first = { member: 'm1', fork_key: 'k1', decision: 'original', chosen: 'a' };
+  const first = { member: 'm1', decision: 'original', chosen: 'a' };
   let s = appendDecision(fresh(), first);
-  // a reversal carries `supersedes` (references the superseded index), so it ALWAYS appends.
-  s = appendDecision(s, { member: 'm1', fork_key: 'k1', decision: 'reversal of #0', chosen: 'b', supersedes: 0 });
+  s = appendDecision(s, { member: 'm1', decision: 'reversal of #0', chosen: 'b' });
   assert.deepEqual(s.decisions[0], first);   // never mutated
 });
 
@@ -101,32 +100,4 @@ test('serializeRunState is pretty-printed with a trailing newline and validates 
   assert.ok(out.endsWith('\n'));
   assert.ok(out.includes('\n  "epic"'));
   assert.throws(() => serializeRunState({ ...fresh(), nope: 1 }), /unknown run-state key/);
-});
-
-test('appendDecision requires fork_key', () => {
-  const s = initRunState({ epic: 'e', branch: 'b', worktree: 'w' });
-  assert.throws(() => appendDecision(s, { member: 'm', decision: 'd' }), /fork_key/);
-});
-
-test('appendDecision dedups same (member, fork_key) non-superseding entries', () => {
-  const s0 = initRunState({ epic: 'e', branch: 'b', worktree: 'w' });
-  const d = { member: 'm', fork_key: 'k1', decision: 'x', chosen: 'A' };
-  const s1 = appendDecision(s0, d);
-  const s2 = appendDecision(s1, { ...d });
-  assert.equal(s2.decisions.length, 1, 'duplicate must no-op');
-});
-
-test('appendDecision ALWAYS appends an override (supersedes), even with a reused fork_key', () => {
-  const s0 = initRunState({ epic: 'e', branch: 'b', worktree: 'w' });
-  const s1 = appendDecision(s0, { member: 'm', fork_key: 'k1', decision: 'x', chosen: 'A' });
-  const s2 = appendDecision(s1, { member: 'm', fork_key: 'k1', decision: 'x', chosen: 'B', supersedes: 0 });
-  assert.equal(s2.decisions.length, 2, 'override must append, not dedup');
-  assert.equal(s2.decisions[1].chosen, 'B');
-});
-
-test('clear-e8 removes the optional e8 key', () => {
-  const s = validateRunState({ epic: 'e', branch: 'b', worktree: 'w', auto: false, decisions: [], e2e: null, e8: 'PR_OPEN_AWAITING_MERGE' });
-  const cleared = { ...s };
-  delete cleared.e8;
-  assert.ok(!('e8' in validateRunState(cleared)));
 });

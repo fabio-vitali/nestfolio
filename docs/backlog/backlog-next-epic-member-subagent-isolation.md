@@ -1,6 +1,6 @@
 ---
 id: backlog-next-epic-member-subagent-isolation
-status: shipped
+status: dropped
 closed: 2026-06-23
 type: tooling
 notes: "Tier-2 context fix for /backlog-next-epic --auto: run each epic member as a subagent so per-member investigation/edits/test-output stay out of the orchestrator's context; orchestrator keeps only compact ship-summaries. SUPERSEDES Tier-1 (per-member checkpoint+clear, shipped) — shipping Tier-2 REMOVES the E4.5 clear/resume pause so --auto runs unattended (toward GitHub-runner autonomy), not in addition to it. Standalone enhancement — NOT an audit finding; carved back out of the backlog-skills-hardening epic on 2026-06-22 (the re-homed seam-prose residuals F-26/27/28/4/10 moved to orchestrator-worker-seam-prose). PROMOTED 2026-06-23: trigger fired — the two most recent delivery epics ran 5 (order-execution-money-path, hit ~66% orchestrator context at WS-5) and 4 (deploy-tooling-integrity) core members, exceeding the ~3-4-member threshold that gated this enhancement."
@@ -17,6 +17,16 @@ validation_gate: "Tier-2 Tasks 2-8 implemented on feat/epic-member-subagent-isol
 ---
 
 # /backlog-next-epic: run each member as a subagent (orchestrator context isolation)
+
+> **REVERTED 2026-06-23 (shipped → dropped).** This Tier-2 refactor was rolled back to Tier-1 the
+> same day it went live. The first real `--auto` member showed the structural cost was not worth it:
+> the worker subagent has no `AskUserQuestion` (every fork became a `SendMessage` round-trip) and runs
+> out of the user's view, while the promised context-isolation **leaked** — a worker-spawned research
+> sub-agent's result routed straight into the orchestrator's context, so the benefit held only for
+> trivial members that never nest agents. Code reverted by restoring the pre-PR-#23 skill files
+> (`c57fbf80`) + deleting the Tier-2 glue (`epic-member-worker` agent, `fork-key.mjs`,
+> `member-summary.mjs`). `/backlog-next-epic` again drives `/backlog-next` **inline** with the
+> per-member `/clear` checkpoint. The shipped/validation history below is retained as the record.
 
 ## Promoted 2026-06-23 (trigger fired)
 

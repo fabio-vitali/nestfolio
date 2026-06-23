@@ -1,6 +1,7 @@
 ---
 id: epic-member-floor-deny-hook
-status: parking
+status: dropped
+closed: 2026-06-23
 type: tooling
 notes: "The Tier-2 design (2026-06-23-backlog-next-epic-member-subagent-isolation-design.md §D) names this a HARD precondition before any UNATTENDED (GitHub-runner) use of /backlog-next-epic --auto. The harness spike proved a dispatched subagent runs destructive Bash UNPROMPTED — so default permission-prompting is NOT a floor backstop. Today the floor's gates are the blast-radius helper + the worker's irreversible-action checklist + AskUserQuestion-exclusion (sufficient for ATTENDED dev --auto, where a human is present for floor pauses). Promote before wiring /backlog-next-epic --auto onto an unattended runner."
 references: []

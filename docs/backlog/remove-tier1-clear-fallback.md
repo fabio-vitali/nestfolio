@@ -1,6 +1,7 @@
 ---
 id: remove-tier1-clear-fallback
-status: parking
+status: dropped
+closed: 2026-06-23
 type: tooling
 notes: "The Tier-2 subagent dispatch (backlog-next-epic-member-subagent-isolation) demoted the Tier-1 per-member /clear checkpoint to a dormant, clearly-labelled fallback (/backlog-next-epic E4.5) and reconciled the prose in E9 + Common mistakes. Per the spec's Goal-2 rollout, KEEP the fallback until 3 successful Tier-2 epics have run (don't delete the only known-working context mechanism before the new one is proven). Promote after 3 successful Tier-2 epics."
 references: []
