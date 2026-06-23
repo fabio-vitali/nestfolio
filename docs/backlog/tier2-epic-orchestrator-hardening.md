@@ -1,6 +1,6 @@
 ---
 id: tier2-epic-orchestrator-hardening
-status: parking
+status: active
 type: epic
 notes: "Residual hardening of the `/backlog-next-epic` Tier-2 subagent-isolation orchestrator harness, surfaced after the subagent-isolation program + first live --auto dry-run shipped. Theme epic, 4 members."
 done_when: "Each residual Tier-2 `/backlog-next-epic` orchestrator-harness hardening item is shipped or dropped: the unattended-run irreversible-action floor is a mechanical deny-hook, the dormant Tier-1 `/clear` fallback is removed (after its 3-epic soak), the cwd/payload-format invariants are explicit in the orchestrator prose, and the worktree setup symlinks per-package node_modules. All members shipped or dropped."
