@@ -1,6 +1,7 @@
 ---
 id: backlog-next-epic-member-subagent-isolation
-status: active
+status: shipped
+closed: 2026-06-23
 type: tooling
 notes: "Tier-2 context fix for /backlog-next-epic --auto: run each epic member as a subagent so per-member investigation/edits/test-output stay out of the orchestrator's context; orchestrator keeps only compact ship-summaries. SUPERSEDES Tier-1 (per-member checkpoint+clear, shipped) — shipping Tier-2 REMOVES the E4.5 clear/resume pause so --auto runs unattended (toward GitHub-runner autonomy), not in addition to it. Standalone enhancement — NOT an audit finding; carved back out of the backlog-skills-hardening epic on 2026-06-22 (the re-homed seam-prose residuals F-26/27/28/4/10 moved to orchestrator-worker-seam-prose). PROMOTED 2026-06-23: trigger fired — the two most recent delivery epics ran 5 (order-execution-money-path, hit ~66% orchestrator context at WS-5) and 4 (deploy-tooling-integrity) core members, exceeding the ~3-4-member threshold that gated this enhancement."
 references: []
@@ -9,10 +10,10 @@ out_of_scope:
   - "Fully-unattended GitHub-runner harness/auth — Tier-2 defines the `needs-decision`→block/fail-the-run signal, but actually wiring `/backlog-next-epic --auto` onto a CI runner (credentials, trigger, artifact capture) is a separate downstream workstream."
   - "orchestrator-worker-seam-prose residuals (F-26/27/28/4/10) — owned by the separate `orchestrator-worker-seam-prose` member; not re-touched here."
   - "Redesign of the on-disk epic run-state JSON + member-frontmatter state model — Tier-2 composes with it as-is (subagent commits on the same `feat/epic-<id>` branch); the state model is not reworked."
-spec: null
-plan: null
+spec: docs/superpowers/specs/2026-06-23-backlog-next-epic-member-subagent-isolation-design.md
+plan: docs/superpowers/plans/2026-06-23-tier2-epic-member-subagent-isolation.md
 topic_memory: []
-validation_gate: null
+validation_gate: "Tier-2 Tasks 2-8 implemented on feat/epic-member-subagent-isolation (c637ee03 fork-key, c5d269a4 member-summary, 4feb8c2f runstate clear-e8/dedup/fork_key, bdad34d5 epic-member-worker agent, 600d235f orchestrator SKILL.md E4-E9+§G-J, 72a7651e worker SKILL.md delta, 6536be57 docs). Tests GREEN: backlog-next-epic 41/41, backlog-next 40/40 (node --test). Helper-level path coverage 13/13 (exit-code routing 0/1/2/3, fork_key determinism, dedup/supersede/override, multi-fork, wx-lock). Harness spike MODE=TIER2-GO. Live end-to-end /backlog-next-epic dry-run is post-merge/user-triggered (new skills active only after merge; disable-model-invocation) -> queued as tier2-live-end-to-end-dry-run. Deferred follow-ups filed: epic-member-floor-deny-hook, remove-tier1-clear-fallback (parking)."
 ---
 
 # /backlog-next-epic: run each member as a subagent (orchestrator context isolation)
@@ -101,3 +102,14 @@ could ship inside the `backlog-skills-hardening` epic while this Tier-2 structur
 parked. Per CLAUDE.md atomicity (one item = one closure verdict): the residuals are audit findings
 load-bearing for the epic `done_when`; this Tier-2 refactor is a non-audit enhancement orthogonal to
 it. See `orchestrator-worker-seam-prose` for the residual fixes.
+
+## Shipped 2026-06-23
+
+Implemented the full Tier-2 plan (`docs/superpowers/plans/2026-06-23-tier2-epic-member-subagent-isolation.md`, rev4 design after the live `TIER2-GO` spike) on `feat/epic-member-subagent-isolation`:
+
+- **Helpers (TDD):** `fork-key.mjs` (deterministic fork identity), `member-summary.mjs` (subagent-payload parser/validator, exit `0` needs-decision / `1` shipped / `2` blocked / `3` parse-failure), and `runstate.mjs` gains a required `fork_key` + supersede-aware `appendDecision` dedup + a `clear-e8` verb. Two pre-existing `appendDecision` tests were conformed to the now-required `fork_key`.
+- **Agent type:** `.claude/agents/epic-member-worker.md` — `tools:` include `SendMessage`, exclude `AskUserQuestion`/`ExitPlanMode`; payloads are `SendMessage`'d to `main` (spike transport correction).
+- **Orchestrator `/backlog-next-epic`:** E4 dispatches each member as an `epic-member-worker` subagent (named teammate; parse-loop on exit 0/1/2/3; two loop bounds; drainable ordering invariant); E4.5 demotes the per-member `/clear` to a dormant Tier-1 fallback; E5 handles `needs-decision` payloads + the honest floor model (prompting is NOT a backstop); E6.0 adds the advisory consistency audit + `supersedes` override; E8 PR-body groups by `[<member-id>]` + a distinct keep-iterating branch; new **§G** concurrency lock (atomic `wx`, no heartbeat, concurrency-by-discipline) + **§H** blocked-routing/inferred-too-large + **§I** observability + **§J** attribution.
+- **Worker `/backlog-next`:** epic-member bubble-up delta (`SendMessage` `NEEDS-DECISION`, no `AskUserQuestion`; adopt pre-decided `(fork_key, chosen)`; `--auto` self-resolve+persist non-floor forks), `status: blocked` discriminating rule, `[<member-id>]` commit prefix, and the inline-execution assertions reconciled to subagent dispatch.
+
+**Validation:** unit suites GREEN (`backlog-next-epic` 41/41, `backlog-next` 40/40); a 13/13 helper-level path-coverage harness; the `TIER2-GO` harness spike. The **live end-to-end `/backlog-next-epic` dry-run is post-merge / user-triggered** (the new skills are active only after this PR merges; `/backlog-next-epic` is `disable-model-invocation`) — filed as `tier2-live-end-to-end-dry-run` (parking, promote post-merge). Deferred follow-ups: `epic-member-floor-deny-hook` (mechanical floor gate for unattended runs) and `remove-tier1-clear-fallback` (after 3 successful Tier-2 epics).
