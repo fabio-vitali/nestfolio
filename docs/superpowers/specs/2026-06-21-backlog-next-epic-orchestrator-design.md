@@ -58,7 +58,10 @@ nothing about members, `done_when`, or rule 11. Those live only in the orchestra
 
 ### B. `/backlog-next-epic <epic-id> [--auto]` (new skill)
 
-`disable-model-invocation: true` (user-triggered only), mirroring `backlog-next`.
+`disable-model-invocation: true` (user-triggered only). _(Correction 2026-06-23: this design originally
+said "mirroring `backlog-next`", but during implementation that key was deliberately **removed** from
+`backlog-next` so this orchestrator can drive the worker via the Skill tool — only `/backlog-next-epic`
+carries `disable-model-invocation: true`.)_
 
 **Epic-start (once):**
 1. Full preflight (`preflight.mjs`, standard lane): tree clean, `main` == `origin/main`,

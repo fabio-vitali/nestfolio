@@ -93,8 +93,10 @@ loaded explicitly by the skill checklists.
 All 24 skills are in `.claude/skills/`, each in its own directory with a `SKILL.md` file.
 Claude Code auto-discovers them and lists their descriptions in the system prompt so it can
 invoke them automatically when a task matches. The routing table in CLAUDE.md reinforces this.
-One skill (`init-docs`) has `disable-model-invocation: true` — it functions as a user-only
-command invoked via `/init-docs` and Claude will never trigger it automatically.
+Two skills (`init-docs` and `backlog-next-epic`) have `disable-model-invocation: true` — they
+function as user-only commands invoked via `/init-docs` / `/backlog-next-epic` and Claude will never
+trigger them automatically. (Note `backlog-next` itself is deliberately **not** in this set: that key
+was removed so `/backlog-next-epic` can drive it via the Skill tool.)
 
 ### system/ — Orientation
 
@@ -135,6 +137,7 @@ They are invoked explicitly by the user via `/command-name`.
 | Command | What it does |
 |---------|-------------|
 | `/init-docs` | Nuclear rebuild — regenerates all service cards, validates all flows, regenerates C4 diagrams, full audit sweep |
+| `/backlog-next-epic` | Orchestrates a whole epic as one branch/PR (member loop via `/backlog-next`, batched e2e, captured audit, `--auto`) |
 
 ### flows/ — Flow Specifications
 
