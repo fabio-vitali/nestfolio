@@ -170,12 +170,12 @@ rollup: core 0/3 done · captured 0/0 done
 
 ## ACTIVE
 
-_(none)_
-
+- [backlog-next-epic-member-subagent-isolation](backlog/backlog-next-epic-member-subagent-isolation.md) [tooling] — Tier-2 context fix for /backlog-next-epic --auto: run each epic member as a subagent so per-member investigation/edits/test-output stay out of the orchestrator's context; orchestrator keeps only compact ship-summaries. SUPERSEDES Tier-1 (per-member checkpoint+clear, shipped) — shipping Tier-2 REMOVES the E4.5 clear/resume pause so --auto runs unattended (toward GitHub-runner autonomy), not in addition to it. Standalone enhancement — NOT an audit finding; carved back out of the backlog-skills-hardening epic on 2026-06-22 (the re-homed seam-prose residuals F-26/27/28/4/10 moved to orchestrator-worker-seam-prose). PROMOTED 2026-06-23: trigger fired — the two most recent delivery epics ran 5 (order-execution-money-path, hit ~66% orchestrator context at WS-5) and 4 (deploy-tooling-integrity) core members, exceeding the ~3-4-member threshold that gated this enhancement.
 
 ## QUEUED
 
-1. [backlog-next-epic-member-subagent-isolation](backlog/backlog-next-epic-member-subagent-isolation.md) [tooling] — Tier-2 context fix for /backlog-next-epic --auto: run each epic member as a subagent so per-member investigation/edits/test-output stay out of the orchestrator's context; orchestrator keeps only compact ship-summaries. SUPERSEDES Tier-1 (per-member checkpoint+clear, shipped) — shipping Tier-2 REMOVES the E4.5 clear/resume pause so --auto runs unattended (toward GitHub-runner autonomy), not in addition to it. Standalone enhancement — NOT an audit finding; carved back out of the backlog-skills-hardening epic on 2026-06-22 (the re-homed seam-prose residuals F-26/27/28/4/10 moved to orchestrator-worker-seam-prose). PROMOTED 2026-06-23: trigger fired — the two most recent delivery epics ran 5 (order-execution-money-path, hit ~66% orchestrator context at WS-5) and 4 (deploy-tooling-integrity) core members, exceeding the ~3-4-member threshold that gated this enhancement.
+_(none)_
+
 
 ## LATER
 

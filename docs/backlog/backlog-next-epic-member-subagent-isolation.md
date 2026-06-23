@@ -1,11 +1,14 @@
 ---
 id: backlog-next-epic-member-subagent-isolation
-status: queued
-rank: 1
+status: active
 type: tooling
 notes: "Tier-2 context fix for /backlog-next-epic --auto: run each epic member as a subagent so per-member investigation/edits/test-output stay out of the orchestrator's context; orchestrator keeps only compact ship-summaries. SUPERSEDES Tier-1 (per-member checkpoint+clear, shipped) — shipping Tier-2 REMOVES the E4.5 clear/resume pause so --auto runs unattended (toward GitHub-runner autonomy), not in addition to it. Standalone enhancement — NOT an audit finding; carved back out of the backlog-skills-hardening epic on 2026-06-22 (the re-homed seam-prose residuals F-26/27/28/4/10 moved to orchestrator-worker-seam-prose). PROMOTED 2026-06-23: trigger fired — the two most recent delivery epics ran 5 (order-execution-money-path, hit ~66% orchestrator context at WS-5) and 4 (deploy-tooling-integrity) core members, exceeding the ~3-4-member threshold that gated this enhancement."
 references: []
-out_of_scope: []
+out_of_scope:
+  - "Standalone `/backlog-next` execution model — stays inline-loaded via the Skill tool; ONLY epic-MEMBER execution (driven by `/backlog-next-epic`) moves to subagent dispatch."
+  - "Fully-unattended GitHub-runner harness/auth — Tier-2 defines the `needs-decision`→block/fail-the-run signal, but actually wiring `/backlog-next-epic --auto` onto a CI runner (credentials, trigger, artifact capture) is a separate downstream workstream."
+  - "orchestrator-worker-seam-prose residuals (F-26/27/28/4/10) — owned by the separate `orchestrator-worker-seam-prose` member; not re-touched here."
+  - "Redesign of the on-disk epic run-state JSON + member-frontmatter state model — Tier-2 composes with it as-is (subagent commits on the same `feat/epic-<id>` branch); the state model is not reworked."
 spec: null
 plan: null
 topic_memory: []
