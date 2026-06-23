@@ -10,7 +10,11 @@
 
 ## Global Constraints
 
-- **Spec is authoritative:** `docs/superpowers/specs/2026-06-23-backlog-next-epic-member-subagent-isolation-design.md` (rev3). Every `[plan]` marker in the spec is resolved here.
+- **Spec is authoritative:** `docs/superpowers/specs/2026-06-23-backlog-next-epic-member-subagent-isolation-design.md` (**rev4**). Every `[plan]` marker in the spec is resolved here.
+- **⚠ SPIKE CORRECTIONS (Task 1 EXECUTED 2026-06-23 → `TIER2-GO`; apply to Tasks 5/6/7).** The live spike (`docs/superpowers/spikes/2026-06-23-tier2-harness-spike.md`) forced three transport corrections that OVERRIDE the as-written code in Tasks 5/6 below:
+  1. **Transport = bidirectional `SendMessage`, NOT "end your turn with a payload" / temp-file-final-message.** A named agent is a **concurrent background teammate**; it `SendMessage`s `main` its payload, and the orchestrator `SendMessage`s rulings back. So: the **`epic-member-worker` agent `tools:` MUST include `SendMessage`** (Task 5); every "END YOUR TURN with a fenced block" instruction becomes "**`SendMessage` to `main`** the fenced block"; the orchestrator dispatches `Agent({…, name:"member-<id>"})`, then **YIELDS** for the teammate's `SendMessage`, writes the received text to a temp file, and runs `member-summary.mjs parse` (Task 6).
+  2. **Concurrency by DISCIPLINE.** The worker runs concurrently; the orchestrator dispatches ONE member, yields while it is live, and never runs worktree/git ops during a live member turn. Shut the teammate down (`shutdown_request`) when its member is terminal.
+  3. **Floor: prompting is NOT a backstop** (destructive Bash auto-proceeds unprompted in a subagent). The deny-hook follow-up is a HARD precondition before unattended use; attended dev `--auto` is fine.
 - **No top-level run-state schema change.** The closed 6-key schema (`epic,branch,worktree,auto,decisions,e2e` + optional `e8`) is untouched. The decision-ENTRY shape gains a required `fork_key`; `appendDecision` gains a supersede-aware dedup branch; a `clear-e8` verb is added. These are behavior changes to `runstate.mjs`, not schema-key changes.
 - **No epic-model rule change** (frontmatter + 11 lint invariants, frozen 2026-06-16).
 - **Tests live in `test/`** beside each skill helper; run with the glob form: `node --test '.claude/skills/backlog-next-epic/test/*.test.mjs'` (Node 24 does not discover via `node --test <dir>`).
@@ -38,7 +42,9 @@
 
 ---
 
-## Task 1: Go/no-go harness spike (HARD GATE)
+## Task 1: Go/no-go harness spike (HARD GATE) — ✅ DONE 2026-06-23 → `TIER2-GO`
+
+> **Executed live; evidence: `docs/superpowers/spikes/2026-06-23-tier2-harness-spike.md`.** Critical items 1/2/3 PASS, 5/6 PASS; item 9 corrected (concurrent, not blocking); item 8 → destructive Bash auto-proceeds ⇒ deny-hook is a hard precondition for unattended only. The three forced corrections are in the Global-Constraints addendum above. Build proceeds at Task 2. The original probe steps are retained below for the record.
 
 **Files:**
 - Create (throwaway, deleted at end of task): `.claude/agents/_spike-probe.md`

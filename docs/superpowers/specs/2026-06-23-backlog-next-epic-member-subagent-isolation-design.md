@@ -1,7 +1,7 @@
 # /backlog-next-epic Tier-2 — run each epic member as a context-isolated subagent
 
 **Date:** 2026-06-23
-**Status:** approved (rev3 — hardened after two adversarial deep-review rounds, 2026-06-23)
+**Status:** approved (rev4 — corrected by the live harness spike, 2026-06-23; spike: `docs/superpowers/spikes/2026-06-23-tier2-harness-spike.md`, MODE `TIER2-GO`)
 **Backlog item:** `docs/backlog/backlog-next-epic-member-subagent-isolation.md` (active)
 **Builds on / amends:** `docs/superpowers/specs/2026-06-21-backlog-next-epic-orchestrator-design.md`.
 This spec supersedes that spec's Tier-1 context framing (Tier-1 becomes a *spike-gated fallback
@@ -46,9 +46,11 @@ turns `--auto` into a per-member *interruption*, defeating "walk away" + the una
 - **System-wide backlog-system test framework** — own item (Deferred follow-ups).
 - **A `permissions.deny` / PreToolUse hook** that would make the floor a true mechanical gate for
   unattended runs — recommended as a follow-up (§D), not built here.
-- **Parallel member execution** — members are sequential, **one subagent at a time, dispatched
-  synchronously in the foreground**; the orchestrator blocks on the `Agent`/`SendMessage` result, so
-  within one session the orchestrator and the member subagent are never concurrent (load-bearing for §G).
+- **Parallel member execution** — members are sequential by **discipline**: the worker is a **named
+  background teammate that runs CONCURRENTLY** with the orchestrator (the spike disproved the rev3
+  "synchronous foreground / blocks" assumption). The orchestrator dispatches exactly ONE member at a
+  time, **yields while it is live**, and **never runs worktree/git-index ops during a live member
+  turn** (its own git ops run only between members, after a terminal summary). See §G.
 
 ## Design
 
@@ -87,8 +89,10 @@ execution; dispatch prompt = variable inputs). Specifies:
 - **Investigation stays in the subagent** (greps/reads/`Explore`). A member too large for one
   subagent's context is **mis-scoped** → surfaces as `status: blocked` / inferred (§H), never an
   infinite re-exhaust loop.
-- **Tools.** Broad (Bash, Read/Edit/Write, Grep/Glob, Skill, Task tools, ToolSearch/MCP, Agent) minus
-  `AskUserQuestion`/`ExitPlanMode`.
+- **Tools.** Broad (Bash, Read/Edit/Write, Grep/Glob, Skill, Task tools, ToolSearch/MCP, Agent, **and
+  `SendMessage`** — the transport to `main`) minus `AskUserQuestion`/`ExitPlanMode`. (Spike-confirmed:
+  the worker reaches the orchestrator via `SendMessage`, never via a returned "final message"; and an
+  excluded `AskUserQuestion` is genuinely uncallable, so the floor still cannot prompt the user.)
 
 ### C. The contract — `fork_key`, two payloads, and a fully-specified validator
 
@@ -103,8 +107,10 @@ Every decision entry carries `fork_key`; `member-summary.mjs` AND `appendDecisio
 entries lacking** a non-empty `fork_key` (mirroring the existing `member` check).
 
 `member-summary.mjs` invocation contract (to `runstate.mjs`'s standard):
-- **Input.** The orchestrator writes the subagent's verbatim final message to a temp file;
-  `node member-summary.mjs parse <file>`.
+- **Transport (spike-corrected).** The worker `SendMessage`s its payload text to `main`; the
+  orchestrator receives it automatically (teammate messages are auto-delivered), writes that
+  **message text** to a temp file, and runs `node member-summary.mjs parse <file>`. The temp file is
+  an internal validator detail — the channel is `SendMessage`, NOT a returned "final message".
 - **Extraction.** The operative payload is the **LAST** fenced ```json block whose object has a
   `kind`; **earlier `kind`-bearing fences are ignored as narrative** (so a quoted/example payload is
   not fatal). Parse-failure is reserved for: zero `kind`-bearing blocks, malformed JSON,
@@ -137,12 +143,15 @@ run" signal.
 
 ### D. E4 (member loop) + E5 (decision handling)
 
-**E4.2 dispatch + parse loop:** spawn the subagent synchronously, passing variable inputs + **only the
-minimal pre-decided set for this member — a list of `(fork_key, chosen)` pairs** (NOT full entries, to
-keep the dispatch payload bounded). Write the returned message to a temp file; branch on exit code:
-`0` → §E5 (resolve, **persist the ruling at resolution time**, then `SendMessage` the ruling, re-parse);
+**E4.2 dispatch + parse loop (spike-corrected transport):** spawn the worker as a **named background
+teammate** (`Agent({subagent_type:"epic-member-worker", name:"member-<id>", prompt:<variable inputs +
+only the minimal pre-decided `(fork_key, chosen)` pairs>})`), then **YIELD** (do no other work — the
+orchestrator must not touch the worktree while the member is live, §G). The worker `SendMessage`s `main`
+each payload; on receipt, write the message text to a temp file and `member-summary.mjs parse`; branch
+on exit code: `0` → §E5 (resolve, **persist the ruling at resolution time**, then `SendMessage(member-<id>, ruling)`, yield for the next payload);
 `1` → emit a one-line progress note; **then** (ordering invariant) consult `epic-members.mjs`;
-`2` → §H; `3` → repair (≤2) then floor.
+`2` → §H; `3` → `SendMessage` a repair turn (≤2) then floor. Shut the teammate down (`shutdown_request`)
+once its member is terminal.
 
 **Durable decision persistence (closes mid-fork-crash loss + summary-undercount):**
 - **Floor/override** rulings: the **orchestrator** appends to run-state at resolution time (before SendMessage).
@@ -210,9 +219,9 @@ moves → `e2e-fresh` invalidates → return to E6.
 
 ### G. Concurrency / re-entrancy — atomic lock, NO heartbeat (rev2's heartbeat was unworkable)
 
-The orchestrator is blocked in the synchronous `Agent` call for the whole member turn, so it **cannot
-refresh a heartbeat** — rev2's `{session-id, heartbeat-ts}` lock would go stale during normal
-operation. Replace it:
+While a member teammate is live the orchestrator is **yielding** (awaiting `SendMessage` payloads),
+with no natural tick to refresh a heartbeat — rev2's `{session-id, heartbeat-ts}` lock would go stale
+during normal operation. Replace it with a heartbeat-free lock:
 - **Atomic acquire:** the resume gate creates `<git-common-dir>/backlog-next-epic-<id>.lock` with an
   exclusive create (`writeFileSync(path, …, {flag:'wx'})`) recording `{session-id, pid, start-ts}`.
   Winner owns it; a loser that finds an existing lock goes to **refuse-and-ask** (resume-vs-abort) —
@@ -223,10 +232,12 @@ operation. Replace it:
   merge) and on clean exit; **re-acquire atomically** on a later resume / the post-merge tail / a
   "keep iterating" re-entry. A crash leaves a stale lock → the next resume's pid-liveness check
   handles it. The lock is NOT held across the unbounded human-merge window.
-- **Intra-session: no concurrency by construction** (synchronous foreground dispatch; the orchestrator
-  never touches the shared `.git/index` during a live subagent turn — its own git ops run only between
-  members). §Risk item 9 empirically confirms `Agent()` blocks end-to-end + the subagent's mid-turn
-  commit is visible the instant control returns.
+- **Intra-session: concurrency by DISCIPLINE (spike-corrected).** The worker teammate runs
+  CONCURRENTLY with the orchestrator (the spike disproved "blocking"). Safety is therefore a discipline
+  rule, NOT "by construction": the orchestrator dispatches ONE member at a time, **yields** while it is
+  live, and **never runs worktree/`.git/index` ops during a live member turn** — its own git ops (the
+  E6 deploy, the §E audit) run only between members, after a terminal summary. The spike confirmed a
+  worker's mid-turn commit is durably visible once control returns.
 
 ### H. Migration guard + `status: blocked` end-to-end + context-exhaustion
 
@@ -276,7 +287,12 @@ mid-member vs today (a user wanting full interactive drive uses standalone `/bac
 | Concurrency | atomic `wx` lock + refuse-and-ask + pid-liveness | heartbeat (unrefreshable under sync dispatch) · auto-reclaim (TOCTOU) · none |
 | Floor for destructive ops | mechanical blast-radius gate + irreversible-action checklist (+ deny-hook follow-up) | default permission-prompt backstop (defeated by `permissions.allow`) |
 
-## Primary risk — EXPANDED spike (go/no-go, BEFORE any rewrite / Tier-1 mode-selection)
+## Primary risk — EXPANDED spike (EXECUTED 2026-06-23 → MODE `TIER2-GO`)
+
+> **DONE.** All items resolved favorably (critical 1/2/3 PASS; 9 corrected to "concurrent, not
+> blocking"; 5/6 PASS; 8 → destructive-Bash auto-proceeds ⇒ deny-hook is a hard precondition for
+> unattended only). Evidence + the three folded corrections: `docs/superpowers/spikes/2026-06-23-tier2-harness-spike.md`.
+> The items below are the original gate list (kept for the record).
 
 1. **SendMessage continuation** end-to-end (spawn → payload → AskUserQuestion → `SendMessage(id,ruling)` → resumes w/ context).
 2. **Custom agent type honored** (`subagent_type:"epic-member-worker"` resolves the file).
@@ -324,6 +340,7 @@ unattended until the deny-hook follow-up lands.
 
 ## Revision log
 
+- **rev4 (2026-06-23)** — corrected by the LIVE harness spike (`…/spikes/2026-06-23-tier2-harness-spike.md`, MODE `TIER2-GO`). Three forced corrections: (1) **transport = bidirectional `SendMessage`** (named worker is a concurrent background teammate; it messages `main`, orchestrator messages rulings back) — NOT the rev3 temp-file-final-message model; worker allowlist now includes `SendMessage` (still excludes `AskUserQuestion`, spike-confirmed enforced); (2) **§G concurrency by discipline** (worker runs concurrently; orchestrator dispatches one member, yields while live, never touches the worktree git-index during a live member turn) — NOT "synchronous foreground / no concurrency by construction"; (3) **floor: prompting is NOT a backstop** (destructive Bash auto-proceeds unprompted in a subagent) → the deny-hook follow-up is a HARD precondition before unattended runner use. Items 2/3/5/6 passed as designed.
 - **rev3 (2026-06-23)** — after a focused re-review (closure: 10/19 closed, 9 partial, 0 regressions;
   but the hardening introduced new blockers). Fixed: **`fork_key` defined** (deterministic, one helper,
   structured inputs, required+validated); **§G lock redesigned** (atomic `wx` + refuse-and-ask +
