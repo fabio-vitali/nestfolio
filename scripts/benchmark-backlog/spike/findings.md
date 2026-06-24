@@ -46,3 +46,40 @@ env -u AWS_PROFILE -u AWS_ACCESS_KEY_ID -u AWS_SECRET_ACCESS_KEY \
 **Fixture captured:** `scripts/benchmark-backlog/test/fixtures/stream-events/completed.jsonl` (9 lines, verbatim).
 
 **Verdict: ACCEPT** - isolation via `--setting-sources project --strict-mcp-config`; result+assistant shapes match the plan's parser; fixture saved.
+
+---
+
+## Task 0.2 — Worker / Skill-tool interception seam (THE critical gate) — **ACCEPT**
+
+**Mechanism that works: cwd `.claude/skills/` discovery.** No `--plugin-dir` needed.
+
+**Sandbox** (`/tmp/bef-spike2`, fresh git repo): a stub `.claude/skills/backlog-next/SKILL.md`
+(body: "Run exactly `node .claude/skills/_stubs/worker.mjs MEMBER-ID` then stop") + a trivial
+`.claude/skills/_stubs/worker.mjs` that appends `backlog-next-worker <id>` to `stubs.log`.
+
+**Command:**
+```bash
+env -u AWS_PROFILE ... \
+  claude -p "Use the backlog-next skill to ship member acme-1." --print --verbose \
+    --output-format stream-json --setting-sources project --strict-mcp-config \
+    --allowedTools "Skill Bash" --model claude-haiku-4-5-20251001
+# exit=0
+```
+
+> NOTE: `--allowedTools "Skill Bash"` was required so the headless run could invoke the Skill
+> tool and run the worker via Bash under `permissionMode:default`. The real harness must allow
+> `Skill` + `Bash` (and deny the rest per the isolation default-deny).
+
+**Rigorous verification (NOT inferred from prose) — three independent signals all positive:**
+1. **Discovery:** the `init` event's `skills` array **includes `backlog-next`** -> the headless CLI
+   discovered the sandbox-cwd project skill `.claude/skills/backlog-next/SKILL.md`.
+2. **Invocation:** stream contains a `tool_use` block `Skill` with input
+   `{"skill":"backlog-next","args":"acme-1"}` -> the Skill tool invoked the discovered skill.
+3. **Execution:** stream contains a `tool_use` block `Bash` with command
+   `node .claude/skills/_stubs/worker.mjs acme-1` -> the deterministic worker actually ran.
+4. **On-disk:** `stubs.log` contains exactly `backlog-next-worker acme-1`.
+
+**Verdict: ACCEPT** - cwd `.claude/skills/` discovery works headlessly; the worker seam is viable.
+The entire `backlog-next-epic` corpus is feasible as designed. **Sandbox builder parameterization:
+install the stub `backlog-next` skill into the sandbox `.claude/skills/` (cwd discovery), and run
+with `--allowedTools` including `Skill` + `Bash`.**
