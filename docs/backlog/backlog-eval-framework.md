@@ -5,6 +5,7 @@ type: design
 notes: "Evaluation framework for the backlog skill suite — decision-point evals run via headless `claude -p` against sandboxed synthetic backlog states + op-stubs, graded by golden assertions + call-log invariants + an LLM judge, measuring quality / cost / latency with a committed baseline + A/B compare mode. Built to prove `backlog-skills-simplification` regresses no behavior and adds value. HIGH coverage on backlog-next-epic (resume gate + merge-ownership + ship-preconditions = γ's blast radius)."
 references:
   - docs/superpowers/specs/2026-06-24-backlog-eval-framework-design.md
+  - docs/reviews/2026-06-24-backlog-eval-framework-spec-review.md
   - .claude/skills/backlog-next-epic/SKILL.md
   - .claude/skills/backlog-add/SKILL.md
   - .claude/skills/backlog-next/SKILL.md
@@ -15,7 +16,8 @@ out_of_scope:
   - Re-testing backlog-lint's 11 rules themselves (already unit-tested; the runner only invokes the existing node:test suites).
   - Auto-running on a schedule + CI wiring — separate workstreams; this is a manual on-demand skill like benchmark-agents.
   - Testing F-lesson knowledge ("why", not "what") — β relocates it; the framework never asserts on it.
-  - Scenarios coupled to current procedure internals (E-step names, helper-call sequences) — banned; assertions are observable outcomes only, so the comparison survives γ's prose→helper refactor.
+  - Scenarios coupled to current procedure internals (E-step names, helper-call sequences) — banned by a structural lint; assertions are observable outcomes only (golden files / external-stub call-log / internal-op state / terminal kind), so the comparison survives γ's prose→helper refactor.
+  - Asserting internal git/worktree/run-state ops via the call-log — those are γ-relocated; they are asserted via resulting FS/git state instead (only the four external stubbed ops — deploy.sh / gh / nx / worker — carry call-log invariants).
 spec: docs/superpowers/specs/2026-06-24-backlog-eval-framework-design.md
 plan: null
 topic_memory: []
