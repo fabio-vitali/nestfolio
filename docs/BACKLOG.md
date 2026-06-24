@@ -18,6 +18,12 @@ rollup: core 0/2 done · captured 0/0 done
 - core · parking · [broker-circuit-breaker-concurrent-escalation-duplicate](backlog/broker-circuit-breaker-concurrent-escalation-duplicate.md)
 - core · parking · [sf-start-idempotency-at-least-once-redelivery](backlog/sf-start-idempotency-at-least-once-redelivery.md)
 
+### [backlog-skills-simplification](backlog/backlog-skills-simplification.md) `[epic · parking]` — Reduce accreted complexity in the backlog skill suite (~3,900 lines, 19 F-fixes, rationale interleaved into procedures) WITHOUT regressing hard-won lessons or changing behavior.
+done_when: Both core members terminal: (β) SKILL.md procedures read as lean imperative steps with backstory relocated to a LESSONS/pitfalls log and terse guardrails kept inline; (γ) load-bearing multi-step bash dances are encapsulated in tested .mjs helpers rather than narrated in prose. No backlog behavior or lint invariant changed; no F-lesson knowledge deleted.
+rollup: core 0/2 done · captured 0/0 done
+- core · parking · [backlog-skills-lessons-extraction](backlog/backlog-skills-lessons-extraction.md)
+- core · parking · [backlog-skills-procedure-to-tested-helpers](backlog/backlog-skills-procedure-to-tested-helpers.md)
+
 ### [bff-read-model-semantic-gaps](backlog/bff-read-model-semantic-gaps.md) `[epic · parking]` — A BFF read-model materializes correctly (single-writer ownership satisfied) but lacks the semantic richness/sub-state a UI feature needs; the fix sources a new signal, not a richer re-materialization. Theme epic, 2 members.
 done_when: Each in-scope BFF read-model surfaces the semantic signal/sub-state its UI needs, sourced from the right event or projection (cross-domain subscription or status projection); both members shipped or dropped.
 rollup: core 0/2 done · captured 0/0 done
@@ -180,7 +186,7 @@ rollup: core 0/3 done · captured 0/0 done
 - core · parking · [portfolio-drift-detected-registry-collision](backlog/portfolio-drift-detected-registry-collision.md)
 - core · parking · [weight-drift-detector](backlog/weight-drift-detector.md)
 
-**Parking health:** 27 theme epic(s), 16 orphan(s) — drive orphans → 0 with `/backlog-themes`
+**Parking health:** 28 theme epic(s), 16 orphan(s) — drive orphans → 0 with `/backlog-themes`
 
 ## ACTIVE
 
