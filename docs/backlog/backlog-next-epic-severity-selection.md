@@ -1,6 +1,7 @@
 ---
 id: backlog-next-epic-severity-selection
-status: active
+status: shipped
+closed: 2026-06-24
 type: tooling
 notes: "/backlog-next-epic ranks its candidate list by impact (default) or free-text --like criterion, computed AT SELECTION TIME (no stored severity field), surfaced ranked-with-reasons for human confirm."
 references:
@@ -15,8 +16,8 @@ out_of_scope:
   - "The separate backlog-skills-simplification epic (β + γ) — already filed, unrelated."
 spec: null
 plan: null
+validation_gate: "Shipped on main, 2 commits: c625c368 (candidateEpics + classifyPositional helpers + --candidates/--classify CLI) + 2c1a3e96 (severity-rubric.md + SKILL.md selection wiring + E5 floor). Tests: node --test backlog-next-epic 30/30 green (4 new); full backlog-skill suites 135/135 (next 40, next-epic 30, lint 65). CLI smoke: --classify returns epic-id for a real epic id and criterion for free text; --candidates lists 28 epics with core=open/total counts. backlog-lint --fix no-op (RC 0). Tooling-only — no deploy/e2e."
 topic_memory: []
-validation_gate: null
 ---
 
 # `/backlog-next-epic` severity-aware selection

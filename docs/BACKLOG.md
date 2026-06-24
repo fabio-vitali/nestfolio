@@ -190,7 +190,8 @@ rollup: core 0/3 done · captured 0/0 done
 
 ## ACTIVE
 
-- [backlog-next-epic-severity-selection](backlog/backlog-next-epic-severity-selection.md) [tooling] — /backlog-next-epic ranks its candidate list by impact (default) or free-text --like criterion, computed AT SELECTION TIME (no stored severity field), surfaced ranked-with-reasons for human confirm.
+_(none)_
+
 
 ## QUEUED
 
@@ -218,6 +219,7 @@ _(none)_
 
 ## Recently Shipped (last 10)
 
+- 2026-06-24 — [backlog-next-epic-severity-selection](backlog/backlog-next-epic-severity-selection.md) [tooling] — /backlog-next-epic ranks its candidate list by impact (default) or free-text --like criterion, computed AT SELECTION TIME (no stored severity field), surfaced ranked-with-reasons for human confirm.
 - 2026-06-23 — [test-integration-parallel-dns-exhaustion](backlog/test-integration-parallel-dns-exhaustion.md) [tooling] — run-many -t test-integration at full parallelism exhausts the macOS DNS resolver (getaddrinfo ENOTFOUND) → false reds; recovers at --parallel=1. Fix: a process-wide dns.lookup retry (installDnsResilience) installed once per worker from the integration Jest setup — covers AWS SDK + fetch uniformly at the DNS layer.
 - 2026-06-22 — [auto-decision-discipline-and-merge-ownership](backlog/auto-decision-discipline-and-merge-ownership.md) [tooling] — --auto floor is prose-only + over-broad, and the epic close self-merged the PR on a bare 'go'. Make the floor a decidable scope test surfaced via AskUserQuestion; the close ALWAYS stops at an open PR (cleanup worktree + print PR link), never self-merges. `[epic:backlog-skills-hardening · core]`
 - 2026-06-22 — [backlog-skills-hardening](backlog/backlog-skills-hardening.md) [epic] — Bulletproof the /backlog-next-epic orchestrator + /backlog-next worker workflows. Theme epic aggregating the confirmed weaknesses from the 2026-06-22 skills audit (docs/reviews/2026-06-22-backlog-skills-audit.md), surfaced by the first real --auto epic run (order-execution-money-path, merge #20). 6 core members.
@@ -227,4 +229,3 @@ _(none)_
 - 2026-06-22 — [detect-deploy-fanout-and-empty-services](backlog/detect-deploy-fanout-and-empty-services.md) [tooling] — detect-deploy-needed.mjs is wrong two ways for E6's --services=<from-detect>: a test-only harness-lib change (test-support) fans out to its full dependent closure (27 services), and a frontend/libs/ui change returns deploy=true with empty services=[] (resolver filters to root.startsWith('services/')) → silent deploy no-op against stale code. `[epic:deploy-tooling-integrity · core]`
 - 2026-06-22 — [detect-deploy-service-test-path-no-deploy](backlog/detect-deploy-service-test-path-no-deploy.md) [tooling] — detect-deploy-needed.mjs lacks a Tier-0 rule for services/*/test/**, so a test-only service change defaults to deploy=true (false positive). `[epic:deploy-tooling-integrity · core]`
 - 2026-06-22 — [detect-doc-derivation-resume-and-testability](backlog/detect-doc-derivation-resume-and-testability.md) [tooling] — detect-doc-derivation.mjs diffs whole-branch-vs-origin/main so it reports derivation=true on every epic resume (no signal whether derivation is actually outstanding), and it has no import-meta-main guard / no exports so it runs main() at import and is untestable (unlike its detect-deploy-needed sibling). `[epic:deploy-tooling-integrity · core]`
-- 2026-06-22 — [lint-library-total-and-located](backlog/lint-library-total-and-located.md) [tooling] — backlog-lint render crashes opaquely (no filename) on non-string or duplicate-key frontmatter the skills themselves produce; 4 fragmented frontmatter parsers diverge from the lint gate. Make rendering total + parse errors located + unify on one parser. `[epic:backlog-skills-hardening · core]`
