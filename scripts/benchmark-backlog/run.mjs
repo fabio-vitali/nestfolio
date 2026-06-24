@@ -11,7 +11,12 @@ const median = (xs) => { const s = [...xs].sort((a, b) => a - b); return s[Math.
 export async function runMode(mode, opts, suite) {
   const iterations = opts.iterations ?? 3;
   const runOne = opts.runOne ?? defaultRunOne(suite, opts);
-  const scenarios = suite.scenarios.filter((s) => !opts.skill || s.skill === opts.skill);
+  // `--skill=` narrows to a skill family; `--scenario=id1,id2` narrows to explicit scenario ids
+  // (e.g. smoke just the hardened gates before a full sweep). Both compose; both optional.
+  const only = opts.scenario ? new Set(String(opts.scenario).split(',').map((s) => s.trim())) : null;
+  const scenarios = suite.scenarios.filter(
+    (s) => (!opts.skill || s.skill === opts.skill) && (!only || only.has(s.id)),
+  );
   if (mode === 'compare') {
     const rows = [];
     for (const s of scenarios) {
@@ -91,7 +96,7 @@ function defaultRunOne(suite, opts) {
 }
 
 // CLI entrypoint (Task 13). Dynamic imports keep module-import side-effect-free for tests.
-// Usage: node run.mjs <regression|compare <refA> <refB>|rebaseline> [--skill=…] [--iterations=N] [--model=…]
+// Usage: node run.mjs <regression|compare <refA> <refB>|rebaseline> [--skill=…] [--scenario=id1,id2] [--iterations=N] [--model=…]
 if (process.argv[1] && process.argv[1] === fileURLToPath(import.meta.url)) {
   const { buildSandbox } = await import('./sandbox.mjs');
   const { gradeScenario } = await import('./grade.mjs');
