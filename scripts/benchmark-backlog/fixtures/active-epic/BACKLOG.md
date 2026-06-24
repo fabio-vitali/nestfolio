@@ -22,8 +22,7 @@ _(none)_
 
 ## QUEUED
 
-_(none)_
-
+1. [standalone-complex](backlog/standalone-complex.md) [refactor] — Redesign the public EventBus publish API — breaking change to all consumers, requires major version bump.
 
 ## LATER
 
