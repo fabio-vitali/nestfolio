@@ -8,10 +8,12 @@ export default {
   fixture: 'standalone-complex', prompt: '/backlog-next standalone-complex',
   denySubskills: ['Skill(superpowers:brainstorming)', 'Skill(superpowers:executing-plans)', 'Skill(superpowers:finishing-a-development-branch)'],
   terminal: 'pause',   // classification-only: adopt then stop at the denied downstream routing
-  // Deterministic proxy for "classified Complex": only the Complex lane adopts (Step 4 flips the item
-  // to `status: active` before routing downstream); a Simple/Doc-layer misclassification works it
-  // directly on main and leaves it `queued`. So `status: active` IS the lane verdict, observable.
-  golden: { frontmatter: { 'standalone-complex': { status: 'active' } } },
+  // Deterministic proxy for "classified Complex": only the Complex lane adopts by creating an isolation
+  // branch + worktree (Doc-layer/Simple work directly on main). The headless model adopts INSIDE the
+  // worktree checkout and names the branch freely, so a root-checkout `status: active` golden misses it
+  // (verified live: it created `worktree-standalone-complex` and set the worktree copy active). Assert
+  // branch creation — the location- and name-robust signal of Complex-lane adoption.
+  state: { branchCreated: true },
   // rubricGate makes the judge's classification assessment GATE (not informational) so a vacuous pass
   // for the wrong reason can't slip through alongside the deterministic proxy.
   rubricGate: 4,

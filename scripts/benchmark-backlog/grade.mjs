@@ -51,6 +51,16 @@ export function gradeInvariants(scenario, runResult, sandboxDir, stubsLog = '') 
   const st = scenario.state ?? {};
   if (st.branchExists && !branchExists(sandboxDir, st.branchExists)) failures.push(`branch ${st.branchExists} should exist`);
   if (st.branchAbsent && branchExists(sandboxDir, st.branchAbsent)) failures.push(`branch ${st.branchAbsent} should be gone`);
+  if (st.branchCreated != null) {
+    // Location-robust proxy for "the Complex lane adopted": only the Complex lane creates an isolation
+    // branch (worktree + branch); Doc-layer/Simple work directly on `main`. The headless model names the
+    // branch freely AND adopts inside the worktree checkout (not the sandbox root), so a root-checkout
+    // `status: active` golden misses it — assert branch creation instead (any local branch besides main).
+    const branches = execFileSync('git', ['branch', '--format=%(refname:short)'], { cwd: sandboxDir })
+      .toString().trim().split('\n').map((b) => b.trim()).filter(Boolean);
+    const created = branches.some((b) => b !== 'main');
+    if (created !== st.branchCreated) failures.push(`branchCreated=${created} (branches: ${branches.join(', ') || 'none'}), expected ${st.branchCreated}`);
+  }
   if (st.worktreeAbsent && existsSync(join(sandboxDir, st.worktreeAbsent))) failures.push(`worktree ${st.worktreeAbsent} should be removed`);
   if (st.runstateAbsent != null) {
     // Invoke runstate.mjs with a RELATIVE path (cwd=sandboxDir). An absolute /tmp path hits the macOS

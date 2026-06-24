@@ -41,13 +41,26 @@ export async function runMode(mode, opts, suite) {
 }
 
 function aggregate(runs) {
-  return {
+  const row = {
     gatePassRate: runs.filter((r) => r.gatePass).length / runs.length,
     anyGateFlip: new Set(runs.map((r) => r.gatePass)).size > 1, // any flip = finding
     costUsd: median(runs.map((r) => r.costUsd)),
     firstTurnProseTokens: median(runs.map((r) => r.firstTurnProseTokens)),
     numTurns: median(runs.map((r) => r.numTurns)),
   };
+  // Debug aid: when a run failed, surface WHY the first failing run didn't gate-pass (per-layer
+  // breakdown + judge scores) so a failure is diagnosable from the JSON without re-running or sandbox
+  // spelunking. Omitted entirely when all runs pass, keeping a committed baseline clean.
+  const failing = runs.find((r) => !r.gatePass);
+  if (failing?.graded) {
+    row.diagnostics = {
+      terminalOk: failing.graded.terminalOk,
+      goldenFailures: failing.graded.golden?.failures ?? [],
+      invariantFailures: failing.graded.invariants?.failures ?? [],
+      rubricScores: failing.graded.rubric?.scores ?? null,
+    };
+  }
+  return row;
 }
 
 function defaultRunOne(suite, opts) {
