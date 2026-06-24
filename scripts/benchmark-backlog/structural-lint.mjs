@@ -1,5 +1,5 @@
 export const STUB_BINARIES = ['deploy.sh', 'gh', 'nx', 'backlog-next-worker'];
-const STEP_NAME_RE = /\b(E\d(\.\d)?|runstate\.mjs|epic-members\.mjs)\b/;   // procedure-internal refs
+const STEP_NAME_RE = /\b(E\d+(\.\d+)?|runstate\.mjs|epic-members\.mjs)\b/;   // procedure-internal refs (E1..E10+)
 const INTENT_KEYS = new Set(['phase', 'pr']);
 
 export function lintScenario(s) {

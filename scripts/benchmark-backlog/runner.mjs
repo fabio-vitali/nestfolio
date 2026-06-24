@@ -36,13 +36,13 @@ export function parseStreamJson(lines) {
 
 // Live invocation. Uses the flags confirmed in Task 0.1/0.4. timeoutMs → terminalKind:'timeout'.
 export async function runScenario(scenario, skillRef, runnerOpts) {
-  const { model, timeoutMs = 240000, cwd, env, pauseConvention, disallow = [] } = runnerOpts;
+  const { model, timeoutMs = 240000, cwd, env, pauseConvention } = runnerOpts;
   const args = ['-p', scenario.prompt, '--print', '--verbose', '--output-format', 'stream-json',
     '--setting-sources', 'project', '--strict-mcp-config', '--model', model,
     '--append-system-prompt', pauseConvention,
-    '--allowedTools', ['Bash','Read','Write','Edit','Glob','Grep','Skill', ...(scenario.denySubskills? [] : [])].join(' ')];
+    '--allowedTools', ['Bash', 'Read', 'Write', 'Edit', 'Glob', 'Grep', 'Skill'].join(' ')];
   return await new Promise((resolve) => {
-    const lines = []; let timedOut = false;
+    const lines = []; let timedOut = false; let errBuf = '';
     const child = spawn('claude', args, { cwd, env });
     const timer = setTimeout(() => { timedOut = true; child.kill('SIGKILL'); }, timeoutMs);
     let buf = '';
@@ -50,9 +50,16 @@ export async function runScenario(scenario, skillRef, runnerOpts) {
       buf += d.toString(); const parts = buf.split('\n'); buf = parts.pop();
       for (const p of parts) if (p.trim()) try { lines.push(JSON.parse(p)); } catch {}
     });
+    // Surface claude's stderr (flag rejections, auth failures, crashes) only when the run is
+    // problematic — keeps healthy-run output pristine while preserving live-run diagnosability.
+    child.stderr.on('data', (d) => { errBuf += d.toString(); });
     child.on('close', () => {
       clearTimeout(timer);
-      if (timedOut) return resolve({ terminalKind: 'timeout', pauseReason: null, result: '', usage: {}, perTurn: [], totalCostUsd: 0, durationMs: timeoutMs, ttftMs: 0, numTurns: 0, toolCalls: [] });
+      if (timedOut) {
+        if (errBuf) process.stderr.write(`[runScenario timeout] claude stderr:\n${errBuf}`);
+        return resolve({ terminalKind: 'timeout', pauseReason: null, result: '', usage: {}, perTurn: [], totalCostUsd: 0, durationMs: timeoutMs, ttftMs: 0, numTurns: 0, toolCalls: [] });
+      }
+      if (lines.length === 0 && errBuf) process.stderr.write(`[runScenario no-output] claude stderr:\n${errBuf}`);
       resolve(parseStreamJson(lines));
     });
   });
