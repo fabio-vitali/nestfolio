@@ -20,7 +20,7 @@ out_of_scope:
   - Asserting internal git/worktree/run-state ops via the call-log — those are γ-relocated; they are asserted via resulting FS/git state instead (only the four external stubbed ops — deploy.sh / gh / nx / worker — carry call-log invariants).
 spec: docs/superpowers/specs/2026-06-24-backlog-eval-framework-design.md
 plan: docs/superpowers/plans/2026-06-24-backlog-eval-framework.md
-topic_memory: []
+topic_memory: [project_backlog_eval_framework.md]
 validation_gate: null
 ---
 

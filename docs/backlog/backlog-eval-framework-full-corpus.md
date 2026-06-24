@@ -8,7 +8,7 @@ references:
   - docs/superpowers/plans/2026-06-24-backlog-eval-framework.md
 spec: null
 plan: null
-topic_memory: []
+topic_memory: [project_backlog_eval_framework.md]
 validation_gate: null
 ---
 
