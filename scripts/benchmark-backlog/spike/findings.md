@@ -111,3 +111,39 @@ is reached via a `.binshim/` (or `.bin/`) dir prepended to the run's PATH.
 
 **Verdict: ACCEPT** - all three ops hit their stubs. The only adjustment vs the plan: add a minimal
 `package.json` to the sandbox (pnpm needs a manifest before it resolves `node_modules/.bin/nx`).
+
+---
+
+## Task 0.4 — Pause sentinel via `--append-system-prompt` — **ACCEPT** (use the STRONGER convention)
+
+**Original (plan) convention — 2/3 (UNRELIABLE):**
+> "When you would call AskUserQuestion or otherwise pause for a user decision, emit a single final
+> line exactly of the form `<<HARNESS-PAUSE: reason>>` and then stop. Do not ask in prose."
+
+Runs 1-2 emitted the sentinel; run 3 asked in prose ("Could you provide the context...?"). 2/3 is
+not acceptable for a comparability oracle, so a stronger convention was tested.
+
+**STRONGER convention — 6/6 (RELIABLE):**
+> "CRITICAL OUTPUT CONTRACT: You are running headless with no interactive user. You CANNOT ask
+> questions in prose and you CANNOT use AskUserQuestion. Whenever you lack information to proceed,
+> face a user decision, or would otherwise ask the user anything, your ENTIRE final response MUST
+> be exactly one line: `<<HARNESS-PAUSE: brief reason>>` and nothing else. Never phrase a question as
+> prose; always encode it as that sentinel line."
+
+- Batch 1 (same forced-decision prompt 3x): 3/3 HIT.
+- Batch 2 (3 varied decision prompts): 3/3 HIT. (One run initially scored MISS due to a fragile
+  `tail -1 | JSON.parse` measurement pipe choking on a multi-line result; re-checked robustly via
+  `node` reading the `result` event -> the sentinel WAS present. True score 3/3.)
+- Net: **6/6** with the stronger convention.
+
+**Why it works:** framing it as a "CRITICAL OUTPUT CONTRACT", explicitly stating "running headless
+with no interactive user", and demanding the ENTIRE final response be the single sentinel line (not
+just "a final line") removes the model's instinct to add a prose follow-up question.
+
+**Verdict: ACCEPT** - use the STRONGER convention as the harness `pauseConvention`, applied
+identically to both A/B variants (so it cannot bias the comparison). Grader detects pause via the
+`<<HARNESS-PAUSE:` sentinel in the final `result` text.
+
+**Measurement caveat for Phase 1:** detect the sentinel against the `result` event's `result` field
+parsed by `node` (the classifier already does this) - NEVER via a shell `tail | JSON.parse` pipe,
+which mis-handles multi-line results.
