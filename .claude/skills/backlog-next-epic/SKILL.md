@@ -8,7 +8,8 @@ disable-model-invocation: true
 
 User-triggered via `/backlog-next-epic [<epic-id>] [--auto]` only. `disable-model-invocation: true` blocks auto-invocation.
 
-- `<epic-id>` — a `type: epic` backlog file. Without it, list the candidate epics (active delivery epic first, then `queued`, then parking theme epics with open-core-member counts) and ask which to run.
+- `<epic-id>` — a `type: epic` backlog file. Without it, the orchestrator selects the epic by **impact** (default) or a `--like "<criteria>"` criterion — see § "Selecting the epic". A bare arg that isn't an epic id is treated as a criterion (so `/backlog-next-epic fix worst bug` works). Selection ALWAYS ends in an `AskUserQuestion` confirm.
+- `--like "<criteria>"` — rank candidate epics by a free-text criterion instead of by impact (for fuzzy/thematic intents the rubric can't express). Still confirmed via `AskUserQuestion`.
 - `--auto` — fire-and-forget: auto-resolve decisions and log each for PR review, pausing only on the hard floor (see § E5). Without it, the orchestrator pauses at every architectural fork.
 
 This skill owns the **epic lifecycle**. It does NOT execute member work directly — it drives `/backlog-next` in **epic-member mode** (one member at a time, inside one shared worktree). For a single non-epic workstream, use `/backlog-next` directly.
@@ -42,6 +43,31 @@ Branch on the result:
 - **Absent → fresh run.** Proceed E0 → E1 → E2 → E3 → E4 normally.
 
 A resume never re-promotes the epic, never re-creates the branch, and never overwrites the accumulated decision log / e2e evidence in run-state.
+
+### Selecting the epic (no resume + no explicit `<epic-id>`)
+
+The Resume gate handles an in-flight epic. Otherwise resolve WHICH epic to run from the invocation
+form, then enter E0 with that epic id:
+
+| Form | Resolve |
+|---|---|
+| `/backlog-next-epic <arg>` | `node .claude/skills/backlog-next-epic/epic-members.mjs --classify "<arg>"` → `epic-id=<id>` ⇒ use it directly (skip the menu, go to E0); `criterion` ⇒ fall to the criterion row. |
+| `/backlog-next-epic --like "<criteria>"` | Criterion mode with `<criteria>` — an explicit `--like` is ALWAYS a criterion (skip `--classify`). |
+| `/backlog-next-epic` (no arg) | Default — impact-ranked. |
+
+**Build candidates → rank → confirm:**
+
+1. `node .claude/skills/backlog-next-epic/epic-members.mjs --candidates` — every open epic
+   (active / queued / parking) with its `core=open/total` count + notes, in baseline order.
+2. **Rank:**
+   - **Default (impact):** score each candidate against `.claude/skills/backlog-lint/lib/severity-rubric.md`
+     (read it). Open each candidate's file for `scope:` / `done_when:`. **`queued` epics KEEP their
+     `rank`; severity orders only the `parking` tail.** Show computed impact as context on all.
+   - **Criterion (`--like`):** order by how well each candidate matches `<criteria>` (semantic).
+3. **Confirm via AskUserQuestion** — surface the top candidates (≤4), one-line reason each, the
+   highest-ranked marked `(Recommended)`. The user's pick is the epic id → proceed to E0. **Never
+   skip this confirm** (E5 floor). Zero candidates → report "no epics to run — promote or mint one
+   via `/backlog-themes`" and stop.
 
 ### E0. Epic-start preflight (once)
 
@@ -148,6 +174,7 @@ The log is **append-only**: never edit or delete a prior entry — a later rever
   - **Irreversible / outward-facing actions** — staging/prod-account ops, real-money/broker actions, `git push --force`, `git reset --hard` on shared branches, `git branch -D`, destructive deletes, mutations outside `dev-*` naming, anything outside this repo.
   - **Scope-boundary fork (decidable test)** — pause ONLY when the fork (a) changes the epic's `out_of_scope:` boundary, (b) alters a contract / event / interface / shared-lib export consumed by a not-yet-worked core member (i.e. `detect-fork-blast-radius.mjs` exits 1 for it), or (c) forces rework of an already-shipped member. A genuinely balanced fork where reusability does not break the tie also still pauses. (This replaces the old over-broad "large downstream blast radius" clause that swallowed every fork — F-5.)
   - **Bounded-effort exceeded** — a member's `--auto` debug budget (E4.3, ≤3 cycles) is spent.
+  - **Computed-selection pick (default impact-rank or `--like`)** — an epic chosen by a computed ordering MUST be confirmed by the user via the § "Selecting the epic" `AskUserQuestion`, **even in `--auto`**. `--auto` never auto-launches the top-ranked epic onto a whole branch/deploy/e2e budget. An explicit `<epic-id>` is a user pick and is unaffected.
 
   When the floor fires, the surface MUST be an **AskUserQuestion** widget with a `(Recommended)` option — a free-text "this is your call" prose pause is a **skill violation** (it is what let an ambiguous "go" collapse into a self-merge — F-7/F-33). Record the outcome (append-only), resume. The decision log is the **asynchronous-review surface** that replaces synchronous approval — it lands in the PR body (E8).
 
