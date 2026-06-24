@@ -1,8 +1,13 @@
 ---
 id: backlog-eval-framework-usable
-status: parking
+status: active
 type: tooling
 notes: "Finish backlog-eval-framework so it can actually guard backlog-skills-simplification: harden next-lane+e8-conflict (rubricGate + deterministic proxies; e8 no-pre-ship setup + portable SUPERPOWERS path), commit a baseline.json, run the oracle-teeth (Task 14). Core harness shipped in PR #24."
+out_of_scope:
+  - The remaining ~45-scenario full corpus + the /benchmark-backlog skill surface (Phase 6) — that is the sibling backlog-eval-framework-full-corpus item.
+  - Re-validating the 4 already-green exemplars (add-fold-captured, bne-auto-design-pause, bne-resume-merged-tail-only, themes-discrimination) — proven in PR #24.
+  - Actually running compare main feat/epic-backlog-skills-simplification — that is the backlog-skills-simplification epic's job; this item only makes the framework capable of it.
+  - CI / scheduled-run wiring — separate workstream.
 references:
   - docs/superpowers/specs/2026-06-24-backlog-eval-framework-design.md
   - docs/superpowers/plans/2026-06-24-backlog-eval-framework.md
@@ -32,5 +37,5 @@ The proven core harness shipped in **PR #24** (Phases 0–5: sandbox + per-op st
 
 Then a clean baseline on current `main` → the framework can run `compare main feat/epic-backlog-skills-simplification`.
 
-Gated on PR #24 merging (the harness code must be on `main`). Promote to queued/active when picking
-up the deferred work.
+**Promoted to active 2026-06-24:** both triggers fired — PR #24 is merged (commit `4ed16dbd`), so the
+harness code is on `main`, and this deferred work is now being picked up.
