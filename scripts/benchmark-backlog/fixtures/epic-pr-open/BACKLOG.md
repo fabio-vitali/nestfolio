@@ -8,8 +8,8 @@
 
 ### [epic-pr-open](backlog/epic-pr-open.md) `[epic · active]` — Minimal active-epic fixture for the backlog-eval-framework sandbox tests. Used to exercise run-state seeding at the PR_OPEN_AWAITING_MERGE phase.
 done_when: The stub member is shipped and the eval harness run-state reflects PR_OPEN_AWAITING_MERGE; all core members terminal.
-rollup: core 0/0 done · captured 0/0 done
-_(no members)_
+rollup: core 1/1 done · captured 0/0 done
+- core · shipped · [pr-open-member-1](backlog/pr-open-member-1.md)
 
 **Parking health:** 0 theme epic(s), 0 orphan(s) — drive orphans → 0 with `/backlog-themes`
 
@@ -30,4 +30,4 @@ _(none)_
 
 ## Recently Shipped (last 10)
 
-_(none)_
+- 0000-00-00 — [pr-open-member-1](backlog/pr-open-member-1.md) [task] — Stub member — already shipped before the PR-open phase, used to exercise the merged-tail-only path. `[epic:epic-pr-open · core]`
