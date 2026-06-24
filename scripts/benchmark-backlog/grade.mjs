@@ -71,10 +71,20 @@ export function gradeInvariants(scenario, runResult, sandboxDir, stubsLog = '') 
   return { pass: failures.length === 0, failures };
 }
 
+// Opt-in rubric gate. Default (no scenario.rubricGate) → rubric is informational only. When a
+// scenario sets `rubricGate: <minScore>`, every judge dimension must be >= minScore for the gate to
+// pass — for judgment-heavy scenarios whose thin deterministic gate can't fully verify the behavior
+// (the proof showed next-lane/e8-conflict gate-passing at judge 1-2/5). A missing rubric fails the gate.
+export function rubricGatePasses(rubric, minScore) {
+  if (!minScore) return true;
+  if (!rubric || !rubric.scores) return false;
+  return Object.values(rubric.scores).every((s) => s >= minScore);
+}
+
 export async function gradeScenario(scenario, runResult, sandboxDir, stubsLog) {
   const golden = gradeGolden(scenario, sandboxDir);
   const invariants = gradeInvariants(scenario, runResult, sandboxDir, stubsLog);
   const rubric = scenario.rubric?.length ? await (await import('./judge.mjs')).runJudge(scenario, runResult, sandboxDir) : null;
-  const gatePass = golden.pass && invariants.pass;
+  const gatePass = golden.pass && invariants.pass && rubricGatePasses(rubric, scenario.rubricGate);
   return { gatePass, golden, invariants, terminalOk: runResult.terminalKind === scenario.terminal, rubric };
 }
