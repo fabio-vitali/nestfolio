@@ -190,8 +190,7 @@ rollup: core 0/3 done · captured 0/0 done
 
 ## ACTIVE
 
-_(none)_
-
+- [backlog-next-epic-severity-selection](backlog/backlog-next-epic-severity-selection.md) [tooling] — /backlog-next-epic ranks its candidate list by impact (default) or free-text --like criterion, computed AT SELECTION TIME (no stored severity field), surfaced ranked-with-reasons for human confirm.
 
 ## QUEUED
 
