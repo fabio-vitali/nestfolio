@@ -147,3 +147,42 @@ identically to both A/B variants (so it cannot bias the comparison). Grader dete
 **Measurement caveat for Phase 1:** detect the sentinel against the `result` event's `result` field
 parsed by `node` (the classifier already does this) - NEVER via a shell `tail | JSON.parse` pipe,
 which mis-handles multi-line results.
+
+---
+
+## Task 0.5 — Run-state seed + local origin (resume feasibility) — **ACCEPT**
+
+Sandbox `/tmp/bef-spike5` with a local **bare** `origin` at `/tmp/bef-spike5-origin`, the REAL
+`backlog-next-epic` helpers copied from
+`/Users/fabiovitali/WebstormProjects/nestfolio/.claude/skills/backlog-next-epic/`, and a baseline
+commit pushed so `origin/main` exists.
+
+**Exact seed command sequence (becomes `buildSandbox`'s run-state seeding) — all from the repo root,
+invoked with a RELATIVE helper path:**
+```bash
+RS=.claude/skills/backlog-next-epic/runstate.mjs
+node $RS init acme --branch=feat/epic-acme --worktree=.claude/worktrees/epic-acme   # exit 0
+echo '{ "commands":["x"],"outcome":"green","sha":"deadbeef" }' | node $RS set-e2e acme   # exit 0 (optional)
+node $RS set-e8 acme PR_OPEN_AWAITING_MERGE   # exit 0
+node $RS get acme   # exit 0, full seeded JSON incl. "e8":"PR_OPEN_AWAITING_MERGE" — NOT FRESH
+```
+The closed 6-key schema ACCEPTED the seed; `get` returns the seeded JSON (exit 0).
+
+**Origin / worktree ops:**
+- `git fetch origin main` -> succeeds.
+- `git worktree add .claude/worktrees/epic-acme origin/main` -> succeeds ("HEAD is now at ... baseline").
+
+**IMPORTANT builder caveat (a /tmp symlink trap) — discovered during the spike:**
+`runstate.mjs`'s entrypoint guard (line ~213) is
+`import.meta.url === file://${process.argv[1]} || fileURLToPath(import.meta.url) === process.argv[1]`.
+Invoking the helper with an **absolute** `/tmp/...` path (e.g. `node /tmp/bef-spike5/.../runstate.mjs get acme`)
+on macOS makes `process.argv[1]` = `/tmp/...` while `import.meta.url` resolves the symlink to
+`/private/tmp/...` -> NEITHER comparison matches -> `main()` never runs -> **silent exit 0 with empty
+output** (looks like a seam failure but is not). The `--git-common-dir` path itself resolves correctly.
+**Fix / requirement:** ALWAYS invoke the helper with a RELATIVE path from the sandbox repo root
+(`execFileSync('node', ['.claude/skills/backlog-next-epic/runstate.mjs', ...], {cwd: dir})`) — exactly
+what the plan's `seedRunState` already does. With the relative form, `get` returns the seeded JSON
+from both the repo root AND a worktree cwd (common-dir path stable, no FRESH misclassification).
+
+**Verdict: ACCEPT** - helper-seeded run-state + local-origin worktree/fetch all work; the closed schema
+accepts the seed; resume is feasible. Builder must use relative helper paths (avoids the /tmp symlink trap).
