@@ -44,7 +44,9 @@ export function gradeInvariants(scenario, runResult, sandboxDir, stubsLog = '') 
   if (st.branchAbsent && branchExists(sandboxDir, st.branchAbsent)) failures.push(`branch ${st.branchAbsent} should be gone`);
   if (st.worktreeAbsent && existsSync(join(sandboxDir, st.worktreeAbsent))) failures.push(`worktree ${st.worktreeAbsent} should be removed`);
   if (st.runstateAbsent != null) {
-    let present = true; try { execFileSync('node', [join(sandboxDir, '.claude/skills/backlog-next-epic/runstate.mjs'), 'get', scenario.fixture], { cwd: sandboxDir }); } catch { present = false; }
+    // Invoke runstate.mjs with a RELATIVE path (cwd=sandboxDir). An absolute /tmp path hits the macOS
+    // symlink entrypoint-guard trap → main() never runs → silent exit 0, falsely reporting "present". (spike 0.5)
+    let present = true; try { execFileSync('node', ['.claude/skills/backlog-next-epic/runstate.mjs', 'get', scenario.fixture], { cwd: sandboxDir }); } catch { present = false; }
     if (st.runstateAbsent === present) failures.push(`runstate present=${present}, expected absent=${st.runstateAbsent}`);
   }
   if (st.originMainContains) {
