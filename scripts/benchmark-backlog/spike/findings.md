@@ -1,3 +1,36 @@
+# >>> GATE PASSED <<<
+
+All Phase-0 spike items (0.1-0.5) ACCEPTED against CLI **2.1.190**. The corpus is feasible as
+designed; proceed to Phase 1.
+
+**Confirmed mechanisms (these parameterize the framework):**
+
+- **Isolation:** `--setting-sources project --strict-mcp-config` alone -> init shows
+  `mcp_servers:[]`, `plugins:[]`, `permissionMode:default`, no `hooks` key. Strip only `AWS_*` from
+  the spawn env; **do NOT set a sandbox HOME / `env -i`** (it strips auth credentials -> "Not logged in").
+- **Parser field paths (CONFIRMED, no correction):** per-turn usage = `ev.message.usage`
+  (`input_tokens, cache_creation_input_tokens, cache_read_input_tokens, output_tokens`); content =
+  `ev.message.content[]` (blocks `{type:"text",text}` / `{type:"tool_use",name,input}`). Terminal
+  metrics on the `result` event: `usage, total_cost_usd, duration_ms, ttft_ms, num_turns, subtype`.
+- **Worker seam (the critical gate):** **cwd `.claude/skills/` discovery** — a stub `backlog-next`
+  SKILL.md placed in the sandbox cwd is discovered (init `skills[]` includes it) and invoked (Skill
+  tool_use), and its `node .claude/skills/_stubs/worker.mjs <id>` runs via Bash (verified by stream
+  tool_use blocks AND `stubs.log` on disk). No `--plugin-dir` needed. Run with `--allowedTools`
+  including `Skill` + `Bash`.
+- **Per-op stubs:** `deploy.sh` at in-repo `infrastructure/scripts/deploy.sh`; `gh` via a PATH shim
+  dir; `nx` at `node_modules/.bin/nx` resolved by `pnpm nx` — **but only after a minimal
+  `package.json` exists in the sandbox** (pnpm errors `ERR_PNPM_NO_IMPORTER_MANIFEST_FOUND` without one).
+- **Pause sentinel:** the plan's convention was 2/3 (unreliable); the **STRONGER "CRITICAL OUTPUT
+  CONTRACT" convention is 6/6**. Use it as `pauseConvention`, identical for both A/B variants.
+- **Run-state resume:** `runstate.mjs init -> set-e8 PR_OPEN_AWAITING_MERGE -> get` returns seeded
+  JSON (exit 0, not FRESH); local-bare-origin `fetch` + `worktree add origin/main` succeed. Invoke
+  the helper with a RELATIVE path from the repo root (absolute `/tmp/...` triggers a macOS symlink
+  entrypoint-guard trap -> silent empty exit 0).
+
+**Per-item:** 0.1 ACCEPT · 0.2 ACCEPT · 0.3 ACCEPT · 0.4 ACCEPT · 0.5 ACCEPT.
+
+---
+
 # Gate-0 spike findings
 
 > Empirical de-risk spike for the backlog-eval-framework. Each item is accept/reject.
