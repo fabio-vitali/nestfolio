@@ -24,8 +24,8 @@ export function gradeGolden(scenario, sandboxDir) {
     if (f && typeof f.frontmatter[field] !== 'string') failures.push(`${file}.${field} must be a YAML string scalar`);
   }
   if (g.lintExit0) {
-    try { execFileSync('node', [join(sandboxDir, '.claude/skills/backlog-lint/lint.mjs')], { cwd: sandboxDir, env: { ...process.env, NESTFOLIO_MEMORY_DIR: join(sandboxDir, '.mem') } }); }
-    catch (e) { failures.push(`lint did not exit 0: ${e.stdout ?? e.message}`); }
+    try { execFileSync('node', [join(sandboxDir, '.claude/skills/backlog-lint/lint.mjs')], { cwd: sandboxDir, encoding: 'utf8', env: { ...process.env, NESTFOLIO_MEMORY_DIR: join(sandboxDir, '.mem') } }); }
+    catch (e) { failures.push(`lint did not exit 0: ${e.stderr?.toString() || e.stdout?.toString() || e.message}`); }
   }
   return { pass: failures.length === 0, failures };
 }
@@ -34,7 +34,7 @@ function branchExists(dir, name) {
   try { execFileSync('git', ['rev-parse', '--verify', '--quiet', name], { cwd: dir }); return true; } catch { return false; }
 }
 
-export function gradeInvariants(scenario, runResult, sandboxDir, stubsLog) {
+export function gradeInvariants(scenario, runResult, sandboxDir, stubsLog = '') {
   const failures = [];
   const cl = scenario.callLog ?? {};
   for (const c of cl.called ?? []) if (!stubsLog.includes(c)) failures.push(`expected call-log "${c}" not found`);
@@ -56,7 +56,7 @@ export function gradeInvariants(scenario, runResult, sandboxDir, stubsLog) {
     if (entered !== st.memberLoopEntered) failures.push(`memberLoopEntered=${entered}, expected ${st.memberLoopEntered}`);
   }
   if (scenario.terminal && runResult.terminalKind !== scenario.terminal) failures.push(`terminal=${runResult.terminalKind}, expected ${scenario.terminal}`);
-  if (runResult.terminalKind === 'timeout') failures.push('run timed out');
+  if (runResult.terminalKind === 'timeout' && scenario.terminal !== 'timeout') failures.push('run timed out');
   return { pass: failures.length === 0, failures };
 }
 
