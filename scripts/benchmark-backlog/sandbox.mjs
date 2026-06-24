@@ -1,4 +1,4 @@
-import { mkdtempSync, mkdirSync, cpSync, readFileSync, writeFileSync, rmSync, chmodSync } from 'node:fs';
+import { mkdtempSync, mkdirSync, cpSync, readFileSync, writeFileSync, rmSync, chmodSync, symlinkSync, existsSync } from 'node:fs';
 import { execFileSync } from 'node:child_process';
 import { tmpdir } from 'node:os';
 import { join, dirname } from 'node:path';
@@ -112,6 +112,14 @@ export async function buildSandbox(scenario, skillRef) {
   mkdirSync(join(dir, 'node_modules/.bin'), { recursive: true });
   cpSync(join(HERE, 'stubs/nx'), join(dir, 'node_modules/.bin/nx'));
   chmodSync(join(dir, 'node_modules/.bin/nx'), 0o755);
+
+  // The backlog skills' only npm dependency is `yaml` (zero-dep), used by backlog-lint to parse
+  // frontmatter. Symlink it from the main repo so the skill's `lint --fix` resolves `import 'yaml'`
+  // via node_modules traversal — without a full node_modules symlink (which would shadow the nx stub)
+  // or a mid-run `npm install` (slow/fragile/network). Add more symlinks here only if a skill grows
+  // a new npm import (grep: `from '<pkg>'` excluding node:/relative).
+  const yamlSrc = join(REPO, 'node_modules/yaml');
+  if (existsSync(yamlSrc)) symlinkSync(yamlSrc, join(dir, 'node_modules/yaml'));
 
   // gh stub in .bin/ (PATH-prepended by the runner in Task 9)
   const binDir = join(dir, '.bin');

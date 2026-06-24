@@ -1,5 +1,6 @@
 import { join } from 'node:path';
 import { readFileSync, existsSync } from 'node:fs';
+import { fileURLToPath } from 'node:url';
 
 // Spike correction: the short version was only 2/3 reliable; this 6/6 version is binding.
 export const PAUSE_CONVENTION =
@@ -87,4 +88,25 @@ function defaultRunOne(suite, opts) {
       if (!opts.keep) cleanup();
     }
   };
+}
+
+// CLI entrypoint (Task 13). Dynamic imports keep module-import side-effect-free for tests.
+// Usage: node run.mjs <regression|compare <refA> <refB>|rebaseline> [--skill=…] [--iterations=N] [--model=…]
+if (process.argv[1] && process.argv[1] === fileURLToPath(import.meta.url)) {
+  const { buildSandbox } = await import('./sandbox.mjs');
+  const { gradeScenario } = await import('./grade.mjs');
+  const { readdirSync } = await import('node:fs');
+  const scenDir = new URL('./scenarios/', import.meta.url);
+  const scenarios = [];
+  for (const f of readdirSync(scenDir).filter((x) => x.endsWith('.scenario.mjs'))) {
+    scenarios.push((await import(new URL(f, scenDir))).default);
+  }
+  const [mode, ...rest] = process.argv.slice(2);
+  const opts = Object.fromEntries(
+    rest.filter((a) => a.startsWith('--')).map((a) => { const [k, ...v] = a.replace(/^--/, '').split('='); return [k, v.join('=')]; })
+  );
+  const suite = { buildSandbox, grade: gradeScenario, scenarios };
+  if (mode === 'compare') { opts.refA = rest[0]; opts.refB = rest[1]; }
+  const rows = await runMode(mode, { ...opts, iterations: Number(opts.iterations ?? 3) }, suite);
+  console.log(JSON.stringify(rows, null, 2));
 }
