@@ -190,8 +190,7 @@ rollup: core 0/3 done · captured 0/0 done
 
 ## ACTIVE
 
-_(none)_
-
+- [backlog-eval-framework](backlog/backlog-eval-framework.md) [design] — Evaluation framework for the backlog skill suite — decision-point evals run via headless `claude -p` against sandboxed synthetic backlog states + op-stubs, graded by golden assertions + call-log invariants + an LLM judge, measuring quality / cost / latency with a committed baseline + A/B compare mode. Built to prove `backlog-skills-simplification` regresses no behavior and adds value. HIGH coverage on backlog-next-epic (resume gate + merge-ownership + ship-preconditions = γ's blast radius).
 
 ## QUEUED
 
