@@ -10,6 +10,8 @@ import {
   selectNextMember,
   loadRecords,
   activeEpics,
+  candidateEpics,
+  classifyPositional,
 } from '../epic-members.mjs';
 
 test('loadRecords parses identically to the lint gate: inline comments + rank:null', () => {
@@ -122,4 +124,52 @@ test('activeEpics: none active → empty array (rule-11 guard clear)', () => {
     { id: 'item', fm: { type: 'bug', status: 'queued', rank: 1 } },
   ];
   assert.deepEqual(activeEpics(recs), []);
+});
+
+const epicRecords = [
+  { id: 'E-active', fm: { type: 'epic', status: 'active', notes: 'in flight' } },
+  { id: 'E-q2', fm: { type: 'epic', status: 'queued', rank: 2 } },
+  { id: 'E-q1', fm: { type: 'epic', status: 'queued', rank: 1 } },
+  { id: 'E-parkB', fm: { type: 'epic', status: 'parking' } },
+  { id: 'E-parkA', fm: { type: 'epic', status: 'parking' } },
+  { id: 'E-shipped', fm: { type: 'epic', status: 'shipped' } },
+  { id: 'not-epic', fm: { type: 'bug', status: 'parking' } },
+  // members of E-active: 1 open core + 1 shipped core + 1 captured (excluded from core)
+  { id: 'm1', fm: { epic: 'E-active', status: 'queued', rank: 1, epic_role: 'core' } },
+  { id: 'm2', fm: { epic: 'E-active', status: 'shipped', epic_role: 'core' } },
+  { id: 'm3', fm: { epic: 'E-active', status: 'parking', epic_role: 'captured' } },
+];
+
+test('candidateEpics: open epics only, ordered active → queued-by-rank → parking-by-id', () => {
+  const cands = candidateEpics(epicRecords);
+  assert.deepEqual(
+    cands.map((c) => c.id),
+    ['E-active', 'E-q1', 'E-q2', 'E-parkA', 'E-parkB'],
+  );
+});
+
+test('candidateEpics: annotates open/total CORE counts (captured excluded, shipped not open)', () => {
+  const active = candidateEpics(epicRecords).find((c) => c.id === 'E-active');
+  assert.equal(active.openCore, 1); // m1 open; m2 shipped (not open); m3 captured (not core)
+  assert.equal(active.totalCore, 2); // m1 + m2
+  assert.equal(active.status, 'active');
+});
+
+test('candidateEpics: excludes shipped/dropped epics and non-epic files', () => {
+  const ids = candidateEpics(epicRecords).map((c) => c.id);
+  assert.ok(!ids.includes('E-shipped'));
+  assert.ok(!ids.includes('not-epic'));
+});
+
+test('classifyPositional: matching type:epic id → epic-id; else criterion', () => {
+  assert.deepEqual(classifyPositional(epicRecords, 'E-q1'), { kind: 'epic-id', id: 'E-q1' });
+  assert.deepEqual(classifyPositional(epicRecords, 'fix worst bug'), {
+    kind: 'criterion',
+    text: 'fix worst bug',
+  });
+  // a non-epic file id is NOT an epic-id → criterion (only type:epic matches)
+  assert.deepEqual(classifyPositional(epicRecords, 'not-epic'), {
+    kind: 'criterion',
+    text: 'not-epic',
+  });
 });
