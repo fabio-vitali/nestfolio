@@ -22,9 +22,9 @@ _(none)_
 
 ## LATER
 
-- [decoy-ddb-ttl](backlog/decoy-ddb-ttl.md) [task] — DynamoDB tables do not have TTL enabled for transient event records, causing unbounded table growth.
-- [log-noise-lambda](backlog/log-noise-lambda.md) [task] — Lambda functions emit excessive DEBUG log lines at INFO level, flooding CloudWatch and inflating log costs.
-- [log-retention-missing](backlog/log-retention-missing.md) [task] — CloudWatch log groups have no retention policy set, so logs accumulate indefinitely and drive up storage costs.
+- [decoy-idle-nat](backlog/decoy-idle-nat.md) [task] — An idle NAT Gateway runs 24/7 in a deprecated subnet with no traffic, accruing flat hourly charges.
+- [log-retention-lambda](backlog/log-retention-lambda.md) [task] — Lambda execution log groups are created with no retention policy, so logs are kept forever and storage cost climbs.
+- [log-retention-missing](backlog/log-retention-missing.md) [task] — API-service CloudWatch log groups are created with no retention policy, so logs are kept forever and storage cost climbs.
 
 ## Recently Shipped (last 10)
 
