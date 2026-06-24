@@ -23,6 +23,15 @@ export function gradeGolden(scenario, sandboxDir) {
     const f = byId[file];
     if (f && typeof f.frontmatter[field] !== 'string') failures.push(`${file}.${field} must be a YAML string scalar`);
   }
+  for (const { file, field } of g.present ?? []) {
+    const f = byId[file];
+    if (!f) failures.push(`expected file "${file}" not found`);
+    else if (f.frontmatter[field] === undefined) failures.push(`${file}.${field} should be present`);
+  }
+  for (const { file, field } of g.absent ?? []) {
+    const f = byId[file];
+    if (f && f.frontmatter[field] !== undefined) failures.push(`${file}.${field} should be absent, got ${JSON.stringify(f.frontmatter[field])}`);
+  }
   if (g.lintExit0) {
     try { execFileSync('node', [join(sandboxDir, '.claude/skills/backlog-lint/lint.mjs')], { cwd: sandboxDir, encoding: 'utf8', env: { ...process.env, NESTFOLIO_MEMORY_DIR: join(sandboxDir, '.mem') } }); }
     catch (e) { failures.push(`lint did not exit 0: ${e.stderr?.toString() || e.stdout?.toString() || e.message}`); }
