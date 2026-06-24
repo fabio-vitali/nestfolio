@@ -186,7 +186,7 @@ rollup: core 0/3 done · captured 0/0 done
 - core · parking · [portfolio-drift-detected-registry-collision](backlog/portfolio-drift-detected-registry-collision.md)
 - core · parking · [weight-drift-detector](backlog/weight-drift-detector.md)
 
-**Parking health:** 28 theme epic(s), 16 orphan(s) — drive orphans → 0 with `/backlog-themes`
+**Parking health:** 28 theme epic(s), 18 orphan(s) — drive orphans → 0 with `/backlog-themes`
 
 ## ACTIVE
 
@@ -200,6 +200,8 @@ _(none)_
 ## LATER
 
 - [agent-tracer-bedrock-converse-token-extraction](backlog/agent-tracer-bedrock-converse-token-extraction.md) [bug] — AgentTracer.handleLLMEnd returns 0 input/output tokens for ChatBedrockConverse — usage field path mismatch. Diagnostic envelopes lose cost/decode signal.
+- [backlog-eval-framework-full-corpus](backlog/backlog-eval-framework-full-corpus.md) [tooling] — Phase 6 of backlog-eval-framework: the /benchmark-backlog skill surface + the full ~50-scenario corpus (per-skill coverage enumerated in the spec). Builds on the proven core (PR #24) and the backlog-eval-framework-usable milestone.
+- [backlog-eval-framework-usable](backlog/backlog-eval-framework-usable.md) [tooling] — Finish backlog-eval-framework so it can actually guard backlog-skills-simplification: harden next-lane+e8-conflict (rubricGate + deterministic proxies; e8 no-pre-ship setup + portable SUPERPOWERS path), commit a baseline.json, run the oracle-teeth (Task 14). Core harness shipped in PR #24.
 - [broker-ctrl-alpaca-funding-carrier-pk-divergence](backlog/broker-ctrl-alpaca-funding-carrier-pk-divergence.md) [bug] — Live/ALPACA funding: router keys requested carrier on depositId/withdrawalId but completion normalizer keys on transferId — carry-forward misses if they differ (degrades gracefully). Sim path unaffected.
 - [broker-ctrl-sim-funding-subject-suffix-rename](backlog/broker-ctrl-sim-funding-subject-suffix-rename.md) [refactor] — broker-ctrl contracts.ts Sim*RequestedSubjectSchema names use the Subject suffix → typed-subject-drift gate fails (convention 4).
 - [bump-tsconfig-es2022-to-es2023](backlog/bump-tsconfig-es2022-to-es2023.md) [tooling] — Enable .toSpliced/.toReversed/.with workspace-wide; promote on second use case.
