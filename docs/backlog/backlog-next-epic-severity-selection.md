@@ -5,6 +5,7 @@ type: tooling
 notes: "/backlog-next-epic ranks its candidate list by impact (default) or free-text --like criterion, computed AT SELECTION TIME (no stored severity field), surfaced ranked-with-reasons for human confirm."
 references:
   - "docs/superpowers/specs/2026-06-24-backlog-next-epic-severity-selection-design.md"
+  - "docs/superpowers/plans/2026-06-24-backlog-next-epic-severity-selection.md"
 out_of_scope:
   - "Any PERSISTED severity/urgency frontmatter field, and any lint/index/run-state-schema change."
   - "The /backlog-recalibrate sweep skill (only needed to fight drift of a stored field — moot here)."
