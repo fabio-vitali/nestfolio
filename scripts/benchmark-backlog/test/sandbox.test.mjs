@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { existsSync, readFileSync } from 'node:fs';
+import { existsSync, readFileSync, writeFileSync } from 'node:fs';
 import { execFileSync } from 'node:child_process';
 import { join } from 'node:path';
 import { buildSandbox } from '../sandbox.mjs';
@@ -26,6 +26,17 @@ test('buildSandbox seeds run-state via the real helper when requested', async ()
   try {
     const out = execFileSync('node', ['.claude/skills/backlog-next-epic/runstate.mjs', 'get', 'epic-pr-open'], { cwd: dir }).toString();
     assert.match(out, /PR_OPEN_AWAITING_MERGE/);
+  } finally { cleanup(); }
+});
+
+test('buildSandbox invokes per-scenario setup hook after seeding', async () => {
+  const scenario = {
+    id: 's4', skill: 'backlog-add', fixture: 'clean', prompt: 'p', terminal: 'completed',
+    setup: async ({ dir }) => { writeFileSync(join(dir, 'SETUP_RAN'), 'x'); },
+  };
+  const { dir, cleanup } = await buildSandbox(scenario, 'HEAD');
+  try {
+    assert.ok(existsSync(join(dir, 'SETUP_RAN')), 'setup hook ran and created sentinel file');
   } finally { cleanup(); }
 });
 

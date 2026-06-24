@@ -139,6 +139,9 @@ export async function buildSandbox(scenario, skillRef) {
   // run-state seed (helper-derived) using relative path from sandbox root
   if (scenario.runstate) seedRunState(dir, scenario);
 
+  // per-scenario setup hook — runs after seeding, before returning to the caller
+  if (typeof scenario.setup === 'function') await scenario.setup({ dir, originDir, git, REPO });
+
   const cleanup = () => {
     rmSync(dir, { recursive: true, force: true });
     rmSync(originDir, { recursive: true, force: true });
