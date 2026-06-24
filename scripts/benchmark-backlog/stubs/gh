@@ -1,6 +1,7 @@
 #!/usr/bin/env bash
 echo "gh $*" >> stubs.log
 # emit canned state from env so scenarios can drive PR state
+# NOTE: case-match assumes 'gh pr view ... --json state' and 'gh pr create' arg order
 case "$*" in
   *"pr view"*"--json state"*) echo "${BEF_GH_PR_STATE:-OPEN}" ;;
   *"pr create"*) echo "https://github.com/x/y/pull/${BEF_GH_PR_NUM:-1}" ;;

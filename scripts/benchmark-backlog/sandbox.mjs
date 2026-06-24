@@ -1,11 +1,11 @@
 import { mkdtempSync, mkdirSync, cpSync, readFileSync, writeFileSync, rmSync, chmodSync } from 'node:fs';
-import { execFileSync, execSync } from 'node:child_process';
+import { execFileSync } from 'node:child_process';
 import { tmpdir } from 'node:os';
 import { join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const HERE = dirname(fileURLToPath(import.meta.url));
-const REPO = execSync('git rev-parse --show-toplevel', { cwd: HERE }).toString().trim();
+const REPO = execFileSync('git', ['rev-parse', '--show-toplevel'], { cwd: HERE }).toString().trim();
 const git = (cwd, ...a) => execFileSync('git', a, { cwd });
 
 /**
@@ -24,10 +24,14 @@ function copySkill(skillRef, skillName, destSkills) {
     // Git-ref copy: `git archive <ref> .claude/skills/<name> | tar -x -C <destSkills>`
     // so A/B mode reads the skill exactly as it existed at that ref.
     const archivePath = `.claude/skills/${skillName}`;
-    const archive = execFileSync('git', ['archive', skillRef, '--', archivePath], { cwd: REPO });
-    execFileSync('tar', ['-x', '-C', destSkills, '--strip-components=2'], {
-      input: archive,
-    });
+    try {
+      const archive = execFileSync('git', ['archive', skillRef, '--', archivePath], { cwd: REPO });
+      execFileSync('tar', ['-x', '-C', destSkills, '--strip-components=2'], {
+        input: archive,
+      });
+    } catch (err) {
+      throw new Error(`copySkill: cannot read skill "${skillName}" at git ref "${skillRef}" — is the skill present at that ref?`);
+    }
   }
 }
 
