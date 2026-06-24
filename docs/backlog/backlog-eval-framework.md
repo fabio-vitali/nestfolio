@@ -1,6 +1,6 @@
 ---
 id: backlog-eval-framework
-status: active
+status: shipped
 type: design
 notes: "Evaluation framework for the backlog skill suite — decision-point evals run via headless `claude -p` against sandboxed synthetic backlog states + op-stubs, graded by golden assertions + call-log invariants + an LLM judge, measuring quality / cost / latency with a committed baseline + A/B compare mode. Built to prove `backlog-skills-simplification` regresses no behavior and adds value. HIGH coverage on backlog-next-epic (resume gate + merge-ownership + ship-preconditions = γ's blast radius)."
 references:
@@ -21,7 +21,7 @@ out_of_scope:
 spec: docs/superpowers/specs/2026-06-24-backlog-eval-framework-design.md
 plan: docs/superpowers/plans/2026-06-24-backlog-eval-framework.md
 topic_memory: [project_backlog_eval_framework.md]
-validation_gate: null
+validation_gate: "Proven core merged via PR #24 (merge 4ed16dbd). 36 node:test unit tests green on main; gate-0 spike PASSED (headless-claude mechanisms verified, CLI 2.1.190); 4/6 exemplars validated live on opus with deterministic gate AND judge agreeing 5/5 (add-fold-captured, bne-auto-design-pause, bne-resume-merged-tail-only, themes-discrimination). Remaining work tracked in parking items backlog-eval-framework-usable (harden next-lane/e8-conflict gates + baseline + oracle-teeth) and backlog-eval-framework-full-corpus (Phase 6 skill + ~50 scenarios)."
 ---
 
 # Backlog-system evaluation framework
