@@ -19,7 +19,7 @@ out_of_scope:
   - Scenarios coupled to current procedure internals (E-step names, helper-call sequences) — banned by a structural lint; assertions are observable outcomes only (golden files / external-stub call-log / internal-op state / terminal kind), so the comparison survives γ's prose→helper refactor.
   - Asserting internal git/worktree/run-state ops via the call-log — those are γ-relocated; they are asserted via resulting FS/git state instead (only the four external stubbed ops — deploy.sh / gh / nx / worker — carry call-log invariants).
 spec: docs/superpowers/specs/2026-06-24-backlog-eval-framework-design.md
-plan: null
+plan: docs/superpowers/plans/2026-06-24-backlog-eval-framework.md
 topic_memory: []
 validation_gate: null
 ---
