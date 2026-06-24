@@ -40,13 +40,29 @@ export async function runMode(mode, opts, suite) {
   return rows;
 }
 
+// Per-run token totals summed over every turn (same basis as cost.mjs), so the breakdown is consistent
+// with the weighted aggregate. Token consumption is the REAL subscription-quota signal; these runs
+// authenticate via the CLI subscription (no ANTHROPIC_API_KEY), so they spend quota, not dollars.
+function perRunTokens(r) {
+  const pt = r.rr?.perTurn ?? [];
+  const sum = (f) => pt.reduce((s, u) => s + (u[f] ?? 0), 0);
+  const input = sum('input_tokens'), output = sum('output_tokens');
+  const cacheRead = sum('cache_read_input_tokens'), cacheWrite = sum('cache_creation_input_tokens');
+  return { input, output, cacheRead, cacheWrite, total: input + output + cacheRead + cacheWrite };
+}
+
 function aggregate(runs) {
+  const tk = (f) => median(runs.map((r) => perRunTokens(r)[f]));
   const row = {
     gatePassRate: runs.filter((r) => r.gatePass).length / runs.length,
     anyGateFlip: new Set(runs.map((r) => r.gatePass)).size > 1, // any flip = finding
-    costUsd: median(runs.map((r) => r.costUsd)),
+    // Headline efficiency signal: actual token consumption (median across iterations), by component.
+    tokens: { input: tk('input'), output: tk('output'), cacheRead: tk('cacheRead'), cacheWrite: tk('cacheWrite'), total: tk('total') },
     firstTurnProseTokens: median(runs.map((r) => r.firstTurnProseTokens)),
     numTurns: median(runs.map((r) => r.numTurns)),
+    // weighted-token-units (API-equivalent): cost.mjs price-weighting (output ~5x input, cache-read
+    // ~0.1x) as ONE comparable number for cross-model normalization — NOT a Max-subscription bill.
+    costUsd: median(runs.map((r) => r.costUsd)),
   };
   // Debug aid: when a run failed, surface WHY the first failing run didn't gate-pass (per-layer
   // breakdown + judge scores) so a failure is diagnosable from the JSON without re-running or sandbox
