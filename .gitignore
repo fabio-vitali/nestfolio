@@ -56,4 +56,3 @@ apps/nestfolio-host/public/assets/config.json
 # Gitignored end-to-end per docs/superpowers/specs/2026-05-19-agent-benchmark-skill-design.md §4.2.
 benchmarks/
 
-benchmarks/backlog/
