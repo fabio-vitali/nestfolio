@@ -83,3 +83,31 @@ env -u AWS_PROFILE ... \
 The entire `backlog-next-epic` corpus is feasible as designed. **Sandbox builder parameterization:
 install the stub `backlog-next` skill into the sandbox `.claude/skills/` (cwd discovery), and run
 with `--allowedTools` including `Skill` + `Bash`.**
+
+---
+
+## Task 0.3 — Per-op stub seams (deploy.sh / nx / gh) — **ACCEPT** (with one builder requirement)
+
+Sandbox `/tmp/bef-spike3`: in-repo `infrastructure/scripts/deploy.sh` (chmod +x), `node_modules/.bin/nx`
+(chmod +x, honors `BEF_NX_EXIT`/`BEF_NX_COLLECTED`), `gh` PATH shim in `.binshim/`.
+
+| Op | Probe | Result |
+| -- | ----- | ------ |
+| `deploy.sh` | `bash infrastructure/scripts/deploy.sh sandbox --prefix=dev` | logged `deploy.sh sandbox --prefix=dev` ACCEPT |
+| `gh` | `PATH="$PWD/.binshim:$PATH" gh pr view 1` | logged `gh pr view 1` ACCEPT |
+| `nx` | `pnpm nx run x:y` | see below |
+
+**`pnpm nx` resolution — IMPORTANT discrepancy from the plan:**
+- **First attempt FAILED:** `pnpm nx run x:y` in a repo with NO `package.json` -> `ERR_PNPM_NO_IMPORTER_MANIFEST_FOUND`
+  (exit 1, nothing logged). pnpm refuses to run a local bin without a manifest.
+- **Fix:** add a minimal `package.json` (`{"name":"bef-sandbox","version":"0.0.0","private":true}`) to the sandbox.
+  After that, `pnpm nx run x:y` resolves `node_modules/.bin/nx` cleanly: logged `nx run x:y`, exit 0, "Tests: 1 collected".
+- **Env knobs honored:** `BEF_NX_EXIT=2 BEF_NX_COLLECTED=7 pnpm nx run a:b` -> exit 2, "Tests: 7 collected".
+
+**Builder requirement (parameterizes `sandbox.mjs`):** the sandbox MUST write a minimal `package.json`
+at its root so `pnpm nx` resolves the stub at `node_modules/.bin/nx`. (No `pnpm` shim needed; the local
+bin is resolved by real pnpm once a manifest exists.) `deploy.sh` is invoked at its in-repo path; `gh`
+is reached via a `.binshim/` (or `.bin/`) dir prepended to the run's PATH.
+
+**Verdict: ACCEPT** - all three ops hit their stubs. The only adjustment vs the plan: add a minimal
+`package.json` to the sandbox (pnpm needs a manifest before it resolves `node_modules/.bin/nx`).
