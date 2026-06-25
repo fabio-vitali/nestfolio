@@ -27,3 +27,20 @@ test('worker honors --fail-cycles=2 (fails twice, ships on 3rd)', () => {
   assert.equal(failed, 2);
   assert.match(readFileSync(join(d, 'm1.md'), 'utf8'), /status: shipped/);
 });
+test('worker honors BEF_WORKER_FAIL_CYCLES from env', () => {
+  const d = setup();
+  let failed = 0;
+  for (let i = 0; i < 2; i++) {
+    try { execFileSync('node', [WORKER, 'm1'], { cwd: d, env: { ...process.env, BEF_WORKER_FAIL_CYCLES: '1' } }); }
+    catch { failed++; }
+  }
+  assert.equal(failed, 1);
+  assert.match(readFileSync(join(d, 'm1.md'), 'utf8'), /status: shipped/);
+});
+test('worker surfaces an in-member fork (env BEF_WORKER_FORK) without shipping', () => {
+  const d = setup();
+  const out = execFileSync('node', [WORKER, 'm1'], { cwd: d, env: { ...process.env, BEF_WORKER_FORK: 'EventNameX' } }).toString();
+  assert.match(out, /<<MEMBER-FORK: symbol=EventNameX>>/);
+  assert.match(readFileSync(join(d, 'm1.md'), 'utf8'), /status: active/);   // NOT shipped — orchestrator must decide
+  assert.match(readFileSync(join(d, 'stubs.log'), 'utf8'), /backlog-next-worker m1/);   // loop still entered
+});

@@ -113,6 +113,8 @@ function defaultRunOne(suite, opts) {
         BEF_GH_PR_STATE: scenario.gh?.prState ?? 'OPEN',
         BEF_NX_EXIT: String(scenario.nx?.exitCode ?? 0),
         BEF_NX_COLLECTED: String(scenario.nx?.collectedCount ?? 1),
+        BEF_WORKER_FAIL_CYCLES: String(scenario.worker?.failCycles ?? 0),
+        BEF_WORKER_FORK: scenario.worker?.fork ?? '',
       };
       // Strip AWS credentials so sandbox runs don't incur real AWS calls.
       for (const k of Object.keys(env)) if (k.startsWith('AWS_')) delete env[k];
