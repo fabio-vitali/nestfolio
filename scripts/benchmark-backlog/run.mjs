@@ -121,7 +121,10 @@ function defaultRunOne(suite, opts) {
         cwd: dir,
         env,
         pauseConvention: PAUSE_CONVENTION,
-        timeoutMs: opts.timeoutMs ?? 300000,
+        // 600s default: the full epic-orchestration path (ship → rebase → resolve, 20+ turns) overran
+        // the old 300s ceiling ~1/3 of the time → spurious terminal=timeout flips. Per-scenario
+        // `timeoutMs` override lets a heavy scenario ask for more without inflating the cheap ones.
+        timeoutMs: scenario.timeoutMs ?? opts.timeoutMs ?? 600000,
       });
       const stubsLog = existsSync(join(dir, 'stubs.log'))
         ? readFileSync(join(dir, 'stubs.log'), 'utf8')
