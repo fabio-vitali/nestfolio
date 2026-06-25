@@ -35,15 +35,29 @@ function copySkill(skillRef, skillName, destSkills) {
   }
 }
 
+/** Extract a `## <heading>` section from text, up to the next `## ` (or EOF). '' if absent. */
+function extractSection(md, heading) {
+  const start = md.indexOf(heading);
+  if (start === -1) return '';
+  const end = md.indexOf('\n## ', start + 1);
+  return md.slice(start, end === -1 ? undefined : end);
+}
+
 /**
- * Extract the ## Backlog Discipline section from CLAUDE.md.
- * Provides skill context without the full monorepo-specific content.
+ * The skill-oriented slice of the real CLAUDE.md the sandbox worker sees:
+ *  - "## Backlog Discipline" — the skills' operating rules.
+ *  - "## Pre-authorized actions" — REQUIRED for a drive-to-ship worker: it tells the worker that
+ *    dev-sandbox deploys (`deploy.sh … --prefix=dev`) and dev e2e gates need no confirmation. Without
+ *    it the headless worker reaches closing-phase 6.4, sees an outward-facing deploy, and PAUSES under
+ *    the pause-convention's irreversible/outward-action clause — so `deploy.sh` never fires and the
+ *    real repo's actual (pre-authorized) behavior is misrepresented. Both sections are real CLAUDE.md
+ *    text, kept faithful rather than paraphrased.
  */
 function extractBacklogDiscipline() {
   const md = readFileSync(join(REPO, 'CLAUDE.md'), 'utf8');
-  const start = md.indexOf('## Backlog Discipline');
-  const end = md.indexOf('\n## ', start + 1);
-  return md.slice(start, end === -1 ? undefined : end);
+  return [extractSection(md, '## Backlog Discipline'), extractSection(md, '## Pre-authorized actions')]
+    .filter(Boolean)
+    .join('\n');
 }
 
 /**
@@ -140,6 +154,12 @@ export async function buildSandbox(scenario, skillRef) {
 
   // trimmed CLAUDE.md — Backlog Discipline section only, keeps skills oriented
   writeFileSync(join(dir, 'CLAUDE.md'), extractBacklogDiscipline());
+
+  // Git-ignore the stub call-log (written to <root>/stubs.log via BEF_STUBS_LOG). Committed in the
+  // baseline so it's ignored on main AND in every worktree branched from it — otherwise the stub
+  // artifact shows as uncommitted dirt and trips the closing-phase postflight [tree-clean] gate (a
+  // drive-to-ship worker had to hand-`.gitignore` it mid-run). The grader reads this same path.
+  writeFileSync(join(dir, '.gitignore'), 'stubs.log\n');
 
   // baseline commit + push so origin/main exists (enables resume)
   git(dir, 'add', '-A');

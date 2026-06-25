@@ -1,4 +1,4 @@
 #!/usr/bin/env bash
-echo "nx $*" >> stubs.log
+echo "nx $*" >> "${BEF_STUBS_LOG:-stubs.log}"
 echo "Tests: ${BEF_NX_COLLECTED:-1} collected"
 exit "${BEF_NX_EXIT:-0}"

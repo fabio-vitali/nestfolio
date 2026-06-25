@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-echo "gh $*" >> stubs.log
+echo "gh $*" >> "${BEF_STUBS_LOG:-stubs.log}"
 # emit canned state from env so scenarios can drive PR state
 # NOTE: case-match assumes 'gh pr view ... --json state' and 'gh pr create' arg order
 case "$*" in

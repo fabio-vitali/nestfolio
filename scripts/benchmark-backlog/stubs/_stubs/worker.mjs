@@ -11,7 +11,9 @@ const failCycles = Number(argCycles ? argCycles.split('=')[1] : (process.env.BEF
 // orchestrator auto-resolves and re-drives the member, the 2nd cycle ships normally.
 const argFork = process.argv.find((a) => a.startsWith('--fork='));
 const fork = argFork ? argFork.split('=')[1] : (process.env.BEF_WORKER_FORK ?? '');
-appendFileSync('stubs.log', `backlog-next-worker ${id}\n`);
+// BEF_STUBS_LOG (absolute, sandbox-root) so a member-loop call from inside the epic worktree is visible
+// to the grader and survives worktree removal; relative fallback for the unit suite.
+appendFileSync(process.env.BEF_STUBS_LOG ?? 'stubs.log', `backlog-next-worker ${id}\n`);
 const statePath = '.worker-state.json';
 const state = existsSync(statePath) ? JSON.parse(readFileSync(statePath, 'utf8')) : {};
 state[id] = (state[id] ?? 0) + 1;

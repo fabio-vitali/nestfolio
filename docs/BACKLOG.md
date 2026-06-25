@@ -194,7 +194,7 @@ rollup: core 0/3 done · captured 0/0 done
 - core · parking · [portfolio-drift-detected-registry-collision](backlog/portfolio-drift-detected-registry-collision.md)
 - core · parking · [weight-drift-detector](backlog/weight-drift-detector.md)
 
-**Parking health:** 29 theme epic(s), 15 orphan(s) — drive orphans → 0 with `/backlog-themes`
+**Parking health:** 29 theme epic(s), 16 orphan(s) — drive orphans → 0 with `/backlog-themes`
 
 ## ACTIVE
 
@@ -210,6 +210,7 @@ _(none)_
 
 - [agent-tracer-bedrock-converse-token-extraction](backlog/agent-tracer-bedrock-converse-token-extraction.md) [bug] — AgentTracer.handleLLMEnd returns 0 input/output tokens for ChatBedrockConverse — usage field path mismatch. Diagnostic envelopes lose cost/decode signal.
 - [backlog-eval-framework-baseline-run](backlog/backlog-eval-framework-baseline-run.md) [tooling] — Run the full 3-iteration baseline over the 52-scenario corpus via `/benchmark-backlog rebaseline` to establish the regression reference for backlog-skills-simplification. Deferred Task 17 of the backlog-eval-framework plan — split out of backlog-eval-framework-full-corpus per the 2026-06-25 cost-floor decision (a single full-corpus run is ~tens of millions of tokens; each backlog-next-epic scenario ≈1.7–3M). Cost-gated: run only when the budget is being deliberately spent, before backlog-skills-simplification starts.
+- [bef-finishing-stub-drive-to-ship](backlog/bef-finishing-stub-drive-to-ship.md) [tooling] — Stub finishing-a-development-branch in the bef sandbox so drive-to-ship workers route to it instead of reimplementing the merge (the self-merge anti-pattern), enabling a faithful no-self-merge gate.
 - [bef-resume-partial-scenario-flaky](backlog/bef-resume-partial-scenario-flaky.md) [bug] — bne-resume-partial eval scenario is flaky (rubric 1/5↔4/5, worker flails 35-43 turns on epic resume); rubricGate:4 exposed it.
 - [broker-ctrl-alpaca-funding-carrier-pk-divergence](backlog/broker-ctrl-alpaca-funding-carrier-pk-divergence.md) [bug] — Live/ALPACA funding: router keys requested carrier on depositId/withdrawalId but completion normalizer keys on transferId — carry-forward misses if they differ (degrades gracefully). Sim path unaffected.
 - [bump-tsconfig-es2022-to-es2023](backlog/bump-tsconfig-es2022-to-es2023.md) [tooling] — Enable .toSpliced/.toReversed/.with workspace-wide; promote on second use case.

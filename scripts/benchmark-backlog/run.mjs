@@ -112,6 +112,10 @@ function defaultRunOne(suite, opts) {
         ...process.env,
         PATH: `${join(dir, '.bin')}:${process.env.PATH}`,
         NESTFOLIO_MEMORY_DIR: join(dir, '.mem'),
+        // Absolute, sandbox-root, git-ignored stub call-log — location-independent (a deploy/gh/worker
+        // call from inside a worktree still lands here) and survives 6.8 worktree removal. grade.mjs
+        // reads join(dir, 'stubs.log').
+        BEF_STUBS_LOG: join(dir, 'stubs.log'),
         BEF_GH_PR_STATE: scenario.gh?.prState ?? 'OPEN',
         BEF_NX_EXIT: String(scenario.nx?.exitCode ?? 0),
         BEF_NX_COLLECTED: String(scenario.nx?.collectedCount ?? 1),
