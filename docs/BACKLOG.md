@@ -8,10 +8,10 @@
 
 ### [backlog-eval-framework-remaining](backlog/backlog-eval-framework-remaining.md) `[epic · active]` — Remaining work on the backlog-eval-framework (benchmark-backlog) harness after the shipped design + proven core (PR #24) + the backlog-eval-framework-usable milestone: the Phase-6 full corpus + /benchmark-backlog skill surface, plus two core-harness tooling defects. Theme epic, 3 members.
 done_when: The backlog-eval-framework reaches its full spec'd scenario corpus + /benchmark-backlog skill surface AND its two core-harness tooling defects (mis-calibrated firstTurnProseTokens proxy, leaked TMPDIR scratch dirs) are resolved or dropped; all members shipped or dropped.
-rollup: core 0/3 done · captured 0/0 done
-- core · active · [backlog-eval-framework-full-corpus](backlog/backlog-eval-framework-full-corpus.md)
+rollup: core 1/3 done · captured 0/0 done
 - core · parking · [bef-prose-token-proxy-miscalibrated](backlog/bef-prose-token-proxy-miscalibrated.md)
 - core · parking · [bef-unit-tests-leak-tmpdirs](backlog/bef-unit-tests-leak-tmpdirs.md)
+- core · shipped · [backlog-eval-framework-full-corpus](backlog/backlog-eval-framework-full-corpus.md)
 
 ### [advisory-narrative-memory-read-latency](backlog/advisory-narrative-memory-read-latency.md) `[epic · parking]` — advisory-narrative-ctrl blocks on AgentCore Memory reads before writing its observable HEAD row → 30-40s integration tests. Theme epic, 2 members.
 done_when: advisory-narrative-ctrl's observable HEAD row is visible to tests in ~5-10s (eager write and/or tightened Memory-retry delays) with no dev/prod consistency skew; both members shipped or dropped.
@@ -201,7 +201,7 @@ rollup: core 0/3 done · captured 0/0 done
 - core · parking · [portfolio-drift-detected-registry-collision](backlog/portfolio-drift-detected-registry-collision.md)
 - core · parking · [weight-drift-detector](backlog/weight-drift-detector.md)
 
-**Parking health:** 29 theme epic(s), 13 orphan(s) — drive orphans → 0 with `/backlog-themes`
+**Parking health:** 29 theme epic(s), 14 orphan(s) — drive orphans → 0 with `/backlog-themes`
 
 ## ACTIVE
 
@@ -216,6 +216,7 @@ _(none)_
 ## LATER
 
 - [agent-tracer-bedrock-converse-token-extraction](backlog/agent-tracer-bedrock-converse-token-extraction.md) [bug] — AgentTracer.handleLLMEnd returns 0 input/output tokens for ChatBedrockConverse — usage field path mismatch. Diagnostic envelopes lose cost/decode signal.
+- [backlog-eval-framework-baseline-run](backlog/backlog-eval-framework-baseline-run.md) [tooling] — Run the full 3-iteration baseline over the 52-scenario corpus via `/benchmark-backlog rebaseline` to establish the regression reference for backlog-skills-simplification. Deferred Task 17 of the backlog-eval-framework plan — split out of backlog-eval-framework-full-corpus per the 2026-06-25 cost-floor decision (a single full-corpus run is ~tens of millions of tokens; each backlog-next-epic scenario ≈1.7–3M). Cost-gated: run only when the budget is being deliberately spent, before backlog-skills-simplification starts.
 - [broker-ctrl-alpaca-funding-carrier-pk-divergence](backlog/broker-ctrl-alpaca-funding-carrier-pk-divergence.md) [bug] — Live/ALPACA funding: router keys requested carrier on depositId/withdrawalId but completion normalizer keys on transferId — carry-forward misses if they differ (degrades gracefully). Sim path unaffected.
 - [bump-tsconfig-es2022-to-es2023](backlog/bump-tsconfig-es2022-to-es2023.md) [tooling] — Enable .toSpliced/.toReversed/.with workspace-wide; promote on second use case.
 - [execution-ctrl-mandate-recheck-order-boundary](backlog/execution-ctrl-mandate-recheck-order-boundary.md) [refactor] — Defense-in-depth — re-read mandate before broker submission on L1 auto-execute.
@@ -231,6 +232,7 @@ _(none)_
 
 ## Recently Shipped (last 10)
 
+- 2026-06-25 — [backlog-eval-framework-full-corpus](backlog/backlog-eval-framework-full-corpus.md) [tooling] — Phase 6 of backlog-eval-framework: the /benchmark-backlog skill surface + the full ~50-scenario corpus (per-skill coverage enumerated in the spec). Builds on the proven core (PR #24) and the backlog-eval-framework-usable milestone. `[epic:backlog-eval-framework-remaining · core]`
 - 2026-06-25 — [backlog-eval-framework-usable](backlog/backlog-eval-framework-usable.md) [tooling] — Finish backlog-eval-framework so it can actually guard backlog-skills-simplification: harden next-lane+e8-conflict (rubricGate + deterministic proxies; e8 no-pre-ship setup + portable SUPERPOWERS path), commit a baseline.json, run the oracle-teeth (Task 14). Core harness shipped in PR #24.
 - 2026-06-24 — [backlog-eval-framework](backlog/backlog-eval-framework.md) [design] — Evaluation framework for the backlog skill suite — decision-point evals run via headless `claude -p` against sandboxed synthetic backlog states + op-stubs, graded by golden assertions + call-log invariants + an LLM judge, measuring quality / cost / latency with a committed baseline + A/B compare mode. Built to prove `backlog-skills-simplification` regresses no behavior and adds value. HIGH coverage on backlog-next-epic (resume gate + merge-ownership + ship-preconditions = γ's blast radius).
 - 2026-06-24 — [backlog-next-epic-severity-selection](backlog/backlog-next-epic-severity-selection.md) [tooling] — /backlog-next-epic ranks its candidate list by impact (default) or free-text --like criterion, computed AT SELECTION TIME (no stored severity field), surfaced ranked-with-reasons for human confirm.
@@ -240,4 +242,3 @@ _(none)_
 - 2026-06-22 — [backlog-skills-misc-polish](backlog/backlog-skills-misc-polish.md) [tooling] — Low-severity perf/prose singletons from the 2026-06-22 skills audit: lint --fix spawns ~388 git subprocesses/run; BACKLOG.md date drifts across midnight; node --test <dir> fails on Node 24 + non-hermetic render tests; --auto debug budget is a magic number; E1 rule-11 guard is prose-only. `[epic:backlog-skills-hardening · core]`
 - 2026-06-22 — [cdk-bundle-staleness-deploy-integrity](backlog/cdk-bundle-staleness-deploy-integrity.md) [tooling] — Hypothesis: 2026-05-13 dev-investor-bff deploy produced a Lambda bundle whose change-data-capture.ts logic lagged behind source. Surfaced via update-operating-mode-cdc-silent. Need a deploy-time integrity check that the bundle's resolveEmissions actually matches the EVENT_TYPE_MAP shape it'll be asked to process. Resolution (epic --auto, user-confirmed): runtime config-vs-capability INIT guard in changeDataCapture (RC0 blast radius), not the build-stamp/post-deploy-grep alternatives. `[epic:deploy-tooling-integrity · core]`
 - 2026-06-22 — [deploy-tooling-integrity](backlog/deploy-tooling-integrity.md) [epic] — Deploy/derivation gating + bundle-freshness tooling can silently do the wrong thing — test-only/harness-lib changes mis-gate; a frontend change returns empty services; doc-derivation always reports on resume; deployed bundles can lag source. Theme epic (loose: deploy-decision + doc-derivation + artifact freshness), 4 members.
-- 2026-06-22 — [detect-deploy-fanout-and-empty-services](backlog/detect-deploy-fanout-and-empty-services.md) [tooling] — detect-deploy-needed.mjs is wrong two ways for E6's --services=<from-detect>: a test-only harness-lib change (test-support) fans out to its full dependent closure (27 services), and a frontend/libs/ui change returns deploy=true with empty services=[] (resolver filters to root.startsWith('services/')) → silent deploy no-op against stale code. `[epic:deploy-tooling-integrity · core]`
