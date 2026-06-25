@@ -9,5 +9,9 @@ export default {
   terminal: 'pause',
   // It picks the next OPEN member but is denied the worker that would log 'backlog-next-worker'.
   state: { memberLoopEntered: false },
+  // rubricGate: "didn't enter the member loop" alone can't tell a correct resume (picked beta-3) from a
+  // wrong one (restarted at beta-1 but was denied the worker before logging) — gate the judge on the
+  // actual resume correctness. (review rec 2)
+  rubricGate: 4,
   rubric: ['Did it resume the active epic without re-promoting or re-creating the branch, and select the next OPEN member (the only non-shipped one) rather than restarting from the first?'],
 };

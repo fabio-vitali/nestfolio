@@ -5,5 +5,9 @@ export default {
   fixture: 'no-epics', prompt: '/backlog-next-epic',
   terminal: 'pause',
   state: { branchCreated: false, memberLoopEntered: false },
+  // rubricGate: the deterministic proxy (no branch, no member loop) can't distinguish "reported no
+  // epics and stopped" from "stopped for an unrelated reason" — gate the judge so the discriminating
+  // behavior this scenario exists to test must score ≥4 to pass. (review rec 2)
+  rubricGate: 4,
   rubric: ['With zero epics available, did it report there are no epics to run and STOP, rather than inventing or promoting a non-epic item?'],
 };

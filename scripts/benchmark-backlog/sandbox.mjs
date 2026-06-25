@@ -113,6 +113,17 @@ export async function buildSandbox(scenario, skillRef) {
   cpSync(join(HERE, 'stubs/nx'), join(dir, 'node_modules/.bin/nx'));
   chmodSync(join(dir, 'node_modules/.bin/nx'), 0o755);
 
+  // tools/affected-projects.mjs — the true-affected resolver. A drive-to-ship scenario's worker reaches
+  // the closing phase, where detect-deploy-needed.mjs STATICALLY imports this at module load (and the
+  // 6.2/6.4 `nx run-many` commands shell out to it). Without it, `node detect-deploy-needed.mjs` throws
+  // ERR_MODULE_NOT_FOUND before main() runs → the deploy gate never fires (a crash, not exit 0/10).
+  // loadGraph() still fails inside the sandbox (no real nx graph) but that's try/caught → path-extracted
+  // services. It's harness scaffolding (node-builtin imports only), copied ref-agnostically like the
+  // stubs — only the skill-under-test is copied ref-aware. Classification-only scenarios stop before
+  // the closing phase and never touch it.
+  mkdirSync(join(dir, 'tools'), { recursive: true });
+  cpSync(join(REPO, 'tools/affected-projects.mjs'), join(dir, 'tools/affected-projects.mjs'));
+
   // The backlog skills' only npm dependency is `yaml` (zero-dep), used by backlog-lint to parse
   // frontmatter. Symlink it from the main repo so the skill's `lint --fix` resolves `import 'yaml'`
   // via node_modules traversal — without a full node_modules symlink (which would shadow the nx stub)

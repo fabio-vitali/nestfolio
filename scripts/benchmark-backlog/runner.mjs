@@ -34,13 +34,30 @@ export function parseStreamJson(lines) {
   };
 }
 
-// Live invocation. Uses the flags confirmed in Task 0.1/0.4. timeoutMs → terminalKind:'timeout'.
-export async function runScenario(scenario, skillRef, runnerOpts) {
-  const { model, timeoutMs = 240000, cwd, env, pauseConvention } = runnerOpts;
+// Pure arg builder (unit-tested in test/runner-args.test.mjs) — kept separate from the spawn so the
+// flag list is verifiable without a live `claude`.
+export function buildClaudeArgs(scenario, runnerOpts) {
+  const { model, pauseConvention } = runnerOpts;
   const args = ['-p', scenario.prompt, '--print', '--verbose', '--output-format', 'stream-json',
     '--setting-sources', 'project', '--strict-mcp-config', '--model', model,
     '--append-system-prompt', pauseConvention,
     '--allowedTools', ['Bash', 'Read', 'Write', 'Edit', 'Glob', 'Grep', 'Skill'].join(' ')];
+  // Per-scenario subskill denial → --disallowedTools (deny precedes allow in Claude Code permissions,
+  // so a specific Skill(name) deny overrides the general Skill allow above). The entries are already
+  // tool-permission patterns (e.g. 'Skill(superpowers:finishing-a-development-branch)'); they BOUND
+  // where a worker stops — a classification-only scenario denies the downstream routing skills so it
+  // pauses at the seam instead of running the whole ship; a drive-to-ship scenario denies only the
+  // finishing skill so it pauses AFTER the deploy. Previously this field was read by no one (the worker
+  // kept full Skill access), so those scenarios stopped for an unintended reason. One space-joined arg
+  // mirrors --allowedTools. See docs/reviews/2026-06-25-backlog-eval-framework-review.md (rec 3).
+  if (scenario.denySubskills?.length) args.push('--disallowedTools', scenario.denySubskills.join(' '));
+  return args;
+}
+
+// Live invocation. Uses the flags confirmed in Task 0.1/0.4. timeoutMs → terminalKind:'timeout'.
+export async function runScenario(scenario, skillRef, runnerOpts) {
+  const { timeoutMs = 240000, cwd, env } = runnerOpts;
+  const args = buildClaudeArgs(scenario, runnerOpts);
   return await new Promise((resolve) => {
     const lines = []; let timedOut = false; let errBuf = '';
     const child = spawn('claude', args, { cwd, env });
