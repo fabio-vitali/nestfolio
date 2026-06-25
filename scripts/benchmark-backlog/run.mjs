@@ -17,25 +17,44 @@ export async function runMode(mode, opts, suite) {
   const scenarios = suite.scenarios.filter(
     (s) => (!opts.skill || s.skill === opts.skill) && (!only || only.has(s.id)),
   );
+  // Each scenario is isolated in try/catch: a hard failure (sandbox build, spawn, etc.) is recorded as
+  // a failure row and the sweep CONTINUES — one scenario must never abort the whole baseline (a single
+  // uncaught judge-parse error once lost ~18 runs of quota). A stderr progress line makes the otherwise
+  // print-only-at-end run observable mid-flight.
+  const progress = (msg) => process.stderr.write(`[bef] ${msg}\n`);
   if (mode === 'compare') {
     const rows = [];
     for (const s of scenarios) {
-      const a = [], b = [];
-      // Interleave: A,B,A,B… per iteration so temporal drift is balanced across both variants.
-      for (let i = 0; i < iterations; i++) {
-        a.push(await runOne(s, opts.refA));
-        b.push(await runOne(s, opts.refB));
+      progress(`compare ${s.id} (${opts.refA} vs ${opts.refB}) x${iterations}`);
+      try {
+        const a = [], b = [];
+        // Interleave: A,B,A,B… per iteration so temporal drift is balanced across both variants.
+        for (let i = 0; i < iterations; i++) {
+          a.push(await runOne(s, opts.refA));
+          b.push(await runOne(s, opts.refB));
+        }
+        rows.push({ id: s.id, a: aggregate(a), b: aggregate(b) });
+      } catch (e) {
+        progress(`compare ${s.id} ERRORED: ${e?.message ?? e}`);
+        rows.push({ id: s.id, error: String(e?.message ?? e) });
       }
-      rows.push({ id: s.id, a: aggregate(a), b: aggregate(b) });
     }
     return rows;
   }
   // regression / rebaseline: run each scenario N times
   const rows = [];
   for (const s of scenarios) {
-    const runs = [];
-    for (let i = 0; i < iterations; i++) runs.push(await runOne(s, opts.ref ?? 'HEAD'));
-    rows.push({ id: s.id, ...aggregate(runs) });
+    progress(`regression ${s.id} x${iterations}`);
+    try {
+      const runs = [];
+      for (let i = 0; i < iterations; i++) runs.push(await runOne(s, opts.ref ?? 'HEAD'));
+      const row = { id: s.id, ...aggregate(runs) };
+      progress(`regression ${s.id} → gatePassRate=${row.gatePassRate} flip=${row.anyGateFlip}`);
+      rows.push(row);
+    } catch (e) {
+      progress(`regression ${s.id} ERRORED: ${e?.message ?? e}`);
+      rows.push({ id: s.id, gatePassRate: 0, anyGateFlip: false, error: String(e?.message ?? e) });
+    }
   }
   return rows;
 }
