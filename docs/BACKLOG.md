@@ -9,7 +9,7 @@
 ### [backlog-eval-framework-remaining](backlog/backlog-eval-framework-remaining.md) `[epic · active]` — Remaining work on the backlog-eval-framework (benchmark-backlog) harness after the shipped design + proven core (PR #24) + the backlog-eval-framework-usable milestone: the Phase-6 full corpus + /benchmark-backlog skill surface, plus two core-harness tooling defects. Theme epic, 3 members.
 done_when: The backlog-eval-framework reaches its full spec'd scenario corpus + /benchmark-backlog skill surface AND its two core-harness tooling defects (mis-calibrated firstTurnProseTokens proxy, leaked TMPDIR scratch dirs) are resolved or dropped; all members shipped or dropped.
 rollup: core 2/3 done · captured 0/0 done
-- core · parking · [bef-unit-tests-leak-tmpdirs](backlog/bef-unit-tests-leak-tmpdirs.md)
+- core · active · [bef-unit-tests-leak-tmpdirs](backlog/bef-unit-tests-leak-tmpdirs.md)
 - core · shipped · [backlog-eval-framework-full-corpus](backlog/backlog-eval-framework-full-corpus.md)
 - core · shipped · [bef-prose-token-proxy-miscalibrated](backlog/bef-prose-token-proxy-miscalibrated.md)
 
