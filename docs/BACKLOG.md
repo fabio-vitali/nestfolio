@@ -6,13 +6,6 @@
 
 ## EPICS
 
-### [backlog-eval-framework-remaining](backlog/backlog-eval-framework-remaining.md) `[epic · active]` — Remaining work on the backlog-eval-framework (benchmark-backlog) harness after the shipped design + proven core (PR #24) + the backlog-eval-framework-usable milestone: the Phase-6 full corpus + /benchmark-backlog skill surface, plus two core-harness tooling defects. Theme epic, 3 members.
-done_when: The backlog-eval-framework reaches its full spec'd scenario corpus + /benchmark-backlog skill surface AND its two core-harness tooling defects (mis-calibrated firstTurnProseTokens proxy, leaked TMPDIR scratch dirs) are resolved or dropped; all members shipped or dropped.
-rollup: core 3/3 done · captured 0/0 done
-- core · shipped · [backlog-eval-framework-full-corpus](backlog/backlog-eval-framework-full-corpus.md)
-- core · shipped · [bef-prose-token-proxy-miscalibrated](backlog/bef-prose-token-proxy-miscalibrated.md)
-- core · shipped · [bef-unit-tests-leak-tmpdirs](backlog/bef-unit-tests-leak-tmpdirs.md)
-
 ### [advisory-narrative-memory-read-latency](backlog/advisory-narrative-memory-read-latency.md) `[epic · parking]` — advisory-narrative-ctrl blocks on AgentCore Memory reads before writing its observable HEAD row → 30-40s integration tests. Theme epic, 2 members.
 done_when: advisory-narrative-ctrl's observable HEAD row is visible to tests in ~5-10s (eager write and/or tightened Memory-retry delays) with no dev/prod consistency skew; both members shipped or dropped.
 rollup: core 0/2 done · captured 0/0 done
@@ -233,6 +226,7 @@ _(none)_
 ## Recently Shipped (last 10)
 
 - 2026-06-25 — [backlog-eval-framework-full-corpus](backlog/backlog-eval-framework-full-corpus.md) [tooling] — Phase 6 of backlog-eval-framework: the /benchmark-backlog skill surface + the full ~50-scenario corpus (per-skill coverage enumerated in the spec). Builds on the proven core (PR #24) and the backlog-eval-framework-usable milestone. `[epic:backlog-eval-framework-remaining · core]`
+- 2026-06-25 — [backlog-eval-framework-remaining](backlog/backlog-eval-framework-remaining.md) [epic] — Remaining work on the backlog-eval-framework (benchmark-backlog) harness after the shipped design + proven core (PR #24) + the backlog-eval-framework-usable milestone: the Phase-6 full corpus + /benchmark-backlog skill surface, plus two core-harness tooling defects. Theme epic, 3 members.
 - 2026-06-25 — [backlog-eval-framework-usable](backlog/backlog-eval-framework-usable.md) [tooling] — Finish backlog-eval-framework so it can actually guard backlog-skills-simplification: harden next-lane+e8-conflict (rubricGate + deterministic proxies; e8 no-pre-ship setup + portable SUPERPOWERS path), commit a baseline.json, run the oracle-teeth (Task 14). Core harness shipped in PR #24.
 - 2026-06-25 — [bef-prose-token-proxy-miscalibrated](backlog/bef-prose-token-proxy-miscalibrated.md) [tooling] — benchmark-backlog firstTurnProseTokens reads a hardcoded turn index (1) but the skill loads at a later turn, so it misses skill-load prose changes; it also only captures the one-time load, not the amortized cache-re-read cost. Use tokens.total (the working value signal) or recalibrate to the real skill-load turn. `[epic:backlog-eval-framework-remaining · core]`
 - 2026-06-25 — [bef-unit-tests-leak-tmpdirs](backlog/bef-unit-tests-leak-tmpdirs.md) [tooling] — benchmark-backlog unit tests (grade-golden, grade-invariants, worker, sandbox) mkdtempSync throwaway dirs but never clean them up, so TMPDIR accumulates ~hundreds of bef-* dirs across runs. Add afterEach/try-finally cleanup. `[epic:backlog-eval-framework-remaining · core]`
@@ -241,4 +235,3 @@ _(none)_
 - 2026-06-23 — [test-integration-parallel-dns-exhaustion](backlog/test-integration-parallel-dns-exhaustion.md) [tooling] — run-many -t test-integration at full parallelism exhausts the macOS DNS resolver (getaddrinfo ENOTFOUND) → false reds; recovers at --parallel=1. Fix: a process-wide dns.lookup retry (installDnsResilience) installed once per worker from the integration Jest setup — covers AWS SDK + fetch uniformly at the DNS layer.
 - 2026-06-22 — [auto-decision-discipline-and-merge-ownership](backlog/auto-decision-discipline-and-merge-ownership.md) [tooling] — --auto floor is prose-only + over-broad, and the epic close self-merged the PR on a bare 'go'. Make the floor a decidable scope test surfaced via AskUserQuestion; the close ALWAYS stops at an open PR (cleanup worktree + print PR link), never self-merges. `[epic:backlog-skills-hardening · core]`
 - 2026-06-22 — [backlog-skills-hardening](backlog/backlog-skills-hardening.md) [epic] — Bulletproof the /backlog-next-epic orchestrator + /backlog-next worker workflows. Theme epic aggregating the confirmed weaknesses from the 2026-06-22 skills audit (docs/reviews/2026-06-22-backlog-skills-audit.md), surfaced by the first real --auto epic run (order-execution-money-path, merge #20). 6 core members.
-- 2026-06-22 — [backlog-skills-misc-polish](backlog/backlog-skills-misc-polish.md) [tooling] — Low-severity perf/prose singletons from the 2026-06-22 skills audit: lint --fix spawns ~388 git subprocesses/run; BACKLOG.md date drifts across midnight; node --test <dir> fails on Node 24 + non-hermetic render tests; --auto debug budget is a magic number; E1 rule-11 guard is prose-only. `[epic:backlog-skills-hardening · core]`
