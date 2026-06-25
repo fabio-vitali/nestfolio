@@ -1,6 +1,6 @@
 ---
 id: backlog-eval-framework-remaining
-status: parking
+status: active
 type: epic
 notes: "Remaining work on the backlog-eval-framework (benchmark-backlog) harness after the shipped design + proven core (PR #24) + the backlog-eval-framework-usable milestone: the Phase-6 full corpus + /benchmark-backlog skill surface, plus two core-harness tooling defects. Theme epic, 3 members."
 done_when: "The backlog-eval-framework reaches its full spec'd scenario corpus + /benchmark-backlog skill surface AND its two core-harness tooling defects (mis-calibrated firstTurnProseTokens proxy, leaked TMPDIR scratch dirs) are resolved or dropped; all members shipped or dropped."
