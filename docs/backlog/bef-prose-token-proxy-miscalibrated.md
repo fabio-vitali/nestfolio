@@ -1,6 +1,7 @@
 ---
 id: bef-prose-token-proxy-miscalibrated
-status: active
+status: shipped
+closed: 2026-06-25
 type: tooling
 notes: "benchmark-backlog firstTurnProseTokens reads a hardcoded turn index (1) but the skill loads at a later turn, so it misses skill-load prose changes; it also only captures the one-time load, not the amortized cache-re-read cost. Use tokens.total (the working value signal) or recalibrate to the real skill-load turn."
 references: []
@@ -11,7 +12,7 @@ out_of_scope:
   - "Recalibrating firstTurnProseTokens to detect the real skill-load turn (the rejected fork option — even corrected it captures only one-time load, not the amortized re-read cost that IS the prose-size impact). tokens.total already measures the amortized cost correctly."
   - "Regenerating baseline.json numbers via a full rebaseline run (deferred, budgeted /benchmark-backlog rebaseline) — this member only strips the now-vestigial field from the committed snapshot."
   - "Rewriting the point-in-time implementation plan (docs/superpowers/plans/2026-06-24-backlog-eval-framework.md) or archival spike notes (spike/findings.md), which are historical records."
-validation_gate: null
+validation_gate: "Resolved by DEPRECATING the proxy in favour of tokens.total (fork auto-resolved, blast-radius clear; logged in epic run-state decisions[]). Removed firstTurnProseTokens from cost.mjs/run.mjs; report.mjs renders tokens.total as the totTok column and the compare value verdict keys off tokens.total; baseline.json stripped of the vestigial field; SKILL.md + oracle-teeth.md updated. node:test suite green 56/56 (TRUE_EXIT=0) — fix commit dce253c1. Tier-0 (scripts/**), no deploy/e2e needed for this member; batched e2e runs once at epic pre-done (E6)."
 epic: backlog-eval-framework-remaining
 epic_role: core
 ---
