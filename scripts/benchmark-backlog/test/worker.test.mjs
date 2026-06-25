@@ -1,13 +1,17 @@
-import { test } from 'node:test';
+import { test, after } from 'node:test';
 import assert from 'node:assert/strict';
-import { mkdtempSync, writeFileSync, readFileSync, existsSync } from 'node:fs';
+import { mkdtempSync, writeFileSync, readFileSync, existsSync, rmSync } from 'node:fs';
 import { execFileSync } from 'node:child_process';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
 const WORKER = new URL('../stubs/_stubs/worker.mjs', import.meta.url).pathname;
+// Track every throwaway dir and rm them after the suite so the tests don't pile up bef-* dirs in $TMPDIR.
+const tmpDirs = [];
+after(() => { for (const d of tmpDirs) rmSync(d, { recursive: true, force: true }); });
+
 function setup() {
-  const d = mkdtempSync(join(tmpdir(), 'bef-w-'));
+  const d = mkdtempSync(join(tmpdir(), 'bef-w-')); tmpDirs.push(d);
   writeFileSync(join(d, 'm1.md'), '---\nid: m1\nstatus: active\nepic: e\nepic_role: core\n---\n# M1\n');
   return d;
 }

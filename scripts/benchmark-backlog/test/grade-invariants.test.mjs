@@ -1,13 +1,17 @@
-import { test } from 'node:test';
+import { test, after } from 'node:test';
 import assert from 'node:assert/strict';
-import { mkdtempSync, mkdirSync } from 'node:fs';
+import { mkdtempSync, mkdirSync, rmSync } from 'node:fs';
 import { execFileSync } from 'node:child_process';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { gradeInvariants } from '../grade.mjs';
 
+// Track every throwaway git repo and rm them after the suite so the tests don't pile up bef-* dirs in $TMPDIR.
+const tmpDirs = [];
+after(() => { for (const d of tmpDirs) rmSync(d, { recursive: true, force: true }); });
+
 function repo() {
-  const d = mkdtempSync(join(tmpdir(), 'bef-i-')); execFileSync('git', ['init', '-q'], { cwd: d });
+  const d = mkdtempSync(join(tmpdir(), 'bef-i-')); tmpDirs.push(d); execFileSync('git', ['init', '-q'], { cwd: d });
   execFileSync('git', ['-c', 'user.email=a@b', '-c', 'user.name=a', 'commit', '--allow-empty', '-q', '-m', 'x'], { cwd: d });
   return d;
 }
@@ -24,7 +28,7 @@ test('state.branchAbsent passes when branch does not exist', () => {
   assert.equal(r.pass, true);
 });
 test('state.branchCreated reflects whether a non-main branch exists (Complex-adoption proxy)', () => {
-  const d = mkdtempSync(join(tmpdir(), 'bef-i-'));
+  const d = mkdtempSync(join(tmpdir(), 'bef-i-')); tmpDirs.push(d);
   execFileSync('git', ['init', '-q', '-b', 'main'], { cwd: d });
   execFileSync('git', ['-c', 'user.email=a@b', '-c', 'user.name=a', 'commit', '--allow-empty', '-q', '-m', 'x'], { cwd: d });
   // only `main` → no isolation branch → branchCreated:true must FAIL, branchCreated:false passes
