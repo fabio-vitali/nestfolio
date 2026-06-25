@@ -1,12 +1,16 @@
 ---
 id: bef-prose-token-proxy-miscalibrated
-status: parking
+status: active
 type: tooling
 notes: "benchmark-backlog firstTurnProseTokens reads a hardcoded turn index (1) but the skill loads at a later turn, so it misses skill-load prose changes; it also only captures the one-time load, not the amortized cache-re-read cost. Use tokens.total (the working value signal) or recalibrate to the real skill-load turn."
 references: []
 spec: null
 plan: null
 topic_memory: [project_backlog_eval_framework.md]
+out_of_scope:
+  - "Recalibrating firstTurnProseTokens to detect the real skill-load turn (the rejected fork option — even corrected it captures only one-time load, not the amortized re-read cost that IS the prose-size impact). tokens.total already measures the amortized cost correctly."
+  - "Regenerating baseline.json numbers via a full rebaseline run (deferred, budgeted /benchmark-backlog rebaseline) — this member only strips the now-vestigial field from the committed snapshot."
+  - "Rewriting the point-in-time implementation plan (docs/superpowers/plans/2026-06-24-backlog-eval-framework.md) or archival spike notes (spike/findings.md), which are historical records."
 validation_gate: null
 epic: backlog-eval-framework-remaining
 epic_role: core
