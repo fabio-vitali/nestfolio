@@ -186,7 +186,7 @@ rollup: core 0/3 done · captured 0/0 done
 - core · parking · [portfolio-drift-detected-registry-collision](backlog/portfolio-drift-detected-registry-collision.md)
 - core · parking · [weight-drift-detector](backlog/weight-drift-detector.md)
 
-**Parking health:** 28 theme epic(s), 17 orphan(s) — drive orphans → 0 with `/backlog-themes`
+**Parking health:** 28 theme epic(s), 19 orphan(s) — drive orphans → 0 with `/backlog-themes`
 
 ## ACTIVE
 
@@ -201,6 +201,8 @@ _(none)_
 
 - [agent-tracer-bedrock-converse-token-extraction](backlog/agent-tracer-bedrock-converse-token-extraction.md) [bug] — AgentTracer.handleLLMEnd returns 0 input/output tokens for ChatBedrockConverse — usage field path mismatch. Diagnostic envelopes lose cost/decode signal.
 - [backlog-eval-framework-full-corpus](backlog/backlog-eval-framework-full-corpus.md) [tooling] — Phase 6 of backlog-eval-framework: the /benchmark-backlog skill surface + the full ~50-scenario corpus (per-skill coverage enumerated in the spec). Builds on the proven core (PR #24) and the backlog-eval-framework-usable milestone.
+- [bef-prose-token-proxy-miscalibrated](backlog/bef-prose-token-proxy-miscalibrated.md) [tooling] — benchmark-backlog firstTurnProseTokens reads a hardcoded turn index (1) but the skill loads at a later turn, so it misses skill-load prose changes; it also only captures the one-time load, not the amortized cache-re-read cost. Use tokens.total (the working value signal) or recalibrate to the real skill-load turn.
+- [bef-unit-tests-leak-tmpdirs](backlog/bef-unit-tests-leak-tmpdirs.md) [tooling] — benchmark-backlog unit tests (grade-golden, grade-invariants, worker, sandbox) mkdtempSync throwaway dirs but never clean them up, so TMPDIR accumulates ~hundreds of bef-* dirs across runs. Add afterEach/try-finally cleanup.
 - [broker-ctrl-alpaca-funding-carrier-pk-divergence](backlog/broker-ctrl-alpaca-funding-carrier-pk-divergence.md) [bug] — Live/ALPACA funding: router keys requested carrier on depositId/withdrawalId but completion normalizer keys on transferId — carry-forward misses if they differ (degrades gracefully). Sim path unaffected.
 - [broker-ctrl-sim-funding-subject-suffix-rename](backlog/broker-ctrl-sim-funding-subject-suffix-rename.md) [refactor] — broker-ctrl contracts.ts Sim*RequestedSubjectSchema names use the Subject suffix → typed-subject-drift gate fails (convention 4).
 - [bump-tsconfig-es2022-to-es2023](backlog/bump-tsconfig-es2022-to-es2023.md) [tooling] — Enable .toSpliced/.toReversed/.with workspace-wide; promote on second use case.
