@@ -43,6 +43,7 @@ consumer closure.
 | `flows/**` | Flow specs (read by audits, not by Lambdas) |
 | `.claude/**` | Skills, agent config |
 | `tools/**` | Repo tooling (check-scripts, resolver) — never a deploy artifact |
+| `scripts/**` | Root build/verify/benchmark tooling (`benchmark-agents`, `benchmark-backlog`, `assert-shell-html`, …) — never a deploy artifact. Deploy scripts live under `infrastructure/scripts/` (matched by the TIER1 `infrastructure/**` rule). |
 | `.github/**` | CI workflows + scripts — never a deploy artifact |
 | `MEMORY.md` | Agent memory |
 | `*.md` at root | README, CHANGELOG, etc. |

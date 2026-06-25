@@ -1,12 +1,16 @@
-import { test } from 'node:test';
+import { test, after } from 'node:test';
 import assert from 'node:assert/strict';
-import { mkdtempSync, mkdirSync, writeFileSync } from 'node:fs';
+import { mkdtempSync, mkdirSync, writeFileSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { gradeGolden } from '../grade.mjs';
 
+// Track every throwaway dir and rm them after the suite so the tests don't pile up bef-* dirs in $TMPDIR.
+const tmpDirs = [];
+after(() => { for (const d of tmpDirs) rmSync(d, { recursive: true, force: true }); });
+
 function sb(files) {
-  const d = mkdtempSync(join(tmpdir(), 'bef-g-')); mkdirSync(join(d, 'docs/backlog'), { recursive: true });
+  const d = mkdtempSync(join(tmpdir(), 'bef-g-')); tmpDirs.push(d); mkdirSync(join(d, 'docs/backlog'), { recursive: true });
   for (const [name, body] of Object.entries(files)) writeFileSync(join(d, 'docs/backlog', name), body);
   return d;
 }

@@ -11,8 +11,9 @@ export function computeCostUSD(perTurn, modelId) {
     s + (u.input_tokens ?? 0) * p.input + (u.cache_creation_input_tokens ?? 0) * p.cacheWrite
       + (u.cache_read_input_tokens ?? 0) * p.cacheRead + (u.output_tokens ?? 0) * p.output, 0);
 }
-export function firstTurnProseTokens(perTurn, skillLoadTurnIndex, floorTokens) {
-  const u = perTurn[skillLoadTurnIndex];
-  if (!u) throw new Error(`no turn at index ${skillLoadTurnIndex}`);
-  return (u.input_tokens ?? 0) + (u.cache_creation_input_tokens ?? 0) + (u.cache_read_input_tokens ?? 0) - floorTokens;
-}
+// NOTE: a `firstTurnProseTokens` one-time-load proxy lived here but was removed — it was
+// mis-calibrated (hardcoded turn index, and structurally captured only the first cache-creation,
+// never the amortized re-read cost that IS the real prose-size impact). The headline value signal
+// is `tokens.total` (summed over every turn in run.mjs `perRunTokens`), which the oracle-teeth
+// value experiment proved has teeth (+53,831 on a ~2k-token injection, vs +2 for the old proxy).
+// See docs/backlog/bef-prose-token-proxy-miscalibrated.md.

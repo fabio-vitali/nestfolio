@@ -67,6 +67,7 @@ export const TIER0 = [
   /^flows\//,
   /^\.claude\//,
   /^tools\//,           // tools/*.mjs = repo tooling, never a deploy artifact
+  /^scripts\//,         // root scripts/ = build/verify/benchmark tooling (benchmark-agents, benchmark-backlog, assert-shell-html, …) — never a deploy artifact. (Deploy scripts live under infrastructure/scripts, matched by the TIER1 infrastructure/** rule.)
   /^\.github\//,        // CI workflow / scripts config, never a deploy artifact
 
   /^MEMORY\.md$/,

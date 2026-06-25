@@ -10,7 +10,6 @@
       "cacheWrite": 28033,
       "total": 371053
     },
-    "firstTurnProseTokens": 24763,
     "numTurns": 9,
     "costUsd": 1.1345047500000007
   },
@@ -25,7 +24,6 @@
       "cacheWrite": 113125,
       "total": 1674392
     },
-    "firstTurnProseTokens": 38472,
     "numTurns": 18,
     "costUsd": 4.769412750000002
   },
@@ -40,7 +38,6 @@
       "cacheWrite": 153323,
       "total": 3039168
     },
-    "firstTurnProseTokens": 38491,
     "numTurns": 24,
     "costUsd": 7.252484999999995
   },
@@ -55,7 +52,6 @@
       "cacheWrite": 93772,
       "total": 2245513
     },
-    "firstTurnProseTokens": 38484,
     "numTurns": 18,
     "costUsd": 5.03064375
   },
@@ -70,7 +66,6 @@
       "cacheWrite": 162463,
       "total": 1078730
     },
-    "firstTurnProseTokens": 34410,
     "numTurns": 14,
     "costUsd": 4.609547250000002
   },
@@ -85,7 +80,6 @@
       "cacheWrite": 56935,
       "total": 889893
     },
-    "firstTurnProseTokens": 26585,
     "numTurns": 15,
     "costUsd": 2.541534750000001
   }
