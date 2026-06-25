@@ -83,7 +83,7 @@ node scripts/benchmark-backlog/run.mjs regression --iterations=3 1>/tmp/bef-regr
 
 Then:
 
-1. Parse the stdout JSON rows. Render the table with `renderEvaluation(rows)` from `report.mjs` (`| scenario | gatePassRate | cost$ | proseTok | turns |`).
+1. Parse the stdout JSON rows. Render the table with `renderEvaluation(rows)` from `report.mjs` (`| scenario | gatePassRate | cost$ | totTok | turns |`). `totTok` is `tokens.total` — the amortized whole-run token consumption (the headline value/efficiency signal; it captures the cache-re-read cost of skill prose).
 2. Load `scripts/benchmark-backlog/baseline.json`. For each scenario id, compare the run's `gatePassRate` against the baseline row's `gatePassRate`. **FLAG** any scenario whose `gatePassRate` **dropped** (`run < baseline`) — that is a regression in skill quality on HEAD. Use `flagBands(value, baseline, bandPct)` from `report.mjs` for token/cost drift bands; for the gate itself a direct `run < baseline` compare is the flag (a gate dropping at all is a finding — also surface any `anyGateFlip: true` row as nondeterminism).
 3. A scenario present in the run but missing from `baseline.json` (or vice-versa) is itself a finding — call it out (rebaseline may be needed).
 
@@ -97,7 +97,7 @@ node scripts/benchmark-backlog/run.mjs compare main HEAD --iterations=3 1>/tmp/b
 
 Then:
 
-1. Render with `renderCompare(rows)` from `report.mjs` (`| scenario | gate A→B | cost$ A→B | proseTok A→B | verdict |`). The renderer marks a row **REGRESSION** when `b.gatePassRate < a.gatePassRate`, else `value↑` (cheaper) or `flat`.
+1. Render with `renderCompare(rows)` from `report.mjs` (`| scenario | gate A→B | cost$ A→B | totTok A→B | verdict |`). The renderer marks a row **REGRESSION** when `b.gatePassRate < a.gatePassRate`, else `value↑` when `b.tokens.total < a.tokens.total` (the amortized value signal dropped) or `flat`.
 2. Surface every **REGRESSION** row at the top of the report — those block adopting `refB`. Note any row carrying an `error` field (a scenario that hard-failed mid-sweep) separately; the runner records it as a row and continues rather than aborting.
 
 ## Mode: rebaseline

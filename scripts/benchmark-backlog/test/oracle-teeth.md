@@ -86,8 +86,9 @@ loads at a later turn (after the Skill-tool call) — so the one-time-load proxy
 AND, even corrected, would only see the one-time load, not the amortized re-read cost.
 
 **Takeaway:** the value oracle has teeth via `tokens.total` (the right amortized signal). The
-`firstTurnProseTokens` proxy is mis-calibrated — filed as a follow-up (recalibrate to the real
-skill-load turn, or deprecate in favour of `tokens.total`). It does NOT block value detection.
+`firstTurnProseTokens` proxy was mis-calibrated and has since been **removed** (`bef-prose-token-proxy-miscalibrated`,
+2026-06-25) in favour of `tokens.total` — the reports now surface `tokens.total` as the `totTok`
+column. It never blocked value detection.
 
 ## Verdict
 
@@ -97,5 +98,5 @@ token signal without disturbing quality (experiment 3: a ~2k-token injection →
 gate unchanged). And it does not false-positive on a stable system (experiment 1: 6/6, zero flips).
 
 A "no regression / quantified value" verdict from `compare main feat/epic-backlog-skills-simplification`
-is therefore trustworthy — with the one caveat that **`tokens.total` is the value signal to read, not
-`firstTurnProseTokens`** until the latter is recalibrated.
+is therefore trustworthy. **`tokens.total` is the value signal to read** (rendered as the `totTok`
+report column); the mis-calibrated `firstTurnProseTokens` proxy has been removed.

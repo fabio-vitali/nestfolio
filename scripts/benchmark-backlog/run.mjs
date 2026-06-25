@@ -76,8 +76,10 @@ function aggregate(runs) {
     gatePassRate: runs.filter((r) => r.gatePass).length / runs.length,
     anyGateFlip: new Set(runs.map((r) => r.gatePass)).size > 1, // any flip = finding
     // Headline efficiency signal: actual token consumption (median across iterations), by component.
+    // `tokens.total` is THE value signal — it captures the amortized cache-re-read cost of skill prose
+    // (proven by the oracle-teeth value experiment). The old `firstTurnProseTokens` one-time-load proxy
+    // was removed; see cost.mjs and docs/backlog/bef-prose-token-proxy-miscalibrated.md.
     tokens: { input: tk('input'), output: tk('output'), cacheRead: tk('cacheRead'), cacheWrite: tk('cacheWrite'), total: tk('total') },
-    firstTurnProseTokens: median(runs.map((r) => r.firstTurnProseTokens)),
     numTurns: median(runs.map((r) => r.numTurns)),
     // weighted-token-units (API-equivalent): cost.mjs price-weighting (output ~5x input, cache-read
     // ~0.1x) as ONE comparable number for cross-model normalization — NOT a Max-subscription bill.
@@ -103,7 +105,7 @@ function defaultRunOne(suite, opts) {
     const { dir, cleanup } = await suite.buildSandbox(scenario, ref);
     try {
       const { runScenario } = await import('./runner.mjs');
-      const { computeCostUSD, firstTurnProseTokens } = await import('./cost.mjs');
+      const { computeCostUSD } = await import('./cost.mjs');
       // Spike correction: do NOT set HOME — a sandbox HOME strips claude's auth credentials → "Not logged in".
       // Keep the real HOME from process.env; only prepend sandbox .bin to PATH.
       const env = {
@@ -136,9 +138,6 @@ function defaultRunOne(suite, opts) {
         gatePass: graded.gatePass,
         graded,
         costUsd: computeCostUSD(rr.perTurn, opts.model ?? 'claude-opus-4-8'),
-        firstTurnProseTokens: rr.perTurn.length
-          ? firstTurnProseTokens(rr.perTurn, Math.min(1, rr.perTurn.length - 1), opts.floorTokens ?? 0)
-          : 0,
         numTurns: rr.numTurns,
         rr,
       };
