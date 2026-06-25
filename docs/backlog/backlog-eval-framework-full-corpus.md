@@ -1,11 +1,14 @@
 ---
 id: backlog-eval-framework-full-corpus
-status: parking
+status: active
 type: tooling
 notes: "Phase 6 of backlog-eval-framework: the /benchmark-backlog skill surface + the full ~50-scenario corpus (per-skill coverage enumerated in the spec). Builds on the proven core (PR #24) and the backlog-eval-framework-usable milestone."
 references:
   - docs/superpowers/specs/2026-06-24-backlog-eval-framework-design.md
   - docs/superpowers/plans/2026-06-24-backlog-eval-framework.md
+out_of_scope:
+  - "Task 17 — the full 3-iteration ~50-scenario baseline RUN on main (~15-20M token budgeted spend). Deferred per user decision (cost floor, AskUserQuestion 2026-06-25); to be run later via the /benchmark-backlog rebaseline mode this member builds. Tracked as a separate queued follow-up."
+  - "The backlog skills the harness GRADES (backlog-skills-simplification) — downstream consumer epic, not part of the harness build-out."
 spec: null
 plan: null
 topic_memory: [project_backlog_eval_framework.md]
