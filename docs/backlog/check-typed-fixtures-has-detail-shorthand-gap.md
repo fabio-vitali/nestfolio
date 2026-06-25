@@ -9,6 +9,8 @@ spec: null
 plan: null
 topic_memory: [project_event_subject_contracts.md]
 validation_gate: null
+epic: typed-subject-fixtures-program-residue
+epic_role: core
 ---
 
 # check-typed-fixtures `HAS_DETAIL` misses the shorthand `detail` property

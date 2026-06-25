@@ -9,6 +9,8 @@ spec: null
 plan: null
 topic_memory: []
 validation_gate: null
+epic: typed-subject-fixtures-program-residue
+epic_role: core
 ---
 
 # broker-ctrl funding-sim contracts use the `Subject` suffix (typed-subject convention 4)

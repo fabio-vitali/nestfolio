@@ -8,6 +8,8 @@ spec: null
 plan: null
 topic_memory: []
 validation_gate: null
+epic: deploy-tooling-integrity-leftovers
+epic_role: core
 ---
 
 # detect-deploy-needed: classify scripts/ as Tier 0 (no-deploy)

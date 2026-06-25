@@ -2,9 +2,9 @@
 id: deploy-tooling-integrity-leftovers
 status: parking
 type: epic
-notes: "Auto-spun-out when the deploy-tooling-integrity delivery epic shipped (2026-06-22) with all 4 core members terminal and the targeted CDC contract-emission e2e green. Holds the genuinely-orthogonal captured member for later re-clustering by backlog-themes."
-done_when: "Each residual finding spun out of the deploy-tooling-integrity epic is resolved, dropped, or re-clustered by backlog-themes into a sharper root-cause theme; all members shipped or dropped."
-scope: "The genuinely-orthogonal captured finding surfaced alongside the deploy-tooling-integrity program: the detect-deploy true-affected resolver reverse-reaches THROUGH test-only libs (test-contracts / test-support / integration-testing), so a single real service src change fans out to the whole ~27-service closure — the traversal side of the harness-lib fan-out (the shipped member detect-deploy-fanout-and-empty-services fixed only the seed side)."
+notes: "detect-deploy accuracy theme (re-clustered 2026-06-25 from the deploy-tooling-integrity leftovers bucket per its own re-home note): detect-deploy-needed.mjs produces wrong deploy verdicts — it reverse-reaches THROUGH test-only libs (over-fan-out) and lacks a scripts/ Tier-0 rule (over-deploy default). Theme epic, 2 members."
+done_when: "Each detect-deploy-needed.mjs accuracy gap is resolved or dropped so the resolver's deploy verdicts match reality — the test-lib reverse-reach over-fan-out and the missing scripts/ Tier-0 classification; all members shipped or dropped."
+scope: "Accuracy gaps in the detect-deploy-needed.mjs deploy-classification resolver that produce wrong deploy verdicts: (1) the true-affected resolver reverse-reaches THROUGH test-only libs (test-contracts / test-support / integration-testing), so a single real service src change fans out to the whole ~27-service closure (the traversal side; the shipped detect-deploy-fanout-and-empty-services fixed only the seed side); (2) TIER0 lacks a scripts/ rule, so top-level scripts/ changes hit the conservative unknown-path deploy=true default and must be agent-overridden every close."
 out_of_scope:
   - "Anything load-bearing for the deploy-tooling-integrity done_when — by construction none of these are: that epic's test-lib clause is the CHANGE/seed-exclusion (satisfied by detect-deploy-fanout-and-empty-services), whereas this residue is the orthogonal real-change-traversal-through-test-libs side."
 references: []
@@ -14,18 +14,22 @@ topic_memory: []
 validation_gate: null
 ---
 
-# deploy-tooling-integrity — residual findings (leftovers)
+# detect-deploy accuracy (ex deploy-tooling-integrity leftovers)
 
-Auto-spun-out when the `deploy-tooling-integrity` delivery epic shipped (2026-06-22) with all 4 core
-members terminal and the targeted `(investor|execution|ledger)-contract-emission` CDC e2e green (3
-suites / 13 tests). This is the **captured** member that rode along for unified session context but is
-**genuinely orthogonal** to the epic's `done_when` — confirmed by the close-time captured audit: the
-epic's test-lib clause is satisfied by `detect-deploy-fanout-and-empty-services` (the seed/CHANGE side),
-and member 1's CDC INIT guard was proven a no-op in deployed dev (0 throws across 21 CDC Lambdas), so
-the epic's done-definition holds without this traversal-side fix.
+Root cause: the `detect-deploy-needed.mjs` deploy-classification resolver emits **wrong deploy
+verdicts** in two ways. Originally this file was the auto-spun-out leftovers bucket of the
+`deploy-tooling-integrity` delivery epic (shipped 2026-06-22, 4 core members terminal + the
+`(investor|execution|ledger)-contract-emission` CDC e2e green); its body invited a `backlog-themes`
+re-home "onto a detect-deploy / true-affected-resolver tooling theme." That re-clustering happened
+2026-06-25: the orphan `detect-deploy-scripts-tier0` shares the same root cause and joins here, turning
+the provenance bucket into a proper detect-deploy-accuracy theme.
 
-This is a **holding bucket pending re-clustering** by `backlog-themes`. Run `backlog-themes` to
-redistribute (this residue may re-home onto a detect-deploy / true-affected-resolver tooling theme).
+Both members produce a wrong verdict, but in opposite directions — one **over-fans-out** (a real src
+change reverse-reaches through test-only libs to the whole closure) and one **over-deploys** (an
+unclassified `scripts/` path defaults to deploy=true). Neither was load-bearing for the shipped
+`deploy-tooling-integrity` done_when (the epic's test-lib clause is the seed/CHANGE side, satisfied by
+`detect-deploy-fanout-and-empty-services`; the CDC INIT guard was a proven no-op in deployed dev).
 
 Members (derived from `epic:` pointers):
-- `detect-deploy-test-lib-reverse-reach-fanout`
+- `detect-deploy-test-lib-reverse-reach-fanout` (traversal reverse-reaches THROUGH test-only libs → over-fan-out to ~27 services)
+- `detect-deploy-scripts-tier0` (TIER0 lacks a `/^scripts\//` rule → top-level `scripts/` changes hit the conservative unknown-path deploy=true default)

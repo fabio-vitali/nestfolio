@@ -18,6 +18,13 @@ rollup: core 0/2 done · captured 0/0 done
 - core · parking · [broker-circuit-breaker-concurrent-escalation-duplicate](backlog/broker-circuit-breaker-concurrent-escalation-duplicate.md)
 - core · parking · [sf-start-idempotency-at-least-once-redelivery](backlog/sf-start-idempotency-at-least-once-redelivery.md)
 
+### [backlog-eval-framework-remaining](backlog/backlog-eval-framework-remaining.md) `[epic · parking]` — Remaining work on the backlog-eval-framework (benchmark-backlog) harness after the shipped design + proven core (PR #24) + the backlog-eval-framework-usable milestone: the Phase-6 full corpus + /benchmark-backlog skill surface, plus two core-harness tooling defects. Theme epic, 3 members.
+done_when: The backlog-eval-framework reaches its full spec'd scenario corpus + /benchmark-backlog skill surface AND its two core-harness tooling defects (mis-calibrated firstTurnProseTokens proxy, leaked TMPDIR scratch dirs) are resolved or dropped; all members shipped or dropped.
+rollup: core 0/3 done · captured 0/0 done
+- core · parking · [backlog-eval-framework-full-corpus](backlog/backlog-eval-framework-full-corpus.md)
+- core · parking · [bef-prose-token-proxy-miscalibrated](backlog/bef-prose-token-proxy-miscalibrated.md)
+- core · parking · [bef-unit-tests-leak-tmpdirs](backlog/bef-unit-tests-leak-tmpdirs.md)
+
 ### [backlog-skills-simplification](backlog/backlog-skills-simplification.md) `[epic · parking]` — Reduce accreted complexity in the backlog skill suite (~3,900 lines, 19 F-fixes, rationale interleaved into procedures) WITHOUT regressing hard-won lessons or changing behavior.
 done_when: Both core members terminal: (β) SKILL.md procedures read as lean imperative steps with backstory relocated to a LESSONS/pitfalls log and terse guardrails kept inline; (γ) load-bearing multi-step bash dances are encapsulated in tested .mjs helpers rather than narrated in prose. No backlog behavior or lint invariant changed; no F-lesson knowledge deleted.
 rollup: core 0/2 done · captured 0/0 done
@@ -57,9 +64,10 @@ rollup: core 0/4 done · captured 0/0 done
 - core · parking · [stale-memory-write-comments-phase-a-cleanup](backlog/stale-memory-write-comments-phase-a-cleanup.md)
 - core · parking · [yahoo-finance-mi-ctrl-subject-region-dead-code](backlog/yahoo-finance-mi-ctrl-subject-region-dead-code.md)
 
-### [deploy-tooling-integrity-leftovers](backlog/deploy-tooling-integrity-leftovers.md) `[epic · parking]` — Auto-spun-out when the deploy-tooling-integrity delivery epic shipped (2026-06-22) with all 4 core members terminal and the targeted CDC contract-emission e2e green. Holds the genuinely-orthogonal captured member for later re-clustering by backlog-themes.
-done_when: Each residual finding spun out of the deploy-tooling-integrity epic is resolved, dropped, or re-clustered by backlog-themes into a sharper root-cause theme; all members shipped or dropped.
-rollup: core 0/0 done · captured 0/1 done
+### [deploy-tooling-integrity-leftovers](backlog/deploy-tooling-integrity-leftovers.md) `[epic · parking]` — detect-deploy accuracy theme (re-clustered 2026-06-25 from the deploy-tooling-integrity leftovers bucket per its own re-home note): detect-deploy-needed.mjs produces wrong deploy verdicts — it reverse-reaches THROUGH test-only libs (over-fan-out) and lacks a scripts/ Tier-0 rule (over-deploy default). Theme epic, 2 members.
+done_when: Each detect-deploy-needed.mjs accuracy gap is resolved or dropped so the resolver's deploy verdicts match reality — the test-lib reverse-reach over-fan-out and the missing scripts/ Tier-0 classification; all members shipped or dropped.
+rollup: core 0/1 done · captured 0/1 done
+- core · parking · [detect-deploy-scripts-tier0](backlog/detect-deploy-scripts-tier0.md)
 - captured · parking · [detect-deploy-test-lib-reverse-reach-fanout](backlog/detect-deploy-test-lib-reverse-reach-fanout.md)
 
 ### [diagram-generator-gaps](backlog/diagram-generator-gaps.md) `[epic · parking]` — Architecture-doc generators have coverage gaps that force hand-edits/omissions — C4 lacks the frontend; flow-docs can't express rich sequence diagrams. Theme epic (loose: two generators), 2 members.
@@ -172,6 +180,13 @@ rollup: core 0/4 done · captured 0/0 done
 - core · parking · [e2e-apps-typecheck-target](backlog/e2e-apps-typecheck-target.md)
 - core · parking · [investor-services-latent-tsc-errors](backlog/investor-services-latent-tsc-errors.md)
 
+### [typed-subject-fixtures-program-residue](backlog/typed-subject-fixtures-program-residue.md) `[epic · parking]` — Residue from the shipped typed-subject (producer contracts) + typed-test-fixtures programs: a gate-flagged Subject-suffix naming violation left unfixed, a coverage hole in the check-typed-fixtures gate, and consumer-side TS type layers lagging the new producer-owned contracts. Debt-class theme epic, 3 members.
+done_when: Each residue item is cleared — the gate-flagged Subject-suffix naming violation renamed green, the check-typed-fixtures HAS_DETAIL shorthand hole closed (with a regression test), and the investor Mandate TS type layer reconciled with the producer contracts; all members shipped or dropped.
+rollup: core 0/3 done · captured 0/0 done
+- core · parking · [broker-ctrl-sim-funding-subject-suffix-rename](backlog/broker-ctrl-sim-funding-subject-suffix-rename.md)
+- core · parking · [check-typed-fixtures-has-detail-shorthand-gap](backlog/check-typed-fixtures-has-detail-shorthand-gap.md)
+- core · parking · [investor-mandate-type-layer-cleanup](backlog/investor-mandate-type-layer-cleanup.md)
+
 ### [untyped-fixture-contract-drift](backlog/untyped-fixture-contract-drift.md) `[epic · parking]` — Hand-authored test fixtures drift from the producer's real/zod contract → false-green tests while production is fine. Theme epic, 3 members.
 done_when: Each in-scope fixture is typed against (or corrected to match) the producer's zod contract so the test exercises the real payload shape; all members shipped or dropped.
 rollup: core 0/3 done · captured 0/0 done
@@ -186,7 +201,7 @@ rollup: core 0/3 done · captured 0/0 done
 - core · parking · [portfolio-drift-detected-registry-collision](backlog/portfolio-drift-detected-registry-collision.md)
 - core · parking · [weight-drift-detector](backlog/weight-drift-detector.md)
 
-**Parking health:** 28 theme epic(s), 20 orphan(s) — drive orphans → 0 with `/backlog-themes`
+**Parking health:** 30 theme epic(s), 13 orphan(s) — drive orphans → 0 with `/backlog-themes`
 
 ## ACTIVE
 
@@ -201,17 +216,10 @@ _(none)_
 ## LATER
 
 - [agent-tracer-bedrock-converse-token-extraction](backlog/agent-tracer-bedrock-converse-token-extraction.md) [bug] — AgentTracer.handleLLMEnd returns 0 input/output tokens for ChatBedrockConverse — usage field path mismatch. Diagnostic envelopes lose cost/decode signal.
-- [backlog-eval-framework-full-corpus](backlog/backlog-eval-framework-full-corpus.md) [tooling] — Phase 6 of backlog-eval-framework: the /benchmark-backlog skill surface + the full ~50-scenario corpus (per-skill coverage enumerated in the spec). Builds on the proven core (PR #24) and the backlog-eval-framework-usable milestone.
-- [bef-prose-token-proxy-miscalibrated](backlog/bef-prose-token-proxy-miscalibrated.md) [tooling] — benchmark-backlog firstTurnProseTokens reads a hardcoded turn index (1) but the skill loads at a later turn, so it misses skill-load prose changes; it also only captures the one-time load, not the amortized cache-re-read cost. Use tokens.total (the working value signal) or recalibrate to the real skill-load turn.
-- [bef-unit-tests-leak-tmpdirs](backlog/bef-unit-tests-leak-tmpdirs.md) [tooling] — benchmark-backlog unit tests (grade-golden, grade-invariants, worker, sandbox) mkdtempSync throwaway dirs but never clean them up, so TMPDIR accumulates ~hundreds of bef-* dirs across runs. Add afterEach/try-finally cleanup.
 - [broker-ctrl-alpaca-funding-carrier-pk-divergence](backlog/broker-ctrl-alpaca-funding-carrier-pk-divergence.md) [bug] — Live/ALPACA funding: router keys requested carrier on depositId/withdrawalId but completion normalizer keys on transferId — carry-forward misses if they differ (degrades gracefully). Sim path unaffected.
-- [broker-ctrl-sim-funding-subject-suffix-rename](backlog/broker-ctrl-sim-funding-subject-suffix-rename.md) [refactor] — broker-ctrl contracts.ts Sim*RequestedSubjectSchema names use the Subject suffix → typed-subject-drift gate fails (convention 4).
 - [bump-tsconfig-es2022-to-es2023](backlog/bump-tsconfig-es2022-to-es2023.md) [tooling] — Enable .toSpliced/.toReversed/.with workspace-wide; promote on second use case.
-- [check-typed-fixtures-has-detail-shorthand-gap](backlog/check-typed-fixtures-has-detail-shorthand-gap.md) [tooling] — check-typed-fixtures HAS_DETAIL matches only /\bdetail\s*:/ — a putEvent({ detailType: 'REGISTERED', detail }) with shorthand `detail` escapes the legacy-detail violation. ZERO real sites today (dynamic ban covers the rest); trivial 1-line fix. Captured under typed-test-fixtures.
-- [detect-deploy-scripts-tier0](backlog/detect-deploy-scripts-tier0.md) [tooling] — detect-deploy-needed.mjs TIER0 lacks a scripts/ rule, so any scripts/ change (benchmark-backlog, benchmark-agents) hits the conservative unknown-path default deploy=true and must be agent-overridden every close. Add /^scripts\// to TIER0 (+ the deploy-paths.md doc row).
 - [execution-ctrl-mandate-recheck-order-boundary](backlog/execution-ctrl-mandate-recheck-order-boundary.md) [refactor] — Defense-in-depth — re-read mandate before broker submission on L1 auto-execute.
 - [integration-suite-lever-5-cdk-bundling](backlog/integration-suite-lever-5-cdk-bundling.md) [refactor] — cdk-constructs:test bundles 57 assets in 32s as it synthesizes per-construct stacks in tests. This sits in the unit suite, not integration. Dossier called out as out-of-scope for integration slowness but worth tracking if unit wall-clock becomes a concern.
-- [investor-mandate-type-layer-cleanup](backlog/investor-mandate-type-layer-cleanup.md) [refactor] — Two pre-existing investor Mandate type-layer cleanups surfaced by typed-subject-contracts-investor review: investor-adpt MandateLevel redundant with MandateSchema.level; investor-bff Mandate interface missing operatingMode.
 - [ip-ctrl-snapshot-agent-fed-trigger-row](backlog/ip-ctrl-snapshot-agent-fed-trigger-row.md) [bug] — IP-ctrl passes the raw CDC trigger row as the agent's investorProfile; MANDATE_ISSUED feeds it a Mandate row (no goal/riskProfile) → degraded snapshot rebuild.
 - [pinned-retry-prompt-interference-agent-factory](backlog/pinned-retry-prompt-interference-agent-factory.md) [bug] — γ.4 retry stacks two corrective directives; cleaner separation needed.
 - [portfolio-engine-service-unavailable-asymmetric-handling](backlog/portfolio-engine-service-unavailable-asymmetric-handling.md) [bug] — portfolio-engine graph returns serviceUnavailable instead of throwing; other 3 advisory agents throw

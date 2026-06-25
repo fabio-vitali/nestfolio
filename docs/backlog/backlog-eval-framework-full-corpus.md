@@ -10,6 +10,8 @@ spec: null
 plan: null
 topic_memory: [project_backlog_eval_framework.md]
 validation_gate: null
+epic: backlog-eval-framework-remaining
+epic_role: core
 ---
 
 # backlog-eval-framework — full corpus + skill surface (Phase 6)
