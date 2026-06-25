@@ -186,11 +186,12 @@ rollup: core 0/3 done · captured 0/0 done
 - core · parking · [portfolio-drift-detected-registry-collision](backlog/portfolio-drift-detected-registry-collision.md)
 - core · parking · [weight-drift-detector](backlog/weight-drift-detector.md)
 
-**Parking health:** 28 theme epic(s), 19 orphan(s) — drive orphans → 0 with `/backlog-themes`
+**Parking health:** 28 theme epic(s), 20 orphan(s) — drive orphans → 0 with `/backlog-themes`
 
 ## ACTIVE
 
-- [backlog-eval-framework-usable](backlog/backlog-eval-framework-usable.md) [tooling] — Finish backlog-eval-framework so it can actually guard backlog-skills-simplification: harden next-lane+e8-conflict (rubricGate + deterministic proxies; e8 no-pre-ship setup + portable SUPERPOWERS path), commit a baseline.json, run the oracle-teeth (Task 14). Core harness shipped in PR #24.
+_(none)_
+
 
 ## QUEUED
 
@@ -207,6 +208,7 @@ _(none)_
 - [broker-ctrl-sim-funding-subject-suffix-rename](backlog/broker-ctrl-sim-funding-subject-suffix-rename.md) [refactor] — broker-ctrl contracts.ts Sim*RequestedSubjectSchema names use the Subject suffix → typed-subject-drift gate fails (convention 4).
 - [bump-tsconfig-es2022-to-es2023](backlog/bump-tsconfig-es2022-to-es2023.md) [tooling] — Enable .toSpliced/.toReversed/.with workspace-wide; promote on second use case.
 - [check-typed-fixtures-has-detail-shorthand-gap](backlog/check-typed-fixtures-has-detail-shorthand-gap.md) [tooling] — check-typed-fixtures HAS_DETAIL matches only /\bdetail\s*:/ — a putEvent({ detailType: 'REGISTERED', detail }) with shorthand `detail` escapes the legacy-detail violation. ZERO real sites today (dynamic ban covers the rest); trivial 1-line fix. Captured under typed-test-fixtures.
+- [detect-deploy-scripts-tier0](backlog/detect-deploy-scripts-tier0.md) [tooling] — detect-deploy-needed.mjs TIER0 lacks a scripts/ rule, so any scripts/ change (benchmark-backlog, benchmark-agents) hits the conservative unknown-path default deploy=true and must be agent-overridden every close. Add /^scripts\// to TIER0 (+ the deploy-paths.md doc row).
 - [execution-ctrl-mandate-recheck-order-boundary](backlog/execution-ctrl-mandate-recheck-order-boundary.md) [refactor] — Defense-in-depth — re-read mandate before broker submission on L1 auto-execute.
 - [integration-suite-lever-5-cdk-bundling](backlog/integration-suite-lever-5-cdk-bundling.md) [refactor] — cdk-constructs:test bundles 57 assets in 32s as it synthesizes per-construct stacks in tests. This sits in the unit suite, not integration. Dossier called out as out-of-scope for integration slowness but worth tracking if unit wall-clock becomes a concern.
 - [investor-mandate-type-layer-cleanup](backlog/investor-mandate-type-layer-cleanup.md) [refactor] — Two pre-existing investor Mandate type-layer cleanups surfaced by typed-subject-contracts-investor review: investor-adpt MandateLevel redundant with MandateSchema.level; investor-bff Mandate interface missing operatingMode.
@@ -221,6 +223,7 @@ _(none)_
 
 ## Recently Shipped (last 10)
 
+- 2026-06-25 — [backlog-eval-framework-usable](backlog/backlog-eval-framework-usable.md) [tooling] — Finish backlog-eval-framework so it can actually guard backlog-skills-simplification: harden next-lane+e8-conflict (rubricGate + deterministic proxies; e8 no-pre-ship setup + portable SUPERPOWERS path), commit a baseline.json, run the oracle-teeth (Task 14). Core harness shipped in PR #24.
 - 2026-06-24 — [backlog-eval-framework](backlog/backlog-eval-framework.md) [design] — Evaluation framework for the backlog skill suite — decision-point evals run via headless `claude -p` against sandboxed synthetic backlog states + op-stubs, graded by golden assertions + call-log invariants + an LLM judge, measuring quality / cost / latency with a committed baseline + A/B compare mode. Built to prove `backlog-skills-simplification` regresses no behavior and adds value. HIGH coverage on backlog-next-epic (resume gate + merge-ownership + ship-preconditions = γ's blast radius).
 - 2026-06-24 — [backlog-next-epic-severity-selection](backlog/backlog-next-epic-severity-selection.md) [tooling] — /backlog-next-epic ranks its candidate list by impact (default) or free-text --like criterion, computed AT SELECTION TIME (no stored severity field), surfaced ranked-with-reasons for human confirm.
 - 2026-06-23 — [test-integration-parallel-dns-exhaustion](backlog/test-integration-parallel-dns-exhaustion.md) [tooling] — run-many -t test-integration at full parallelism exhausts the macOS DNS resolver (getaddrinfo ENOTFOUND) → false reds; recovers at --parallel=1. Fix: a process-wide dns.lookup retry (installDnsResilience) installed once per worker from the integration Jest setup — covers AWS SDK + fetch uniformly at the DNS layer.
@@ -230,4 +233,3 @@ _(none)_
 - 2026-06-22 — [cdk-bundle-staleness-deploy-integrity](backlog/cdk-bundle-staleness-deploy-integrity.md) [tooling] — Hypothesis: 2026-05-13 dev-investor-bff deploy produced a Lambda bundle whose change-data-capture.ts logic lagged behind source. Surfaced via update-operating-mode-cdc-silent. Need a deploy-time integrity check that the bundle's resolveEmissions actually matches the EVENT_TYPE_MAP shape it'll be asked to process. Resolution (epic --auto, user-confirmed): runtime config-vs-capability INIT guard in changeDataCapture (RC0 blast radius), not the build-stamp/post-deploy-grep alternatives. `[epic:deploy-tooling-integrity · core]`
 - 2026-06-22 — [deploy-tooling-integrity](backlog/deploy-tooling-integrity.md) [epic] — Deploy/derivation gating + bundle-freshness tooling can silently do the wrong thing — test-only/harness-lib changes mis-gate; a frontend change returns empty services; doc-derivation always reports on resume; deployed bundles can lag source. Theme epic (loose: deploy-decision + doc-derivation + artifact freshness), 4 members.
 - 2026-06-22 — [detect-deploy-fanout-and-empty-services](backlog/detect-deploy-fanout-and-empty-services.md) [tooling] — detect-deploy-needed.mjs is wrong two ways for E6's --services=<from-detect>: a test-only harness-lib change (test-support) fans out to its full dependent closure (27 services), and a frontend/libs/ui change returns deploy=true with empty services=[] (resolver filters to root.startsWith('services/')) → silent deploy no-op against stale code. `[epic:deploy-tooling-integrity · core]`
-- 2026-06-22 — [detect-deploy-service-test-path-no-deploy](backlog/detect-deploy-service-test-path-no-deploy.md) [tooling] — detect-deploy-needed.mjs lacks a Tier-0 rule for services/*/test/**, so a test-only service change defaults to deploy=true (false positive). `[epic:deploy-tooling-integrity · core]`

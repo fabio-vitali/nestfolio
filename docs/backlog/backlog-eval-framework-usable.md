@@ -1,6 +1,7 @@
 ---
 id: backlog-eval-framework-usable
-status: active
+status: shipped
+closed: 2026-06-25
 type: tooling
 notes: "Finish backlog-eval-framework so it can actually guard backlog-skills-simplification: harden next-lane+e8-conflict (rubricGate + deterministic proxies; e8 no-pre-ship setup + portable SUPERPOWERS path), commit a baseline.json, run the oracle-teeth (Task 14). Core harness shipped in PR #24."
 out_of_scope:
@@ -14,7 +15,7 @@ references:
 spec: null
 plan: null
 topic_memory: [project_backlog_eval_framework.md]
-validation_gate: null
+validation_gate: "All 3 parts landed + live-validated on opus (CLI subscription). (1) Gates hardened: next-lane-complex (rubricGate:4 + branchCreated adoption proxy + dedicated no-active-item fixture) and e8-conflict (no-pre-ship setup → skill ships+resolves a real same-line conflict; portable resolveSuperpowersSkills helper; rubricGate:4) — commits 9eea34e5/a6a63a1d. (2) baseline.json committed (cd665759): regression x3 over all 6 exemplars, every gatePassRate:1 + anyGateFlip:false, token-denominated. (3) oracle-teeth (31df7893, scripts/benchmark-backlog/test/oracle-teeth.md): quality teeth flipped a gate 1.0→0.5 on an injected merge-ownership prose regression lint cannot catch; value teeth moved tokens.total +53,831 on a ~2k-token injection (quality unchanged). Unit suite 46/46. Four framework bugs de-flaked en route: e8 judge last-commit-diff noise, themes ambiguous-decoy fixture, judge-no-json crash, 300s epic timeout."
 ---
 
 # Make backlog-eval-framework usable to guard the simplification
@@ -39,3 +40,31 @@ Then a clean baseline on current `main` → the framework can run `compare main 
 
 **Promoted to active 2026-06-24:** both triggers fired — PR #24 is merged (commit `4ed16dbd`), so the
 harness code is on `main`, and this deferred work is now being picked up.
+
+## Shipped 2026-06-25
+
+All three parts landed. The framework is now **regression/compare-usable** with a committed,
+token-denominated `baseline.json` and a recorded oracle-teeth proof.
+
+- **Hardening.** `next-lane-complex`: the `active-epic` fixture's active member tripped the
+  active-in-flight guard so the run paused *before* classifying (the 1/5) — moved to a dedicated
+  no-active-item fixture; the `status:active` golden was unreliable (the model adopts inside the
+  worktree it creates) so the proxy is now `state.branchCreated` (location-robust) + `rubricGate:4`.
+  `e8-conflict`: the old setup pre-shipped the branch AND edited a non-overlapping region (body title)
+  so git auto-merged with **no conflict at all** (the 2/5) — redesigned to a no-pre-ship setup where
+  the skill ships and resolves a real same-line `active`→`shipped` conflict; the baked host
+  `SUPERPOWERS` path is now `resolveSuperpowersSkills()` (env override → highest `~/.claude` version,
+  unit-tested).
+- **Baseline.** `regression --iterations=3` over all 6 exemplars, 6/6 `gatePassRate:1`,
+  `anyGateFlip:false`. Metrics are token-first (`tokens.{input,output,cacheRead,cacheWrite,total}`);
+  `costUsd` retained as an API-equivalent weighted-token normalization (these runs spend Max
+  subscription **quota**, not dollars).
+- **Oracle-teeth.** Self-consistency (6/6, no flips) + quality teeth (a prose-only merge-ownership
+  break → gate 1.0→0.5, lint-invisible) + value teeth (~2k-token injection → `tokens.total` +53,831).
+  A `compare main feat/epic-backlog-skills-simplification` verdict is therefore trustworthy.
+- **Framework bugs fixed with tests** (suite 36→46): e8 judge last-commit-diff noise → full
+  `origin/main...HEAD` delta; themes ambiguous-decoy fixture → clean root-cause cluster vs
+  cost-symptom-only decoy; judge-no-json crash that aborted a whole sweep → lenient parse + retry +
+  never-throw + per-scenario isolation; 300s epic timeout → 600s (+ per-scenario override).
+- **Follow-ups filed (parking orphans):** `bef-prose-token-proxy-miscalibrated` (firstTurnProseTokens
+  reads a hardcoded turn), `bef-unit-tests-leak-tmpdirs`, `detect-deploy-scripts-tier0`.
