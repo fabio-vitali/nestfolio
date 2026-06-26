@@ -7,8 +7,9 @@ import type { ZodTypeAny } from 'zod';
  * Order subject — the `Order` row (sk='Order') written by event-listener on
  * DECISION_APPROVED / USER_CONFIRMED, CDC-emitted as ORDER_CREATED (default insert) /
  * ORDER_SUBMITTED / ORDER_STAGED / ORDER_REJECTED / ORDER_UPDATED (modify default).
- * The live event-listener path writes SUBMITTED/STAGED/REJECTED; 'PENDING' is the dead
- * OrderRepository.createOrder value (kept for completeness).
+ * The live event-listener path writes SUBMITTED/STAGED/REJECTED; 'PENDING' is a legacy
+ * status value (formerly written by the now-removed OrderRepository.createOrder) — retained
+ * in the enum for backward-compat with any historical Order rows.
  *
  * Single-symbol per row: one Order per ProposedTrade in the authorizing event's proposedTrades[].
  * orderId = `${authorizingEventId}#${index}` — deterministic, idempotent across redeliveries.

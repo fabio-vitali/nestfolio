@@ -104,61 +104,6 @@ describe('OrderRepository', () => {
     repo = new OrderRepository('test-table');
   });
 
-  describe('createOrder', () => {
-    it('should create an Order with status PENDING using conditional write', async () => {
-      mockSend.mockResolvedValueOnce({});
-
-      const trades = [
-        { symbol: 'VTI', assetClass: 'EQUITY', side: 'BUY' as const, quantityOrAmountCents: 10, targetWeightPercent: 50, rationale: 'Buy VTI' },
-      ];
-
-      const result = await repo.createOrder('ord-1', 'dp-1', trades, testCtx, 'evt-1');
-
-      expect(result).toBe(true);
-      expect(mockSend).toHaveBeenCalledTimes(1);
-      const call = mockSend.mock.calls[0][0];
-      expect(call.input.Item).toMatchObject({
-        pk: 'Order#t1#ord-1',
-        sk: 'Order',
-        __typename: 'Order',
-        tenantId: 't1',
-        userId: '00000000-0000-0000-0000-000000000001',
-        region: 'us-east-1',
-        orderId: 'ord-1',
-        decisionPacketId: 'dp-1',
-        status: 'PENDING',
-        proposedTrades: trades,
-        sourceEventId: 'evt-1',
-      });
-    });
-  });
-
-  describe('getOrder', () => {
-    it('should return order when found', async () => {
-      const order = {
-        pk: 'Order#t1#ord-1',
-        sk: 'Order',
-        __typename: 'Order',
-        tenantId: 't1',
-        orderId: 'ord-1',
-        status: 'PENDING',
-      };
-      mockSend.mockResolvedValueOnce({ Items: [order] });
-
-      const result = await repo.getOrder('t1', 'ord-1');
-
-      expect(result).toEqual(order);
-    });
-
-    it('should return null when not found', async () => {
-      mockSend.mockResolvedValueOnce({ Items: [] });
-
-      const result = await repo.getOrder('t1', 'ord-not-found');
-
-      expect(result).toBeNull();
-    });
-  });
-
   describe('updateOrderStatus', () => {
     it('should update status via transactWrite without EditEvent', async () => {
       mockSend.mockResolvedValueOnce({});
@@ -201,27 +146,6 @@ describe('OrderRepository', () => {
       expect(attrs).not.toHaveProperty('sk');
       expect(attrs).not.toHaveProperty('__typename');
       expect(attrs).not.toHaveProperty('orderId');
-    });
-  });
-
-  describe('createStagedOrder', () => {
-    it('should create a StagedOrder record', async () => {
-      mockSend.mockResolvedValueOnce({});
-
-      const trades = [{ symbol: 'VTI', side: 'BUY', quantityOrAmountCents: 10 }];
-      await repo.createStagedOrder('ord-1', { proposedTrades: trades }, testCtx);
-
-      expect(mockSend).toHaveBeenCalledTimes(1);
-      const call = mockSend.mock.calls[0][0];
-      expect(call.input.Item).toMatchObject({
-        pk: 'StagedOrder#t1#ord-1',
-        sk: 'StagedOrder',
-        __typename: 'StagedOrder',
-        tenantId: 't1',
-        userId: '00000000-0000-0000-0000-000000000001',
-        region: 'us-east-1',
-        orderId: 'ord-1',
-      });
     });
   });
 
@@ -302,19 +226,7 @@ describe('OrderRepository', () => {
     });
   });
 
-  describe('createOrder — error paths', () => {
-    it('should propagate DynamoDB errors on create', async () => {
-      mockSend.mockRejectedValueOnce(new Error('ProvisionedThroughputExceededException'));
-
-      const trades = [
-        { symbol: 'VTI', assetClass: 'EQUITY', side: 'BUY' as const, quantityOrAmountCents: 10, targetWeightPercent: 50, rationale: 'Buy VTI' },
-      ];
-
-      await expect(
-        repo.createOrder('ord-err', 'dp-1', trades, testCtx),
-      ).rejects.toThrow('ProvisionedThroughputExceededException');
-    });
-
+  describe('updateOrderStatus — error paths', () => {
     it('should propagate TransactWriteItems error on status update', async () => {
       mockSend.mockRejectedValueOnce(new Error('TransactionCanceledException'));
 
