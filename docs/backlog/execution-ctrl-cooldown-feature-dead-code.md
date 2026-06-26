@@ -1,10 +1,12 @@
 ---
 id: execution-ctrl-cooldown-feature-dead-code
-status: parking
+status: active
 type: refactor
 notes: "Surfaced 2026-06-26 while pruning OrderRepository in execution-ctrl-orderrepository-prune-unused-methods. The CoolDown feature is half-dead: OrderRepository.setCoolDown (the WRITE side) has ZERO production callers (only its own unit test), so the CoolDown row is never written. Yet safety-checks.service.ts:41 still calls getCoolDown on every staged-order safety check → it always reads null → the cooldown guard is a permanent no-op. Same 'read of data the producer never writes' pattern the epic targets. Removing it deletes a (currently no-op) safety-check branch, so it needs its own verdict — NOT a trivial method prune. Verify the no-op claim (grep setCoolDown = zero writers) before deleting setCoolDown + getCoolDown + the safety-check cooldown branch + coolDownPk helper."
 references: []
-out_of_scope: []
+out_of_scope:
+  - "SafetyChecksService.checkReconciliationLock — a deliberate 'Phase 2: simplified, always returns false' stub awaiting implementation, NOT vestigial code; leave it"
+  - "Any redesign of the safety-check pipeline or its SafetyCheckResult shape beyond removing the coolDown member"
 spec: null
 plan: null
 topic_memory: []
