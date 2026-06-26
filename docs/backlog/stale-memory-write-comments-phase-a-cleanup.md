@@ -1,10 +1,13 @@
 ---
 id: stale-memory-write-comments-phase-a-cleanup
-status: parking
+status: active
 type: refactor
-notes: "6 stale comments in decision-workflow-ctrl + cdk-constructs reference writeAgentOutput / BatchCreate / ListMemoryRecords"
+notes: "6 stale comments in decision-workflow-ctrl + cdk-constructs reference writeAgentOutput / BatchCreate / ListMemoryRecords. Verification (2026-06-26) narrowed this: only ~3 are genuinely stale; the eventual-consistency comments are correct (explain why code AVOIDS ListMemoryRecords), the BatchCreateMemoryRecords hits are live IAM test assertions, and writeAgentOutput has zero refs."
 references: []
-out_of_scope: []
+out_of_scope:
+  - "The decision-state-machine.ts + service.stack.test.ts eventual-consistency comments — verified CURRENT/correct (they explain the avoid-ListMemoryRecords design), not stale; leaving them"
+  - "The .not.toContain('bedrock-agentcore:BatchCreateMemoryRecords') IAM test assertions — live, asserting the grant correctly excludes those actions"
+  - "The externalModules:[] agent-profile bundling config itself — behavioral, unchanged; only its stale example command reference is generalized"
 spec: null
 plan: null
 topic_memory: []
