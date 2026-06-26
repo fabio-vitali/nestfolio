@@ -1,6 +1,7 @@
 ---
 id: execution-ctrl-cooldown-feature-dead-code
-status: active
+status: shipped
+closed: 2026-06-26
 type: refactor
 notes: "Surfaced 2026-06-26 while pruning OrderRepository in execution-ctrl-orderrepository-prune-unused-methods. The CoolDown feature is half-dead: OrderRepository.setCoolDown (the WRITE side) has ZERO production callers (only its own unit test), so the CoolDown row is never written. Yet safety-checks.service.ts:41 still calls getCoolDown on every staged-order safety check → it always reads null → the cooldown guard is a permanent no-op. Same 'read of data the producer never writes' pattern the epic targets. Removing it deletes a (currently no-op) safety-check branch, so it needs its own verdict — NOT a trivial method prune. Verify the no-op claim (grep setCoolDown = zero writers) before deleting setCoolDown + getCoolDown + the safety-check cooldown branch + coolDownPk helper."
 references: []
@@ -10,7 +11,7 @@ out_of_scope:
 spec: null
 plan: null
 topic_memory: []
-validation_gate: null
+validation_gate: "Commit 1742fc70 on feat/epic-dead-code-cleanup. Re-confirmed setCoolDown has zero production writers workspace-wide (only its own unit test); no production code read SafetyCheckResult.checks.coolDown (event-listener/staged-order-processor consume runAllChecks via .passed/.reason). Removal is behavior-preserving — checkCoolDown always returned false, so the runAllChecks cooldown branch never fired. Removed setCoolDown/getCoolDown/coolDownPk + unused TableEntry/RequestContext imports (order.repository.ts), checkCoolDown + the runAllChecks branch + the coolDown result field (safety-checks.service.ts), and all cooldown unit tests; re-pointed the two 'fail safety check' fixtures to the real conflictingStagedOrders mechanism. checkReconciliationLock (deliberate Phase-2 stub) kept. 6.2 gate GREEN: `nx run-many -t test lint` across 33 projects (EXIT 0; execution-ctrl 7/7 suites). Deploy + integration/e2e deferred to epic E6 batched gate per logged decision."
 epic: dead-code-cleanup
 epic_role: core
 ---
