@@ -6,6 +6,14 @@
 
 ## EPICS
 
+### [dead-code-cleanup](backlog/dead-code-cleanup.md) `[epic · active]` — Vestigial code left behind by prior refactors that no checker flags — unread wrappers, unused repo methods, stale comments, a dead consumer read. Debt-class theme epic, 4 members.
+done_when: Each piece of vestigial code in scope is deleted after a zero-caller/zero-reader verification; all members shipped or dropped.
+rollup: core 0/4 done · captured 0/0 done
+- core · parking · [an-ctrl-wrap-agent-output-vestigial](backlog/an-ctrl-wrap-agent-output-vestigial.md)
+- core · parking · [execution-ctrl-orderrepository-prune-unused-methods](backlog/execution-ctrl-orderrepository-prune-unused-methods.md)
+- core · parking · [stale-memory-write-comments-phase-a-cleanup](backlog/stale-memory-write-comments-phase-a-cleanup.md)
+- core · parking · [yahoo-finance-mi-ctrl-subject-region-dead-code](backlog/yahoo-finance-mi-ctrl-subject-region-dead-code.md)
+
 ### [advisory-narrative-memory-read-latency](backlog/advisory-narrative-memory-read-latency.md) `[epic · parking]` — advisory-narrative-ctrl blocks on AgentCore Memory reads before writing its observable HEAD row → 30-40s integration tests. Theme epic, 2 members.
 done_when: advisory-narrative-ctrl's observable HEAD row is visible to tests in ~5-10s (eager write and/or tightened Memory-retry delays) with no dev/prod consistency skew; both members shipped or dropped.
 rollup: core 0/2 done · captured 0/0 done
@@ -62,14 +70,6 @@ rollup: core 0/3 done · captured 0/0 done
 - core · parking · [ci-pipeline-bring-up](backlog/ci-pipeline-bring-up.md)
 - core · parking · [nestfolio-e2e-workflow-no-aws-credentials](backlog/nestfolio-e2e-workflow-no-aws-credentials.md)
 - core · parking · [pr-pipeline-required-status-check](backlog/pr-pipeline-required-status-check.md)
-
-### [dead-code-cleanup](backlog/dead-code-cleanup.md) `[epic · parking]` — Vestigial code left behind by prior refactors that no checker flags — unread wrappers, unused repo methods, stale comments, a dead consumer read. Debt-class theme epic, 4 members.
-done_when: Each piece of vestigial code in scope is deleted after a zero-caller/zero-reader verification; all members shipped or dropped.
-rollup: core 0/4 done · captured 0/0 done
-- core · parking · [an-ctrl-wrap-agent-output-vestigial](backlog/an-ctrl-wrap-agent-output-vestigial.md)
-- core · parking · [execution-ctrl-orderrepository-prune-unused-methods](backlog/execution-ctrl-orderrepository-prune-unused-methods.md)
-- core · parking · [stale-memory-write-comments-phase-a-cleanup](backlog/stale-memory-write-comments-phase-a-cleanup.md)
-- core · parking · [yahoo-finance-mi-ctrl-subject-region-dead-code](backlog/yahoo-finance-mi-ctrl-subject-region-dead-code.md)
 
 ### [deploy-tooling-integrity-leftovers](backlog/deploy-tooling-integrity-leftovers.md) `[epic · parking]` — detect-deploy accuracy theme (re-clustered 2026-06-25 from the deploy-tooling-integrity leftovers bucket per its own re-home note): detect-deploy-needed.mjs produces wrong deploy verdicts — it reverse-reaches THROUGH test-only libs (over-fan-out) and lacks a scripts/ Tier-0 rule (over-deploy default). Theme epic, 2 members.
 done_when: Each detect-deploy-needed.mjs accuracy gap is resolved or dropped so the resolver's deploy verdicts match reality — the test-lib reverse-reach over-fan-out and the missing scripts/ Tier-0 classification; all members shipped or dropped.
@@ -208,7 +208,7 @@ rollup: core 0/3 done · captured 0/0 done
 - core · parking · [portfolio-drift-detected-registry-collision](backlog/portfolio-drift-detected-registry-collision.md)
 - core · parking · [weight-drift-detector](backlog/weight-drift-detector.md)
 
-**Parking health:** 31 theme epic(s), 10 orphan(s) — drive orphans → 0 with `/backlog-themes`
+**Parking health:** 30 theme epic(s), 10 orphan(s) — drive orphans → 0 with `/backlog-themes`
 
 ## ACTIVE
 

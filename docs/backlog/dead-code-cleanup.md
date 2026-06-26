@@ -1,6 +1,6 @@
 ---
 id: dead-code-cleanup
-status: parking
+status: active
 type: epic
 notes: "Vestigial code left behind by prior refactors that no checker flags — unread wrappers, unused repo methods, stale comments, a dead consumer read. Debt-class theme epic, 4 members."
 done_when: "Each piece of vestigial code in scope is deleted after a zero-caller/zero-reader verification; all members shipped or dropped."
