@@ -154,6 +154,12 @@ rollup: core 0/2 done · captured 0/0 done
 - core · parking · [agentcore-maxvms-prod-quota-increase](backlog/agentcore-maxvms-prod-quota-increase.md)
 - core · parking · [mandate-reaffirm-operatingmode-required-legacy-dlq](backlog/mandate-reaffirm-operatingmode-required-legacy-dlq.md)
 
+### [read-model-trigger-subject-conflation](backlog/read-model-trigger-subject-conflation.md) `[epic · parking]` — A read-model writer derives a row's identity or content directly from the inbound CDC trigger subject, assuming it is the canonical aggregate; a secondary (often live-path) trigger variant carries a different/partial subject shape or a different id, so it silently produces a gracefully-degraded row. Theme epic, 2 members.
+done_when: Each in-scope read-model writer reads the canonical aggregate (or keys on a stable lifecycle id) rather than trusting the raw trigger subject, so every triggering event variant produces a correct (non-degraded) row; both members shipped or dropped.
+rollup: core 0/2 done · captured 0/0 done
+- core · parking · [broker-ctrl-alpaca-funding-carrier-pk-divergence](backlog/broker-ctrl-alpaca-funding-carrier-pk-divergence.md)
+- core · parking · [ip-ctrl-snapshot-agent-fed-trigger-row](backlog/ip-ctrl-snapshot-agent-fed-trigger-row.md)
+
 ### [rule-of-three-lib-extractions](backlog/rule-of-three-lib-extractions.md) `[epic · parking]` — Implementations duplicated past the rule-of-three threshold → extract a shared lib. Debt-class theme epic (different code, same extraction action), 2 members.
 done_when: Each duplicated implementation in scope is extracted to a single shared lib and its callers migrated; both members shipped or dropped.
 rollup: core 0/2 done · captured 0/0 done
@@ -201,7 +207,7 @@ rollup: core 0/3 done · captured 0/0 done
 - core · parking · [portfolio-drift-detected-registry-collision](backlog/portfolio-drift-detected-registry-collision.md)
 - core · parking · [weight-drift-detector](backlog/weight-drift-detector.md)
 
-**Parking health:** 30 theme epic(s), 10 orphan(s) — drive orphans → 0 with `/backlog-themes`
+**Parking health:** 31 theme epic(s), 8 orphan(s) — drive orphans → 0 with `/backlog-themes`
 
 ## ACTIVE
 
@@ -216,11 +222,9 @@ _(none)_
 
 ## LATER
 
-- [broker-ctrl-alpaca-funding-carrier-pk-divergence](backlog/broker-ctrl-alpaca-funding-carrier-pk-divergence.md) [bug] — Live/ALPACA funding: router keys requested carrier on depositId/withdrawalId but completion normalizer keys on transferId — carry-forward misses if they differ (degrades gracefully). Sim path unaffected.
 - [bump-tsconfig-es2022-to-es2023](backlog/bump-tsconfig-es2022-to-es2023.md) [tooling] — Enable .toSpliced/.toReversed/.with workspace-wide; promote on second use case.
 - [execution-ctrl-mandate-recheck-order-boundary](backlog/execution-ctrl-mandate-recheck-order-boundary.md) [refactor] — Defense-in-depth — re-read mandate before broker submission on L1 auto-execute.
 - [integration-suite-lever-5-cdk-bundling](backlog/integration-suite-lever-5-cdk-bundling.md) [refactor] — cdk-constructs:test bundles 57 assets in 32s as it synthesizes per-construct stacks in tests. This sits in the unit suite, not integration. Dossier called out as out-of-scope for integration slowness but worth tracking if unit wall-clock becomes a concern.
-- [ip-ctrl-snapshot-agent-fed-trigger-row](backlog/ip-ctrl-snapshot-agent-fed-trigger-row.md) [bug] — IP-ctrl passes the raw CDC trigger row as the agent's investorProfile; MANDATE_ISSUED feeds it a Mandate row (no goal/riskProfile) → degraded snapshot rebuild.
 - [rebalance-planner-mode-awareness](backlog/rebalance-planner-mode-awareness.md) [refactor] — rebalance-planner stays mode-blind; promote on mode-correlated gap.
 - [rename-nestfolio-integ-prefix-to-prefix](backlog/rename-nestfolio-integ-prefix-to-prefix.md) [refactor] — Verbose NESTFOLIO_INTEG_ namespace is friction; rename atomically + sweep docs.
 - [test-support-typecheck-put-event-type-test-drift](backlog/test-support-typecheck-put-event-type-test-drift.md) [tooling] — test-support:typecheck red on main — put-event.type-test @ts-expect-error drifted off the now-relocated overload error (false-red, not a masked real error)

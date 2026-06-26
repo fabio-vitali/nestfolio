@@ -2,6 +2,8 @@
 id: broker-ctrl-alpaca-funding-carrier-pk-divergence
 status: parking
 type: bug
+epic: read-model-trigger-subject-conflation
+epic_role: core
 notes: "Live/ALPACA funding: router keys requested carrier on depositId/withdrawalId but completion normalizer keys on transferId — carry-forward misses if they differ (degrades gracefully). Sim path unaffected."
 references: []
 out_of_scope: []

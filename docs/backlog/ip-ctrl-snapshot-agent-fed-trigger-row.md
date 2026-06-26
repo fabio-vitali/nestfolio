@@ -2,6 +2,8 @@
 id: ip-ctrl-snapshot-agent-fed-trigger-row
 status: parking
 type: bug
+epic: read-model-trigger-subject-conflation
+epic_role: core
 notes: "IP-ctrl passes the raw CDC trigger row as the agent's investorProfile; MANDATE_ISSUED feeds it a Mandate row (no goal/riskProfile) → degraded snapshot rebuild."
 references: []
 out_of_scope: []
