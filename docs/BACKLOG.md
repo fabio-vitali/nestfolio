@@ -8,11 +8,11 @@
 
 ### [dead-code-cleanup](backlog/dead-code-cleanup.md) `[epic · active]` — Vestigial code left behind by prior refactors that no checker flags — unread wrappers, unused repo methods, stale comments, a dead consumer read. Debt-class theme epic, 4 members.
 done_when: Each piece of vestigial code in scope is deleted after a zero-caller/zero-reader verification; all members shipped or dropped.
-rollup: core 0/4 done · captured 0/0 done
-- core · active · [an-ctrl-wrap-agent-output-vestigial](backlog/an-ctrl-wrap-agent-output-vestigial.md)
+rollup: core 1/4 done · captured 0/0 done
 - core · parking · [execution-ctrl-orderrepository-prune-unused-methods](backlog/execution-ctrl-orderrepository-prune-unused-methods.md)
 - core · parking · [stale-memory-write-comments-phase-a-cleanup](backlog/stale-memory-write-comments-phase-a-cleanup.md)
 - core · parking · [yahoo-finance-mi-ctrl-subject-region-dead-code](backlog/yahoo-finance-mi-ctrl-subject-region-dead-code.md)
+- core · shipped · [an-ctrl-wrap-agent-output-vestigial](backlog/an-ctrl-wrap-agent-output-vestigial.md)
 
 ### [advisory-narrative-memory-read-latency](backlog/advisory-narrative-memory-read-latency.md) `[epic · parking]` — advisory-narrative-ctrl blocks on AgentCore Memory reads before writing its observable HEAD row → 30-40s integration tests. Theme epic, 2 members.
 done_when: advisory-narrative-ctrl's observable HEAD row is visible to tests in ~5-10s (eager write and/or tightened Memory-retry delays) with no dev/prod consistency skew; both members shipped or dropped.
@@ -235,6 +235,7 @@ _(none)_
 
 ## Recently Shipped (last 10)
 
+- 2026-06-26 — [an-ctrl-wrap-agent-output-vestigial](backlog/an-ctrl-wrap-agent-output-vestigial.md) [refactor] — advisory-narrative-ctrl handler still wraps result via wrapAgentOutput but the wrap is unread after the callback refactor `[epic:dead-code-cleanup · core]`
 - 2026-06-25 — [backlog-eval-framework-full-corpus](backlog/backlog-eval-framework-full-corpus.md) [tooling] — Phase 6 of backlog-eval-framework: the /benchmark-backlog skill surface + the full ~50-scenario corpus (per-skill coverage enumerated in the spec). Builds on the proven core (PR #24) and the backlog-eval-framework-usable milestone. `[epic:backlog-eval-framework-remaining · core]`
 - 2026-06-25 — [backlog-eval-framework-remaining](backlog/backlog-eval-framework-remaining.md) [epic] — Remaining work on the backlog-eval-framework (benchmark-backlog) harness after the shipped design + proven core (PR #24) + the backlog-eval-framework-usable milestone: the Phase-6 full corpus + /benchmark-backlog skill surface, plus two core-harness tooling defects. Theme epic, 3 members.
 - 2026-06-25 — [backlog-eval-framework-usable](backlog/backlog-eval-framework-usable.md) [tooling] — Finish backlog-eval-framework so it can actually guard backlog-skills-simplification: harden next-lane+e8-conflict (rubricGate + deterministic proxies; e8 no-pre-ship setup + portable SUPERPOWERS path), commit a baseline.json, run the oracle-teeth (Task 14). Core harness shipped in PR #24.
@@ -244,4 +245,3 @@ _(none)_
 - 2026-06-24 — [backlog-next-epic-severity-selection](backlog/backlog-next-epic-severity-selection.md) [tooling] — /backlog-next-epic ranks its candidate list by impact (default) or free-text --like criterion, computed AT SELECTION TIME (no stored severity field), surfaced ranked-with-reasons for human confirm.
 - 2026-06-23 — [test-integration-parallel-dns-exhaustion](backlog/test-integration-parallel-dns-exhaustion.md) [tooling] — run-many -t test-integration at full parallelism exhausts the macOS DNS resolver (getaddrinfo ENOTFOUND) → false reds; recovers at --parallel=1. Fix: a process-wide dns.lookup retry (installDnsResilience) installed once per worker from the integration Jest setup — covers AWS SDK + fetch uniformly at the DNS layer.
 - 2026-06-22 — [auto-decision-discipline-and-merge-ownership](backlog/auto-decision-discipline-and-merge-ownership.md) [tooling] — --auto floor is prose-only + over-broad, and the epic close self-merged the PR on a bare 'go'. Make the floor a decidable scope test surfaced via AskUserQuestion; the close ALWAYS stops at an open PR (cleanup worktree + print PR link), never self-merges. `[epic:backlog-skills-hardening · core]`
-- 2026-06-22 — [backlog-skills-hardening](backlog/backlog-skills-hardening.md) [epic] — Bulletproof the /backlog-next-epic orchestrator + /backlog-next worker workflows. Theme epic aggregating the confirmed weaknesses from the 2026-06-22 skills audit (docs/reviews/2026-06-22-backlog-skills-audit.md), surfaced by the first real --auto epic run (order-execution-money-path, merge #20). 6 core members.

@@ -1,6 +1,7 @@
 ---
 id: an-ctrl-wrap-agent-output-vestigial
-status: active
+status: shipped
+closed: 2026-06-26
 type: refactor
 notes: "advisory-narrative-ctrl handler still wraps result via wrapAgentOutput but the wrap is unread after the callback refactor"
 references: []
@@ -10,7 +11,7 @@ out_of_scope:
 spec: null
 plan: null
 topic_memory: []
-validation_gate: null
+validation_gate: "Commit eae66249 on feat/epic-dead-code-cleanup. Verified zero callers/readers workspace-wide before deletion (grep: wrapAgentOutput/OutputTooLargeError/WrappedAgentOutput/INLINE_SIZE_THRESHOLD_BYTES → no residual refs). Deleted: AN-ctrl handler import+size-guard call, agent-orchestrator wrap-agent-output.ts + index export + its test, orphaned OutputTooLargeError test-mocks (AN-ctrl + PE-ctrl), AN-ctrl card line. 6.2 gate GREEN: `nx run-many -t test lint` across 33 true-affected projects (agent-orchestrator 19/19 suites · 129 tests; advisory-narrative-ctrl + portfolio-engine-ctrl unit suites green). Deploy + integration/e2e deferred to epic E6 batched gate per logged run-state decision (change is a behavioral no-op; agent-orchestrator-dependent services redeploy cumulatively at E6)."
 epic: dead-code-cleanup
 epic_role: core
 ---
