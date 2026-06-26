@@ -14,7 +14,6 @@ jest.mock('@nestfolio/agent-orchestrator', () => ({
   createMemoryClient: jest.fn(),
   createNoOpMemoryClient: jest.fn(),
   UnknownOperatingModeError: jest.requireActual('@nestfolio/agent-orchestrator').UnknownOperatingModeError,
-  OutputTooLargeError: jest.requireActual('@nestfolio/agent-orchestrator').OutputTooLargeError,
   // Key helpers used by agent-completion.repository.ts (re-exported under SCREAMING_SNAKE aliases).
   agentCompletionPk: (decisionId: string) => `AgentCompletion#${decisionId}`,
   agentCompletionSk: (agentName: string) => `AgentCompletion#${agentName}`,

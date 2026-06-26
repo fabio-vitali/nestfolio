@@ -67,8 +67,6 @@ export { dispatchAgentInvocation } from './dispatch-runtime';
 export { invokeAgentCoreRuntime } from './invoke-agentcore';
 export { invokeMockRuntime } from './invoke-mock';
 
-export { wrapAgentOutput, OutputTooLargeError, INLINE_SIZE_THRESHOLD_BYTES, type WrappedAgentOutput } from './wrap-agent-output';
-
 export {
   agentCompletionPk, agentCompletionSk, agentFailurePk, agentFailureSk,
   AgentCompletionRowSchema, AgentFailureRowSchema,
