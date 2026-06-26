@@ -1,10 +1,12 @@
 ---
 id: yahoo-finance-mi-ctrl-subject-region-dead-code
-status: parking
+status: active
 type: bug
-notes: "MI-ctrl reads subject.region from YAHOO_FINANCE_UPDATED but producer schema has no region field"
+notes: "MI-ctrl reads subject.region from YAHOO_FINANCE_UPDATED but producer schema has no region field. Verification (2026-06-26) corrected the premise: the read is LIVE on the slow-tier MARKET_SNAPSHOT_REFRESH_TICK (scheduled-emitter emits subject.region; MarketSnapshotRefreshTickSchema requires it) — not dead, but redundant (always == env region). Resolved by finishing the region->RegionContext DRY migration (the tick is the lone holdout vs MarketSnapshotSchema's 2026-06-10 migration)."
 references: []
-out_of_scope: []
+out_of_scope:
+  - "Multi-region semantics — single-region (us-east-1) deployment; ctx.region == env region everywhere, so this is behavior-preserving, not a multi-region enablement"
+  - "The 5 fast-tier feed producer contracts (yahoo/marketwatch/sec/fred/alpha-vantage) — already region-less ('Global'); only their handler read changes from subject to ctx, with the env fallback kept"
 spec: null
 plan: null
 topic_memory: []

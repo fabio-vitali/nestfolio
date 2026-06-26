@@ -9,7 +9,7 @@
 ### [dead-code-cleanup](backlog/dead-code-cleanup.md) `[epic · active]` — Vestigial code left behind by prior refactors that no checker flags — unread wrappers, unused repo methods, stale comments, a dead consumer read. Debt-class theme epic, 4 members.
 done_when: Each piece of vestigial code in scope is deleted after a zero-caller/zero-reader verification; all members shipped or dropped.
 rollup: core 4/5 done · captured 0/0 done
-- core · parking · [yahoo-finance-mi-ctrl-subject-region-dead-code](backlog/yahoo-finance-mi-ctrl-subject-region-dead-code.md)
+- core · active · [yahoo-finance-mi-ctrl-subject-region-dead-code](backlog/yahoo-finance-mi-ctrl-subject-region-dead-code.md)
 - core · shipped · [an-ctrl-wrap-agent-output-vestigial](backlog/an-ctrl-wrap-agent-output-vestigial.md)
 - core · shipped · [execution-ctrl-cooldown-feature-dead-code](backlog/execution-ctrl-cooldown-feature-dead-code.md)
 - core · shipped · [execution-ctrl-orderrepository-prune-unused-methods](backlog/execution-ctrl-orderrepository-prune-unused-methods.md)
