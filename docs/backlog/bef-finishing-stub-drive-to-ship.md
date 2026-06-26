@@ -9,6 +9,8 @@ spec: null
 plan: null
 topic_memory: [project_backlog_eval_framework.md]
 validation_gate: null
+epic: backlog-eval-corpus-hardening
+epic_role: core
 ---
 
 # Stub finishing-a-development-branch for faithful drive-to-ship gating

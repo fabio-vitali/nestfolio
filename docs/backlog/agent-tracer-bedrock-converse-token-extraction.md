@@ -9,6 +9,8 @@ spec: null
 plan: null
 topic_memory: []
 validation_gate: null
+epic: agent-runtime-latent-correctness
+epic_role: core
 ---
 
 # AgentTracer token extraction broken for ChatBedrockConverse

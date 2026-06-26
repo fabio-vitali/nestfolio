@@ -10,6 +10,8 @@ topic_memory:
   - project_agent_runtime_structured_output.md
 validation_gate: null
 notes: "γ.4 retry stacks two corrective directives; cleaner separation needed."
+epic: agent-runtime-latent-correctness
+epic_role: core
 ---
 
 # Pinned-retry prompt interference in agent-factory γ.4 path

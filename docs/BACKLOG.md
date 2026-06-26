@@ -12,11 +12,25 @@ rollup: core 0/2 done · captured 0/0 done
 - core · parking · [advisory-narrative-ctrl-eager-write-refactor](backlog/advisory-narrative-ctrl-eager-write-refactor.md)
 - core · parking · [advisory-narrative-ctrl-memory-retry-env-plumb](backlog/advisory-narrative-ctrl-memory-retry-env-plumb.md)
 
+### [agent-runtime-latent-correctness](backlog/agent-runtime-latent-correctness.md) `[epic · parking]` — Agent-runtime non-happy-path behaviors (token instrumentation, structured-output retry, serviceUnavailable handling) are unverified — no assertion exercises the degraded/instrumentation paths, so latent correctness gaps persist. Same 'no-assertion' debt-class as integration-coverage-backfill. Theme epic, 3 members.
+done_when: Each member's degraded/instrumentation path gains an assertion (unit or e2e) that would catch its gap, the underlying correctness bug is fixed (or the divergence documented as intentional), and all members are shipped or dropped.
+rollup: core 0/3 done · captured 0/0 done
+- core · parking · [agent-tracer-bedrock-converse-token-extraction](backlog/agent-tracer-bedrock-converse-token-extraction.md)
+- core · parking · [pinned-retry-prompt-interference-agent-factory](backlog/pinned-retry-prompt-interference-agent-factory.md)
+- core · parking · [portfolio-engine-service-unavailable-asymmetric-handling](backlog/portfolio-engine-service-unavailable-asymmetric-handling.md)
+
 ### [at-least-once-dedup-gaps](backlog/at-least-once-dedup-gaps.md) `[epic · parking]` — AWS at-least-once / concurrent redelivery can double a side-effect because the path lacks an idempotency/dedup guard. Theme epic, 2 members.
 done_when: Each in-scope side-effecting path is made idempotent against at-least-once / concurrent redelivery (conditional-write dedup guard or equivalent), so a redelivered or duplicate trigger produces the effect exactly once; both members shipped or dropped.
 rollup: core 0/2 done · captured 0/0 done
 - core · parking · [broker-circuit-breaker-concurrent-escalation-duplicate](backlog/broker-circuit-breaker-concurrent-escalation-duplicate.md)
 - core · parking · [sf-start-idempotency-at-least-once-redelivery](backlog/sf-start-idempotency-at-least-once-redelivery.md)
+
+### [backlog-eval-corpus-hardening](backlog/backlog-eval-corpus-hardening.md) `[epic · parking]` — The backlog-eval-framework corpus shipped structurally but is not yet live-validated/hardened — the regression reference backlog-skills-simplification will diff against. Theme epic, 3 members.
+done_when: The corpus has a committed live full-corpus baseline, every scenario gates deterministically (no flaky rubric swings), and the drive-to-ship scenarios route to a stubbed finishing skill instead of self-merging; all members shipped or dropped.
+rollup: core 0/3 done · captured 0/0 done
+- core · parking · [backlog-eval-framework-baseline-run](backlog/backlog-eval-framework-baseline-run.md)
+- core · parking · [bef-finishing-stub-drive-to-ship](backlog/bef-finishing-stub-drive-to-ship.md)
+- core · parking · [bef-resume-partial-scenario-flaky](backlog/bef-resume-partial-scenario-flaky.md)
 
 ### [backlog-skills-simplification](backlog/backlog-skills-simplification.md) `[epic · parking]` — Reduce accreted complexity in the backlog skill suite (~3,900 lines, 19 F-fixes, rationale interleaved into procedures) WITHOUT regressing hard-won lessons or changing behavior.
 done_when: Both core members terminal: (β) SKILL.md procedures read as lean imperative steps with backstory relocated to a LESSONS/pitfalls log and terse guardrails kept inline; (γ) load-bearing multi-step bash dances are encapsulated in tested .mjs helpers rather than narrated in prose. No backlog behavior or lint invariant changed; no F-lesson knowledge deleted.
@@ -194,7 +208,7 @@ rollup: core 0/3 done · captured 0/0 done
 - core · parking · [portfolio-drift-detected-registry-collision](backlog/portfolio-drift-detected-registry-collision.md)
 - core · parking · [weight-drift-detector](backlog/weight-drift-detector.md)
 
-**Parking health:** 29 theme epic(s), 16 orphan(s) — drive orphans → 0 with `/backlog-themes`
+**Parking health:** 31 theme epic(s), 10 orphan(s) — drive orphans → 0 with `/backlog-themes`
 
 ## ACTIVE
 
@@ -208,17 +222,11 @@ _(none)_
 
 ## LATER
 
-- [agent-tracer-bedrock-converse-token-extraction](backlog/agent-tracer-bedrock-converse-token-extraction.md) [bug] — AgentTracer.handleLLMEnd returns 0 input/output tokens for ChatBedrockConverse — usage field path mismatch. Diagnostic envelopes lose cost/decode signal.
-- [backlog-eval-framework-baseline-run](backlog/backlog-eval-framework-baseline-run.md) [tooling] — Run the full 3-iteration baseline over the 52-scenario corpus via `/benchmark-backlog rebaseline` to establish the regression reference for backlog-skills-simplification. Deferred Task 17 of the backlog-eval-framework plan — split out of backlog-eval-framework-full-corpus per the 2026-06-25 cost-floor decision (a single full-corpus run is ~tens of millions of tokens; each backlog-next-epic scenario ≈1.7–3M). Cost-gated: run only when the budget is being deliberately spent, before backlog-skills-simplification starts.
-- [bef-finishing-stub-drive-to-ship](backlog/bef-finishing-stub-drive-to-ship.md) [tooling] — Stub finishing-a-development-branch in the bef sandbox so drive-to-ship workers route to it instead of reimplementing the merge (the self-merge anti-pattern), enabling a faithful no-self-merge gate.
-- [bef-resume-partial-scenario-flaky](backlog/bef-resume-partial-scenario-flaky.md) [bug] — bne-resume-partial eval scenario is flaky (rubric 1/5↔4/5, worker flails 35-43 turns on epic resume); rubricGate:4 exposed it.
 - [broker-ctrl-alpaca-funding-carrier-pk-divergence](backlog/broker-ctrl-alpaca-funding-carrier-pk-divergence.md) [bug] — Live/ALPACA funding: router keys requested carrier on depositId/withdrawalId but completion normalizer keys on transferId — carry-forward misses if they differ (degrades gracefully). Sim path unaffected.
 - [bump-tsconfig-es2022-to-es2023](backlog/bump-tsconfig-es2022-to-es2023.md) [tooling] — Enable .toSpliced/.toReversed/.with workspace-wide; promote on second use case.
 - [execution-ctrl-mandate-recheck-order-boundary](backlog/execution-ctrl-mandate-recheck-order-boundary.md) [refactor] — Defense-in-depth — re-read mandate before broker submission on L1 auto-execute.
 - [integration-suite-lever-5-cdk-bundling](backlog/integration-suite-lever-5-cdk-bundling.md) [refactor] — cdk-constructs:test bundles 57 assets in 32s as it synthesizes per-construct stacks in tests. This sits in the unit suite, not integration. Dossier called out as out-of-scope for integration slowness but worth tracking if unit wall-clock becomes a concern.
 - [ip-ctrl-snapshot-agent-fed-trigger-row](backlog/ip-ctrl-snapshot-agent-fed-trigger-row.md) [bug] — IP-ctrl passes the raw CDC trigger row as the agent's investorProfile; MANDATE_ISSUED feeds it a Mandate row (no goal/riskProfile) → degraded snapshot rebuild.
-- [pinned-retry-prompt-interference-agent-factory](backlog/pinned-retry-prompt-interference-agent-factory.md) [bug] — γ.4 retry stacks two corrective directives; cleaner separation needed.
-- [portfolio-engine-service-unavailable-asymmetric-handling](backlog/portfolio-engine-service-unavailable-asymmetric-handling.md) [bug] — portfolio-engine graph returns serviceUnavailable instead of throwing; other 3 advisory agents throw
 - [rebalance-planner-mode-awareness](backlog/rebalance-planner-mode-awareness.md) [refactor] — rebalance-planner stays mode-blind; promote on mode-correlated gap.
 - [rename-nestfolio-integ-prefix-to-prefix](backlog/rename-nestfolio-integ-prefix-to-prefix.md) [refactor] — Verbose NESTFOLIO_INTEG_ namespace is friction; rename atomically + sweep docs.
 - [test-support-typecheck-put-event-type-test-drift](backlog/test-support-typecheck-put-event-type-test-drift.md) [tooling] — test-support:typecheck red on main — put-event.type-test @ts-expect-error drifted off the now-relocated overload error (false-red, not a masked real error)
