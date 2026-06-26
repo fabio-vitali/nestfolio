@@ -1,10 +1,12 @@
 ---
 id: an-ctrl-wrap-agent-output-vestigial
-status: parking
+status: active
 type: refactor
 notes: "advisory-narrative-ctrl handler still wraps result via wrapAgentOutput but the wrap is unread after the callback refactor"
 references: []
-out_of_scope: []
+out_of_scope:
+  - "Building the deferred S3-pointer output-offload path (the `// future:` s3 variant of WrappedAgentOutput) — it was never needed (p99 ~6KB) and is being deleted, not completed"
+  - "Other advisory agent handlers (investor-profile/market-intelligence/portfolio-engine) — already off wrapAgentOutput; only PE-ctrl's orphaned OutputTooLargeError test-mock entry is swept here"
 spec: null
 plan: null
 topic_memory: []
