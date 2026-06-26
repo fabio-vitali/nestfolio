@@ -76,14 +76,6 @@ jest.mock('@nestfolio/event-processor', () => ({
 
 }));
 import { OrderRepository } from '../../src/repositories/order.repository';
-import { asTenantId, asUserId } from '@nestfolio/event-processor';
-import type { RequestContext } from '@nestfolio/event-processor';
-
-const testCtx: RequestContext = {
-  tenantId: asTenantId('t1'),
-  userId: asUserId('00000000-0000-0000-0000-000000000001'),
-  region: 'us-east-1',
-};
 
 function extractUpdateAttrs(update: any): Record<string, unknown> {
   const names = update.ExpressionAttributeNames;
@@ -102,61 +94,6 @@ describe('OrderRepository', () => {
   beforeEach(() => {
     jest.clearAllMocks();
     repo = new OrderRepository('test-table');
-  });
-
-  describe('createOrder', () => {
-    it('should create an Order with status PENDING using conditional write', async () => {
-      mockSend.mockResolvedValueOnce({});
-
-      const trades = [
-        { symbol: 'VTI', assetClass: 'EQUITY', side: 'BUY' as const, quantityOrAmountCents: 10, targetWeightPercent: 50, rationale: 'Buy VTI' },
-      ];
-
-      const result = await repo.createOrder('ord-1', 'dp-1', trades, testCtx, 'evt-1');
-
-      expect(result).toBe(true);
-      expect(mockSend).toHaveBeenCalledTimes(1);
-      const call = mockSend.mock.calls[0][0];
-      expect(call.input.Item).toMatchObject({
-        pk: 'Order#t1#ord-1',
-        sk: 'Order',
-        __typename: 'Order',
-        tenantId: 't1',
-        userId: '00000000-0000-0000-0000-000000000001',
-        region: 'us-east-1',
-        orderId: 'ord-1',
-        decisionPacketId: 'dp-1',
-        status: 'PENDING',
-        proposedTrades: trades,
-        sourceEventId: 'evt-1',
-      });
-    });
-  });
-
-  describe('getOrder', () => {
-    it('should return order when found', async () => {
-      const order = {
-        pk: 'Order#t1#ord-1',
-        sk: 'Order',
-        __typename: 'Order',
-        tenantId: 't1',
-        orderId: 'ord-1',
-        status: 'PENDING',
-      };
-      mockSend.mockResolvedValueOnce({ Items: [order] });
-
-      const result = await repo.getOrder('t1', 'ord-1');
-
-      expect(result).toEqual(order);
-    });
-
-    it('should return null when not found', async () => {
-      mockSend.mockResolvedValueOnce({ Items: [] });
-
-      const result = await repo.getOrder('t1', 'ord-not-found');
-
-      expect(result).toBeNull();
-    });
   });
 
   describe('updateOrderStatus', () => {
@@ -204,27 +141,6 @@ describe('OrderRepository', () => {
     });
   });
 
-  describe('createStagedOrder', () => {
-    it('should create a StagedOrder record', async () => {
-      mockSend.mockResolvedValueOnce({});
-
-      const trades = [{ symbol: 'VTI', side: 'BUY', quantityOrAmountCents: 10 }];
-      await repo.createStagedOrder('ord-1', { proposedTrades: trades }, testCtx);
-
-      expect(mockSend).toHaveBeenCalledTimes(1);
-      const call = mockSend.mock.calls[0][0];
-      expect(call.input.Item).toMatchObject({
-        pk: 'StagedOrder#t1#ord-1',
-        sk: 'StagedOrder',
-        __typename: 'StagedOrder',
-        tenantId: 't1',
-        userId: '00000000-0000-0000-0000-000000000001',
-        region: 'us-east-1',
-        orderId: 'ord-1',
-      });
-    });
-  });
-
   describe('getStagedOrders', () => {
     it('should query staged orders using GSI', async () => {
       const staged = [
@@ -255,66 +171,7 @@ describe('OrderRepository', () => {
     });
   });
 
-  describe('setCoolDown', () => {
-    it('should create a CoolDown record', async () => {
-      mockSend.mockResolvedValueOnce({});
-
-      await repo.setCoolDown('VTI', '2025-01-02T00:00:00.000Z', testCtx);
-
-      expect(mockSend).toHaveBeenCalledTimes(1);
-      const call = mockSend.mock.calls[0][0];
-      expect(call.input.Item).toMatchObject({
-        pk: 'CoolDown#t1#VTI',
-        sk: 'CoolDown',
-        __typename: 'CoolDown',
-        tenantId: 't1',
-        userId: '00000000-0000-0000-0000-000000000001',
-        region: 'us-east-1',
-        instrument: 'VTI',
-        expiresAt: '2025-01-02T00:00:00.000Z',
-      });
-    });
-  });
-
-  describe('getCoolDown', () => {
-    it('should return cooldown when found', async () => {
-      const cd = {
-        pk: 'CoolDown#t1#VTI',
-        sk: 'CoolDown',
-        __typename: 'CoolDown',
-        tenantId: 't1',
-        instrument: 'VTI',
-        expiresAt: '2025-01-02T00:00:00.000Z',
-      };
-      mockSend.mockResolvedValueOnce({ Items: [cd] });
-
-      const result = await repo.getCoolDown('t1', 'VTI');
-
-      expect(result).toEqual(cd);
-    });
-
-    it('should return null when no cooldown', async () => {
-      mockSend.mockResolvedValueOnce({ Items: [] });
-
-      const result = await repo.getCoolDown('t1', 'AAPL');
-
-      expect(result).toBeNull();
-    });
-  });
-
-  describe('createOrder — error paths', () => {
-    it('should propagate DynamoDB errors on create', async () => {
-      mockSend.mockRejectedValueOnce(new Error('ProvisionedThroughputExceededException'));
-
-      const trades = [
-        { symbol: 'VTI', assetClass: 'EQUITY', side: 'BUY' as const, quantityOrAmountCents: 10, targetWeightPercent: 50, rationale: 'Buy VTI' },
-      ];
-
-      await expect(
-        repo.createOrder('ord-err', 'dp-1', trades, testCtx),
-      ).rejects.toThrow('ProvisionedThroughputExceededException');
-    });
-
+  describe('updateOrderStatus — error paths', () => {
     it('should propagate TransactWriteItems error on status update', async () => {
       mockSend.mockRejectedValueOnce(new Error('TransactionCanceledException'));
 

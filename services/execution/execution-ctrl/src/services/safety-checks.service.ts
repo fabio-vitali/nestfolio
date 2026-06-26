@@ -8,7 +8,6 @@ export interface SafetyCheckResult {
   checks: {
     reconciliationLock: boolean;
     conflictingStagedOrders: boolean;
-    coolDown: boolean;
   };
 }
 
@@ -35,22 +34,6 @@ export class SafetyChecksService {
     },
   );
 
-  readonly checkCoolDown = this.log('checkCoolDown',
-    async (tenantId: string, instruments: string[]): Promise<boolean> => {
-      for (const instrument of instruments) {
-        const coolDown = await this.repository.getCoolDown(tenantId, instrument);
-        if (coolDown) {
-          const expiresAt = coolDown['expiresAt'] as string;
-          if (new Date(expiresAt) > new Date()) {
-            logger.info('Cool down active for instrument', { tenantId, instrument, expiresAt });
-            return true;
-          }
-        }
-      }
-      return false;
-    },
-  );
-
   readonly runAllChecks = this.log('runAllChecks',
     async (tenantId: string, instruments: string[]): Promise<SafetyCheckResult> => {
       const reconciliationLock = await this.checkReconciliationLock(tenantId);
@@ -58,7 +41,7 @@ export class SafetyChecksService {
         return {
           passed: false,
           reason: 'Reconciliation is in progress',
-          checks: { reconciliationLock: true, conflictingStagedOrders: false, coolDown: false },
+          checks: { reconciliationLock: true, conflictingStagedOrders: false },
         };
       }
 
@@ -67,22 +50,13 @@ export class SafetyChecksService {
         return {
           passed: false,
           reason: 'Conflicting staged orders exist for the same instruments',
-          checks: { reconciliationLock: false, conflictingStagedOrders: true, coolDown: false },
-        };
-      }
-
-      const coolDown = await this.checkCoolDown(tenantId, instruments);
-      if (coolDown) {
-        return {
-          passed: false,
-          reason: 'Cool down period active for one or more instruments',
-          checks: { reconciliationLock: false, conflictingStagedOrders: false, coolDown: true },
+          checks: { reconciliationLock: false, conflictingStagedOrders: true },
         };
       }
 
       return {
         passed: true,
-        checks: { reconciliationLock: false, conflictingStagedOrders: false, coolDown: false },
+        checks: { reconciliationLock: false, conflictingStagedOrders: false },
       };
     },
   );

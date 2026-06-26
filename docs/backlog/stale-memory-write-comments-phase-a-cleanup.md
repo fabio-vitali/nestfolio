@@ -1,14 +1,18 @@
 ---
 id: stale-memory-write-comments-phase-a-cleanup
-status: parking
+status: shipped
+closed: 2026-06-26
 type: refactor
-notes: "6 stale comments in decision-workflow-ctrl + cdk-constructs reference writeAgentOutput / BatchCreate / ListMemoryRecords"
+notes: "6 stale comments in decision-workflow-ctrl + cdk-constructs reference writeAgentOutput / BatchCreate / ListMemoryRecords. Verification (2026-06-26) narrowed this: only ~3 are genuinely stale; the eventual-consistency comments are correct (explain why code AVOIDS ListMemoryRecords), the BatchCreateMemoryRecords hits are live IAM test assertions, and writeAgentOutput has zero refs."
 references: []
-out_of_scope: []
+out_of_scope:
+  - "The decision-state-machine.ts + service.stack.test.ts eventual-consistency comments — verified CURRENT/correct (they explain the avoid-ListMemoryRecords design), not stale; leaving them"
+  - "The .not.toContain('bedrock-agentcore:BatchCreateMemoryRecords') IAM test assertions — live, asserting the grant correctly excludes those actions"
+  - "The externalModules:[] agent-profile bundling config itself — behavioral, unchanged; only its stale example command reference is generalized"
 spec: null
 plan: null
 topic_memory: []
-validation_gate: null
+validation_gate: "Commit bbdf61e3 on feat/epic-dead-code-cleanup. Verified vs ground truth: memory-client.ts (libs/agent-orchestrator/src/memory/) now uses CreateEventCommand + RetrieveMemoryRecordsCommand, not BatchCreate/ListMemoryRecords. Fixed the 3 genuinely-stale spots — decision-workflow-ctrl/service.stack.ts runtime-path comment (command names) + cdk-constructs/lambda-profiles.ts ×2 + its test (generalized the agent-profile bundling rationale off the no-longer-called BatchCreateMemoryRecordsCommand; externalModules:[] config untouched). Deliberately LEFT (verified current/correct): the decision-state-machine.ts + service.stack.test.ts avoid-ListMemoryRecords eventual-consistency design comments, and the .not.toContain('bedrock-agentcore:BatchCreateMemoryRecords') live IAM test assertions; writeAgentOutput has zero refs. Comment-only — no behavioral/bundle change. 6.2 gate GREEN: `nx run-many -t test lint` across 39 projects (EXIT 0). Deploy deferred to E6 (comments stripped at bundle time)."
 epic: dead-code-cleanup
 epic_role: core
 ---

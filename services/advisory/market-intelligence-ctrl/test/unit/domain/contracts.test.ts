@@ -1,5 +1,6 @@
 import {
   MarketSnapshotSchema,
+  MarketSnapshotRefreshTickSchema,
 } from '../../../src/domain/contracts';
 
 const validSignal = {
@@ -26,6 +27,13 @@ describe('market-intelligence-ctrl contracts', () => {
     });
     expect('region' in parsed).toBe(false);
     expect(parsed.agentOutput.marketOutlook).toBe('neutral');
+  });
+
+  it('MarketSnapshotRefreshTickSchema is fully dry — region travels in RegionContext, not the subject', () => {
+    const parsed = MarketSnapshotRefreshTickSchema.parse({
+      region: 'us-east-1', // extra key — stripped; region is identity (RegionContext)
+    });
+    expect('region' in parsed).toBe(false);
   });
 
   it('MarketSnapshotSchema still requires agentOutput', () => {

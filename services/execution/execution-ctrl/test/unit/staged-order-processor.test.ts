@@ -113,7 +113,7 @@ describe('staged-order-processor', () => {
 
     jest.spyOn(safetyChecks, 'runAllChecks').mockResolvedValueOnce({
       passed: true,
-      checks: { reconciliationLock: false, conflictingStagedOrders: false, coolDown: false },
+      checks: { reconciliationLock: false, conflictingStagedOrders: false },
     });
 
     // updateOrderStatus (transactWrite) + deleteStagedOrder (delete)
@@ -154,8 +154,8 @@ describe('staged-order-processor', () => {
 
     jest.spyOn(safetyChecks, 'runAllChecks').mockResolvedValueOnce({
       passed: false,
-      reason: 'Cool down period active for one or more instruments',
-      checks: { reconciliationLock: false, conflictingStagedOrders: false, coolDown: true },
+      reason: 'Conflicting staged orders exist for the same instruments',
+      checks: { reconciliationLock: false, conflictingStagedOrders: true },
     });
 
     // updateOrderStatus (transactWrite) + deleteStagedOrder (delete)
@@ -220,12 +220,12 @@ describe('staged-order-processor', () => {
     jest.spyOn(safetyChecks, 'runAllChecks')
       .mockResolvedValueOnce({
         passed: true,
-        checks: { reconciliationLock: false, conflictingStagedOrders: false, coolDown: false },
+        checks: { reconciliationLock: false, conflictingStagedOrders: false },
       })
       .mockResolvedValueOnce({
         passed: false,
         reason: 'Reconciliation is in progress',
-        checks: { reconciliationLock: true, conflictingStagedOrders: false, coolDown: false },
+        checks: { reconciliationLock: true, conflictingStagedOrders: false },
       });
 
     // First order: updateOrderStatus + deleteStagedOrder
@@ -285,7 +285,7 @@ describe('staged-order-processor', () => {
       .mockRejectedValueOnce(new Error('DynamoDB timeout'))
       .mockResolvedValueOnce({
         passed: true,
-        checks: { reconciliationLock: false, conflictingStagedOrders: false, coolDown: false },
+        checks: { reconciliationLock: false, conflictingStagedOrders: false },
       });
 
     // Second order: updateOrderStatus + deleteStagedOrder

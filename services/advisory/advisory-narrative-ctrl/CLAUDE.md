@@ -43,7 +43,7 @@ Agent folder: agents/advisory-narrative/
   SSM runtime URL param: `/nestfolio/${prefix}-advisory-narrative-ctrl/agent/runtimeUrl`
 
 ## Handlers
-- event-listener.ts -- Ingress: dispatches GENERATE_NARRATIVE through the agent (wraps the orchestrator output via `wrapAgentOutput`) and records AgentCompletion / AgentFailure rows. DECISION_FEEDBACK is routed through feedback-correlator.
+- event-listener.ts -- Ingress: dispatches GENERATE_NARRATIVE through the agent and records AgentCompletion / AgentFailure rows (the raw `result` is stored as `agentOutput`; DWC reads it back via CDC). DECISION_FEEDBACK is routed through feedback-correlator.
 - event-publisher.ts -- Egress CDC publisher (changeDataCapture pipeline, typed-subject mode)
 - publisher-schemas.ts — typed-subject registry: maps each emitted __typename → its producer zod contract (subjectSchemas) + exemptTypenames; the publisher emits schema.parse(row) (the DRY subject) for covered types, the fat row for exempt. Exempt: none (every emitted __typename now has a row-level contract — ReasoningOutput → ExplanationGeneratedSchema, AgentCompletion → NarrativeAgentCompletionSchema, AgentFailure → NarrativeAgentFailureSchema).
 - feedback-correlator.ts -- Processes DECISION_FEEDBACK events, annotates decisions, writes to KB S3 bucket, triggers KB ingestion

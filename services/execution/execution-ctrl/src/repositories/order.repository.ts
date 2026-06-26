@@ -1,8 +1,7 @@
 import { DynamoDBClient } from '@aws-sdk/client-dynamodb';
 import { BatchGetCommand, DeleteCommand } from '@aws-sdk/lib-dynamodb';
-import { TableRepository, getTime, type TableEntry, type RequestContext } from '@nestfolio/event-processor';
+import { TableRepository, getTime } from '@nestfolio/event-processor';
 import { withMethodLogging } from '@nestfolio/event-processor';
-import type { ProposedTrade } from '@nestfolio/advisory-adpt/domain';
 
 function orderPk(tenantId: string, orderId: string): string {
   return `Order#${tenantId}#${orderId}`;
@@ -12,51 +11,12 @@ function stagedOrderPk(tenantId: string, orderId: string): string {
   return `StagedOrder#${tenantId}#${orderId}`;
 }
 
-function coolDownPk(tenantId: string, instrument: string): string {
-  return `CoolDown#${tenantId}#${instrument}`;
-}
-
 export class OrderRepository extends TableRepository {
   private readonly log = withMethodLogging('OrderRepository');
 
   constructor(tableName: string, client?: DynamoDBClient) {
     super(tableName, client);
   }
-
-  readonly createOrder = this.log('createOrder',
-    async (
-      orderId: string,
-      decisionPacketId: string,
-      trades: ProposedTrade[],
-      ctx: RequestContext,
-      sourceEventId?: string,
-    ): Promise<boolean> => {
-      const now = getTime();
-      const item: TableEntry = {
-        pk: orderPk(ctx.tenantId, orderId),
-        sk: 'Order',
-        __typename: 'Order',
-        ...ctx,
-        timestamp: now,
-        orderId,
-        decisionPacketId,
-        proposedTrades: trades,
-        status: 'PENDING',
-        createdAt: now,
-        updatedAt: now,
-        ...(sourceEventId ? { sourceEventId } : {}),
-      };
-      return this.putIfNotExists(item);
-    },
-  );
-
-  readonly getOrder = this.log('getOrder',
-    async (tenantId: string, orderId: string): Promise<Record<string, unknown> | null> => {
-      const pk = orderPk(tenantId, orderId);
-      const items = await this.queryByPk(pk, 'Order');
-      return items.length > 0 ? items[0] : null;
-    },
-  );
 
   readonly updateOrderStatus = this.log('updateOrderStatus',
     async (
@@ -78,27 +38,6 @@ export class OrderRepository extends TableRepository {
           }) as any,
         ],
       });
-    },
-  );
-
-  readonly createStagedOrder = this.log('createStagedOrder',
-    async (
-      orderId: string,
-      order: Record<string, unknown>,
-      ctx: RequestContext,
-    ): Promise<void> => {
-      const now = getTime();
-      const item: TableEntry = {
-        pk: stagedOrderPk(ctx.tenantId, orderId),
-        sk: 'StagedOrder',
-        __typename: 'StagedOrder',
-        ...ctx,
-        timestamp: now,
-        orderId,
-        ...order,
-        stagedAt: now,
-      };
-      await this.put(item);
     },
   );
 
@@ -151,31 +90,6 @@ export class OrderRepository extends TableRepository {
           Key: { pk: stagedOrderPk(tenantId, orderId), sk: 'StagedOrder' },
         }),
       );
-    },
-  );
-
-  readonly setCoolDown = this.log('setCoolDown',
-    async (instrument: string, expiresAt: string, ctx: RequestContext): Promise<void> => {
-      const now = getTime();
-      const item: TableEntry = {
-        pk: coolDownPk(ctx.tenantId, instrument),
-        sk: 'CoolDown',
-        __typename: 'CoolDown',
-        ...ctx,
-        timestamp: now,
-        instrument,
-        expiresAt,
-        createdAt: now,
-      };
-      await this.put(item);
-    },
-  );
-
-  readonly getCoolDown = this.log('getCoolDown',
-    async (tenantId: string, instrument: string): Promise<Record<string, unknown> | null> => {
-      const pk = coolDownPk(tenantId, instrument);
-      const items = await this.queryByPk(pk, 'CoolDown');
-      return items.length > 0 ? items[0] : null;
     },
   );
 

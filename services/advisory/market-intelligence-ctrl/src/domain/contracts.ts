@@ -19,10 +19,12 @@ export type MarketSnapshot = z.infer<typeof MarketSnapshotSchema>;
 
 /**
  * MARKET_SNAPSHOT_REFRESH_TICK — self-tick from scheduled-emitter.ts; drives the slow-tier rebuild.
- * Subject carries only `region`; identity fields (`tenantId`/`userId`) travel in the event context.
- * Confirmed against scheduled-emitter.ts createScheduledEmitter: `subject: { region: deps.region }`.
+ * Fully DRY subject — `region` is identity and travels in the RegionContext (the event context),
+ * NOT on the subject (matches MarketSnapshotSchema's subject->context migration). The slow-tier
+ * handler reads region from `ctx.region`.
+ * Confirmed against scheduled-emitter.ts createScheduledEmitter: `subject: {}`.
  */
-export const MarketSnapshotRefreshTickSchema = z.object({ region: z.string() });
+export const MarketSnapshotRefreshTickSchema = z.object({});
 export type MarketSnapshotRefreshTick = z.infer<typeof MarketSnapshotRefreshTickSchema>;
 
 /**

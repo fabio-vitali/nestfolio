@@ -1,14 +1,17 @@
 ---
 id: yahoo-finance-mi-ctrl-subject-region-dead-code
-status: parking
+status: shipped
+closed: 2026-06-26
 type: bug
-notes: "MI-ctrl reads subject.region from YAHOO_FINANCE_UPDATED but producer schema has no region field"
+notes: "MI-ctrl reads subject.region from YAHOO_FINANCE_UPDATED but producer schema has no region field. Verification (2026-06-26) corrected the premise: the read is LIVE on the slow-tier MARKET_SNAPSHOT_REFRESH_TICK (scheduled-emitter emits subject.region; MarketSnapshotRefreshTickSchema requires it) — not dead, but redundant (always == env region). Resolved by finishing the region->RegionContext DRY migration (the tick is the lone holdout vs MarketSnapshotSchema's 2026-06-10 migration)."
 references: []
-out_of_scope: []
+out_of_scope:
+  - "Multi-region semantics — single-region (us-east-1) deployment; ctx.region == env region everywhere, so this is behavior-preserving, not a multi-region enablement"
+  - "The 5 fast-tier feed producer contracts (yahoo/marketwatch/sec/fred/alpha-vantage) — already region-less ('Global'); only their handler read changes from subject to ctx, with the env fallback kept"
 spec: null
 plan: null
 topic_memory: []
-validation_gate: null
+validation_gate: "Commit 9f2acff5 on feat/epic-dead-code-cleanup. Corrected the premise (read is LIVE on the slow-tier tick) and resolved via full region->RegionContext DRY migration (the tick was the lone holdout vs MarketSnapshotSchema's 2026-06-10 migration). Handler reads ctx.region (EventContext extends RequestContext.region:string) + env fallback; scheduled-emitter emits subject:{} (region in context); MarketSnapshotRefreshTickSchema -> z.object({}) + regression test; unit tests reframed (ctx.region-sourcing + env-fallback cases); integration tick fixtures -> subject:{}+context:{region}; stale fixed-bug comment removed; service card updated. Behavior-preserving (single-region: ctx.region == env). Validation: MI-ctrl typecheck+test+lint GREEN (15 suites/77 tests); 6.2 gate GREEN across 39 affected projects incl. test-contracts registry. Deploy + integration/e2e deferred to epic E6 batched gate per logged decision."
 epic: dead-code-cleanup
 epic_role: core
 ---

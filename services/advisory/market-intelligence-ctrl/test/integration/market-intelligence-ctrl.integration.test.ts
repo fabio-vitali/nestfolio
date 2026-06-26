@@ -78,8 +78,8 @@ describe('market-intelligence-ctrl: snapshot materialisation + CDC', () => {
     const eventId2 = `yahoo-feed-2-${randomUUID()}`;
 
     // b(1): producer schema is { ticker, source, articles } — no region/tickers array.
-    // MI-ctrl reads subject.region ?? process.env.AWS_REGION as its snapshot key.
-    // Filed: backlog yahoo-finance-mi-ctrl-subject-region-dead-code (see task-7-report).
+    // MI-ctrl keys the snapshot by region from the RegionContext (ctx.region) with an
+    // env fallback; the global feed events carry no region, so this resolves to AWS_REGION.
     await eb.putEvent({
       bus: 'advisory',
       targetService: 'market-intelligence-ctrl',
@@ -167,7 +167,8 @@ describe('market-intelligence-ctrl: snapshot materialisation + CDC', () => {
       bus: 'advisory',
       targetService: 'market-intelligence-ctrl',
       detailType: 'MARKET_SNAPSHOT_REFRESH_TICK',
-      subject: { region },
+      subject: {},
+      context: { region },
     });
 
     let after: Record<string, unknown>;

@@ -147,7 +147,8 @@ describe('market-intelligence-ctrl resilience: order-agnostic pairwise', () => {
         bus: 'advisory',
         targetService: 'market-intelligence-ctrl',
         detailType: 'MARKET_SNAPSHOT_REFRESH_TICK',
-        subject: { region },
+        subject: {},
+        context: { region },
       });
       try {
         await trapA.waitForEvent({ detailType: 'MARKET_SNAPSHOT_UPDATED', timeoutMs: 120_000 });
@@ -170,7 +171,8 @@ describe('market-intelligence-ctrl resilience: order-agnostic pairwise', () => {
           bus: 'advisory',
           targetService: 'market-intelligence-ctrl',
           detailType: 'MARKET_SNAPSHOT_REFRESH_TICK',
-          subject: { region },
+          subject: {},
+          context: { region },
         });
         try {
           await trapB.waitForEvent({ detailType: 'MARKET_SNAPSHOT_UPDATED', timeoutMs: 120_000 });

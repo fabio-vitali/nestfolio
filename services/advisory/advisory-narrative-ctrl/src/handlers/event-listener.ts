@@ -16,7 +16,6 @@ import {
   createNoOpMemoryClient,
   type MemoryClient,
   UnknownOperatingModeError,
-  wrapAgentOutput,
 } from '@nestfolio/agent-orchestrator';
 import { createAgentService, DuplicateInvocationError } from '../agent-service';
 import {
@@ -104,13 +103,6 @@ export const createHandlers = (deps: IngressDeps) => ({
         portfolio,
         priorNarratives: priorNarratives.map(r => r.content),
       });
-
-      // Size guard only — `wrapAgentOutput` throws OutputTooLargeError if
-      // the agent output exceeds 25 KB. The wrapped value is no longer
-      // returned to SF (handlers must return WriteIntent[]); DWC reads the
-      // full result back from the AgentCompletion row via CDC. The wrapper
-      // itself is now vestigial — see backlog/an-ctrl-wrap-agent-output-vestigial.md.
-      wrapAgentOutput(result);
 
       return [
         record('AgentInvocation', { decisionId, tenantId, agentName: AGENT_NAME }),

@@ -37,7 +37,10 @@ export function createScheduledEmitter(deps: ScheduledEmitterDeps) {
       type: EVENT_TYPE,
       source: SERVICE_NAME,
       timestamp: now.toISOString(),
-      subject: { region: deps.region },
+      // DRY subject — region is identity and travels in the RegionContext below,
+      // not on the subject (matches MarketSnapshotSchema). The slow-tier handler
+      // reads region from ctx.region.
+      subject: {},
       context: {
         tenantId: 'SYSTEM',
         userId: 'SYSTEM',

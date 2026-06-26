@@ -108,7 +108,7 @@ function userConfirmationSubject(decisionId: string, proposedTrades: Record<stri
   };
 }
 
-const pass = { passed: true as const, checks: { reconciliationLock: false, conflictingStagedOrders: false, coolDown: false } };
+const pass = { passed: true as const, checks: { reconciliationLock: false, conflictingStagedOrders: false } };
 
 describe('event-listener handler', () => {
   const ORIGINAL_ENV = process.env;
@@ -154,7 +154,7 @@ describe('event-listener handler', () => {
   it('per-trade independence: one symbol fails safety → that order REJECTED, the other SUBMITTED', async () => {
     jest.spyOn(safetyChecks, 'runAllChecks').mockImplementation(async (_t: string, instruments: string[]) =>
       instruments.includes('BAD')
-        ? { passed: false, reason: 'Cool down period active', checks: { reconciliationLock: false, conflictingStagedOrders: false, coolDown: true } }
+        ? { passed: false, reason: 'Conflicting staged orders exist for the same instruments', checks: { reconciliationLock: false, conflictingStagedOrders: true } }
         : pass,
     );
     jest.spyOn(marketHours, 'isMarketOpen').mockResolvedValueOnce(true);
@@ -165,7 +165,7 @@ describe('event-listener handler', () => {
     expect(result.batchItemFailures).toHaveLength(0);
     const bySymbol = Object.fromEntries(result.intents.map((i: any) => [i.fields.symbol, i.fields]));
     expect(bySymbol['GOOD'].status).toBe('SUBMITTED');
-    expect(bySymbol['BAD']).toEqual(expect.objectContaining({ status: 'REJECTED', reason: 'Cool down period active' }));
+    expect(bySymbol['BAD']).toEqual(expect.objectContaining({ status: 'REJECTED', reason: 'Conflicting staged orders exist for the same instruments' }));
   });
 
   it('DECISION_APPROVED + market closed → per trade: STAGED Order + StagedOrder sibling', async () => {
