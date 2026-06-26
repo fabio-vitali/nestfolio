@@ -40,16 +40,19 @@ type Tier = 'fast' | 'slow';
 // surfaced by Task 19's MarketSnapshot bootstrap on first deploy.
 async function runMarketAgent(
   deps: IngressDeps,
-  payload: EventPayload,
+  _payload: EventPayload,
   ctx: EventContext,
   tier: Tier,
 ): Promise<WriteIntent[]> {
-  // boundary: external market feed events (YAHOO_FINANCE_UPDATED, MARKETWATCH_UPDATED,
-  // SEC_8K_FILED, FRED_INDICATORS_UPDATED, ALPHA_VANTAGE_NEWS_UPDATED) and the
-  // scheduled MARKET_SNAPSHOT_REFRESH_TICK have no producer CDC zod contracts.
-  // Only region is extracted; everything else is forwarded to the agent as-is.
-  const subject = (payload.subject ?? {}) as Record<string, unknown>;
-  const region = (subject.region as string | undefined)
+  // boundary: the 5 external feed events (YAHOO_FINANCE_UPDATED, MARKETWATCH_UPDATED,
+  // SEC_8K_FILED, FRED_INDICATORS_UPDATED, ALPHA_VANTAGE_NEWS_UPDATED) are global and carry
+  // no region; the scheduled MARKET_SNAPSHOT_REFRESH_TICK has a producer contract
+  // (MarketSnapshotRefreshTickSchema) and is region-scoped. Region travels in the
+  // RegionContext (ctx), not the subject — DRY, matching MarketSnapshotSchema's
+  // subject->context migration. The agent self-fetches its market context (graph.ts
+  // pre-fetch), so the inbound feed payload is just a rebuild trigger. The env fallback
+  // covers the region-less fast feeds.
+  const region = (ctx.region as string | undefined)
     ?? process.env.AWS_REGION
     ?? 'us-east-1';
 

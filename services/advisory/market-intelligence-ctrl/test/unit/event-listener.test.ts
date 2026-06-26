@@ -81,7 +81,7 @@ describe('market-intelligence-ctrl event-listener', () => {
     // working fast-tier path.
     it('emits MarketSnapshot update intent (upsert) with both fastComponentsAt and slowComponentsAt set', async () => {
       const payload: EventPayload = {
-        subject: { region: 'us-east-1' },
+        subject: {},
       };
 
       const ctx = makeCtx({ eventType: 'MARKET_SNAPSHOT_REFRESH_TICK', eventId: 'tick-1' });
@@ -124,9 +124,24 @@ describe('market-intelligence-ctrl event-listener', () => {
       expect((snapshotIntent as unknown as { add?: Record<string, number> })?.add).toEqual({ __version: 1 });
     });
 
-    it('falls back to AWS_REGION / us-east-1 when subject.region is absent', async () => {
+    it('derives region from the RegionContext (ctx.region), not the subject', async () => {
       const payload: EventPayload = { subject: {} };
-      const ctx = makeCtx({ eventType: 'MARKET_SNAPSHOT_REFRESH_TICK', eventId: 'tick-2' });
+      const ctx = makeCtx({ eventType: 'MARKET_SNAPSHOT_REFRESH_TICK', eventId: 'tick-region', region: 'eu-west-1' });
+
+      const result = await handlers.MARKET_SNAPSHOT_REFRESH_TICK(payload, ctx);
+
+      const snapshotIntent = result.find(
+        (i): i is { _tag: 'update'; typename: string; updates: Record<string, unknown>; overrides?: { pk?: string; sk?: string } } =>
+          (i as { typename?: string }).typename === 'MarketSnapshot',
+      );
+      expect(snapshotIntent).toBeDefined();
+      expect(snapshotIntent!.updates.region).toBe('eu-west-1');
+      expect(snapshotIntent!.overrides?.pk).toBe('MarketSnapshot#eu-west-1');
+    });
+
+    it('falls back to AWS_REGION / us-east-1 when ctx.region is absent', async () => {
+      const payload: EventPayload = { subject: {} };
+      const ctx = makeCtx({ eventType: 'MARKET_SNAPSHOT_REFRESH_TICK', eventId: 'tick-2', region: undefined as unknown as string });
 
       const result = await handlers.MARKET_SNAPSHOT_REFRESH_TICK(payload, ctx);
 
@@ -142,7 +157,7 @@ describe('market-intelligence-ctrl event-listener', () => {
       const { DuplicateInvocationError } = await import('../../src/agent-service');
       mockRunPipeline.mockRejectedValueOnce(new DuplicateInvocationError('tick-dup'));
 
-      const payload: EventPayload = { subject: { region: 'us-east-1' } };
+      const payload: EventPayload = { subject: {} };
       const ctx = makeCtx({ eventType: 'MARKET_SNAPSHOT_REFRESH_TICK', eventId: 'tick-dup' });
 
       const result = await handlers.MARKET_SNAPSHOT_REFRESH_TICK(payload, ctx);
@@ -153,7 +168,7 @@ describe('market-intelligence-ctrl event-listener', () => {
     it('propagates non-duplicate agent errors', async () => {
       mockRunPipeline.mockRejectedValueOnce(new Error('Agent pipeline failed'));
 
-      const payload: EventPayload = { subject: { region: 'us-east-1' } };
+      const payload: EventPayload = { subject: {} };
       const ctx = makeCtx({ eventType: 'MARKET_SNAPSHOT_REFRESH_TICK', eventId: 'tick-err' });
 
       await expect(handlers.MARKET_SNAPSHOT_REFRESH_TICK(payload, ctx)).rejects.toThrow('Agent pipeline failed');
@@ -168,7 +183,7 @@ describe('market-intelligence-ctrl event-listener', () => {
     ['ALPHA_VANTAGE_NEWS_UPDATED'],
   ] as const)('%s handler (fast-tier)', (eventType) => {
     it('runs the agent and emits a MarketSnapshot update intent with fastComponentsAt set', async () => {
-      const payload: EventPayload = { subject: { region: 'us-east-1' } };
+      const payload: EventPayload = { subject: {} };
       const ctx = makeCtx({ eventType, eventId: `feed-${eventType}-1` });
 
       const result = await handlers[eventType](payload, ctx);
@@ -206,7 +221,7 @@ describe('market-intelligence-ctrl event-listener', () => {
     const { DuplicateInvocationError } = await import('../../src/agent-service');
     mockRunPipeline.mockRejectedValueOnce(new DuplicateInvocationError('feed-dup-1'));
 
-    const payload: EventPayload = { subject: { region: 'us-east-1' } };
+    const payload: EventPayload = { subject: {} };
     const ctx = makeCtx({ eventType: 'YAHOO_FINANCE_UPDATED', eventId: 'feed-dup-1' });
 
     const result = await handlers.YAHOO_FINANCE_UPDATED(payload, ctx);
@@ -215,7 +230,7 @@ describe('market-intelligence-ctrl event-listener', () => {
   });
 
   it('always emits an AgentInvocation record alongside the snapshot write', async () => {
-    const payload: EventPayload = { subject: { region: 'us-east-1' } };
+    const payload: EventPayload = { subject: {} };
     const ctx = makeCtx({ eventType: 'YAHOO_FINANCE_UPDATED', eventId: 'feed-inv-1' });
 
     const result = await handlers.YAHOO_FINANCE_UPDATED(payload, ctx);
