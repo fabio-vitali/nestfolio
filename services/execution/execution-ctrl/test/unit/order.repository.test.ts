@@ -76,14 +76,6 @@ jest.mock('@nestfolio/event-processor', () => ({
 
 }));
 import { OrderRepository } from '../../src/repositories/order.repository';
-import { asTenantId, asUserId } from '@nestfolio/event-processor';
-import type { RequestContext } from '@nestfolio/event-processor';
-
-const testCtx: RequestContext = {
-  tenantId: asTenantId('t1'),
-  userId: asUserId('00000000-0000-0000-0000-000000000001'),
-  region: 'us-east-1',
-};
 
 function extractUpdateAttrs(update: any): Record<string, unknown> {
   const names = update.ExpressionAttributeNames;
@@ -176,53 +168,6 @@ describe('OrderRepository', () => {
         pk: 'StagedOrder#t1#ord-1',
         sk: 'StagedOrder',
       });
-    });
-  });
-
-  describe('setCoolDown', () => {
-    it('should create a CoolDown record', async () => {
-      mockSend.mockResolvedValueOnce({});
-
-      await repo.setCoolDown('VTI', '2025-01-02T00:00:00.000Z', testCtx);
-
-      expect(mockSend).toHaveBeenCalledTimes(1);
-      const call = mockSend.mock.calls[0][0];
-      expect(call.input.Item).toMatchObject({
-        pk: 'CoolDown#t1#VTI',
-        sk: 'CoolDown',
-        __typename: 'CoolDown',
-        tenantId: 't1',
-        userId: '00000000-0000-0000-0000-000000000001',
-        region: 'us-east-1',
-        instrument: 'VTI',
-        expiresAt: '2025-01-02T00:00:00.000Z',
-      });
-    });
-  });
-
-  describe('getCoolDown', () => {
-    it('should return cooldown when found', async () => {
-      const cd = {
-        pk: 'CoolDown#t1#VTI',
-        sk: 'CoolDown',
-        __typename: 'CoolDown',
-        tenantId: 't1',
-        instrument: 'VTI',
-        expiresAt: '2025-01-02T00:00:00.000Z',
-      };
-      mockSend.mockResolvedValueOnce({ Items: [cd] });
-
-      const result = await repo.getCoolDown('t1', 'VTI');
-
-      expect(result).toEqual(cd);
-    });
-
-    it('should return null when no cooldown', async () => {
-      mockSend.mockResolvedValueOnce({ Items: [] });
-
-      const result = await repo.getCoolDown('t1', 'AAPL');
-
-      expect(result).toBeNull();
     });
   });
 

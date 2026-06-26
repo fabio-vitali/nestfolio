@@ -16,7 +16,6 @@ describe('SafetyChecksService', () => {
     jest.clearAllMocks();
     mockRepository = {
       getConflictingStagedOrders: jest.fn().mockResolvedValue([]),
-      getCoolDown: jest.fn().mockResolvedValue(null),
       getStagedOrders: jest.fn().mockResolvedValue([]),
     };
     service = new SafetyChecksService(mockRepository);
@@ -49,34 +48,6 @@ describe('SafetyChecksService', () => {
     });
   });
 
-  describe('checkCoolDown', () => {
-    it('should return false when no cooldown exists', async () => {
-      mockRepository.getCoolDown.mockResolvedValue(null);
-
-      const result = await service.checkCoolDown('t1', ['VTI']);
-
-      expect(result).toBe(false);
-    });
-
-    it('should return true when active cooldown exists', async () => {
-      const futureDate = new Date(Date.now() + 60000).toISOString();
-      mockRepository.getCoolDown.mockResolvedValue({ expiresAt: futureDate });
-
-      const result = await service.checkCoolDown('t1', ['VTI']);
-
-      expect(result).toBe(true);
-    });
-
-    it('should return false when cooldown has expired', async () => {
-      const pastDate = new Date(Date.now() - 60000).toISOString();
-      mockRepository.getCoolDown.mockResolvedValue({ expiresAt: pastDate });
-
-      const result = await service.checkCoolDown('t1', ['VTI']);
-
-      expect(result).toBe(false);
-    });
-  });
-
   describe('runAllChecks', () => {
     const instruments = ['VTI'];
 
@@ -87,7 +58,6 @@ describe('SafetyChecksService', () => {
       expect(result.checks).toEqual({
         reconciliationLock: false,
         conflictingStagedOrders: false,
-        coolDown: false,
       });
     });
 
@@ -101,17 +71,6 @@ describe('SafetyChecksService', () => {
       expect(result.passed).toBe(false);
       expect(result.reason).toContain('Conflicting staged orders');
       expect(result.checks.conflictingStagedOrders).toBe(true);
-    });
-
-    it('should fail when cooldown is active', async () => {
-      const futureDate = new Date(Date.now() + 60000).toISOString();
-      mockRepository.getCoolDown.mockResolvedValue({ expiresAt: futureDate });
-
-      const result = await service.runAllChecks('t1', instruments);
-
-      expect(result.passed).toBe(false);
-      expect(result.reason).toContain('Cool down');
-      expect(result.checks.coolDown).toBe(true);
     });
   });
 });

@@ -1,6 +1,6 @@
 import { DynamoDBClient } from '@aws-sdk/client-dynamodb';
 import { BatchGetCommand, DeleteCommand } from '@aws-sdk/lib-dynamodb';
-import { TableRepository, getTime, type TableEntry, type RequestContext } from '@nestfolio/event-processor';
+import { TableRepository, getTime } from '@nestfolio/event-processor';
 import { withMethodLogging } from '@nestfolio/event-processor';
 
 function orderPk(tenantId: string, orderId: string): string {
@@ -9,10 +9,6 @@ function orderPk(tenantId: string, orderId: string): string {
 
 function stagedOrderPk(tenantId: string, orderId: string): string {
   return `StagedOrder#${tenantId}#${orderId}`;
-}
-
-function coolDownPk(tenantId: string, instrument: string): string {
-  return `CoolDown#${tenantId}#${instrument}`;
 }
 
 export class OrderRepository extends TableRepository {
@@ -94,31 +90,6 @@ export class OrderRepository extends TableRepository {
           Key: { pk: stagedOrderPk(tenantId, orderId), sk: 'StagedOrder' },
         }),
       );
-    },
-  );
-
-  readonly setCoolDown = this.log('setCoolDown',
-    async (instrument: string, expiresAt: string, ctx: RequestContext): Promise<void> => {
-      const now = getTime();
-      const item: TableEntry = {
-        pk: coolDownPk(ctx.tenantId, instrument),
-        sk: 'CoolDown',
-        __typename: 'CoolDown',
-        ...ctx,
-        timestamp: now,
-        instrument,
-        expiresAt,
-        createdAt: now,
-      };
-      await this.put(item);
-    },
-  );
-
-  readonly getCoolDown = this.log('getCoolDown',
-    async (tenantId: string, instrument: string): Promise<Record<string, unknown> | null> => {
-      const pk = coolDownPk(tenantId, instrument);
-      const items = await this.queryByPk(pk, 'CoolDown');
-      return items.length > 0 ? items[0] : null;
     },
   );
 
