@@ -23,8 +23,9 @@ rollup: core 0/2 done · captured 0/0 done
 
 ### [agent-runtime-latent-correctness](backlog/agent-runtime-latent-correctness.md) `[epic · parking]` — Agent-runtime non-happy-path behaviors (token instrumentation, structured-output retry, serviceUnavailable handling) are unverified — no assertion exercises the degraded/instrumentation paths, so latent correctness gaps persist. Same 'no-assertion' debt-class as integration-coverage-backfill. Theme epic, 3 members.
 done_when: Each member's degraded/instrumentation path gains an assertion (unit or e2e) that would catch its gap, the underlying correctness bug is fixed (or the divergence documented as intentional), and all members are shipped or dropped.
-rollup: core 0/3 done · captured 0/0 done
+rollup: core 0/4 done · captured 0/0 done
 - core · parking · [agent-tracer-bedrock-converse-token-extraction](backlog/agent-tracer-bedrock-converse-token-extraction.md)
+- core · parking · [daily-quota-throttle-retry-amplification](backlog/daily-quota-throttle-retry-amplification.md)
 - core · parking · [pinned-retry-prompt-interference-agent-factory](backlog/pinned-retry-prompt-interference-agent-factory.md)
 - core · parking · [portfolio-engine-service-unavailable-asymmetric-handling](backlog/portfolio-engine-service-unavailable-asymmetric-handling.md)
 
@@ -218,8 +219,9 @@ _(none)_
 
 ## QUEUED
 
-_(none)_
-
+1. [e2e-live-suite-exceeds-bedrock-daily-token-budget](backlog/e2e-live-suite-exceeds-bedrock-daily-token-budget.md) [infra] — One full live-AgentCore e2e run (~7.2k Bedrock invocations) exhausts the dev account daily token-per-day quota mid-suite, so the suite self-throttles and cannot go fully green in a single pass.
+2. [e2e-fixtures-test-stale-detail-envelope-assertion](backlog/e2e-fixtures-test-stale-detail-envelope-assertion.md) [bug] — apps/e2e-feature-tests fixtures.test.ts asserts the old flat detail:{} EB envelope, but the fixtures now emit the DRY {context, subject} envelope — 2 stale-assertion failures unrelated to any service.
+3. [circuit-breaker-lifecycle-e2e-breaker-stuck-open](backlog/circuit-breaker-lifecycle-e2e-breaker-stuck-open.md) [bug] — scenario 14 circuit-breaker-lifecycle e2e: initiateDeposit returns SERVICE_TEMPORARILY_UNAVAILABLE (breaker OPEN) when the test expects it closed — root cause unconfirmed (state-leak vs throttle-storm collateral).
 
 ## LATER
 
