@@ -62,7 +62,7 @@ export class DecisionWorkflowCtrlStack extends ServiceStack {
     // MemoryClient.emitLongTermEvent (Tasks 6-9). The runtime path (libs/agent-orchestrator
     // memory-client.ts) still writes short-term records to:
     //   /{serviceName}/{tenantId}/decisions/{decisionId}
-    // via BatchCreateMemoryRecords + ListMemoryRecords — that path is orthogonal.
+    // via CreateEvent + RetrieveMemoryRecords — that path is orthogonal.
     const memory = new agentcore.Memory(this, 'AgentMemory', {
       memoryName: `nestfolio_${props.prefix}_agent_memory`,
       description: 'Long-term cross-decision recall (preferences/signals/rationale)',

@@ -173,17 +173,17 @@ export const agentProps: LambdaProfile = {
       ...BASE_LAMBDA_PROPS.bundling,
       // Bundle every @aws-sdk/* package — DO NOT externalize. The Node 24
       // Lambda runtime ships an older snapshot of the AWS SDK; agent
-      // Lambdas use `@nestfolio/agent-orchestrator` which calls the
-      // recently-added `BatchCreateMemoryRecordsCommand` from
-      // `@aws-sdk/client-bedrock-agentcore` (added ~v3.1xxx). The runtime
-      // SDK exports `BedrockAgentCoreClient` + `RetrieveMemoryRecordsCommand`
-      // + `ListMemoryRecordsCommand` but NOT `BatchCreateMemoryRecordsCommand`,
-      // producing `TypeError: <ns>.BatchCreateMemoryRecordsCommand is not a
-      // constructor` at agent-side memory writes. Bundling locally pins the
-      // version we actually depend on (`^3.1012.0` per agent-orchestrator's
-      // package.json). Other profiles keep `['@aws-sdk/*']` because their
-      // Lambdas only call SDK clients that have been in the runtime since
-      // Node 18 (dynamodb, lib-dynamodb, eventbridge, sfn).
+      // Lambdas use `@nestfolio/agent-orchestrator` whose memory-client calls
+      // `@aws-sdk/client-bedrock-agentcore` Memory commands (`CreateEventCommand`
+      // + `RetrieveMemoryRecordsCommand`). That client moves faster than the
+      // runtime's bundled snapshot, so externalizing it risks
+      // `TypeError: <ns>.<Command> is not a constructor` when the runtime SDK
+      // lacks a command/version agent-orchestrator depends on (this first bit us
+      // on the since-removed `BatchCreateMemoryRecordsCommand`). Bundling locally
+      // pins the version we actually depend on (`^3.1012.0` per
+      // agent-orchestrator's package.json). Other profiles keep `['@aws-sdk/*']`
+      // because their Lambdas only call SDK clients that have been in the runtime
+      // since Node 18 (dynamodb, lib-dynamodb, eventbridge, sfn).
       externalModules: [],
     },
   },
@@ -263,10 +263,10 @@ export function agentProfile(inputs: AgentProfileInputs): LambdaProfile {
         ...BASE_LAMBDA_PROPS.bundling,
         // Bundle every @aws-sdk/* package — DO NOT externalize. The Node 24
         // Lambda runtime ships an older snapshot of the AWS SDK; agent
-        // Lambdas use `@nestfolio/agent-orchestrator` which calls the
-        // recently-added `BatchCreateMemoryRecordsCommand` from
-        // `@aws-sdk/client-bedrock-agentcore`. Externalizing produces
-        // `TypeError: <ns>.BatchCreateMemoryRecordsCommand is not a constructor`.
+        // Lambdas use `@nestfolio/agent-orchestrator` whose memory-client calls
+        // `@aws-sdk/client-bedrock-agentcore` Memory commands that can outpace
+        // the runtime's bundled snapshot. Externalizing risks
+        // `TypeError: <ns>.<Command> is not a constructor` at agent-side memory ops.
         externalModules: [],
       },
     },

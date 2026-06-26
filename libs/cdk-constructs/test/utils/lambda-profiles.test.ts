@@ -153,9 +153,10 @@ describe('agentProps — Bedrock/LLM-calling profile', () => {
 
   it('overrides externalModules to [] so @aws-sdk/client-bedrock-agentcore is bundled', () => {
     // Other profiles externalize @aws-sdk/* (the runtime ships those clients).
-    // Agent profile must bundle because BatchCreateMemoryRecordsCommand was
-    // added to the bedrock-agentcore SDK after the version Lambda Node 24
-    // ships — externalizing produces TypeError at agent memory writes.
+    // Agent profile must bundle because agent-orchestrator's memory-client uses
+    // @aws-sdk/client-bedrock-agentcore Memory commands that can outpace the
+    // version Lambda Node 24 ships — externalizing risks a TypeError at agent
+    // memory ops.
     expect(agentProps.lambdaProps.bundling?.externalModules).toEqual([]);
   });
 });
