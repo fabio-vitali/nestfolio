@@ -2,15 +2,46 @@ import { execFileSync } from 'node:child_process';
 import { existsSync } from 'node:fs';
 import { join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { loadBacklogFiles } from '../../.claude/skills/backlog-lint/lib/frontmatter.mjs';
+import { loadBacklogFiles, parseFrontmatter } from '../../.claude/skills/backlog-lint/lib/frontmatter.mjs';
 
 const HERE = dirname(fileURLToPath(import.meta.url));
+
+// Read referenced backlog files from a worker-created sub-worktree BRANCH (via `git show`), parsing
+// each frontmatter. Used when a scenario ships on `feat/epic-<id>` rather than the sandbox root: an
+// epic run commits `status: shipped` + `closed:` on the branch, while the sandbox-root HEAD stays on
+// `main` (it only carries the E1 promotion marker, status: active). A root-only golden therefore reads
+// a correct E8 as active+closed-absent — the sub-worktree-blindness bug (see
+// bef-judge-blind-to-subworktree-diff, which documents the same blindness for the judge's diff).
+function loadBranchFilesById(sandboxDir, branch, ids) {
+  const byId = {};
+  for (const id of ids) {
+    try {
+      const content = execFileSync('git', ['show', `${branch}:docs/backlog/${id}.md`], { cwd: sandboxDir, encoding: 'utf8' });
+      byId[id] = { id, frontmatter: parseFrontmatter(content).frontmatter };
+    } catch { /* missing on the branch → the present/frontmatter checks below report "not found" */ }
+  }
+  return byId;
+}
 
 export function gradeGolden(scenario, sandboxDir) {
   const failures = [];
   const g = scenario.golden ?? {};
-  const files = loadBacklogFiles(join(sandboxDir, 'docs/backlog'));
-  const byId = Object.fromEntries(files.map((f) => [f.id, f]));
+  // `golden.onBranch: '<branch>'` sources the frontmatter/present/absent/scalarStrings checks from that
+  // branch instead of the sandbox root — the correct read for an epic ship (committed on feat/epic-<id>,
+  // not the root). `lintExit0` still runs against the root checkout. Default (no onBranch) reads the root.
+  let byId;
+  if (g.onBranch) {
+    const ids = [...new Set([
+      ...Object.keys(g.frontmatter ?? {}),
+      ...(g.present ?? []).map((x) => x.file),
+      ...(g.absent ?? []).map((x) => x.file),
+      ...(g.scalarStrings ?? []).map((x) => x.file),
+    ])];
+    byId = loadBranchFilesById(sandboxDir, g.onBranch, ids);
+  } else {
+    const files = loadBacklogFiles(join(sandboxDir, 'docs/backlog'));
+    byId = Object.fromEntries(files.map((f) => [f.id, f]));
+  }
   for (const [id, fields] of Object.entries(g.frontmatter ?? {})) {
     const f = byId[id];
     if (!f) { failures.push(`expected backlog file "${id}" not found`); continue; }

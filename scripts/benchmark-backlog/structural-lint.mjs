@@ -10,7 +10,7 @@ const KNOWN_KEYS = new Set([
   'id', 'skill', 'fixture', 'prompt', 'terminal', 'auto', 'runstate', 'gh', 'nx', 'worker',
   'denySubskills', 'golden', 'callLog', 'state', 'rubric', 'rubricGate', 'setup', 'timeoutMs',
 ]);
-const WORKER_KEYS = new Set(['failCycles', 'fork']);
+const WORKER_KEYS = new Set(['failCycles', 'fork', 'deployFile']);
 
 /** Pure structural lint — no fs. Run over every scenario by scenarios-lint.test.mjs. */
 export function lintScenario(s) {
@@ -24,8 +24,9 @@ export function lintScenario(s) {
     v.push(`runstate seed must be helper-intent ({phase,pr}), not raw closed-schema keys`);
   }
   if (s.worker) {
-    for (const k of Object.keys(s.worker)) if (!WORKER_KEYS.has(k)) v.push(`unknown worker knob "${k}" (allowed: failCycles, fork)`);
+    for (const k of Object.keys(s.worker)) if (!WORKER_KEYS.has(k)) v.push(`unknown worker knob "${k}" (allowed: failCycles, fork, deployFile)`);
     if (s.worker.fork && s.skill !== 'backlog-next-epic') v.push(`worker.fork only applies to backlog-next-epic scenarios (in-member fork)`);
+    if (s.worker.deployFile && !/^services\/[^/]+\/[^/]+\/src\//.test(s.worker.deployFile)) v.push(`worker.deployFile must be a TIER1 service src path (services/<domain>/<svc>/src/...) so detect-deploy-needed flags it`);
   }
   for (const r of s.rubric ?? []) if (STEP_NAME_RE.test(r)) v.push(`rubric references a procedure step-name — assert outcomes only: "${r}"`);
   if (!['pause', 'completed'].includes(s.terminal)) v.push(`terminal must be 'pause' or 'completed'`);

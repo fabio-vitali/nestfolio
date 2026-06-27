@@ -1,5 +1,5 @@
 import { join } from 'node:path';
-import { readFileSync, existsSync } from 'node:fs';
+import { readFileSync, existsSync, writeFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 
 // Spike correction: the short version was only 2/3 reliable; this 6/6 version is binding.
@@ -121,6 +121,9 @@ function defaultRunOne(suite, opts) {
         BEF_NX_COLLECTED: String(scenario.nx?.collectedCount ?? 1),
         BEF_WORKER_FAIL_CYCLES: String(scenario.worker?.failCycles ?? 0),
         BEF_WORKER_FORK: scenario.worker?.fork ?? '',
+        // When set, the stub worker writes+commits this TIER1 path on member ship → the epic becomes
+        // deploy-bearing → E6 must run a real e2e (so a 0-collected result is unambiguously the bug).
+        BEF_WORKER_DEPLOY_FILE: scenario.worker?.deployFile ?? '',
       };
       // Strip AWS credentials so sandbox runs don't incur real AWS calls.
       for (const k of Object.keys(env)) if (k.startsWith('AWS_')) delete env[k];
@@ -138,6 +141,19 @@ function defaultRunOne(suite, opts) {
         ? readFileSync(join(dir, 'stubs.log'), 'utf8')
         : '';
       const graded = await suite.grade(scenario, rr, dir, stubsLog);
+      // On --keep, persist the transcript next to the retained sandbox so a failing run is
+      // diagnosable from artifacts (the tool-call sequence + final text + grading verdict) without
+      // re-running. Gated on keep so normal sweeps write nothing extra. Each iteration gets its own
+      // fresh sandbox dir (mkdtempSync), so an N-iteration --keep run leaves N transcripts in N dirs
+      // — grep them for the failing one (gatePass:false) rather than expecting a single file.
+      if (opts.keep) {
+        writeFileSync(join(dir, 'transcript.json'), JSON.stringify({
+          scenario: scenario.id, terminalKind: rr.terminalKind, pauseReason: rr.pauseReason,
+          numTurns: rr.numTurns, gatePass: graded.gatePass,
+          golden: graded.golden, invariants: graded.invariants, rubric: graded.rubric,
+          result: rr.result, toolCalls: rr.toolCalls, stubsLog,
+        }, null, 2));
+      }
       return {
         gatePass: graded.gatePass,
         graded,
@@ -164,7 +180,10 @@ if (process.argv[1] && process.argv[1] === fileURLToPath(import.meta.url)) {
   }
   const [mode, ...rest] = process.argv.slice(2);
   const opts = Object.fromEntries(
-    rest.filter((a) => a.startsWith('--')).map((a) => { const [k, ...v] = a.replace(/^--/, '').split('='); return [k, v.join('=')]; })
+    // A value-less flag (`--keep`) is a boolean `true`; a `--k=v` flag keeps its string value. Without
+    // this, `--keep` parsed to '' (falsy) → cleanup still ran AND no transcript was written (the bare
+    // flag silently no-op'd). `--iterations=3` etc. are unaffected (Number(opts.iterations) still coerces).
+    rest.filter((a) => a.startsWith('--')).map((a) => { const [k, ...v] = a.replace(/^--/, '').split('='); return [k, v.length ? v.join('=') : true]; })
   );
   const suite = { buildSandbox, grade: gradeScenario, scenarios };
   if (mode === 'compare') { const pos = rest.filter((a) => !a.startsWith('--')); opts.refA = pos[0]; opts.refB = pos[1]; }
