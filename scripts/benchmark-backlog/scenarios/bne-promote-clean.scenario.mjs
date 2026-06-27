@@ -9,6 +9,10 @@ export default {
   // the marker reaches origin/main with the 'promote' verb (E1). The run then drives to a clean PR-open
   // pause. The full ship is bne-ship-clean's concern; here the deterministic teeth are the promote outcome.
   fixture: 'parking-epic', prompt: '/backlog-next-epic delta-epic',
+  // Heaviest scenario in the corpus: a 2-member epic driven promote → loop → ship → PR runs ~50 turns
+  // and brushed the 600s default (timed out ~1/3). The sanctioned per-scenario override (see run.mjs
+  // timeoutMs note) gives headroom so the long-but-correct run completes deterministically.
+  timeoutMs: 900000,
   terminal: 'pause',
   golden: {
     frontmatter: { 'delta-epic': { status: 'active' } },
