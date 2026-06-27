@@ -8,9 +8,10 @@
 
 ### [backlog-eval-corpus-hardening](backlog/backlog-eval-corpus-hardening.md) `[epic · active]` — The backlog-eval-framework corpus shipped structurally but is not yet live-validated/hardened — the regression reference backlog-skills-simplification will diff against. Theme epic, 3 members.
 done_when: The corpus has a committed live full-corpus baseline, every scenario gates deterministically (no flaky rubric swings), and the drive-to-ship scenarios route to a stubbed finishing skill instead of self-merging; all members shipped or dropped.
-rollup: core 2/4 done · captured 0/3 done
+rollup: core 2/5 done · captured 0/3 done
 - core · active · [bef-baseline-surfaced-scenario-failures](backlog/bef-baseline-surfaced-scenario-failures.md)
 - core · parking · [bef-resume-partial-scenario-flaky](backlog/bef-resume-partial-scenario-flaky.md)
+- core · parking · [bne-resume-absent-fresh-unreachable-memberloop](backlog/bne-resume-absent-fresh-unreachable-memberloop.md)
 - core · shipped · [backlog-eval-framework-baseline-run](backlog/backlog-eval-framework-baseline-run.md)
 - core · shipped · [bef-finishing-stub-drive-to-ship](backlog/bef-finishing-stub-drive-to-ship.md)
 - captured · parking · [bef-judge-blind-to-subworktree-diff](backlog/bef-judge-blind-to-subworktree-diff.md)
