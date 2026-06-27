@@ -8,11 +8,11 @@
 
 ### [backlog-eval-corpus-hardening](backlog/backlog-eval-corpus-hardening.md) `[epic · active]` — The backlog-eval-framework corpus shipped structurally but is not yet live-validated/hardened — the regression reference backlog-skills-simplification will diff against. Theme epic, 3 members.
 done_when: The corpus has a committed live full-corpus baseline, every scenario gates deterministically (no flaky rubric swings), and the drive-to-ship scenarios route to a stubbed finishing skill instead of self-merging; all members shipped or dropped.
-rollup: core 2/5 done · captured 0/3 done
-- core · active · [bef-baseline-surfaced-scenario-failures](backlog/bef-baseline-surfaced-scenario-failures.md)
+rollup: core 3/5 done · captured 0/3 done
 - core · parking · [bef-resume-partial-scenario-flaky](backlog/bef-resume-partial-scenario-flaky.md)
 - core · parking · [bne-resume-absent-fresh-unreachable-memberloop](backlog/bne-resume-absent-fresh-unreachable-memberloop.md)
 - core · shipped · [backlog-eval-framework-baseline-run](backlog/backlog-eval-framework-baseline-run.md)
+- core · shipped · [bef-baseline-surfaced-scenario-failures](backlog/bef-baseline-surfaced-scenario-failures.md)
 - core · shipped · [bef-finishing-stub-drive-to-ship](backlog/bef-finishing-stub-drive-to-ship.md)
 - captured · parking · [bef-judge-blind-to-subworktree-diff](backlog/bef-judge-blind-to-subworktree-diff.md)
 - captured · parking · [bef-scenario-tags-reusable-suite](backlog/bef-scenario-tags-reusable-suite.md)
@@ -239,6 +239,7 @@ _(none)_
 
 ## Recently Shipped (last 10)
 
+- 2026-06-28 — [bef-baseline-surfaced-scenario-failures](backlog/bef-baseline-surfaced-scenario-failures.md) [bug] — All 4 baseline-red scenarios now gate deterministically GREEN ×3 (add-mint, bne-ship-clean, bne-e6, bne-promote-clean). Root causes were NOT the first-cycle hypotheses — evidence (transcripts) drove corrected fixes. `[epic:backlog-eval-corpus-hardening · core]`
 - 2026-06-27 — [backlog-eval-framework-baseline-run](backlog/backlog-eval-framework-baseline-run.md) [tooling] — Established a right-sized live regression baseline (15-scenario subset, iterations=1) instead of the full 3× — the corpus measured at 53 scenarios / 35 bne-epic, making a full 3× pass ≈270M tokens (~90% cache-reads of skill prose). The right-sized run validated the harness live (0 crashes, 9✓/6✗, 32.9M tokens) and surfaced 6 gate-failing scenarios; full 3× rebaseline deferred to epic closure after those gate green. `[epic:backlog-eval-corpus-hardening · core]`
 - 2026-06-27 — [bef-finishing-stub-drive-to-ship](backlog/bef-finishing-stub-drive-to-ship.md) [tooling] — Stub finishing-a-development-branch in the bef sandbox so drive-to-ship workers route to it instead of reimplementing the merge (the self-merge anti-pattern), enabling a faithful no-self-merge gate. `[epic:backlog-eval-corpus-hardening · core]`
 - 2026-06-26 — [an-ctrl-wrap-agent-output-vestigial](backlog/an-ctrl-wrap-agent-output-vestigial.md) [refactor] — advisory-narrative-ctrl handler still wraps result via wrapAgentOutput but the wrap is unread after the callback refactor `[epic:dead-code-cleanup · core]`
@@ -248,4 +249,3 @@ _(none)_
 - 2026-06-26 — [stale-memory-write-comments-phase-a-cleanup](backlog/stale-memory-write-comments-phase-a-cleanup.md) [refactor] — 6 stale comments in decision-workflow-ctrl + cdk-constructs reference writeAgentOutput / BatchCreate / ListMemoryRecords. Verification (2026-06-26) narrowed this: only ~3 are genuinely stale; the eventual-consistency comments are correct (explain why code AVOIDS ListMemoryRecords), the BatchCreateMemoryRecords hits are live IAM test assertions, and writeAgentOutput has zero refs. `[epic:dead-code-cleanup · core]`
 - 2026-06-26 — [yahoo-finance-mi-ctrl-subject-region-dead-code](backlog/yahoo-finance-mi-ctrl-subject-region-dead-code.md) [bug] — MI-ctrl reads subject.region from YAHOO_FINANCE_UPDATED but producer schema has no region field. Verification (2026-06-26) corrected the premise: the read is LIVE on the slow-tier MARKET_SNAPSHOT_REFRESH_TICK (scheduled-emitter emits subject.region; MarketSnapshotRefreshTickSchema requires it) — not dead, but redundant (always == env region). Resolved by finishing the region->RegionContext DRY migration (the tick is the lone holdout vs MarketSnapshotSchema's 2026-06-10 migration). `[epic:dead-code-cleanup · core]`
 - 2026-06-25 — [backlog-eval-framework-full-corpus](backlog/backlog-eval-framework-full-corpus.md) [tooling] — Phase 6 of backlog-eval-framework: the /benchmark-backlog skill surface + the full ~50-scenario corpus (per-skill coverage enumerated in the spec). Builds on the proven core (PR #24) and the backlog-eval-framework-usable milestone. `[epic:backlog-eval-framework-remaining · core]`
-- 2026-06-25 — [backlog-eval-framework-remaining](backlog/backlog-eval-framework-remaining.md) [epic] — Remaining work on the backlog-eval-framework (benchmark-backlog) harness after the shipped design + proven core (PR #24) + the backlog-eval-framework-usable milestone: the Phase-6 full corpus + /benchmark-backlog skill surface, plus two core-harness tooling defects. Theme epic, 3 members.
