@@ -1,6 +1,6 @@
 ---
 id: bef-baseline-surfaced-scenario-failures
-status: parking
+status: active
 type: bug
 notes: "Live baseline found 4 reds. Confirming ×3 re-run (2026-06-27): bne-ship-clean 0/3 consistent (likely the missing finishing stub → bef-finishing-stub-drive-to-ship, not a prose bug); bne-e6-zero-tests-red 2/3 FLAKY (real — 1/3 it ships with zero tests); add-mint-aggregation + bne-promote-clean still unconfirmed (iterations=1)."
 references: []
