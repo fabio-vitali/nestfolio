@@ -117,6 +117,23 @@ export async function buildSandbox(scenario, skillRef) {
     cpSync(join(HERE, 'stubs/_stubs'), join(destSkills, '_stubs'), { recursive: true });
   }
 
+  // finishing stub: drive-to-ship scenarios route to `superpowers:finishing-a-development-branch` —
+  // at `/backlog-next` Step 6.7 and at the `backlog-next-epic` E8 close — but that skill is absent in
+  // the isolated sandbox (`plugins:[]`). Without a stand-in the worker REIMPLEMENTS the finish manually
+  // (the documented self-merge anti-pattern) and the merge mechanism varies run-to-run (local `--no-ff`
+  // merge vs `gh pr merge --squash`), defeating a faithful `neverCalled:['gh pr merge']` gate. Stage a
+  // deterministic stub (open a PR via the `gh` stub, never self-merge, pause) UNLESS the scenario DENIES
+  // finishing: a deny-finishing scenario wants to pause at the routing seam *before* the finish (so it
+  // gets no stub and stops there); a scenario that does NOT deny it drives to the close and gets the
+  // deterministic PR+pause. The worker routes to this unnamespaced skill the same way bne-e8-conflict's
+  // real-skill staging is reached. (A scenario that stages the REAL finishing skill itself —
+  // bne-e8-conflict-resolution, to exercise rebase-conflict resolution — does so in its `setup` hook,
+  // which runs AFTER buildSandbox and overwrites this stub.)
+  const deniesFinishing = (scenario.denySubskills ?? []).some((d) => d.includes('finishing-a-development-branch'));
+  if (!deniesFinishing) {
+    cpSync(join(HERE, 'stubs/finishing'), join(destSkills, 'finishing-a-development-branch'), { recursive: true });
+  }
+
   // op stubs: in-repo deploy.sh
   mkdirSync(join(dir, 'infrastructure/scripts'), { recursive: true });
   cpSync(join(HERE, 'stubs/deploy.sh'), join(dir, 'infrastructure/scripts/deploy.sh'));

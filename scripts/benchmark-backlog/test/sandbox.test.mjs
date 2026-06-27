@@ -20,6 +20,32 @@ test('buildSandbox produces an isolated resumable repo with skills + stubs', asy
   } finally { cleanup(); }
 });
 
+test('buildSandbox stages the finishing stub iff the scenario does not deny finishing', async () => {
+  // non-deny: a drive-to-ship scenario reaches the finish (Step 6.7 / E8) → gets the deterministic
+  // finishing stub so it routes to the sanctioned PR+pause instead of reimplementing the merge.
+  const open = { id: 'fin-open', skill: 'backlog-next', fixture: 'clean', prompt: 'p', terminal: 'pause' };
+  const a = await buildSandbox(open, 'HEAD');
+  try {
+    assert.ok(
+      existsSync(join(a.dir, '.claude/skills/finishing-a-development-branch/SKILL.md')),
+      'finishing stub staged when the scenario does not deny finishing',
+    );
+  } finally { a.cleanup(); }
+
+  // deny-finishing: the scenario wants to pause at the routing seam BEFORE the finish → NO stub staged.
+  const deny = {
+    id: 'fin-deny', skill: 'backlog-next', fixture: 'clean', prompt: 'p', terminal: 'pause',
+    denySubskills: ['Skill(superpowers:finishing-a-development-branch)'],
+  };
+  const b = await buildSandbox(deny, 'HEAD');
+  try {
+    assert.ok(
+      !existsSync(join(b.dir, '.claude/skills/finishing-a-development-branch/SKILL.md')),
+      'finishing stub NOT staged when the scenario denies finishing',
+    );
+  } finally { b.cleanup(); }
+});
+
 test('buildSandbox seeds run-state via the real helper when requested', async () => {
   const scenario = { id: 's2', skill: 'backlog-next-epic', fixture: 'epic-pr-open', prompt: 'p', terminal: 'completed', runstate: { phase: 'pr-open', pr: 7 } };
   const { dir, cleanup } = await buildSandbox(scenario, 'HEAD');

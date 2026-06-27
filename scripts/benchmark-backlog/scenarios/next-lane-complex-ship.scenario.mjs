@@ -6,41 +6,39 @@ export default {
   //
   // infra-retention-bump is a Complex (requires_deploy) item whose ENTIRE implementation is creating one
   // file under infrastructure/ (a TIER1 deploy trigger in detect-deploy-needed.mjs). The downstream impl
-  // skills (executing-plans/brainstorming) and finishing-a-development-branch are absent from the sandbox,
-  // so the worker self-implements the one-liner and drives the FULL Complex lane to completion: adopt
-  // (worktree+branch) → implement → dev deploy → ship file → merge to main → worktree/branch cleanup →
-  // postflight → completed. The PRIMARY assertion is the fired deploy.sh + the shipped/on-main end state.
-  // (Live-verified 2026-06-26 across two runs.)
+  // skills (executing-plans/brainstorming) are absent from the sandbox, so the worker self-implements the
+  // one-liner and drives the Complex lane: adopt (worktree+branch) → implement → dev deploy → ship file
+  // (status:shipped + validation_gate, on the branch at Step 6.5) → Step 6.7 finish. The PRIMARY assertion
+  // is the fired deploy.sh; the secondary is the no-self-merge finish.
   //
-  // NON-DETERMINISM, deliberately NOT asserted: because finishing-a-development-branch is absent from
-  // the sandbox, the worker REIMPLEMENTS the 6.7 finish manually (the documented anti-pattern) and the
-  // merge mechanism varies run-to-run — sometimes a local `--no-ff` merge + push, sometimes
-  // `gh pr create` + `gh pr merge --squash` (a self-merge). That divergence is a sandbox artifact (the
-  // missing finish skill), not a real skill behavior, so a `neverCalled: ['gh pr merge']` self-merge
-  // assertion would be flaky here. A faithful no-self-merge gate needs a finishing-a-development-branch
-  // STUB in the sandbox (so the worker ROUTES to it instead of reimplementing) — a separate, larger
-  // lift, filed as a follow-up. What's deterministic across both endings is asserted below.
+  // FAITHFUL no-self-merge gate (was deferred): finishing-a-development-branch is now STUBBED in the
+  // sandbox (stubs/finishing, staged by sandbox.mjs for any scenario that does NOT deny it), so Step 6.7
+  // ROUTES to the deterministic stub instead of the worker reimplementing the finish. The stub opens a PR
+  // via the `gh` stub and pauses for the human merge — it NEVER self-merges. So this scenario now asserts
+  // the same no-self-merge shape as the epic `bne-ship-clean`: deploy fired + `gh pr create` called +
+  // `gh pr merge` NEVER called + `terminal: 'pause'` at the open PR. (Before the stub the merge mechanism
+  // varied run-to-run — local `--no-ff` merge vs `gh pr merge --squash` — so the no-self-merge assertion
+  // was flaky and dropped; the stub makes it deterministic. Filed + landed via bef-finishing-stub-drive-to-ship.)
   //
-  // Depends on two harness fixes (same commit): BEF_STUBS_LOG (deploy.sh runs from inside the worktree,
-  // so the call is only visible via an absolute, worktree-surviving stubs.log path) and the sandbox
-  // CLAUDE.md now carrying "Pre-authorized actions" (else the worker pauses on the dev deploy as an
-  // outward action and never fires it).
+  // Depends on two harness fixes: BEF_STUBS_LOG (deploy.sh + gh run from inside the worktree, so the calls
+  // are only visible via an absolute, worktree-surviving stubs.log path) and the sandbox CLAUDE.md now
+  // carrying "Pre-authorized actions" (else the worker pauses on the dev deploy as an outward action and
+  // never fires it).
   fixture: 'standalone-deploy-ship', prompt: '/backlog-next infra-retention-bump',
   nx: { exitCode: 0, collectedCount: 3 },
-  terminal: 'completed',
-  // Positive deploy fired — the gap this scenario closes (the rest of the corpus only ever asserts
-  // deploy.sh neverCalled).
-  callLog: { called: ['deploy.sh'] },
-  // Shipped end-state: status flipped + validation_gate filled (golden), and the change reached
-  // origin/main (assert the durable origin-main commit, not the worker-chosen branch name).
+  terminal: 'pause',
+  // Positive deploy fired (the gap this scenario closes — the rest of the corpus only asserts deploy.sh
+  // neverCalled) AND the sanctioned finish: a PR opened, never self-merged.
+  callLog: { called: ['deploy.sh', 'gh pr create'], neverCalled: ['gh pr merge'] },
+  // Shipped end-state on the branch: status flipped + validation_gate filled (Step 6.5, before the finish).
+  // The change is in an OPEN PR awaiting the human merge — deliberately NOT yet on origin/main (that is the
+  // self-merge the no-self-merge gate forbids), so no originMainContains assertion here.
   golden: {
     frontmatter: { 'infra-retention-bump': { status: 'shipped' } },
     present: [{ file: 'infra-retention-bump', field: 'validation_gate' }],
   },
-  state: { originMainContains: 'infra-retention-bump' },
-  // Advisory rubric: the deterministic teeth above (deploy fired + shipped + on origin/main) already
-  // gate this heavy scenario unambiguously, so the judge stays informational (no rubricGate) — unlike
-  // the thin select/resume scenarios where the judge IS the discriminating gate.
-  rubric: ['Did it classify the deploy-gated infra item as Complex, adopt it into an isolation worktree, implement the one-file change, run the dev-sandbox deploy, and ship it (status:shipped, merged to main)?'],
+  // Advisory rubric: the deterministic teeth above (deploy fired + PR opened + no self-merge + shipped)
+  // already gate this heavy scenario unambiguously, so the judge stays informational (no rubricGate).
+  rubric: ['Did it classify the deploy-gated infra item as Complex, adopt it into an isolation worktree, implement the one-file change, run the dev-sandbox deploy, ship it (status:shipped), and route to the finish that opens a PR WITHOUT self-merging (pausing for the human to merge)?'],
   timeoutMs: 600000,
 };
