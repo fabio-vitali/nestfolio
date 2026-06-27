@@ -6,6 +6,16 @@
 
 ## EPICS
 
+### [backlog-eval-corpus-hardening](backlog/backlog-eval-corpus-hardening.md) `[epic · active]` — The backlog-eval-framework corpus shipped structurally but is not yet live-validated/hardened — the regression reference backlog-skills-simplification will diff against. Theme epic, 3 members.
+done_when: The corpus has a committed live full-corpus baseline, every scenario gates deterministically (no flaky rubric swings), and the drive-to-ship scenarios route to a stubbed finishing skill instead of self-merging; all members shipped or dropped.
+rollup: core 1/4 done · captured 0/2 done
+- core · parking · [bef-baseline-surfaced-scenario-failures](backlog/bef-baseline-surfaced-scenario-failures.md)
+- core · parking · [bef-finishing-stub-drive-to-ship](backlog/bef-finishing-stub-drive-to-ship.md)
+- core · parking · [bef-resume-partial-scenario-flaky](backlog/bef-resume-partial-scenario-flaky.md)
+- core · shipped · [backlog-eval-framework-baseline-run](backlog/backlog-eval-framework-baseline-run.md)
+- captured · parking · [bef-scenario-tags-reusable-suite](backlog/bef-scenario-tags-reusable-suite.md)
+- captured · parking · [benchmark-backlog-skill-cost-figures-stale](backlog/benchmark-backlog-skill-cost-figures-stale.md)
+
 ### [advisory-narrative-memory-read-latency](backlog/advisory-narrative-memory-read-latency.md) `[epic · parking]` — advisory-narrative-ctrl blocks on AgentCore Memory reads before writing its observable HEAD row → 30-40s integration tests. Theme epic, 2 members.
 done_when: advisory-narrative-ctrl's observable HEAD row is visible to tests in ~5-10s (eager write and/or tightened Memory-retry delays) with no dev/prod consistency skew; both members shipped or dropped.
 rollup: core 0/2 done · captured 0/0 done
@@ -25,16 +35,6 @@ done_when: Each in-scope side-effecting path is made idempotent against at-least
 rollup: core 0/2 done · captured 0/0 done
 - core · parking · [broker-circuit-breaker-concurrent-escalation-duplicate](backlog/broker-circuit-breaker-concurrent-escalation-duplicate.md)
 - core · parking · [sf-start-idempotency-at-least-once-redelivery](backlog/sf-start-idempotency-at-least-once-redelivery.md)
-
-### [backlog-eval-corpus-hardening](backlog/backlog-eval-corpus-hardening.md) `[epic · parking]` — The backlog-eval-framework corpus shipped structurally but is not yet live-validated/hardened — the regression reference backlog-skills-simplification will diff against. Theme epic, 3 members.
-done_when: The corpus has a committed live full-corpus baseline, every scenario gates deterministically (no flaky rubric swings), and the drive-to-ship scenarios route to a stubbed finishing skill instead of self-merging; all members shipped or dropped.
-rollup: core 1/4 done · captured 0/2 done
-- core · parking · [bef-baseline-surfaced-scenario-failures](backlog/bef-baseline-surfaced-scenario-failures.md)
-- core · parking · [bef-finishing-stub-drive-to-ship](backlog/bef-finishing-stub-drive-to-ship.md)
-- core · parking · [bef-resume-partial-scenario-flaky](backlog/bef-resume-partial-scenario-flaky.md)
-- core · shipped · [backlog-eval-framework-baseline-run](backlog/backlog-eval-framework-baseline-run.md)
-- captured · parking · [bef-scenario-tags-reusable-suite](backlog/bef-scenario-tags-reusable-suite.md)
-- captured · parking · [benchmark-backlog-skill-cost-figures-stale](backlog/benchmark-backlog-skill-cost-figures-stale.md)
 
 ### [backlog-skills-simplification](backlog/backlog-skills-simplification.md) `[epic · parking]` — Reduce accreted complexity in the backlog skill suite (~3,900 lines, 19 F-fixes, rationale interleaved into procedures) WITHOUT regressing hard-won lessons or changing behavior.
 done_when: Both core members terminal: (β) SKILL.md procedures read as lean imperative steps with backstory relocated to a LESSONS/pitfalls log and terse guardrails kept inline; (γ) load-bearing multi-step bash dances are encapsulated in tested .mjs helpers rather than narrated in prose. No backlog behavior or lint invariant changed; no F-lesson knowledge deleted.
@@ -210,7 +210,7 @@ rollup: core 0/3 done · captured 0/0 done
 - core · parking · [portfolio-drift-detected-registry-collision](backlog/portfolio-drift-detected-registry-collision.md)
 - core · parking · [weight-drift-detector](backlog/weight-drift-detector.md)
 
-**Parking health:** 31 theme epic(s), 9 orphan(s) — drive orphans → 0 with `/backlog-themes`
+**Parking health:** 30 theme epic(s), 9 orphan(s) — drive orphans → 0 with `/backlog-themes`
 
 ## ACTIVE
 

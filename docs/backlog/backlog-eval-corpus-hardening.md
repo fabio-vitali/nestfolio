@@ -1,6 +1,6 @@
 ---
 id: backlog-eval-corpus-hardening
-status: parking
+status: active
 type: epic
 notes: "The backlog-eval-framework corpus shipped structurally but is not yet live-validated/hardened — the regression reference backlog-skills-simplification will diff against. Theme epic, 3 members."
 done_when: "The corpus has a committed live full-corpus baseline, every scenario gates deterministically (no flaky rubric swings), and the drive-to-ship scenarios route to a stubbed finishing skill instead of self-merging; all members shipped or dropped."
