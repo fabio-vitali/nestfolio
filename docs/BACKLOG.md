@@ -28,10 +28,11 @@ rollup: core 0/2 done · captured 0/0 done
 
 ### [backlog-eval-corpus-hardening](backlog/backlog-eval-corpus-hardening.md) `[epic · parking]` — The backlog-eval-framework corpus shipped structurally but is not yet live-validated/hardened — the regression reference backlog-skills-simplification will diff against. Theme epic, 3 members.
 done_when: The corpus has a committed live full-corpus baseline, every scenario gates deterministically (no flaky rubric swings), and the drive-to-ship scenarios route to a stubbed finishing skill instead of self-merging; all members shipped or dropped.
-rollup: core 0/3 done · captured 0/1 done
-- core · active · [backlog-eval-framework-baseline-run](backlog/backlog-eval-framework-baseline-run.md)
+rollup: core 1/4 done · captured 0/1 done
+- core · parking · [bef-baseline-surfaced-scenario-failures](backlog/bef-baseline-surfaced-scenario-failures.md)
 - core · parking · [bef-finishing-stub-drive-to-ship](backlog/bef-finishing-stub-drive-to-ship.md)
 - core · parking · [bef-resume-partial-scenario-flaky](backlog/bef-resume-partial-scenario-flaky.md)
+- core · shipped · [backlog-eval-framework-baseline-run](backlog/backlog-eval-framework-baseline-run.md)
 - captured · parking · [benchmark-backlog-skill-cost-figures-stale](backlog/benchmark-backlog-skill-cost-figures-stale.md)
 
 ### [backlog-skills-simplification](backlog/backlog-skills-simplification.md) `[epic · parking]` — Reduce accreted complexity in the backlog skill suite (~3,900 lines, 19 F-fixes, rationale interleaved into procedures) WITHOUT regressing hard-won lessons or changing behavior.
@@ -212,7 +213,8 @@ rollup: core 0/3 done · captured 0/0 done
 
 ## ACTIVE
 
-- [backlog-eval-framework-baseline-run](backlog/backlog-eval-framework-baseline-run.md) [tooling] — Establish the live regression baseline over the 53-scenario corpus to seed backlog-skills-simplification. Deferred Task 17 of the backlog-eval-framework plan — split out of backlog-eval-framework-full-corpus per the 2026-06-25 cost-floor decision (a single full-corpus run is ~tens of millions of tokens; the 35 backlog-next-epic scenarios drive it at ≈1.7–3M each). Promoted 2026-06-26: the cost-gate trigger fired — the user is deliberately spending the budget before backlog-skills-simplification begins. Running smoke-first (6-scenario live subset, iterations=1) to de-risk the full ~70–100M-token pass before committing to it. `[epic:backlog-eval-corpus-hardening · core]`
+_(none)_
+
 
 ## QUEUED
 
@@ -234,6 +236,7 @@ rollup: core 0/3 done · captured 0/0 done
 
 ## Recently Shipped (last 10)
 
+- 2026-06-27 — [backlog-eval-framework-baseline-run](backlog/backlog-eval-framework-baseline-run.md) [tooling] — Established a right-sized live regression baseline (15-scenario subset, iterations=1) instead of the full 3× — the corpus measured at 53 scenarios / 35 bne-epic, making a full 3× pass ≈270M tokens (~90% cache-reads of skill prose). The right-sized run validated the harness live (0 crashes, 9✓/6✗, 32.9M tokens) and surfaced 6 gate-failing scenarios; full 3× rebaseline deferred to epic closure after those gate green. `[epic:backlog-eval-corpus-hardening · core]`
 - 2026-06-26 — [an-ctrl-wrap-agent-output-vestigial](backlog/an-ctrl-wrap-agent-output-vestigial.md) [refactor] — advisory-narrative-ctrl handler still wraps result via wrapAgentOutput but the wrap is unread after the callback refactor `[epic:dead-code-cleanup · core]`
 - 2026-06-26 — [dead-code-cleanup](backlog/dead-code-cleanup.md) [epic] — Vestigial code left behind by prior refactors that no checker flags — unread wrappers, unused repo methods, stale comments, a dead consumer read. Debt-class theme epic, 5 members (cooldown split out during execution-ctrl prune).
 - 2026-06-26 — [execution-ctrl-cooldown-feature-dead-code](backlog/execution-ctrl-cooldown-feature-dead-code.md) [refactor] — Surfaced 2026-06-26 while pruning OrderRepository in execution-ctrl-orderrepository-prune-unused-methods. The CoolDown feature is half-dead: OrderRepository.setCoolDown (the WRITE side) has ZERO production callers (only its own unit test), so the CoolDown row is never written. Yet safety-checks.service.ts:41 still calls getCoolDown on every staged-order safety check → it always reads null → the cooldown guard is a permanent no-op. Same 'read of data the producer never writes' pattern the epic targets. Removing it deletes a (currently no-op) safety-check branch, so it needs its own verdict — NOT a trivial method prune. Verify the no-op claim (grep setCoolDown = zero writers) before deleting setCoolDown + getCoolDown + the safety-check cooldown branch + coolDownPk helper. `[epic:dead-code-cleanup · core]`
@@ -243,4 +246,3 @@ rollup: core 0/3 done · captured 0/0 done
 - 2026-06-25 — [backlog-eval-framework-full-corpus](backlog/backlog-eval-framework-full-corpus.md) [tooling] — Phase 6 of backlog-eval-framework: the /benchmark-backlog skill surface + the full ~50-scenario corpus (per-skill coverage enumerated in the spec). Builds on the proven core (PR #24) and the backlog-eval-framework-usable milestone. `[epic:backlog-eval-framework-remaining · core]`
 - 2026-06-25 — [backlog-eval-framework-remaining](backlog/backlog-eval-framework-remaining.md) [epic] — Remaining work on the backlog-eval-framework (benchmark-backlog) harness after the shipped design + proven core (PR #24) + the backlog-eval-framework-usable milestone: the Phase-6 full corpus + /benchmark-backlog skill surface, plus two core-harness tooling defects. Theme epic, 3 members.
 - 2026-06-25 — [backlog-eval-framework-usable](backlog/backlog-eval-framework-usable.md) [tooling] — Finish backlog-eval-framework so it can actually guard backlog-skills-simplification: harden next-lane+e8-conflict (rubricGate + deterministic proxies; e8 no-pre-ship setup + portable SUPERPOWERS path), commit a baseline.json, run the oracle-teeth (Task 14). Core harness shipped in PR #24.
-- 2026-06-25 — [bef-prose-token-proxy-miscalibrated](backlog/bef-prose-token-proxy-miscalibrated.md) [tooling] — benchmark-backlog firstTurnProseTokens reads a hardcoded turn index (1) but the skill loads at a later turn, so it misses skill-load prose changes; it also only captures the one-time load, not the amortized cache-re-read cost. Use tokens.total (the working value signal) or recalibrate to the real skill-load turn. `[epic:backlog-eval-framework-remaining · core]`
