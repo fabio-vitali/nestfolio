@@ -29,7 +29,7 @@ rollup: core 0/2 done · captured 0/0 done
 ### [backlog-eval-corpus-hardening](backlog/backlog-eval-corpus-hardening.md) `[epic · parking]` — The backlog-eval-framework corpus shipped structurally but is not yet live-validated/hardened — the regression reference backlog-skills-simplification will diff against. Theme epic, 3 members.
 done_when: The corpus has a committed live full-corpus baseline, every scenario gates deterministically (no flaky rubric swings), and the drive-to-ship scenarios route to a stubbed finishing skill instead of self-merging; all members shipped or dropped.
 rollup: core 0/3 done · captured 0/0 done
-- core · parking · [backlog-eval-framework-baseline-run](backlog/backlog-eval-framework-baseline-run.md)
+- core · active · [backlog-eval-framework-baseline-run](backlog/backlog-eval-framework-baseline-run.md)
 - core · parking · [bef-finishing-stub-drive-to-ship](backlog/bef-finishing-stub-drive-to-ship.md)
 - core · parking · [bef-resume-partial-scenario-flaky](backlog/bef-resume-partial-scenario-flaky.md)
 
@@ -211,8 +211,7 @@ rollup: core 0/3 done · captured 0/0 done
 
 ## ACTIVE
 
-_(none)_
-
+- [backlog-eval-framework-baseline-run](backlog/backlog-eval-framework-baseline-run.md) [tooling] — Establish the live regression baseline over the 53-scenario corpus to seed backlog-skills-simplification. Deferred Task 17 of the backlog-eval-framework plan — split out of backlog-eval-framework-full-corpus per the 2026-06-25 cost-floor decision (a single full-corpus run is ~tens of millions of tokens; the 35 backlog-next-epic scenarios drive it at ≈1.7–3M each). Promoted 2026-06-26: the cost-gate trigger fired — the user is deliberately spending the budget before backlog-skills-simplification begins. Running smoke-first (6-scenario live subset, iterations=1) to de-risk the full ~70–100M-token pass before committing to it. `[epic:backlog-eval-corpus-hardening · core]`
 
 ## QUEUED
 
