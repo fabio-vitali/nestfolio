@@ -2,7 +2,7 @@
 id: bef-baseline-surfaced-scenario-failures
 status: parking
 type: bug
-notes: "Right-sized live baseline (2026-06-27) found 4 scenarios gate-failing on HEAD: add-mint-aggregation, bne-promote-clean, bne-e6-zero-tests-red, bne-ship-clean. Re-run to confirm consistency, then fix scenario-or-skill so each gates green."
+notes: "Live baseline found 4 reds. Confirming ×3 re-run (2026-06-27): bne-ship-clean 0/3 consistent (likely the missing finishing stub → bef-finishing-stub-drive-to-ship, not a prose bug); bne-e6-zero-tests-red 2/3 FLAKY (real — 1/3 it ships with zero tests); add-mint-aggregation + bne-promote-clean still unconfirmed (iterations=1)."
 references: []
 out_of_scope:
   - "next-lane-doc-layer — its terminal-expectation scenario bug was fixed in the same workstream (scenarios/next-lane-doc-layer.scenario.mjs); flips green on next rebaseline."
@@ -42,3 +42,31 @@ Diagnostics are from the committed `scripts/benchmark-backlog/baseline.json` row
 `diagnostics` block when it failed). Debug via `superpowers:systematic-debugging`; the bar is never
 lowered — if the scenario's golden/invariant is wrong, fix the scenario; if the skill is wrong, fix
 the prose.
+
+## Confirming re-run (×3, 2026-06-27) — the 2 `bne-*` orchestrator failures
+
+`regression --scenario=bne-ship-clean,bne-e6-zero-tests-red --iterations=3` (does NOT touch
+`baseline.json`). Verdict:
+
+- **`bne-ship-clean` — 0/3, `anyGateFlip:false` → CONSISTENT.** Same golden failure all three runs
+  (epic left `active`, never `shipped+closed`; rubric 2/5). **Likely root cause: the sandbox never
+  stubs `superpowers:finishing-a-development-branch`** — `sandbox.mjs` copies only `backlog-*` skills,
+  so the E8 close step has no finish skill to invoke and the epic can't reach `shipped+closed`. This is
+  almost certainly **subsumed by [[bef-finishing-stub-drive-to-ship]]**, NOT a `backlog-next-epic`
+  prose defect. **Confirm:** land that stub, then re-run — expect green. (Hypothesis, not yet proven
+  from a transcript; the consistency + the sandbox gap make it strong.)
+- **`bne-e6-zero-tests-red` — 2/3, `anyGateFlip:true` → GENUINELY FLAKY (real).** The failing
+  iteration tripped a *deterministic* call-log invariant (`gh pr create` present) — the orchestrator
+  really shipped despite a zero-collected test run, ~1-in-3. Not judge noise, not the finish stub
+  (it got as far as PR creation). A real intermittent gap in the E6 zero-collected-as-RED guard —
+  per [[feedback-flake-means-broken]] it IS broken, just not every run. Work = de-flake the guard so a
+  zero-collected run blocks the ship every time.
+- **`add-mint-aggregation`, `bne-promote-clean` — still unconfirmed** (only the single iterations=1
+  baseline run). Same confirming `--iterations=3` re-run is the next step before a scenario-vs-skill
+  verdict.
+
+**Disposition:** kept as one item (all four are `core` — each falsifies the epic's "every scenario
+gates deterministically"). `bne-ship-clean` is cross-linked to the finishing-stub work rather than
+split into a new defect; `bne-e6` is the one confirmed *new* orchestrator reliability finding here.
+Split either out only if its remediation diverges (e.g. `bne-e6` turns out to need its own focused
+de-flake workstream).
