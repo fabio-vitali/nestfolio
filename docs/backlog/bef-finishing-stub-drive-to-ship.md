@@ -1,10 +1,13 @@
 ---
 id: bef-finishing-stub-drive-to-ship
-status: parking
+status: active
 type: tooling
 notes: "Stub finishing-a-development-branch in the bef sandbox so drive-to-ship workers route to it instead of reimplementing the merge (the self-merge anti-pattern), enabling a faithful no-self-merge gate."
 references: []
-out_of_scope: []
+out_of_scope:
+  - "Fixing the other 3 baseline-surfaced scenario failures (add-mint-aggregation, bne-promote-clean, bne-e6-zero-tests-red) — separate member bef-baseline-surfaced-scenario-failures. (bne-ship-clean IS unblocked by this stub, but its live confirmation is that member's gate.)"
+  - "The full-corpus baseline rebaseline — epic-closure step (E6), run once conclusively after all members gate green."
+  - "De-flaking the resume scenario — separate member bef-resume-partial-scenario-flaky."
 spec: null
 plan: null
 topic_memory: [project_backlog_eval_framework.md]
