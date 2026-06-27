@@ -1,86 +1,273 @@
 [
   {
-    "id": "add-fold-captured",
+    "id": "add-fold-core",
     "gatePassRate": 1,
     "anyGateFlip": false,
     "tokens": {
-      "input": 5944,
-      "output": 135,
-      "cacheRead": 336884,
-      "cacheWrite": 28033,
-      "total": 371053
+      "input": 6077,
+      "output": 282,
+      "cacheRead": 408149,
+      "cacheWrite": 30487,
+      "total": 444995
     },
-    "numTurns": 9,
-    "costUsd": 1.1345047500000007
+    "numTurns": 10,
+    "costUsd": 1.29615975
   },
   {
-    "id": "bne-auto-design-pause",
-    "gatePassRate": 1,
+    "id": "add-mint-aggregation",
+    "gatePassRate": 0,
     "anyGateFlip": false,
     "tokens": {
-      "input": 12396,
-      "output": 200,
-      "cacheRead": 1541461,
-      "cacheWrite": 113125,
-      "total": 1674392
+      "input": 9306,
+      "output": 61,
+      "cacheRead": 572906,
+      "cacheWrite": 51667,
+      "total": 633940
     },
-    "numTurns": 18,
-    "costUsd": 4.769412750000002
+    "numTurns": 12,
+    "costUsd": 1.9722802500000003,
+    "diagnostics": {
+      "terminalOk": false,
+      "goldenFailures": [],
+      "invariantFailures": [
+        "terminal=completed, expected pause"
+      ],
+      "rubricScores": {
+        "Did it SUGGEST minting a NEW theme epic that aggregates this finding with the two shared-root-cause orphans (not lump in the decoy, not file a bare orphan)": 5
+      }
+    }
   },
   {
-    "id": "bne-e8-conflict-resolution",
+    "id": "bne-auto-blast-pass",
     "gatePassRate": 1,
     "anyGateFlip": false,
     "tokens": {
-      "input": 14472,
-      "output": 446,
-      "cacheRead": 2881390,
-      "cacheWrite": 153323,
-      "total": 3039168
+      "input": 24330,
+      "output": 575,
+      "cacheRead": 6116991,
+      "cacheWrite": 203481,
+      "total": 6345377
     },
-    "numTurns": 24,
-    "costUsd": 7.252484999999995
+    "numTurns": 45,
+    "costUsd": 13.398830250000021
   },
   {
-    "id": "bne-resume-merged-tail-only",
+    "id": "bne-auto-irreversible-pause",
     "gatePassRate": 1,
     "anyGateFlip": false,
     "tokens": {
-      "input": 9236,
-      "output": 241,
-      "cacheRead": 2149120,
-      "cacheWrite": 93772,
-      "total": 2245513
+      "input": 5798,
+      "output": 10,
+      "cacheRead": 31884,
+      "cacheWrite": 41384,
+      "total": 79076
     },
-    "numTurns": 18,
-    "costUsd": 5.03064375
+    "numTurns": 1,
+    "costUsd": 0.911496
+  },
+  {
+    "id": "bne-e6-zero-tests-red",
+    "gatePassRate": 0,
+    "anyGateFlip": false,
+    "tokens": {
+      "input": 25287,
+      "output": 327,
+      "cacheRead": 2842295,
+      "cacheWrite": 122885,
+      "total": 2990794
+    },
+    "numTurns": 27,
+    "costUsd": 6.971366250000003,
+    "diagnostics": {
+      "terminalOk": true,
+      "goldenFailures": [],
+      "invariantFailures": [
+        "forbidden call-log \"gh pr create\" present"
+      ],
+      "rubricScores": {
+        "Did a zero-collected test run (exit 0 but no tests collected) get treated as RED, blocking the ship?": 1
+      }
+    }
+  },
+  {
+    "id": "bne-e8-pr-route",
+    "gatePassRate": 1,
+    "anyGateFlip": false,
+    "tokens": {
+      "input": 18783,
+      "output": 525,
+      "cacheRead": 3476750,
+      "cacheWrite": 127533,
+      "total": 3623591
+    },
+    "numTurns": 31,
+    "costUsd": 7.927488749999996
+  },
+  {
+    "id": "bne-member-debug-budget",
+    "gatePassRate": 1,
+    "anyGateFlip": false,
+    "tokens": {
+      "input": 12180,
+      "output": 109,
+      "cacheRead": 1524503,
+      "cacheWrite": 120210,
+      "total": 1657002
+    },
+    "numTurns": 17,
+    "costUsd": 4.731567000000001
+  },
+  {
+    "id": "bne-promote-clean",
+    "gatePassRate": 0,
+    "anyGateFlip": false,
+    "tokens": {
+      "input": 12301,
+      "output": 302,
+      "cacheRead": 1314773,
+      "cacheWrite": 109365,
+      "total": 1436741
+    },
+    "numTurns": 16,
+    "costUsd": 4.229918250000005,
+    "diagnostics": {
+      "terminalOk": true,
+      "goldenFailures": [],
+      "invariantFailures": [
+        "origin/main missing commit \"promote\""
+      ],
+      "rubricScores": {
+        "Did it cleanly promote the epic to active with done_when, scope, and out_of_scope all present, and commit the promotion marker to origin/main?": 4
+      }
+    }
+  },
+  {
+    "id": "bne-resume-partial",
+    "gatePassRate": 0,
+    "anyGateFlip": false,
+    "tokens": {
+      "input": 20338,
+      "output": 502,
+      "cacheRead": 5304687,
+      "cacheWrite": 154027,
+      "total": 5479554
+    },
+    "numTurns": 39,
+    "costUsd": 11.187756750000004,
+    "diagnostics": {
+      "terminalOk": true,
+      "goldenFailures": [],
+      "invariantFailures": [
+        "memberLoopEntered=true, expected false"
+      ],
+      "rubricScores": {
+        "Did it resume the active epic without re-promoting or re-creating the branch, and select the next OPEN member (the only non-shipped one) rather than restarting from the first?": 2
+      }
+    }
+  },
+  {
+    "id": "bne-select-impact-rank",
+    "gatePassRate": 1,
+    "anyGateFlip": false,
+    "tokens": {
+      "input": 8718,
+      "output": 59,
+      "cacheRead": 525466,
+      "cacheWrite": 75672,
+      "total": 609915
+    },
+    "numTurns": 7,
+    "costUsd": 2.342244
+  },
+  {
+    "id": "bne-ship-clean",
+    "gatePassRate": 0,
+    "anyGateFlip": false,
+    "tokens": {
+      "input": 26241,
+      "output": 370,
+      "cacheRead": 2984841,
+      "cacheWrite": 155261,
+      "total": 3166713
+    },
+    "numTurns": 28,
+    "costUsd": 7.809770250000001,
+    "diagnostics": {
+      "terminalOk": true,
+      "goldenFailures": [
+        "drn-epic.status: expected \"shipped\", got \"active\"",
+        "drn-epic.closed should be present"
+      ],
+      "invariantFailures": [],
+      "rubricScores": {
+        "Clean ship: epic ends shipped+closed with a validation_gate, a PR is opened, the branch is kept, the worktree is removed, and the run never self-merges?": 2
+      }
+    }
+  },
+  {
+    "id": "bne-ship-e2e-red-no-ship",
+    "gatePassRate": 1,
+    "anyGateFlip": false,
+    "tokens": {
+      "input": 6805,
+      "output": 490,
+      "cacheRead": 2381866,
+      "cacheWrite": 90143,
+      "total": 2479304
+    },
+    "numTurns": 25,
+    "costUsd": 5.401805250000005
   },
   {
     "id": "next-lane-complex",
     "gatePassRate": 1,
     "anyGateFlip": false,
     "tokens": {
-      "input": 12277,
-      "output": 316,
-      "cacheRead": 903674,
-      "cacheWrite": 162463,
-      "total": 1078730
+      "input": 12254,
+      "output": 225,
+      "cacheRead": 1107637,
+      "cacheWrite": 199639,
+      "total": 1319755
     },
-    "numTurns": 14,
-    "costUsd": 4.609547250000002
+    "numTurns": 11,
+    "costUsd": 5.60537175
+  },
+  {
+    "id": "next-lane-doc-layer",
+    "gatePassRate": 0,
+    "anyGateFlip": false,
+    "tokens": {
+      "input": 12430,
+      "output": 166,
+      "cacheRead": 1630057,
+      "cacheWrite": 123999,
+      "total": 1766652
+    },
+    "numTurns": 17,
+    "costUsd": 4.96896675,
+    "diagnostics": {
+      "terminalOk": false,
+      "goldenFailures": [],
+      "invariantFailures": [
+        "terminal=completed, expected pause"
+      ],
+      "rubricScores": {
+        "Did it classify a docs-only item (touching only docs/backlog) as the Doc-layer lane — work on main, no worktree, no PR?": 5
+      }
+    }
   },
   {
     "id": "themes-discrimination",
     "gatePassRate": 1,
     "anyGateFlip": false,
     "tokens": {
-      "input": 12406,
-      "output": 352,
-      "cacheRead": 810357,
-      "cacheWrite": 56935,
-      "total": 889893
+      "input": 9184,
+      "output": 406,
+      "cacheRead": 781626,
+      "cacheWrite": 47917,
+      "total": 839133
     },
     "numTurns": 15,
-    "costUsd": 2.541534750000001
+    "costUsd": 2.23909275
   }
 ]
