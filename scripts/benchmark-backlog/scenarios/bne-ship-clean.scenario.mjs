@@ -9,7 +9,12 @@ export default {
   nx: { exitCode: 0, collectedCount: 5 },
   gh: { prState: 'OPEN' },
   terminal: 'pause',
+  // The ship (status: shipped + closed + validation_gate) is committed on the epic branch
+  // feat/epic-drn-epic; the sandbox root stays on main (the E1 promote marker leaves it active). So the
+  // golden MUST read the branch — a root read sees active+closed-absent for a correct E8 (the
+  // sub-worktree-blindness; see grade.mjs loadBranchFilesById + bef-judge-blind-to-subworktree-diff).
   golden: {
+    onBranch: 'feat/epic-drn-epic',
     frontmatter: { 'drn-epic': { status: 'shipped' } },
     present: [{ file: 'drn-epic', field: 'closed' }, { file: 'drn-epic', field: 'validation_gate' }],
   },
