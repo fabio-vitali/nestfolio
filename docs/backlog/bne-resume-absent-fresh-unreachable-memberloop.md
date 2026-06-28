@@ -1,10 +1,13 @@
 ---
 id: bne-resume-absent-fresh-unreachable-memberloop
-status: parking
+status: active
 type: tooling
 notes: "bne-resume-absent-fresh asserts memberLoopEntered:false via subskill denials, but the orchestrator circumvents Skill() denies via raw Bash and drives the fresh run to PR — same root cause as bne-promote-clean."
 references: []
-out_of_scope: []
+out_of_scope:
+  - "The other memberLoopEntered:false scenarios that gate via RELIABLE stop mechanisms (not circumventable denials) — bne-resume-pr-open-stop / bne-resume-corrupt-stop / bne-resume-merged-tail-only (resume gate stops before the loop), bne-select-* (selection-confirm AskUserQuestion pause), bne-rule11-different-active (rule-11 guard stop). They gate fine; do NOT touch them."
+  - "bne-resume-partial (tracked separately by bef-resume-partial-scenario-flaky, already shipped) — not re-opened here."
+  - "The production backlog-next-epic skill text / resume-gate behavior — the orchestrator's Skill-deny-circumvention is correct, DESIGNED behavior; this member fixes only the eval scenario's assertion, never the skill."
 spec: null
 plan: null
 topic_memory: [project_backlog_eval_framework.md]
