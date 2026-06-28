@@ -1,6 +1,7 @@
 ---
 id: bne-resume-absent-fresh-unreachable-memberloop
-status: active
+status: shipped
+closed: 2026-06-28
 type: tooling
 notes: "bne-resume-absent-fresh asserts memberLoopEntered:false via subskill denials, but the orchestrator circumvents Skill() denies via raw Bash and drives the fresh run to PR — same root cause as bne-promote-clean."
 references: []
@@ -11,7 +12,7 @@ out_of_scope:
 spec: null
 plan: null
 topic_memory: [project_backlog_eval_framework.md]
-validation_gate: null
+validation_gate: "Fix 6995f97c: dropped denySubskills + the unreachable memberLoopEntered:false assertion from bne-resume-absent-fresh.scenario.mjs; replaced with the deterministic fresh-promote teeth (delta-epic active + done_when/scope/out_of_scope present + origin/main 'promote' marker) + timeoutMs 900000, mirroring the shipped bne-promote-clean fix. Teeth now byte-identical to bne-promote-clean (same parking-epic fixture + /backlog-next-epic delta-epic prompt). Per-member gate GREEN: 60 benchmark-backlog harness unit tests pass (scenario typo-guard/shape lint, fixture-existence, golden present-grading); scenario imports clean (state={originMainContains:'promote'}); backlog-lint 11/11; affected=[] (Tier 0, no deploy). Live scenario execution deferred to the single E6 full-corpus baseline per user AskUserQuestion (deterministic-gate-sufficient; wrong-fix risk near-zero given identical-to-green teeth)."
 epic: backlog-eval-corpus-hardening
 epic_role: core
 ---
