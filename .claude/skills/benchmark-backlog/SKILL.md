@@ -6,7 +6,7 @@ disable-model-invocation: true
 
 ## What this skill does
 
-Each `scenarios/*.scenario.mjs` drives a real backlog skill (`backlog-add`, `backlog-next`, `backlog-next-epic`, `backlog-themes`) through `claude -p` in an isolated sandbox, then grades the run (terminal-ok + golden + invariants + rubric judge → a single `gatePass` boolean). `run.mjs` runs each scenario N times and prints a JSON `rows` array to stdout; `report.mjs` renders it as a markdown table.
+Each `scenarios/*.scenario.mjs` drives a real backlog skill (`backlog-add`, `backlog-next`, `backlog-next-epic`, `backlog-themes`) through `claude -p` in an isolated sandbox, then grades the run (terminal-ok + golden + invariants + rubric judge → a single `gatePass` boolean). `run.mjs` runs each scenario N times, prints a JSON `rows` array to stdout, AND writes a rendered markdown report (`report.mjs`) to the gitignored `benchmarks/backlog/<mode>-<ISO>.md`, printing that path to stderr.
 
 This skill orchestrates that runner in three modes, layers a cost-conscious confirmation gate over full-corpus spends, and pairs the (expensive, non-deterministic) orchestration metrics with the (cheap, deterministic) `node --test` suites so one `/benchmark-backlog` call answers "is the whole backlog-skills system healthy?".
 
@@ -113,13 +113,21 @@ The full-corpus cost gate above applies — this is the single largest spend the
 
 ## Report back
 
+**The runner writes the durable report itself.** Every `run.mjs` invocation (all modes) renders the
+markdown report (header + `renderEvaluation`/`renderCompare` table + a findings summary) and writes it
+to the **gitignored** `benchmarks/backlog/<mode>-<ISO>.md`, printing `[bef] report written: <path>` to
+**stderr** as the last line. This is the findable home for results — **never** a PR comment or the
+ephemeral session scratchpad (user-memory: benchmark reports go to a gitignored file). Capture that
+path from stderr.
+
 When done, tell the user:
 
+- **Report path:** the `[bef] report written: <path>` line from stderr — the durable markdown report. **Show this link/path first.**
 - **Deterministic layers:** pass/fail for `node --test .claude/skills/backlog-*/test/*.test.mjs` and for `node --test scripts/benchmark-backlog/test/*.test.mjs`.
 - **Mode + scope:** which mode ran, the `--skill`/`--scenario`/`--iterations` scope, and (for compare) the two refs.
-- **Orchestration table:** the rendered `renderEvaluation` / `renderCompare` markdown.
+- **Orchestration table:** the rendered `renderEvaluation` / `renderCompare` markdown (already in the report file; echo inline for convenience).
 - **Findings:** every flagged scenario — `regression`: gatePassRate dropped vs baseline (or `anyGateFlip`); `compare`: REGRESSION rows; plus any scenario row carrying an `error`.
 - **Cost:** total tokens spent across the run (sum the `tokens.total` across rows × iterations), reported in TOKENS not dollars; note the `costUsd` column is a price-weighted normalization number, not a subscription bill.
-- For `rebaseline`: the path `scripts/benchmark-backlog/baseline.json` was overwritten, and that committing it is the user's call.
+- For `rebaseline`: the path `scripts/benchmark-backlog/baseline.json` was overwritten, and that committing it is the user's call. (The human-readable report is still written to `benchmarks/backlog/rebaseline-<ISO>.md`.)
 
-Do NOT chain into `git add`/`git commit`/deploy. The skill's surface ends at the run + report (and, for rebaseline, the single file overwrite).
+Do NOT chain into `git add`/`git commit`/deploy. The skill's surface ends at the run + the gitignored report (and, for rebaseline, the single `baseline.json` overwrite).
