@@ -189,4 +189,22 @@ if (process.argv[1] && process.argv[1] === fileURLToPath(import.meta.url)) {
   if (mode === 'compare') { const pos = rest.filter((a) => !a.startsWith('--')); opts.refA = pos[0]; opts.refB = pos[1]; }
   const rows = await runMode(mode, { ...opts, iterations: Number(opts.iterations ?? 3) }, suite);
   console.log(JSON.stringify(rows, null, 2));
+  // Durable report: write the rendered markdown to the gitignored benchmarks/backlog/ folder and
+  // print its path (to STDERR, so stdout stays the rows JSON the skill captures / rebaseline redirects).
+  // The report is the findable home for results — never a PR comment or the session scratchpad.
+  try {
+    const { buildReport, writeReport } = await import('./report.mjs');
+    const { join } = await import('node:path');
+    const generatedAt = new Date().toISOString();
+    const scope = [
+      opts.skill && `--skill=${opts.skill}`,
+      opts.scenario && `--scenario=${opts.scenario}`,
+      `--iterations=${Number(opts.iterations ?? 3)}`,
+    ].filter(Boolean).join(' ');
+    const markdown = buildReport({ mode, rows, refA: opts.refA, refB: opts.refB, scope, model: opts.model, generatedAt });
+    const path = writeReport({ markdown, dir: join(process.cwd(), 'benchmarks', 'backlog'), mode, generatedAt });
+    console.error(`[bef] report written: ${path}`);
+  } catch (e) {
+    console.error(`[bef] WARN: failed to write report file: ${e.message}`);
+  }
 }
