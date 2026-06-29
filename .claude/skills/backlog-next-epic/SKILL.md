@@ -30,19 +30,20 @@ Member ordering is the tested helper `epic-members.mjs` (the deterministic pick 
 
 ### Resume gate (check FIRST, before E0)
 
-`/backlog-next-epic <id>` is **resumable and idempotent**. Before anything else, read the run-state via the helper — **never `cat`/parse the raw file** _(why the helper, not raw parse: see [LESSONS.md](./LESSONS.md) F-11/F-13)_:
+`/backlog-next-epic <id>` is **resumable and idempotent**. Before anything else, compute the resume action via the helper — it reads the run-state (never `cat`/parse the raw file) and, only when the `e8` hand-off marker is set, checks the PR state itself _(why the helper, not raw parse: see [LESSONS.md](./LESSONS.md) F-11/F-13)_:
 
 ```bash
-node .claude/skills/backlog-next-epic/runstate.mjs get <id>   # prints the JSON, or "FRESH" (exit 3) if absent, or a clean error (exit 2) if corrupt
+node .claude/skills/backlog-next-epic/resume-gate.mjs <id>   # prints action=FRESH|RESUME|POST_MERGE_TAIL|PR_STILL_OPEN (exit 2 = malformed run-state)
 ```
 
-Branch on the result:
+Branch on the printed `action=`:
 
-- **Exists → this is a RESUME.** The epic is already promoted and the branch already exists. **Skip E0, E1 (promotion) and E3 (init).** Run E2 in its idempotent form (it no-ops / re-attaches the worktree if the branch exists but the worktree was pruned), re-enter the worktree as cwd, read (do not overwrite) the run-state, and **jump straight to E4** — the member loop re-derives the next open member from `epic-members.mjs`, so a half-finished run continues correctly (a member left `status: active` resumes in epic-member mode).
-  - **Run-state `e8: PR_OPEN_AWAITING_MERGE` → the PR is already open, awaiting the USER's merge** (do NOT re-enter the member loop). Check the PR state (`gh pr view <n> --json state -q .state`): **`MERGED`** → run **only** the E8.4 post-merge tail (ff `main`, delete the merged branch, epic postflight, drop run-state) and finish; **still `OPEN`** → re-print the PR link and STOP — the merge remains the user's (never `gh pr merge`).
-- **Absent → fresh run.** Proceed E0 → E1 → E2 → E3 → E4 normally.
+- **`FRESH`** → no run-state. Proceed E0 → E1 → E2 → E3 → E4 normally.
+- **`RESUME`** → run-state present, no `e8`. The epic is already promoted and the branch already exists. **Skip E0, E1 (promotion) and E3 (init).** Run E2 in its idempotent form (it no-ops / re-attaches the worktree if the branch exists but the worktree was pruned), re-enter the worktree as cwd, read (do not overwrite) the run-state, and **jump straight to E4** — the member loop re-derives the next open member from `epic-members.mjs`, so a half-finished run continues correctly (a member left `status: active` resumes in epic-member mode).
+- **`POST_MERGE_TAIL`** → run-state `e8: PR_OPEN_AWAITING_MERGE` and the PR is **merged**. Run **only** the E8.4 post-merge tail (ff `main`, delete the merged branch, epic postflight, drop run-state) and finish; do NOT re-enter the member loop.
+- **`PR_STILL_OPEN`** → `e8` set but the PR is **not** confirmed merged. Re-print the PR link and STOP — the merge remains the user's (never `gh pr merge`).
 
-A resume never re-promotes the epic, never re-creates the branch, and never overwrites the accumulated decision log / e2e evidence in run-state.
+A resume never re-promotes the epic, never re-creates the branch, and never overwrites the accumulated decision log / e2e evidence in run-state. (The helper consults `gh pr view <branch>` internally only when `e8` is set, so `gh` stays observable in the call-log.)
 
 ### Selecting the epic (no resume + no explicit `<epic-id>`)
 
@@ -96,20 +97,11 @@ node .claude/skills/backlog-next-epic/epic-members.mjs <epic-id>   # roster + ne
 One worktree for the whole epic — every member commits here; `main` moves only at the single merge.
 
 ```bash
-MAIN=$(git rev-parse --show-toplevel)
-git -C "$MAIN" fetch origin main --quiet
-# Idempotent — safe to re-run on resume (worktree and/or branch may already exist).
-if ! git -C "$MAIN" worktree list | grep -q "worktrees/epic-<id>"; then
-  if git -C "$MAIN" rev-parse --verify --quiet feat/epic-<id> >/dev/null; then
-    git -C "$MAIN" worktree add .claude/worktrees/epic-<id> feat/epic-<id>            # branch exists (resume after a prune) → re-attach
-  else
-    git -C "$MAIN" worktree add -b feat/epic-<id> .claude/worktrees/epic-<id> origin/main   # fresh run
-  fi
-fi
-[ -e .claude/worktrees/epic-<id>/node_modules ] || ln -s "$MAIN/node_modules" .claude/worktrees/epic-<id>/node_modules   # see [[feedback-worktree-deploy-friction]]
+node .claude/skills/backlog-next-epic/worktree-ops.mjs ensure \
+  --branch=feat/epic-<id> --worktree=.claude/worktrees/epic-<id>   # idempotent create/re-attach (NOOP|ATTACH|CREATE) + node_modules symlink
 ```
 
-Branch from `origin/main` to bound drift. All subsequent member work happens with this worktree as cwd, on `feat/epic-<id>`. **Set that cwd with Bash — `cd .claude/worktrees/epic-<id>` — and use `git -C`/worktree-absolute paths for file edits; do NOT use `EnterWorktree`** (it is unreliable/forbidden in a cwd-pinned worker session — see [[feedback-worktree-entry-cwd-pinned]] / [[feedback-exitworktree-fails-cwd-pinned]]). The Resume gate's "re-enter the worktree as cwd" means exactly this `cd`.
+The helper is idempotent (safe to re-run on resume): it no-ops if the worktree is present, re-attaches `feat/epic-<id>` if the branch survives but the worktree was pruned, or creates fresh from `origin/main` — and ensures the `node_modules` symlink (see [[feedback-worktree-deploy-friction]]). It branches from `origin/main` to bound drift. All subsequent member work happens with this worktree as cwd, on `feat/epic-<id>`. **Set that cwd with Bash — `cd .claude/worktrees/epic-<id>` — and use `git -C`/worktree-absolute paths for file edits; do NOT use `EnterWorktree`** (it is unreliable/forbidden in a cwd-pinned worker session — see [[feedback-worktree-entry-cwd-pinned]] / [[feedback-exitworktree-fails-cwd-pinned]]). The Resume gate's "re-enter the worktree as cwd" means exactly this `cd`.
 
 ### E3. Initialize run-state (fresh run only)
 
@@ -226,32 +218,35 @@ pnpm nx run nestfolio-e2e:e2e                                                # s
 
 ### E8. Single PR + cleanup + epic postflight
 
-1. **Open the PR (the close ALWAYS stops here — `--auto` AND interactive).** Route to `superpowers:finishing-a-development-branch` taking the **PR route** (push + create PR). **Compose the PR body yourself:** `finishing`'s push step does not author a body, so render the run-state `decisions[]` to markdown + a per-member commit summary and set it (`gh pr create`/`gh pr edit --body-file`); if the log is empty, state "no decisions auto-resolved". **Expect `docs/backlog/` merge conflicts** — both `main` and the branch write under `docs/backlog/` _(why this is expected, not a surprise: see [LESSONS.md](./LESSONS.md) F-25)_. Two distinct kinds, resolved differently:
-     - **`docs/BACKLOG.md`** (the auto-index, written on both sides) → **mechanical, never by hand**: take the branch side, then re-run `node .claude/skills/backlog-lint/lint.mjs --fix` on the rebased branch so the index regenerates from the merged frontmatter.
-     - **The epic file `docs/backlog/<id>.md`** → `main` has `status: active` + `closed:`-less (from the E1 promotion marker); the branch has `status: shipped` + `closed:` + `validation_gate:` (from E7.4). **Take the branch side** — a wrong resolution that keeps `active` leaves the epic open and **rule-11-blocks the next epic**. Same for any member file edited on both sides: take the branch side (it carries the shipped frontmatter).
-     - **Caveat: `lint --fix` repairs ONLY the index, never the per-file frontmatter.** It regenerates `BACKLOG.md` from whatever frontmatter the conflict resolution left — so if you resolve a `<id>.md` conflict wrong, lint will happily render a *consistent index of the wrong state*. Resolve the frontmatter conflicts first (branch side), THEN `lint --fix`.
+1. **Open the PR (the close ALWAYS stops here — `--auto` AND interactive).** Route to `superpowers:finishing-a-development-branch` taking the **PR route** (push + create PR). **Compose the PR body yourself:** `finishing`'s push step does not author a body, so render the run-state `decisions[]` to markdown + a per-member commit summary and set it (`gh pr create`/`gh pr edit --body-file`); if the log is empty, state "no decisions auto-resolved". **Expect `docs/backlog/` merge conflicts** — both `main` and the branch write under `docs/backlog/` _(why this is expected, not a surprise: see [LESSONS.md](./LESSONS.md) F-25)_. Resolve them with the helper:
+
+     ```bash
+     node .claude/skills/backlog-next-epic/pr-conflict-resolve.mjs --branch=feat/epic-<id>   # take-branch-side for <id>.md/members, lint-regen for BACKLOG.md; exit 1 = a non-backlog conflict → resolve by hand
+     ```
+
+     It handles the two distinct kinds correctly and in the load-bearing order: the epic file `docs/backlog/<id>.md` and any member file get the **branch side** first (the branch carries `status: shipped` + `closed:` + `validation_gate:`; `main` still has `active` + `closed:`-less from the E1 promotion marker — a wrong resolution that keeps `active` rule-11-blocks the next epic), then `docs/BACKLOG.md` (the auto-index) is **regenerated** via `lint --fix` from the now-correct frontmatter (never hand-resolved — lint would otherwise render a *consistent index of the wrong state*; frontmatter-first ordering is why it doesn't). A non-backlog conflict exits 1 → resolve that one by hand, then re-run.
 
      Push so the PR is mergeable.
    - **Then STOP via AskUserQuestion — the merge is the user's.** Surface a structured AskUserQuestion (NOT prose): the `(Recommended)` option is *"PR #N is up at `<link>` — I'll review & merge it on GitHub myself; the agent stops here"*; other options cover *"keep iterating / inspect first"*. **No option runs `gh pr merge`; the agent NEVER self-merges and never local-merges the epic branch** _(see [LESSONS.md](./LESSONS.md) F-7/F-33)_. A bare "go" is not authorization to do anything but stop.
-   - On the stop-and-hand-off confirmation, **clean up the worktree only** — `git worktree remove --force` + `git worktree prune` — **keeping the local + remote branch** so the PR stays mergeable (NO `git branch -d`, NO remote-branch delete). **Print the GitHub PR link.** Set the run-state hand-off marker via the helper (`node .claude/skills/backlog-next-epic/runstate.mjs set-e8 <id> PR_OPEN_AWAITING_MERGE` — the only sanctioned `e8` value) and STOP. The branch deletion + `main` fast-forward happen in the **post-merge tail** (item 4), on a later resume that detects the PR merged.
+   - On the stop-and-hand-off confirmation, **clean up the worktree only** via `worktree-ops.mjs cleanup … --keep-branch` (item 2) — **keeping the local + remote branch** so the PR stays mergeable (`--keep-branch` never runs `git branch -d`, and there is no remote-branch delete). **Print the GitHub PR link.** Set the run-state hand-off marker via the helper (`node .claude/skills/backlog-next-epic/runstate.mjs set-e8 <id> PR_OPEN_AWAITING_MERGE` — the only sanctioned `e8` value) and STOP. The branch deletion + `main` fast-forward happen in the **post-merge tail** (item 4), on a later resume that detects the PR merged.
 2. **Worktree cleanup at the stop (branch KEPT).** From the main repo root (NOT `ExitWorktree` — see [[feedback-exitworktree-fails-cwd-pinned]]). This runs at the E8.1 stop, BEFORE the user merges, so it must NOT delete the branch or the run-state:
 
 ```bash
-MAIN=$(git -C "$(git rev-parse --git-common-dir)/.." rev-parse --show-toplevel)
-git -C "$MAIN" worktree remove ".claude/worktrees/epic-<id>" --force
-git -C "$MAIN" worktree prune
-# Branch is KEPT (local + remote) so the PR stays mergeable. Run-state is KEPT as e8: PR_OPEN_AWAITING_MERGE.
+node .claude/skills/backlog-next-epic/worktree-ops.mjs cleanup \
+  --branch=feat/epic-<id> --worktree=.claude/worktrees/epic-<id> --keep-branch   # remove worktree + prune; KEEP branch (local + remote) so the PR stays mergeable. Run-state KEPT as e8: PR_OPEN_AWAITING_MERGE.
 ```
+
+(`--keep-branch` mode never runs `git branch -d` — the branch survives for the open PR. The helper resolves the main repo root itself, so this is safe to run from the worktree cwd.)
 
 3. **Hand off and STOP.** The run ends here with run-state `e8: PR_OPEN_AWAITING_MERGE`. Everything below (the post-merge tail) runs on a LATER `/backlog-next-epic <id>` resume.
 
-4. **Post-merge tail (resume only — after the user merges the PR).** The Resume gate (top of Procedure) detects `e8: PR_OPEN_AWAITING_MERGE` + the PR merged (`gh pr view <n> --json state -q .state` → `MERGED`) and runs ONLY this tail (no re-promotion, no member loop):
+4. **Post-merge tail (resume only — after the user merges the PR).** When `resume-gate.mjs` prints `action=POST_MERGE_TAIL` (run-state `e8: PR_OPEN_AWAITING_MERGE` + the PR merged), run ONLY this tail (no re-promotion, no member loop):
 
 ```bash
 MAIN=$(git -C "$(git rev-parse --git-common-dir)/.." rev-parse --show-toplevel)
 git -C "$MAIN" checkout main && git -C "$MAIN" pull --ff-only         # fast-forward main to the merged PR
-git -C "$MAIN" merge-base --is-ancestor feat/epic-<id> main && git -C "$MAIN" branch -d feat/epic-<id>
-git -C "$MAIN" worktree prune
+node "$MAIN/.claude/skills/backlog-next-epic/worktree-ops.mjs" cleanup \
+  --branch=feat/epic-<id> --worktree=.claude/worktrees/epic-<id> --delete-branch   # delete branch ONLY if merged (safe -d) + prune; worktree already gone → no-op remove
 (cd "$MAIN" && node .claude/skills/backlog-next/postflight.mjs --lane=complex --branch=feat/epic-<id> --id=<id>)   # epic-level checks 4–7 — run from $MAIN (a guaranteed-live cwd, never the removed worktree — see backlog-next LESSONS F-23)
 rm -f "$(node "$MAIN/.claude/skills/backlog-next-epic/runstate.mjs" path <id>)"   # drop run-state (same absolute path the helper writes)
 ```
@@ -276,7 +271,7 @@ This same machinery is what makes the **E4.5 context checkpoint** safe: an inter
 
 ## Related
 
-`backlog-next` (the member worker this skill drives in epic-member mode), `backlog-lint`, `backlog-add`, `backlog-themes`, `superpowers:finishing-a-development-branch` / `systematic-debugging` / `brainstorming`. Supporting files: `epic-members.mjs`, `runstate.mjs` (the closed-schema run-state read-modify-write helper), `detect-fork-blast-radius.mjs` (+ their `test/*.test.mjs`). Design: `docs/superpowers/specs/2026-06-21-backlog-next-epic-orchestrator-design.md`.
+`backlog-next` (the member worker this skill drives in epic-member mode), `backlog-lint`, `backlog-add`, `backlog-themes`, `superpowers:finishing-a-development-branch` / `systematic-debugging` / `brainstorming`. Supporting files: `epic-members.mjs`, `runstate.mjs` (the closed-schema run-state read-modify-write helper), `detect-fork-blast-radius.mjs`, `resume-gate.mjs` (resume dispatch), `worktree-ops.mjs` (worktree ensure/cleanup lifecycle), `pr-conflict-resolve.mjs` (F-25 two-kinds resolver) (+ their `test/*.test.mjs`). Design: `docs/superpowers/specs/2026-06-21-backlog-next-epic-orchestrator-design.md`.
 
 **Run the tests** (use the **glob** form — `node --test <dir>` does not discover suites on Node 24):
 
