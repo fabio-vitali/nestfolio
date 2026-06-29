@@ -212,7 +212,7 @@ rollup: core 0/3 done · captured 0/0 done
 - core · parking · [portfolio-drift-detected-registry-collision](backlog/portfolio-drift-detected-registry-collision.md)
 - core · parking · [weight-drift-detector](backlog/weight-drift-detector.md)
 
-**Parking health:** 30 theme epic(s), 10 orphan(s) — drive orphans → 0 with `/backlog-themes`
+**Parking health:** 30 theme epic(s), 11 orphan(s) — drive orphans → 0 with `/backlog-themes`
 
 ## ACTIVE
 
@@ -227,6 +227,7 @@ _(none)_
 
 ## LATER
 
+- [bef-f21-shared-typecheck-live-coverage-gap](backlog/bef-f21-shared-typecheck-live-coverage-gap.md) [tooling] — The F-21 POSITIVE invariant (a shared-surface member touch triggers the cumulative branch-wide typecheck) has no deterministic LIVE corpus scenario. The detection predicate (detect-fork-blast-radius shared/non-shared) is already unit-tested; the gap is the orchestrator reliably EXECUTING the cumulative typecheck on a shared hit — a multi-step model behavior the eval sandbox can't deterministically elicit. bne-member-f21-shared-typecheck was dropped (it could not elicit the touch — the stub worker ships only frontmatter); the deterministic NEGATIVE twin bne-member-f21-nonshared-no-typecheck remains.
 - [benchmark-agents-skill-simplification](backlog/benchmark-agents-skill-simplification.md) [refactor] — benchmark-agents SKILL.md (§5/§6) prescribes report templates inline; relocate to run.ts+templates.
 - [bne-e71-chained-gate-unit-coverage](backlog/bne-e71-chained-gate-unit-coverage.md) [tooling] — The backlog-next-epic chained-second-gate invariant (after a captured-promote rework, re-run the batched gate before shipping) is not deterministically coverable as a live corpus scenario — its premise is the E7.1 audit's model judgment and 'gate ran twice' is uncountable by the substring callLog teeth. bne-e71-chained-e6 now gates on the deterministic deploy-bearing green-ship path + keeps the chained-gate as an informational rubric; deterministic coverage belongs at the unit level.
 - [bump-tsconfig-es2022-to-es2023](backlog/bump-tsconfig-es2022-to-es2023.md) [tooling] — Enable .toSpliced/.toReversed/.with workspace-wide; promote on second use case.
