@@ -132,16 +132,14 @@ Then run only the **involved** `apps/e2e-feature-tests` scenarios — pick from 
 
 **6.7 Complex lane only:** route to `superpowers:finishing-a-development-branch` for merge / PR / branch cleanup. Do NOT handle the merge manually. **If the local-merge option is chosen, push `main` afterward** — `git push origin main`. The local-merge path does NOT push, but postflight's `main-sync` check AND the next run's preflight both require local `main` == `origin/main` (a local-but-unpushed merge leaves `main` ahead and blocks the next workstream). Pushing the project's own `main` is the routine completion — prior shipped workstreams are already on `origin/main`; it is a dev-account op, not a production/real-money action ([[feedback-sole-dev-no-shared-caution]]). The PR option pushes as part of its own flow.
 
-**6.8 Complex lane only — clean up the worktree + branch (git, NOT `ExitWorktree`).** Clean up with git from the **main repo root** — `ExitWorktree` reliably FAILS in a cwd-pinned session (the common case for `/backlog-next`), so do NOT call or retry it. `cd` to the main root explicitly (`git worktree remove` run from inside the worktree being removed fails). _(Why `ExitWorktree` fails and why `finishing-a-development-branch` leaves the cleanup here: see [LESSONS.md](./LESSONS.md) "`ExitWorktree` fails in cwd-pinned sessions".)_
+**6.8 Complex lane only — clean up the worktree + branch (the `worktree-ops.mjs` helper, NOT `ExitWorktree`).** Clean up via the helper, which shells out to git from the **main repo root** — `ExitWorktree` reliably FAILS in a cwd-pinned session (the common case for `/backlog-next`), so do NOT call or retry it. The helper resolves the main root itself, so it is safe to run even when the worktree being removed is your pinned cwd. _(Why `ExitWorktree` fails and why `finishing-a-development-branch` leaves the cleanup here: see [LESSONS.md](./LESSONS.md) "`ExitWorktree` fails in cwd-pinned sessions".)_
 
 ```bash
-MAIN=$(git -C "$(git rev-parse --git-common-dir)/.." rev-parse --show-toplevel)
-# Safety: confirm every branch commit is already on main (the 6.7 merge makes this true)
-git -C "$MAIN" merge-base --is-ancestor <feature-branch> main && echo SAFE-TO-REMOVE
-git -C "$MAIN" worktree remove ".claude/worktrees/<name>" --force
-git -C "$MAIN" branch -d <feature-branch>
-git -C "$MAIN" worktree prune
+node .claude/skills/backlog-next-epic/worktree-ops.mjs cleanup \
+  --branch=<feature-branch> --worktree=.claude/worktrees/<name> --delete-branch   # remove worktree + prune; delete branch only if merged (safe -d, the 6.7 merge makes this true)
 ```
+
+The helper resolves the main repo root itself (safe to run from the worktree cwd), removes the worktree, and deletes the branch **only** if it is merged into `main` (safe `git branch -d`, never `-D`) — if the branch is somehow unmerged it refuses the delete (exit 1) rather than destroying work.
 
 Optionally `ExitWorktree action: "keep"` best-effort afterward to clear the flag; if it errors with the cwd-override message, **ignore it** — on-disk state is already correct and Step 7 postflight checks on-disk truth (worktree gone, branch deleted, `main` synced), not the harness session flag. _(Why this git cleanup is the durable fix and how it breaks the phantom-session leak cycle: see [LESSONS.md](./LESSONS.md) "`ExitWorktree` fails in cwd-pinned sessions".)_
 
