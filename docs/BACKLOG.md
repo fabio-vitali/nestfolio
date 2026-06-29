@@ -207,7 +207,7 @@ rollup: core 0/3 done · captured 0/0 done
 - core · parking · [portfolio-drift-detected-registry-collision](backlog/portfolio-drift-detected-registry-collision.md)
 - core · parking · [weight-drift-detector](backlog/weight-drift-detector.md)
 
-**Parking health:** 30 theme epic(s), 12 orphan(s) — drive orphans → 0 with `/backlog-themes`
+**Parking health:** 30 theme epic(s), 13 orphan(s) — drive orphans → 0 with `/backlog-themes`
 
 ## ACTIVE
 
@@ -222,6 +222,7 @@ _(none)_
 
 ## LATER
 
+- [bef-branchcreated-assertion-enterworktree-flaky](backlog/bef-branchcreated-assertion-enterworktree-flaky.md) [bug] — bef next-lane-complex (+ likely other branchCreated-asserting scenarios) flakes ~1/4: EnterWorktree/branch adoption under headless claude -p is nondeterministic. Pre-existing on main.
 - [bef-closing-detector-live-coverage-gap](backlog/bef-closing-detector-live-coverage-gap.md) [tooling] — The closing-phase ROUTING invariant (a deploy-requiring item routes to the deploy + e2e gate, not a no-deploy doc-derivation close) has no deterministic LIVE corpus scenario — the deterministic deploy.sh/nx-e2e stub call only fires by driving the whole Complex lane headlessly (worktree → implement → close), which a `claude -p` run can't reproduce. The detection PREDICATES are already unit-tested; the orchestrator's routing DECISION is the model-behavior gap. next-closing-detector was dropped (rubricGate:4 swung 3↔5 with no deterministic fallback).
 - [bef-f21-shared-typecheck-live-coverage-gap](backlog/bef-f21-shared-typecheck-live-coverage-gap.md) [tooling] — The F-21 POSITIVE invariant (a shared-surface member touch triggers the cumulative branch-wide typecheck) has no deterministic LIVE corpus scenario. The detection predicate (detect-fork-blast-radius shared/non-shared) is already unit-tested; the gap is the orchestrator reliably EXECUTING the cumulative typecheck on a shared hit — a multi-step model behavior the eval sandbox can't deterministically elicit. bne-member-f21-shared-typecheck was dropped (it could not elicit the touch — the stub worker ships only frontmatter); the deterministic NEGATIVE twin bne-member-f21-nonshared-no-typecheck remains.
 - [benchmark-agents-skill-simplification](backlog/benchmark-agents-skill-simplification.md) [refactor] — benchmark-agents SKILL.md (§5/§6) prescribes report templates inline; relocate to run.ts+templates.
