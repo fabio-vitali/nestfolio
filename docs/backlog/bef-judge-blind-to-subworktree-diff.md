@@ -9,6 +9,8 @@ spec: null
 plan: null
 topic_memory: [project_backlog_eval_framework.md]
 validation_gate: null
+epic: bef-deterministic-coverage-gaps
+epic_role: captured
 ---
 
 # bef LLM judge is blind to sub-worktree branch diffs

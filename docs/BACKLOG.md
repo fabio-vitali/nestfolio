@@ -6,6 +6,17 @@
 
 ## EPICS
 
+### [bef-deterministic-coverage-gaps](backlog/bef-deterministic-coverage-gaps.md) `[epic · active]` — ACTIVE delivery epic (promoted 2026-06-29 from theme): resolve the backlog-eval corpus's deterministic-teeth gaps — substring callLog matching + end-state proxies can't reliably gate nondeterministic, multi-step MODEL-BEHAVIOR invariants under headless `claude -p`. 4 CORE members (the determinism cluster) gate done_when; 3 CAPTURED riders (judge-blind harness bug, scenario-tags ergonomics, cost-figures doc nit) ride along for unified one-branch/one-PR context but do NOT gate closure. Work via /backlog-next-epic; captured audit at pre-done.
+done_when: Each in-scope bef invariant has a DETERMINISTIC regression signal that does not depend on nondeterministic model behavior under headless `claude -p` — either a deterministic call-log tooth on an elicitable action (replacing a flaky end-state/rubric proxy) or a unit test of the orchestrator predicate/freshness logic the live corpus cannot gate; all members shipped or dropped.
+rollup: core 0/4 done · captured 0/3 done
+- core · parking · [bef-branchcreated-assertion-enterworktree-flaky](backlog/bef-branchcreated-assertion-enterworktree-flaky.md)
+- core · parking · [bef-closing-detector-live-coverage-gap](backlog/bef-closing-detector-live-coverage-gap.md)
+- core · parking · [bef-f21-shared-typecheck-live-coverage-gap](backlog/bef-f21-shared-typecheck-live-coverage-gap.md)
+- core · parking · [bne-e71-chained-gate-unit-coverage](backlog/bne-e71-chained-gate-unit-coverage.md)
+- captured · parking · [bef-judge-blind-to-subworktree-diff](backlog/bef-judge-blind-to-subworktree-diff.md)
+- captured · parking · [bef-scenario-tags-reusable-suite](backlog/bef-scenario-tags-reusable-suite.md)
+- captured · parking · [benchmark-backlog-skill-cost-figures-stale](backlog/benchmark-backlog-skill-cost-figures-stale.md)
+
 ### [advisory-narrative-memory-read-latency](backlog/advisory-narrative-memory-read-latency.md) `[epic · parking]` — advisory-narrative-ctrl blocks on AgentCore Memory reads before writing its observable HEAD row → 30-40s integration tests. Theme epic, 2 members.
 done_when: advisory-narrative-ctrl's observable HEAD row is visible to tests in ~5-10s (eager write and/or tightened Memory-retry delays) with no dev/prod consistency skew; both members shipped or dropped.
 rollup: core 0/2 done · captured 0/0 done
@@ -25,14 +36,6 @@ done_when: Each in-scope side-effecting path is made idempotent against at-least
 rollup: core 0/2 done · captured 0/0 done
 - core · parking · [broker-circuit-breaker-concurrent-escalation-duplicate](backlog/broker-circuit-breaker-concurrent-escalation-duplicate.md)
 - core · parking · [sf-start-idempotency-at-least-once-redelivery](backlog/sf-start-idempotency-at-least-once-redelivery.md)
-
-### [bef-deterministic-coverage-gaps](backlog/bef-deterministic-coverage-gaps.md) `[epic · parking]` — backlog-eval corpus determinism theme (minted 2026-06-29 by backlog-themes): the bef corpus's deterministic teeth — substring callLog matching + end-state proxies — can't reliably gate nondeterministic, multi-step MODEL-BEHAVIOR invariants under headless `claude -p`, producing either a flaky scenario or a dropped scenario whose real coverage must move to unit tests. Theme epic, 4 members.
-done_when: Each in-scope bef invariant has a DETERMINISTIC regression signal that does not depend on nondeterministic model behavior under headless `claude -p` — either a deterministic call-log tooth on an elicitable action (replacing a flaky end-state/rubric proxy) or a unit test of the orchestrator predicate/freshness logic the live corpus cannot gate; all members shipped or dropped.
-rollup: core 0/4 done · captured 0/0 done
-- core · parking · [bef-branchcreated-assertion-enterworktree-flaky](backlog/bef-branchcreated-assertion-enterworktree-flaky.md)
-- core · parking · [bef-closing-detector-live-coverage-gap](backlog/bef-closing-detector-live-coverage-gap.md)
-- core · parking · [bef-f21-shared-typecheck-live-coverage-gap](backlog/bef-f21-shared-typecheck-live-coverage-gap.md)
-- core · parking · [bne-e71-chained-gate-unit-coverage](backlog/bne-e71-chained-gate-unit-coverage.md)
 
 ### [bff-read-model-semantic-gaps](backlog/bff-read-model-semantic-gaps.md) `[epic · parking]` — A BFF read-model materializes correctly (single-writer ownership satisfied) but lacks the semantic richness/sub-state a UI feature needs; the fix sources a new signal, not a richer re-materialization. Theme epic, 2 members.
 done_when: Each in-scope BFF read-model surfaces the semantic signal/sub-state its UI needs, sourced from the right event or projection (cross-domain subscription or status projection); both members shipped or dropped.
@@ -203,7 +206,7 @@ rollup: core 0/3 done · captured 0/0 done
 - core · parking · [portfolio-drift-detected-registry-collision](backlog/portfolio-drift-detected-registry-collision.md)
 - core · parking · [weight-drift-detector](backlog/weight-drift-detector.md)
 
-**Parking health:** 30 theme epic(s), 11 orphan(s) — drive orphans → 0 with `/backlog-themes`
+**Parking health:** 29 theme epic(s), 8 orphan(s) — drive orphans → 0 with `/backlog-themes`
 
 ## ACTIVE
 
@@ -218,10 +221,7 @@ _(none)_
 
 ## LATER
 
-- [bef-judge-blind-to-subworktree-diff](backlog/bef-judge-blind-to-subworktree-diff.md) [bug] — bef judge.mjs reads the outcome diff from the sandbox ROOT, so it sees an EMPTY diff for fresh-sub-worktree scenarios (worker commits the ship on a worktree branch, sandbox-root HEAD stays on main). Harmless today (no rubricGate on such a scenario); latent if one is added.
-- [bef-scenario-tags-reusable-suite](backlog/bef-scenario-tags-reusable-suite.md) [tooling] — Add self-declaring `tags: [...]` to scenarios + a runner `--tag=` filter, so a reusable named subset (e.g. core) can be re-run identically before/after backlog-skills-simplification. Build when that epic starts; pin membership only after the corpus is green.
 - [benchmark-agents-skill-simplification](backlog/benchmark-agents-skill-simplification.md) [refactor] — benchmark-agents SKILL.md (§5/§6) prescribes report templates inline; relocate to run.ts+templates.
-- [benchmark-backlog-skill-cost-figures-stale](backlog/benchmark-backlog-skill-cost-figures-stale.md) [tooling] — benchmark-backlog/SKILL.md cost gate hardcodes '6 bne scenarios' but the live corpus has 35 bne / 53 total — understates the spend ~6× (real 1×≈90M, 3×≈270M tokens). Derive the count dynamically.
 - [bump-tsconfig-es2022-to-es2023](backlog/bump-tsconfig-es2022-to-es2023.md) [tooling] — Enable .toSpliced/.toReversed/.with workspace-wide; promote on second use case.
 - [integration-suite-lever-5-cdk-bundling](backlog/integration-suite-lever-5-cdk-bundling.md) [refactor] — cdk-constructs:test bundles 57 assets in 32s as it synthesizes per-construct stacks in tests. This sits in the unit suite, not integration. Dossier called out as out-of-scope for integration slowness but worth tracking if unit wall-clock becomes a concern.
 - [rebalance-planner-mode-awareness](backlog/rebalance-planner-mode-awareness.md) [refactor] — rebalance-planner stays mode-blind; promote on mode-correlated gap.
