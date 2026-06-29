@@ -1,6 +1,7 @@
 ---
 id: backlog-skills-simplification
-status: active
+status: shipped
+closed: 2026-06-29
 type: epic
 notes: "Reduce accreted complexity in the backlog skill suite (~3,900 lines, 19 F-fixes, rationale interleaved into procedures) WITHOUT regressing hard-won lessons or changing behavior."
 done_when: "Both core members terminal: (β) SKILL.md procedures read as lean imperative steps with backstory relocated to a LESSONS/pitfalls log and terse guardrails kept inline; (γ) load-bearing multi-step bash dances are encapsulated in tested .mjs helpers rather than narrated in prose. No backlog behavior or lint invariant changed (no F-lesson knowledge deleted) — proven at epic pre-done by a scoped `/benchmark-backlog compare main <branch>` (interleaved A/B over the restructured skills) showing BOTH the regression half (anyGateFlip:false, no gatePassRate drop vs the committed baseline) AND the value half (tokens.total reduced on the restructured skills)."
@@ -13,7 +14,7 @@ references: []
 spec: null
 plan: null
 topic_memory: []
-validation_gate: null
+validation_gate: "Both core members shipped on feat/epic-backlog-skills-simplification: (β) backlog-skills-lessons-extraction — F-backstory relocated to per-skill LESSONS.md, terse guardrails kept inline; (γ) backlog-skills-procedure-to-tested-helpers — 3 tested .mjs helpers (resume-gate, worktree-ops, pr-conflict-resolve) extracted from prose + wired into both backlog-next + backlog-next-epic SKILL.md (19 new characterization tests). done_when PROVEN by /benchmark-backlog compare main HEAD: REGRESSION HALF PASS — 8 γ-direct scenarios ×1 → 7 clean 1→1; the lone next-lane-complex 1→0 confirmed a PRE-EXISTING scenario flake via a next-lane-complex ×3 re-run (main 2/3 anyGateFlip=true with identical branchCreated=false diag, HEAD 3/3 anyGateFlip=false → HEAD≥main, no epic-caused regression; filed bef-branchcreated-assertion-enterworktree-flaky). VALUE HALF PASS — tokens.total reduced on restructured-skill scenarios (bne-e84-postflight −17.8%, bne-resume-corrupt −12.4%, bne-resume-merged-tail −8.0%, bne-e2-worktree-reattach −6.7%; 2 flat-within-noise). Deterministic layers green: backlog-next-epic 49/49, backlog-next 40/40, harness 60/60, backlog-lint 11/11. Compare-observability preserved: γ helpers shell out only to git + node lint.mjs (end-state-graded); gh/deploy.sh/nx/backlog-next-worker untouched in prose. No backlog behavior or lint invariant changed; no F-lesson knowledge deleted. Validated at branch SHA 0efa28d7."
 ---
 
 # Backlog skills simplification
