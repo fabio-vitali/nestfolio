@@ -7,6 +7,8 @@ references: []
 spec: null
 plan: null
 topic_memory: [project_backlog_eval_framework.md]
+epic: bef-deterministic-coverage-gaps
+epic_role: core
 ---
 
 # Chained-second-gate invariant needs unit-level coverage

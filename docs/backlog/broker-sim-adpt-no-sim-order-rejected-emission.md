@@ -1,8 +1,6 @@
 ---
 id: broker-sim-adpt-no-sim-order-rejected-emission
 status: parking
-epic: order-execution-money-path-leftovers
-epic_role: captured
 type: bug
 notes: "broker-sim-adpt never emits SIM_ORDER_REJECTED — rejected sim orders escalate via the 1h SF timeout instead of a clean ORDER_REJECTED. Orthogonal to the epic happy-path."
 references: []
@@ -11,6 +9,8 @@ spec: null
 plan: null
 topic_memory: [project_event_subject_contracts.md]
 validation_gate: null
+epic: order-execution-lifecycle-resilience
+epic_role: core
 ---
 
 # broker-sim-adpt never emits SIM_ORDER_REJECTED (rejected orders escalate via timeout)

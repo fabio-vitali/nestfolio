@@ -33,6 +33,14 @@ rollup: core 0/0 done · captured 0/3 done
 - captured · parking · [bef-scenario-tags-reusable-suite](backlog/bef-scenario-tags-reusable-suite.md)
 - captured · parking · [benchmark-backlog-skill-cost-figures-stale](backlog/benchmark-backlog-skill-cost-figures-stale.md)
 
+### [bef-deterministic-coverage-gaps](backlog/bef-deterministic-coverage-gaps.md) `[epic · parking]` — backlog-eval corpus determinism theme (minted 2026-06-29 by backlog-themes): the bef corpus's deterministic teeth — substring callLog matching + end-state proxies — can't reliably gate nondeterministic, multi-step MODEL-BEHAVIOR invariants under headless `claude -p`, producing either a flaky scenario or a dropped scenario whose real coverage must move to unit tests. Theme epic, 4 members.
+done_when: Each in-scope bef invariant has a DETERMINISTIC regression signal that does not depend on nondeterministic model behavior under headless `claude -p` — either a deterministic call-log tooth on an elicitable action (replacing a flaky end-state/rubric proxy) or a unit test of the orchestrator predicate/freshness logic the live corpus cannot gate; all members shipped or dropped.
+rollup: core 0/4 done · captured 0/0 done
+- core · parking · [bef-branchcreated-assertion-enterworktree-flaky](backlog/bef-branchcreated-assertion-enterworktree-flaky.md)
+- core · parking · [bef-closing-detector-live-coverage-gap](backlog/bef-closing-detector-live-coverage-gap.md)
+- core · parking · [bef-f21-shared-typecheck-live-coverage-gap](backlog/bef-f21-shared-typecheck-live-coverage-gap.md)
+- core · parking · [bne-e71-chained-gate-unit-coverage](backlog/bne-e71-chained-gate-unit-coverage.md)
+
 ### [bff-read-model-semantic-gaps](backlog/bff-read-model-semantic-gaps.md) `[epic · parking]` — A BFF read-model materializes correctly (single-writer ownership satisfied) but lacks the semantic richness/sub-state a UI feature needs; the fix sources a new signal, not a richer re-materialization. Theme epic, 2 members.
 done_when: Each in-scope BFF read-model surfaces the semantic signal/sub-state its UI needs, sourced from the right event or projection (cross-domain subscription or status projection); both members shipped or dropped.
 rollup: core 0/2 done · captured 0/0 done
@@ -137,10 +145,11 @@ rollup: core 0/2 done · captured 0/0 done
 - core · parking · [nx-daemon-self-upgrade-pollutes-pnpm-lock](backlog/nx-daemon-self-upgrade-pollutes-pnpm-lock.md)
 - core · parking · [precommit-hook-fatal-on-nx-daemon-failure](backlog/precommit-hook-fatal-on-nx-daemon-failure.md)
 
-### [order-execution-money-path-leftovers](backlog/order-execution-money-path-leftovers.md) `[epic · parking]` — Auto-spun-out when the order-execution-money-path delivery epic shipped (2026-06-22) with all 5 core members terminal and the accept-decision real-path e2e green. Holds the genuinely-orthogonal captured member(s) for later re-clustering by backlog-themes.
-done_when: Each residual finding spun out of the order-execution-money-path epic is resolved, dropped, or re-clustered by backlog-themes into a sharper root-cause theme; all members shipped or dropped.
-rollup: core 0/0 done · captured 0/1 done
-- captured · parking · [broker-sim-adpt-no-sim-order-rejected-emission](backlog/broker-sim-adpt-no-sim-order-rejected-emission.md)
+### [order-execution-lifecycle-resilience](backlog/order-execution-lifecycle-resilience.md) `[epic · parking]` — Order-lifecycle adverse-path resilience theme (minted 2026-06-29 by backlog-themes, re-homing the sole order-execution-money-path-leftovers member per that bucket's own invitation): the order-execution path doesn't cleanly handle adverse (non-happy-path) lifecycle conditions — a rejection or a late mandate revoke — so it leans on a coarse SF timeout or tolerates a sub-second race instead of a deterministic clean outcome. Theme epic, 2 members.
+done_when: Each in-scope adverse order-lifecycle condition resolves to a deterministic, clean terminal outcome rather than a coarse SF timeout escalation or a tolerated TOCTOU race — a rejected sim order emits a clean rejection callback, and the L1 auto-execute path re-checks mandate at the order-placement boundary; all members shipped or dropped.
+rollup: core 0/2 done · captured 0/0 done
+- core · parking · [broker-sim-adpt-no-sim-order-rejected-emission](backlog/broker-sim-adpt-no-sim-order-rejected-emission.md)
+- core · parking · [execution-ctrl-mandate-recheck-order-boundary](backlog/execution-ctrl-mandate-recheck-order-boundary.md)
 
 ### [prod-environment-hardening](backlog/prod-environment-hardening.md) `[epic · parking]` — Correctness/capacity properties that are no-ops on the fresh dev sandbox but bite in a long-lived/production environment; actioned at prod stand-up. Theme epic, 2 members.
 done_when: Each in-scope prod-only hardening item is actioned (or consciously waived) as part of standing up a production environment; all members shipped or dropped.
@@ -201,7 +210,7 @@ rollup: core 0/3 done · captured 0/0 done
 - core · parking · [portfolio-drift-detected-registry-collision](backlog/portfolio-drift-detected-registry-collision.md)
 - core · parking · [weight-drift-detector](backlog/weight-drift-detector.md)
 
-**Parking health:** 30 theme epic(s), 13 orphan(s) — drive orphans → 0 with `/backlog-themes`
+**Parking health:** 31 theme epic(s), 8 orphan(s) — drive orphans → 0 with `/backlog-themes`
 
 ## ACTIVE
 
@@ -216,13 +225,8 @@ _(none)_
 
 ## LATER
 
-- [bef-branchcreated-assertion-enterworktree-flaky](backlog/bef-branchcreated-assertion-enterworktree-flaky.md) [bug] — bef next-lane-complex (+ likely other branchCreated-asserting scenarios) flakes ~1/4: EnterWorktree/branch adoption under headless claude -p is nondeterministic. Pre-existing on main.
-- [bef-closing-detector-live-coverage-gap](backlog/bef-closing-detector-live-coverage-gap.md) [tooling] — The closing-phase ROUTING invariant (a deploy-requiring item routes to the deploy + e2e gate, not a no-deploy doc-derivation close) has no deterministic LIVE corpus scenario — the deterministic deploy.sh/nx-e2e stub call only fires by driving the whole Complex lane headlessly (worktree → implement → close), which a `claude -p` run can't reproduce. The detection PREDICATES are already unit-tested; the orchestrator's routing DECISION is the model-behavior gap. next-closing-detector was dropped (rubricGate:4 swung 3↔5 with no deterministic fallback).
-- [bef-f21-shared-typecheck-live-coverage-gap](backlog/bef-f21-shared-typecheck-live-coverage-gap.md) [tooling] — The F-21 POSITIVE invariant (a shared-surface member touch triggers the cumulative branch-wide typecheck) has no deterministic LIVE corpus scenario. The detection predicate (detect-fork-blast-radius shared/non-shared) is already unit-tested; the gap is the orchestrator reliably EXECUTING the cumulative typecheck on a shared hit — a multi-step model behavior the eval sandbox can't deterministically elicit. bne-member-f21-shared-typecheck was dropped (it could not elicit the touch — the stub worker ships only frontmatter); the deterministic NEGATIVE twin bne-member-f21-nonshared-no-typecheck remains.
 - [benchmark-agents-skill-simplification](backlog/benchmark-agents-skill-simplification.md) [refactor] — benchmark-agents SKILL.md (§5/§6) prescribes report templates inline; relocate to run.ts+templates.
-- [bne-e71-chained-gate-unit-coverage](backlog/bne-e71-chained-gate-unit-coverage.md) [tooling] — The backlog-next-epic chained-second-gate invariant (after a captured-promote rework, re-run the batched gate before shipping) is not deterministically coverable as a live corpus scenario — its premise is the E7.1 audit's model judgment and 'gate ran twice' is uncountable by the substring callLog teeth. bne-e71-chained-e6 now gates on the deterministic deploy-bearing green-ship path + keeps the chained-gate as an informational rubric; deterministic coverage belongs at the unit level.
 - [bump-tsconfig-es2022-to-es2023](backlog/bump-tsconfig-es2022-to-es2023.md) [tooling] — Enable .toSpliced/.toReversed/.with workspace-wide; promote on second use case.
-- [execution-ctrl-mandate-recheck-order-boundary](backlog/execution-ctrl-mandate-recheck-order-boundary.md) [refactor] — Defense-in-depth — re-read mandate before broker submission on L1 auto-execute.
 - [integration-suite-lever-5-cdk-bundling](backlog/integration-suite-lever-5-cdk-bundling.md) [refactor] — cdk-constructs:test bundles 57 assets in 32s as it synthesizes per-construct stacks in tests. This sits in the unit suite, not integration. Dossier called out as out-of-scope for integration slowness but worth tracking if unit wall-clock becomes a concern.
 - [rebalance-planner-mode-awareness](backlog/rebalance-planner-mode-awareness.md) [refactor] — rebalance-planner stays mode-blind; promote on mode-correlated gap.
 - [rename-nestfolio-integ-prefix-to-prefix](backlog/rename-nestfolio-integ-prefix-to-prefix.md) [refactor] — Verbose NESTFOLIO_INTEG_ namespace is friction; rename atomically + sweep docs.

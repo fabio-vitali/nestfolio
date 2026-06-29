@@ -9,6 +9,8 @@ plan: null
 topic_memory: []
 validation_gate: null
 notes: "Defense-in-depth — re-read mandate before broker submission on L1 auto-execute."
+epic: order-execution-lifecycle-resilience
+epic_role: core
 ---
 
 # execution-ctrl mandate re-check at order-placement boundary (defense-in-depth)

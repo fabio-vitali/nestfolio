@@ -7,6 +7,8 @@ references: []
 spec: null
 plan: null
 topic_memory: [project_backlog_eval_framework.md]
+epic: bef-deterministic-coverage-gaps
+epic_role: core
 ---
 
 # F-21 shared-surface positive: no deterministic live corpus coverage
