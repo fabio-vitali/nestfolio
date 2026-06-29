@@ -1,8 +1,8 @@
 ---
 id: backlog-eval-corpus-hardening-leftovers
-status: parking
+status: dropped
 type: epic
-notes: "Auto-spun-out when backlog-eval-corpus-hardening shipped (2026-06-29): 3 genuinely-orthogonal captured members that rode along for unified session context but do not gate the epic's done_when. Holding bucket pending re-clustering by backlog-themes."
+notes: "DISSOLVED 2026-06-29 by backlog-themes. The 3 captured members were genuinely heterogeneous (a latent harness bug, an ergonomics feature, a doc nit) sharing no single root cause, so each un-pointed to a standalone parking ORPHAN rather than forced into a theme. Bucket emptied → dropped (done_when 'each residual finding... re-clustered or dropped' satisfied). Originally auto-spun-out when backlog-eval-corpus-hardening shipped (2026-06-29)."
 done_when: "Each residual finding spun out of the backlog-eval-corpus-hardening epic is resolved, dropped, or re-clustered by backlog-themes into a sharper root-cause theme; all members shipped or dropped."
 scope: "The 3 genuinely-orthogonal captured findings surfaced by the backlog-eval-corpus-hardening program: a latent bef judge harness bug (sub-worktree-diff blindness, harmless today because no current rubricGate scenario's assessment needs the sub-worktree diff — proven by the all-green/no-flip full-corpus baseline), an ergonomics feature (self-declaring scenario tags + a --tag runner filter for reusable named subsets), and a doc-drift fix (benchmark-backlog/SKILL.md hardcodes a stale '6 bne scenarios' cost figure vs the live corpus)."
 references: []
@@ -31,11 +31,13 @@ against that predicate and confirmed none is load-bearing:
 - `benchmark-backlog-skill-cost-figures-stale` — a **doc-drift** fix (the SKILL.md cost gate hardcodes
   "6 bne scenarios"; the live corpus is far larger). `done_when` says nothing about SKILL.md doc accuracy.
 
-This is a **holding bucket pending re-clustering** by `backlog-themes` — the three are heterogeneous
-(a harness bug, an ergonomics feature, a doc nit), not a single coherent root cause. Run `backlog-themes`
-to redistribute them.
+**Dissolved 2026-06-29** by a `backlog-themes` sweep. The three were genuinely heterogeneous (a harness
+bug, an ergonomics feature, a doc nit) with **no single coherent root cause** — so, rather than force a
+fit, each un-pointed back to a standalone parking **orphan** (a valid, honest disposition). The
+provenance bucket is now **dropped**: its `done_when` ("each residual finding... resolved, dropped, or
+re-clustered by backlog-themes") is satisfied, and no `*-leftovers` shell lingers.
 
-Members (derived from `epic:` pointers):
-- `bef-judge-blind-to-subworktree-diff`
-- `bef-scenario-tags-reusable-suite`
-- `benchmark-backlog-skill-cost-figures-stale`
+Members: none — all re-homed to standalone orphans:
+- `bef-judge-blind-to-subworktree-diff` → orphan (distinct root cause: bef judge EVIDENCE-completeness bug — the grader is blind to sub-worktree diffs — orthogonal to the deterministic-teeth coverage gaps in [[bef-deterministic-coverage-gaps]]; different fix)
+- `bef-scenario-tags-reusable-suite` → orphan (ergonomics feature, singleton)
+- `benchmark-backlog-skill-cost-figures-stale` → orphan (doc-drift nit, singleton)

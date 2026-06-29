@@ -9,8 +9,8 @@ spec: null
 plan: null
 topic_memory: []
 validation_gate: null
-epic: deploy-tooling-integrity-leftovers
-epic_role: captured
+epic: detect-deploy-accuracy
+epic_role: core
 ---
 
 # detect-deploy: prune test-only libs from the deploy-affected closure

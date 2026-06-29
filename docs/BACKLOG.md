@@ -26,13 +26,6 @@ rollup: core 0/2 done · captured 0/0 done
 - core · parking · [broker-circuit-breaker-concurrent-escalation-duplicate](backlog/broker-circuit-breaker-concurrent-escalation-duplicate.md)
 - core · parking · [sf-start-idempotency-at-least-once-redelivery](backlog/sf-start-idempotency-at-least-once-redelivery.md)
 
-### [backlog-eval-corpus-hardening-leftovers](backlog/backlog-eval-corpus-hardening-leftovers.md) `[epic · parking]` — Auto-spun-out when backlog-eval-corpus-hardening shipped (2026-06-29): 3 genuinely-orthogonal captured members that rode along for unified session context but do not gate the epic's done_when. Holding bucket pending re-clustering by backlog-themes.
-done_when: Each residual finding spun out of the backlog-eval-corpus-hardening epic is resolved, dropped, or re-clustered by backlog-themes into a sharper root-cause theme; all members shipped or dropped.
-rollup: core 0/0 done · captured 0/3 done
-- captured · parking · [bef-judge-blind-to-subworktree-diff](backlog/bef-judge-blind-to-subworktree-diff.md)
-- captured · parking · [bef-scenario-tags-reusable-suite](backlog/bef-scenario-tags-reusable-suite.md)
-- captured · parking · [benchmark-backlog-skill-cost-figures-stale](backlog/benchmark-backlog-skill-cost-figures-stale.md)
-
 ### [bef-deterministic-coverage-gaps](backlog/bef-deterministic-coverage-gaps.md) `[epic · parking]` — backlog-eval corpus determinism theme (minted 2026-06-29 by backlog-themes): the bef corpus's deterministic teeth — substring callLog matching + end-state proxies — can't reliably gate nondeterministic, multi-step MODEL-BEHAVIOR invariants under headless `claude -p`, producing either a flaky scenario or a dropped scenario whose real coverage must move to unit tests. Theme epic, 4 members.
 done_when: Each in-scope bef invariant has a DETERMINISTIC regression signal that does not depend on nondeterministic model behavior under headless `claude -p` — either a deterministic call-log tooth on an elicitable action (replacing a flaky end-state/rubric proxy) or a unit test of the orchestrator predicate/freshness logic the live corpus cannot gate; all members shipped or dropped.
 rollup: core 0/4 done · captured 0/0 done
@@ -66,11 +59,11 @@ rollup: core 0/3 done · captured 0/0 done
 - core · parking · [nestfolio-e2e-workflow-no-aws-credentials](backlog/nestfolio-e2e-workflow-no-aws-credentials.md)
 - core · parking · [pr-pipeline-required-status-check](backlog/pr-pipeline-required-status-check.md)
 
-### [deploy-tooling-integrity-leftovers](backlog/deploy-tooling-integrity-leftovers.md) `[epic · parking]` — detect-deploy accuracy theme (re-clustered 2026-06-25 from the deploy-tooling-integrity leftovers bucket per its own re-home note): detect-deploy-needed.mjs produces wrong deploy verdicts — it reverse-reaches THROUGH test-only libs (over-fan-out) and lacks a scripts/ Tier-0 rule (over-deploy default). Theme epic, 2 members.
+### [detect-deploy-accuracy](backlog/detect-deploy-accuracy.md) `[epic · parking]` — detect-deploy accuracy theme: detect-deploy-needed.mjs produces wrong deploy verdicts — it reverse-reaches THROUGH test-only libs (over-fan-out) and lacks a scripts/ Tier-0 rule (over-deploy default). Theme epic, 2 members. Renamed 2026-06-29 by backlog-themes from the provenance name `deploy-tooling-integrity-leftovers` (a coherent theme that had kept its leftovers shell-name; rename-in-place dissolved the last `*-leftovers` bucket).
 done_when: Each detect-deploy-needed.mjs accuracy gap is resolved or dropped so the resolver's deploy verdicts match reality — the test-lib reverse-reach over-fan-out and the missing scripts/ Tier-0 classification; all members shipped or dropped.
-rollup: core 0/1 done · captured 0/1 done
+rollup: core 0/2 done · captured 0/0 done
 - core · parking · [detect-deploy-scripts-tier0](backlog/detect-deploy-scripts-tier0.md)
-- captured · parking · [detect-deploy-test-lib-reverse-reach-fanout](backlog/detect-deploy-test-lib-reverse-reach-fanout.md)
+- core · parking · [detect-deploy-test-lib-reverse-reach-fanout](backlog/detect-deploy-test-lib-reverse-reach-fanout.md)
 
 ### [diagram-generator-gaps](backlog/diagram-generator-gaps.md) `[epic · parking]` — Architecture-doc generators have coverage gaps that force hand-edits/omissions — C4 lacks the frontend; flow-docs can't express rich sequence diagrams. Theme epic (loose: two generators), 2 members.
 done_when: Each generator covers its gap (C4 represents MFEs at C1/C2; .flow.yaml can express the rich diagrams currently hand-edited) so generated docs need no manual patching; both members shipped or dropped.
@@ -210,7 +203,7 @@ rollup: core 0/3 done · captured 0/0 done
 - core · parking · [portfolio-drift-detected-registry-collision](backlog/portfolio-drift-detected-registry-collision.md)
 - core · parking · [weight-drift-detector](backlog/weight-drift-detector.md)
 
-**Parking health:** 31 theme epic(s), 8 orphan(s) — drive orphans → 0 with `/backlog-themes`
+**Parking health:** 30 theme epic(s), 11 orphan(s) — drive orphans → 0 with `/backlog-themes`
 
 ## ACTIVE
 
@@ -225,7 +218,10 @@ _(none)_
 
 ## LATER
 
+- [bef-judge-blind-to-subworktree-diff](backlog/bef-judge-blind-to-subworktree-diff.md) [bug] — bef judge.mjs reads the outcome diff from the sandbox ROOT, so it sees an EMPTY diff for fresh-sub-worktree scenarios (worker commits the ship on a worktree branch, sandbox-root HEAD stays on main). Harmless today (no rubricGate on such a scenario); latent if one is added.
+- [bef-scenario-tags-reusable-suite](backlog/bef-scenario-tags-reusable-suite.md) [tooling] — Add self-declaring `tags: [...]` to scenarios + a runner `--tag=` filter, so a reusable named subset (e.g. core) can be re-run identically before/after backlog-skills-simplification. Build when that epic starts; pin membership only after the corpus is green.
 - [benchmark-agents-skill-simplification](backlog/benchmark-agents-skill-simplification.md) [refactor] — benchmark-agents SKILL.md (§5/§6) prescribes report templates inline; relocate to run.ts+templates.
+- [benchmark-backlog-skill-cost-figures-stale](backlog/benchmark-backlog-skill-cost-figures-stale.md) [tooling] — benchmark-backlog/SKILL.md cost gate hardcodes '6 bne scenarios' but the live corpus has 35 bne / 53 total — understates the spend ~6× (real 1×≈90M, 3×≈270M tokens). Derive the count dynamically.
 - [bump-tsconfig-es2022-to-es2023](backlog/bump-tsconfig-es2022-to-es2023.md) [tooling] — Enable .toSpliced/.toReversed/.with workspace-wide; promote on second use case.
 - [integration-suite-lever-5-cdk-bundling](backlog/integration-suite-lever-5-cdk-bundling.md) [refactor] — cdk-constructs:test bundles 57 assets in 32s as it synthesizes per-construct stacks in tests. This sits in the unit suite, not integration. Dossier called out as out-of-scope for integration slowness but worth tracking if unit wall-clock becomes a concern.
 - [rebalance-planner-mode-awareness](backlog/rebalance-planner-mode-awareness.md) [refactor] — rebalance-planner stays mode-blind; promote on mode-correlated gap.

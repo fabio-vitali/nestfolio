@@ -177,11 +177,16 @@ export function renderIndex(files, gitInfo = collectGitInfo()) {
   // root-cause buckets; orphans are un-clustered standalone parking items to drive → 0.
   const themeEpics = epics.filter(e => e.frontmatter?.status === 'parking').length;
   const orphans = orphanParking.length;
+  // *-leftovers buckets are transient provenance holding pens; a parking one means a
+  // delivery epic shipped and its residue still awaits a /backlog-themes dissolution pass.
+  const leftoversAwaiting = epics.filter(
+    e => e.frontmatter?.status === 'parking' && /-leftovers$/.test(e.frontmatter?.id ?? ''),
+  ).length;
 
   const lines = [HEADER];
   lines.push('## EPICS\n');
   lines.push(liveEpics.length ? liveEpics.map(e => renderEpicBlock(e, files)).join('\n\n') : '_(none)_');
-  lines.push(`\n**Parking health:** ${themeEpics} theme epic(s), ${orphans} orphan(s) — drive orphans → 0 with \`/backlog-themes\``);
+  lines.push(`\n**Parking health:** ${themeEpics} theme epic(s), ${orphans} orphan(s)${leftoversAwaiting ? ` — ⚠ ${leftoversAwaiting} \`*-leftovers\` bucket(s) awaiting dissolution` : ''} — drive orphans → 0 with \`/backlog-themes\``);
   lines.push('\n## ACTIVE\n');
   if (active.length === 0) lines.push('_(none)_\n');
   for (const f of active) lines.push(`- ${lineFor(f)}`);

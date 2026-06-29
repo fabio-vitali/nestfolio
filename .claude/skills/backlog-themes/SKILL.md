@@ -21,18 +21,38 @@ Bound the tracking surface. The parking lot should trend toward a small set of *
 heterogeneous orphans into themes so one architectural refactoring later drains many at once.
 Success metric: **orphan count ↓** (ideally → 0); every remaining orphan is genuinely singular.
 
+**Hard invariant — no `*-leftovers` bucket survives a completed run.** A `<epic>-leftovers` epic is
+a *transient provenance holding pen* auto-spun-out at a delivery epic's close, existing only to defer
+per-item triage to this cold path. Collecting on that deferral is this skill's job: by the end of a
+run, **every** `status: parking` `*-leftovers` epic MUST be dissolved (members redistributed/orphaned,
+or the whole bucket renamed) and left terminal. A surviving parking `*-leftovers` bucket means the run
+was *incomplete* — it is never an acceptable resting state. (The bucket's heterogeneity is not an
+excuse to keep it: the residue lands as honest **orphans**, which is fine; the named bucket does not.)
+
 ## Procedure
 
 1. **Gather the parking surface.** List every `status: parking` file that is NOT itself a
-   `type: epic` and has NO `epic:` pointer (the orphans), plus any `*-leftovers` theme members.
-   Read each one's `id`, `type`, `notes`, and body (root-cause evidence).
+   `type: epic` and has NO `epic:` pointer (the orphans), **plus every member of every
+   `status: parking` `*-leftovers` epic** — those members are first-class inputs to this run and
+   each one MUST receive a disposition (step 6), not be skipped. Read each one's `id`, `type`,
+   `notes`, and body (root-cause evidence). Also list the `*-leftovers` epics themselves — every
+   one must be terminal by the end (step 6 / the hard invariant).
 
    ```bash
+   # orphans
    for f in docs/backlog/*.md; do
      grep -q '^status: parking' "$f" || continue
      grep -q '^type: epic' "$f" && continue        # skip theme epics themselves
      grep -q '^epic:' "$f" && continue              # skip items already in an epic
      echo "=== $f ==="; sed -n '1,12p' "$f"
+   done
+   # live leftovers buckets + their members (all must be dissolved this run)
+   for f in docs/backlog/*-leftovers.md; do
+     [ -e "$f" ] || continue
+     grep -q '^status: parking' "$f" || continue
+     id=$(grep -m1 '^id:' "$f" | sed 's/^id: *//')
+     echo "LEFTOVERS BUCKET (must dissolve): $id"
+     grep -lE "^epic: $id\$" docs/backlog/*.md
    done
    ```
 
@@ -66,16 +86,37 @@ Success metric: **orphan count ↓** (ideally → 0); every remaining orphan is 
      are core to that theme's done-definition).
    - Leave genuinely heterogeneous items as orphans — do not force a fit.
 
-6. **Refresh + verify:** `node .claude/skills/backlog-lint/lint.mjs --fix`. The EPICS section and
-   the **Parking health** line update; confirm the orphan count dropped and rule 10 (every
-   `epic:` pointer resolves) passes.
+6. **Dissolve every `*-leftovers` bucket (MANDATORY — the hard invariant).** For each
+   `status: parking` epic whose id ends in `-leftovers`, dispose of **every** member, then leave the
+   bucket terminal. Pick per member (one bucket commonly splits across several of these):
+   - **(a) Redistribute** — point the member at a proper root-cause theme (one minted this run, an
+     existing theme it joins, or a sibling cluster): `epic: <theme-id>` + `epic_role: core`.
+   - **(b) Orphan** — if the member shares no root cause with ≥1 others, **remove** its `epic:` and
+     `epic_role:` lines so it becomes a standalone parking orphan. An honest orphan is a valid
+     outcome; never force it into a theme just to empty the bucket faster.
+   - **(c) Rename-in-place** — if the **whole** bucket already coheres as one root-cause theme (it was
+     de-facto re-clustered but kept the provenance name), `git mv` the file to the root-cause id (strip
+     the `-leftovers` suffix), set `id:` to match (rule 1), rewrite `notes:`/body to drop the
+     "leftovers" framing, and keep its members (repointed to the new id, `epic_role: core`). The theme
+     lives on under the real name — no drop. Check for and repoint any `epic:` pointers / `[[links]]`
+     to the old id first.
+   - **(d) Drop the emptied shell** — once (a)/(b) have moved every member out, set the bucket
+     `status: dropped` with a one-line dissolution note (provenance stays in the file + git). Rule 9
+     (terminal epic ⇒ no non-terminal member) then passes because it has zero members.
 
-7. **Commit.** Stage only the touched files (new epic file(s), repointed member files,
+7. **Refresh + verify:** `node .claude/skills/backlog-lint/lint.mjs --fix`. The EPICS section and
+   the **Parking health** line update; confirm the orphan count moved as intended, rule 10 (every
+   `epic:` pointer resolves) passes, **and that no `status: parking` epic id ends in `-leftovers`**
+   (the hard invariant — every leftovers bucket dissolved). The Parking health line flags any that
+   remain with a ⚠.
+
+8. **Commit.** Stage only the touched files (new/renamed epic file(s), repointed member files,
    `docs/BACKLOG.md`). Commit `docs(backlog): cluster parking into theme epics (<n> orphans → <m>)`.
 
-8. **Report:** the themes minted/extended, how many orphans each absorbed, and the new orphan
-   count (e.g. "66 → 41 orphans; 4 theme epics now cover the typecheck / broker-router /
-   advisory-latency / event-name clusters").
+9. **Report:** the themes minted/extended/renamed, how many orphans each absorbed, the new orphan
+   count, **and every `*-leftovers` bucket dissolved with how** (e.g. "66 → 41 orphans; 4 theme epics
+   now cover the typecheck / … clusters; 2 leftovers buckets dissolved — 1 renamed →
+   detect-deploy-accuracy, 1 dropped → 3 orphans").
 
 ## What NOT to do
 
@@ -84,4 +125,7 @@ Success metric: **orphan count ↓** (ideally → 0); every remaining orphan is 
   decision (and only one delivery epic may be active, rule 11). This skill only *organizes*.
 - Don't force singletons into a theme to make the orphan count look better. An honest orphan is
   fine; report it as residue.
+- Don't leave a `*-leftovers` bucket standing. Dissolving every one is **mandatory**, not optional
+  (step 6 / the hard invariant) — redistribute / orphan / rename, then drop the empty shell. The
+  residue landing as honest orphans is fine; a surviving parking `*-leftovers` epic is not.
 - Don't hand-edit `docs/BACKLOG.md` — it's regenerated by `backlog-lint --fix`.

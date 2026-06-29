@@ -159,6 +159,21 @@ test('renderIndex counts parking theme epics and orphans in health line', () => 
   const out = renderIndex(files, NO_GIT);
   // 1 parking theme epic; orphan count excludes the member that belongs to the theme
   assert.match(out, /Parking health:\*\* 1 theme epic\(s\), 1 orphan\(s\)/);
+  // no *-leftovers bucket present → no dissolution warning
+  assert.ok(!out.includes('awaiting dissolution'), 'no leftovers warning when none present');
+});
+
+test('renderIndex flags parking *-leftovers buckets awaiting dissolution in the health line', () => {
+  const files = [
+    file('foo-leftovers', { type: 'epic', status: 'parking', notes: 'holding bucket' }),
+    file('bar-leftovers', { type: 'epic', status: 'parking', notes: 'holding bucket' }),
+    // a terminal leftovers bucket must NOT be counted (already dissolved)
+    file('baz-leftovers', { type: 'epic', status: 'dropped', notes: 'dissolved' }),
+    file('orphan', { status: 'parking', notes: '' }),
+  ];
+  const out = renderIndex(files, NO_GIT);
+  // 2 parking leftovers buckets are flagged; the dropped one is excluded
+  assert.match(out, /⚠ 2 `\*-leftovers` bucket\(s\) awaiting dissolution/);
 });
 
 test('renderIndex is total: a non-string notes (YAML list) does not crash the render', () => {
