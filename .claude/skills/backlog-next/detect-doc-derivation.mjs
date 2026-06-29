@@ -145,6 +145,15 @@ export function classifyDerivation(changedFiles, { baseExists }) {
   };
 }
 
+// CLI exit-code contract. The deterministic SEAM the /backlog-next closing phase
+// (Step 6.1) reads: exit 0 ⇒ derivation needed ⇒ run the derived-doc regen skills
+// before ship; exit 10 ⇒ no derivation. A pure function of `derivation`, extracted
+// as an export so the contract is unit-testable in isolation (mirrors
+// detect-deploy-needed.mjs:deployExitCode — see bef-closing-detector-live-coverage-gap).
+export const DERIVATION_EXIT = { NEEDED: 0, NONE: 10 };
+export const derivationExitCode = (derivation) =>
+  derivation ? DERIVATION_EXIT.NEEDED : DERIVATION_EXIT.NONE;
+
 function main() {
   const args = Object.fromEntries(
     process.argv.slice(2).map((a) => {
@@ -215,7 +224,7 @@ function main() {
     }
   }
 
-  process.exit(result.derivation ? 0 : 10);
+  process.exit(derivationExitCode(result.derivation));
 }
 
 if (import.meta.url === `file://${process.argv[1]}` || fileURLToPath(import.meta.url) === process.argv[1]) {
