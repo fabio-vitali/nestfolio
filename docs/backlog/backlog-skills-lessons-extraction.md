@@ -1,6 +1,7 @@
 ---
 id: backlog-skills-lessons-extraction
-status: active
+status: shipped
+closed: 2026-06-29
 type: refactor
 notes: "β pass: extract F-story backstory from procedural backlog SKILL.md into a LESSONS/pitfalls log; keep one-line guardrails inline; de-duplicate. Doc-restructuring only, no behavior change."
 references: []
@@ -12,7 +13,7 @@ out_of_scope:
 spec: null
 plan: null
 topic_memory: []
-validation_gate: null
+validation_gate: "Restructure committed 3ff1e7cd on feat/epic-backlog-skills-simplification. New per-skill LESSONS.md created for the two F-heavy skills (backlog-next, backlog-next-epic); the 3 zero-F skills unchanged. Knowledge preserved: all 19 baseline F-numbers (F-2,4,5,6,7,8,9,10,11,12,13,14,21,23,24,25,30,32,33) now present in a LESSONS.md — `comm -23 baseline lessons` empty (zero loss); shared F-23/F-30 de-duplicated to one canonical entry in backlog-next/LESSONS.md cross-referenced from backlog-next-epic. SKILL.md procedures lightened: backlog-next 25078→22218 chars (11%), backlog-next-epic 36753→35268 chars (4%); guardrails + 21 [[feedback-*]] wikilinks kept inline. Green: backlog-next tests 40/40, backlog-next-epic tests 30/30, benchmark structural-lint exit 0, sandbox.test 5/5; all relative LESSONS links resolve. Behavior-change verification (regression half) deferred to the epic pre-done /benchmark-backlog compare gate."
 epic: backlog-skills-simplification
 epic_role: core
 ---
