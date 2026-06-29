@@ -13,7 +13,7 @@ out_of_scope:
   - "The β LESSONS.md extraction (already shipped as backlog-skills-lessons-extraction)."
   - "Running the full /benchmark-backlog compare/eval gate — that is the epic's validation method run once at epic close, not this member's deliverable."
 spec: docs/superpowers/specs/2026-06-29-backlog-skills-procedure-to-tested-helpers-design.md
-plan: null
+plan: docs/superpowers/plans/2026-06-29-backlog-skills-procedure-to-tested-helpers.md
 topic_memory: []
 validation_gate: null
 epic: backlog-skills-simplification
