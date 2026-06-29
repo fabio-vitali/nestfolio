@@ -1,6 +1,6 @@
 ---
 id: backlog-skills-simplification
-status: parking
+status: active
 type: epic
 notes: "Reduce accreted complexity in the backlog skill suite (~3,900 lines, 19 F-fixes, rationale interleaved into procedures) WITHOUT regressing hard-won lessons or changing behavior."
 done_when: "Both core members terminal: (β) SKILL.md procedures read as lean imperative steps with backstory relocated to a LESSONS/pitfalls log and terse guardrails kept inline; (γ) load-bearing multi-step bash dances are encapsulated in tested .mjs helpers rather than narrated in prose. No backlog behavior or lint invariant changed (no F-lesson knowledge deleted) — proven at epic pre-done by a scoped `/benchmark-backlog compare main <branch>` (interleaved A/B over the restructured skills) showing BOTH the regression half (anyGateFlip:false, no gatePassRate drop vs the committed baseline) AND the value half (tokens.total reduced on the restructured skills)."
