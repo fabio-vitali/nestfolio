@@ -3,7 +3,7 @@ id: backlog-skills-simplification
 status: parking
 type: epic
 notes: "Reduce accreted complexity in the backlog skill suite (~3,900 lines, 19 F-fixes, rationale interleaved into procedures) WITHOUT regressing hard-won lessons or changing behavior."
-done_when: "Both core members terminal: (β) SKILL.md procedures read as lean imperative steps with backstory relocated to a LESSONS/pitfalls log and terse guardrails kept inline; (γ) load-bearing multi-step bash dances are encapsulated in tested .mjs helpers rather than narrated in prose. No backlog behavior or lint invariant changed; no F-lesson knowledge deleted."
+done_when: "Both core members terminal: (β) SKILL.md procedures read as lean imperative steps with backstory relocated to a LESSONS/pitfalls log and terse guardrails kept inline; (γ) load-bearing multi-step bash dances are encapsulated in tested .mjs helpers rather than narrated in prose. No backlog behavior or lint invariant changed (no F-lesson knowledge deleted) — proven at epic pre-done by a scoped `/benchmark-backlog compare main <branch>` (interleaved A/B over the restructured skills) showing BOTH the regression half (anyGateFlip:false, no gatePassRate drop vs the committed baseline) AND the value half (tokens.total reduced on the restructured skills)."
 scope: "The backlog skill suite under .claude/skills/ (backlog-next, backlog-next-epic, backlog-add, backlog-themes, backlog-lint) + their helpers. β = extract F-story/backstory from procedural SKILL.md bodies into a LESSONS/pitfalls log, keep one-line guardrails inline at the step that needs them, de-duplicate repeated lessons (doc-restructuring only). γ = push load-bearing bash procedures (worktree cleanup, PR merge-conflict resolution, the resume gate) out of prose into tested helpers, as epic-members.mjs / runstate.mjs already do."
 out_of_scope:
   - "Changing backlog BEHAVIOR or any of the 11 lint invariants (this is structure/readability only)."
@@ -42,3 +42,27 @@ behavior and without losing a single F-lesson.
 (accreted load-bearing prose). Handling them as one delivery epic = one branch / one PR keeps the
 restructure coherent and avoids β and γ fighting over the same files in separate PRs. Both are
 **core**: leaving either undone makes a `done_when` clause literally false.
+
+## Validation — the compare gate (not a separate member)
+
+This epic's "no behavior changed" claim is **verified, not asserted**. The whole
+`backlog-eval-framework` + `backlog-eval-corpus-hardening` program exists to be the regression
+reference this epic diffs against (committed `scripts/benchmark-backlog/baseline.json` — 50
+scenarios, `gatePassRate=1`, `anyGateFlip:false`). The verification is the epic's pre-done gate, NOT
+a backlog member — it's the test *of* `done_when`, so it lives in `validation_gate` (filled with the
+actual numbers at ship), analogous to how `/backlog-next-epic` batches the expensive e2e once at
+pre-done.
+
+Method, run at epic pre-done:
+
+- **Tool:** `/benchmark-backlog compare main <branch>` (interleaved A/B — re-runs both refs fresh per
+  iteration to cancel cache noise). NOT `regression` (that diffs HEAD vs the frozen baseline, the
+  wrong tool for a branch).
+- **Regression half (must hold):** `anyGateFlip:false` and no scenario's `gatePassRate` drops vs the
+  committed baseline → behavior + lint invariants unchanged.
+- **Value half (the point):** `tokens.total` reduced on the restructured skills → the accreted-prose
+  inefficiency actually shrank.
+- **Scope deliberately.** A blind full 3× corpus compare is ~6 live passes (the corpus is ~115M
+  tokens/pass and exceeds one subscription window). Narrow with `--skill=` to the skills β/γ actually
+  restructure and cap `--iterations`; widen only if a gate looks shaky. Surface the token cost via
+  `AskUserQuestion` before launching (the skill already gates full-corpus runs).
