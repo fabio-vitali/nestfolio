@@ -1,6 +1,7 @@
 ---
 id: backlog-skills-procedure-to-tested-helpers
-status: active
+status: shipped
+closed: 2026-06-29
 type: refactor
 notes: "γ pass: push load-bearing multi-step bash procedures (worktree cleanup, PR conflict resolution, resume gate) out of SKILL.md prose into tested .mjs helpers. Higher value/risk — needs its own brainstorm."
 references:
@@ -15,7 +16,7 @@ out_of_scope:
 spec: docs/superpowers/specs/2026-06-29-backlog-skills-procedure-to-tested-helpers-design.md
 plan: docs/superpowers/plans/2026-06-29-backlog-skills-procedure-to-tested-helpers.md
 topic_memory: []
-validation_gate: null
+validation_gate: "3 tested .mjs helpers extracted (resume-gate.mjs, worktree-ops.mjs, pr-conflict-resolve.mjs) + SKILL.md prose wired in both backlog-next + backlog-next-epic @ d71936e3. Tests GREEN: backlog-next-epic 49/49 (19 new chars-tests: resume 7 + worktree-ops 7 + pr-conflict 5), backlog-next 40/40 (unchanged), backlog-lint 11/11. Closing detectors no-op (skills-only, Tier 0): doc-derivation=false, deploy=false, 0 affected nx projects. Compare-observability preserved: helpers shell out ONLY to git + node lint.mjs (run-for-real/end-state-graded); gh/deploy.sh/nx/backlog-next-worker untouched in prose. LEAVE items (phantom self-heal, post-merge-tail sequencing) kept as prose per design §3. Epic-batched e2e at epic close."
 epic: backlog-skills-simplification
 epic_role: core
 ---
