@@ -1,14 +1,22 @@
 ---
 id: backlog-skills-procedure-to-tested-helpers
-status: parking
+status: shipped
+closed: 2026-06-29
 type: refactor
 notes: "γ pass: push load-bearing multi-step bash procedures (worktree cleanup, PR conflict resolution, resume gate) out of SKILL.md prose into tested .mjs helpers. Higher value/risk — needs its own brainstorm."
-references: []
-out_of_scope: []
-spec: null
-plan: null
+references:
+  - docs/superpowers/specs/2026-06-29-backlog-skills-procedure-to-tested-helpers-design.md
+out_of_scope:
+  - "Swapping any external CLI for a library (gh→Octokit, deploy.sh→AWS SDK). The compare-observability constraint requires γ helpers to keep the external boundary at the stubbed CLI binary so the benchmark PATH-shims stay observable. Library swaps would make a shim go silent (false RED / vacuous false GREEN)."
+  - "Adding new benchmark-harness shims in scripts/benchmark-backlog/stubs/ — only needed if a library swap were unavoidable, which it is not for this member."
+  - "Behavioral changes to the procedures. This is a behavior-preserving refactor: characterization tests pin CURRENT behavior before extraction, and each helper must reproduce the F-scenario the prose currently guards."
+  - "Skills outside the backlog suite (only backlog-next + backlog-next-epic carry these load-bearing bash dances)."
+  - "The β LESSONS.md extraction (already shipped as backlog-skills-lessons-extraction)."
+  - "Running the full /benchmark-backlog compare/eval gate — that is the epic's validation method run once at epic close, not this member's deliverable."
+spec: docs/superpowers/specs/2026-06-29-backlog-skills-procedure-to-tested-helpers-design.md
+plan: docs/superpowers/plans/2026-06-29-backlog-skills-procedure-to-tested-helpers.md
 topic_memory: []
-validation_gate: null
+validation_gate: "3 tested .mjs helpers extracted (resume-gate.mjs, worktree-ops.mjs, pr-conflict-resolve.mjs) + SKILL.md prose wired in both backlog-next + backlog-next-epic @ d71936e3. Tests GREEN: backlog-next-epic 49/49 (19 new chars-tests: resume 7 + worktree-ops 7 + pr-conflict 5), backlog-next 40/40 (unchanged), backlog-lint 11/11. Closing detectors no-op (skills-only, Tier 0): doc-derivation=false, deploy=false, 0 affected nx projects. Compare-observability preserved: helpers shell out ONLY to git + node lint.mjs (run-for-real/end-state-graded); gh/deploy.sh/nx/backlog-next-worker untouched in prose. LEAVE items (phantom self-heal, post-merge-tail sequencing) kept as prose per design §3. Epic-batched e2e at epic close."
 epic: backlog-skills-simplification
 epic_role: core
 ---
