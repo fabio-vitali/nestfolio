@@ -176,7 +176,7 @@ Everything else (Step 2 verify references, Steps 6.2–6.3, 6.5–6.6) runs unch
 - **Auto-promoting LATER → QUEUED.** Promotion is a judgment call — do it manually at the boundary review.
 - **Splitting source from derived across PRs.** Both ship in the same workstream. See `doc-derivation-paths.md`.
 - **Dismissing flakes after one rerun.** See [[feedback-flake-means-broken]]. If a scoped e2e scenario fails-then-passes, pull evidence from the failing window before continuing; a confirmation rerun is required, not optional. E2E flakes are QUEUED, never parking — see [[feedback-e2e-gaps-queued-not-parking]].
-- **Trying to `ExitWorktree` for cleanup in Step 6.8.** It reliably FAILS in a cwd-pinned session (`cannot be called from a subagent with a cwd override`). Use Step 6.8's **git cleanup** (`worktree remove --force` + `branch -d` + `prune` from the main root) — that is the reliable path and it breaks the phantom-session leak cycle. Leaving the worktree on disk is what makes the next run launch pinned to it.
+- **Trying to `ExitWorktree` for cleanup in Step 6.8.** It reliably FAILS in a cwd-pinned session (`cannot be called from a subagent with a cwd override`). Use Step 6.8's **`worktree-ops.mjs cleanup … --delete-branch`** helper (it shells out to `worktree remove --force` + safe `branch -d` + `prune` from the main root) — that is the reliable path and it breaks the phantom-session leak cycle. Leaving the worktree on disk is what makes the next run launch pinned to it.
 - **Local merge without pushing `main`.** `finishing-a-development-branch`'s local-merge path does not push; postflight `main-sync` and the next preflight both require `main` == `origin/main`. Push in 6.7.
 
 ## Related
