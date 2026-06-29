@@ -1,10 +1,13 @@
 ---
 id: bef-branchcreated-assertion-enterworktree-flaky
-status: parking
+status: active
 type: bug
-notes: "bef next-lane-complex (+ likely other branchCreated-asserting scenarios) flakes ~1/4: EnterWorktree/branch adoption under headless claude -p is nondeterministic. Pre-existing on main."
+notes: "bef next-lane-complex (+ likely other branchCreated-asserting scenarios) flakes ~1/4: EnterWorktree/branch adoption under headless claude -p is nondeterministic. Pre-existing on main. Worked as core member of bef-deterministic-coverage-gaps."
 references: []
-out_of_scope: []
+out_of_scope:
+  - "Worker-prose reliability of the Complex-lane adoption path under headless `claude -p` (making the worker reliably create the branch before it pauses at the denied downstream routing) — a backlog-next SKILL-prose fix, routed to skill-simplification, NOT this corpus-determinism member."
+  - "next-lane-complex-ship and bne-promote-already-drainable `branchCreated:true` assertions — those reach branch-creation THROUGH a preceding deterministic gate (stub-binary deploy.sh/gh call-log; the worktree-ops.mjs Bash helper at epic E2), so their branchCreated proxy is not the flaky standalone-EnterWorktree path this member fixes. Not in scope unless a live run later proves they flake."
+  - "A general report-only / informational `state` assertion mechanism in grade.mjs (state checks always gate today) — beyond removing the single flaky tooth, unless explicitly chosen as the fix approach."
 spec: null
 plan: null
 topic_memory: [project_backlog_eval_framework.md]
