@@ -1,10 +1,14 @@
 ---
 id: backlog-skills-lessons-extraction
-status: parking
+status: active
 type: refactor
 notes: "β pass: extract F-story backstory from procedural backlog SKILL.md into a LESSONS/pitfalls log; keep one-line guardrails inline; de-duplicate. Doc-restructuring only, no behavior change."
 references: []
-out_of_scope: []
+out_of_scope:
+  - "Any behavior change or lint-rule edit — this is doc-restructuring only (a guardrail that needs to stay inline stays inline; only the explanatory backstory relocates)."
+  - "Any helper/.mjs edit or bash-procedure extraction — that is the γ member (backlog-skills-procedure-to-tested-helpers)."
+  - "Deleting any F-lesson knowledge — every lesson is relocated to LESSONS.md, never lost."
+  - "Restructuring the three zero-F-mention skills (backlog-add, backlog-themes, backlog-lint) — they carry no F-backstory to extract."
 spec: null
 plan: null
 topic_memory: []
