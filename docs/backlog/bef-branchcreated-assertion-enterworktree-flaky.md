@@ -1,6 +1,6 @@
 ---
 id: bef-branchcreated-assertion-enterworktree-flaky
-status: active
+status: shipped
 type: bug
 notes: "bef next-lane-complex (+ likely other branchCreated-asserting scenarios) flakes ~1/4: EnterWorktree/branch adoption under headless claude -p is nondeterministic. Pre-existing on main. Worked as core member of bef-deterministic-coverage-gaps."
 references: []
@@ -11,7 +11,8 @@ out_of_scope:
 spec: null
 plan: null
 topic_memory: [project_backlog_eval_framework.md]
-validation_gate: null
+validation_gate: "Fix ca1d27bd: dropped the flaky `state.branchCreated:true` proxy from next-lane-complex.scenario.mjs; the gate is now `terminal:'pause'` (deterministic Complex-vs-Simple/Doc discriminator, evidenced stable on the very run where branchCreated flipped — failing diagnostic reported only branchCreated=false, no terminal mismatch) + `rubricGate:4` (classification correctness). Deterministic Complex-*adoption* coverage delegated to next-lane-complex-ship's non-flaky stub-binary call-log (deploy.sh + gh pr create). Verified: bef harness unit suite 64/64 green, incl. `every scenario passes the structural lint` (edited scenario valid: no callLog, terminal in {pause,completed}, no unknown keys) + `every scenario references an existing fixture`. No deploy (Tier-0 scripts/docs), no doc-derivation, no affected nx projects. Live rebaseline of the now-stale next-lane-complex baseline.json row deferred to epic closure (full 3× rebaseline batched at close per project_backlog_eval_framework dossier)."
+closed: 2026-06-29
 epic: bef-deterministic-coverage-gaps
 epic_role: core
 ---
