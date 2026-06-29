@@ -1,11 +1,14 @@
 ---
 id: bef-closing-detector-live-coverage-gap
-status: parking
+status: active
 type: tooling
 notes: "The closing-phase ROUTING invariant (a deploy-requiring item routes to the deploy + e2e gate, not a no-deploy doc-derivation close) has no deterministic LIVE corpus scenario — the deterministic deploy.sh/nx-e2e stub call only fires by driving the whole Complex lane headlessly (worktree → implement → close), which a `claude -p` run can't reproduce. The detection PREDICATES are already unit-tested; the orchestrator's routing DECISION is the model-behavior gap. next-closing-detector was dropped (rubricGate:4 swung 3↔5 with no deterministic fallback)."
 references: []
 spec: null
 plan: null
+out_of_scope:
+  - "The downstream model ROUTING behavior itself (given exit 0 = deploy-needed, does the agent then actually run the deploy + e2e gate before ship) — that is nondeterministic model behavior under headless `claude -p`, accepted as documented-only / informational. It is NOT unit-gateable; we gate the deterministic SEAM the routing reads (the CLI exit-code contract), not the model's reaction to it."
+  - "Rebuilding a live corpus scenario for closing-phase routing (the member's option a) — rejected: a `deploy.sh`/`nx-e2e` stub-call fixture still rides a `claude -p` headless drive, re-introducing the exact model-behavior live-drive dependency this epic's done_when exists to eliminate."
 topic_memory: [project_backlog_eval_framework.md]
 epic: bef-deterministic-coverage-gaps
 epic_role: core
