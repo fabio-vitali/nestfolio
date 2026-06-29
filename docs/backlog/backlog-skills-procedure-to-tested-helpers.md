@@ -1,10 +1,16 @@
 ---
 id: backlog-skills-procedure-to-tested-helpers
-status: parking
+status: active
 type: refactor
 notes: "γ pass: push load-bearing multi-step bash procedures (worktree cleanup, PR conflict resolution, resume gate) out of SKILL.md prose into tested .mjs helpers. Higher value/risk — needs its own brainstorm."
 references: []
-out_of_scope: []
+out_of_scope:
+  - "Swapping any external CLI for a library (gh→Octokit, deploy.sh→AWS SDK). The compare-observability constraint requires γ helpers to keep the external boundary at the stubbed CLI binary so the benchmark PATH-shims stay observable. Library swaps would make a shim go silent (false RED / vacuous false GREEN)."
+  - "Adding new benchmark-harness shims in scripts/benchmark-backlog/stubs/ — only needed if a library swap were unavoidable, which it is not for this member."
+  - "Behavioral changes to the procedures. This is a behavior-preserving refactor: characterization tests pin CURRENT behavior before extraction, and each helper must reproduce the F-scenario the prose currently guards."
+  - "Skills outside the backlog suite (only backlog-next + backlog-next-epic carry these load-bearing bash dances)."
+  - "The β LESSONS.md extraction (already shipped as backlog-skills-lessons-extraction)."
+  - "Running the full /benchmark-backlog compare/eval gate — that is the epic's validation method run once at epic close, not this member's deliverable."
 spec: null
 plan: null
 topic_memory: []
