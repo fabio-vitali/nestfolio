@@ -1,8 +1,11 @@
 ---
 id: bef-f21-shared-typecheck-live-coverage-gap
-status: parking
+status: active
 type: tooling
 notes: "The F-21 POSITIVE invariant (a shared-surface member touch triggers the cumulative branch-wide typecheck) has no deterministic LIVE corpus scenario. The detection predicate (detect-fork-blast-radius shared/non-shared) is already unit-tested; the gap is the orchestrator reliably EXECUTING the cumulative typecheck on a shared hit — a multi-step model behavior the eval sandbox can't deterministically elicit. bne-member-f21-shared-typecheck was dropped (it could not elicit the touch — the stub worker ships only frontmatter); the deterministic NEGATIVE twin bne-member-f21-nonshared-no-typecheck remains."
+out_of_scope:
+  - "The orchestrator reliably EXECUTING the multi-step cumulative typecheck once a shared hit is detected — that is high-variance model behavior under headless `claude -p`, un-gateable by deterministic teeth; if it proves unreliable the fix is F-21 skill-PROSE prominence, which routes to backlog-skills-simplification, not this corpus-determinism epic (epic out_of_scope #3)."
+  - "A `BEF_WORKER_SHARED_FILE` worker knob to elicit the shared-surface touch in the live corpus (disposition option a) — charter-disqualified: a stub fixture still rides a `claude -p` drive, re-introducing the model-behavior dependency this epic eliminates."
 references: []
 spec: null
 plan: null
