@@ -6,18 +6,6 @@
 
 ## EPICS
 
-### [backlog-eval-corpus-hardening](backlog/backlog-eval-corpus-hardening.md) `[epic · active]` — The backlog-eval-framework corpus shipped structurally but is not yet live-validated/hardened — the regression reference backlog-skills-simplification will diff against. Theme epic, 3 members.
-done_when: The corpus has a committed live full-corpus baseline, every scenario gates deterministically (no flaky rubric swings), and the drive-to-ship scenarios route to a stubbed finishing skill instead of self-merging; all members shipped or dropped.
-rollup: core 5/5 done · captured 0/3 done
-- core · shipped · [backlog-eval-framework-baseline-run](backlog/backlog-eval-framework-baseline-run.md)
-- core · shipped · [bef-baseline-surfaced-scenario-failures](backlog/bef-baseline-surfaced-scenario-failures.md)
-- core · shipped · [bef-finishing-stub-drive-to-ship](backlog/bef-finishing-stub-drive-to-ship.md)
-- core · shipped · [bef-resume-partial-scenario-flaky](backlog/bef-resume-partial-scenario-flaky.md)
-- core · shipped · [bne-resume-absent-fresh-unreachable-memberloop](backlog/bne-resume-absent-fresh-unreachable-memberloop.md)
-- captured · parking · [bef-judge-blind-to-subworktree-diff](backlog/bef-judge-blind-to-subworktree-diff.md)
-- captured · parking · [bef-scenario-tags-reusable-suite](backlog/bef-scenario-tags-reusable-suite.md)
-- captured · parking · [benchmark-backlog-skill-cost-figures-stale](backlog/benchmark-backlog-skill-cost-figures-stale.md)
-
 ### [advisory-narrative-memory-read-latency](backlog/advisory-narrative-memory-read-latency.md) `[epic · parking]` — advisory-narrative-ctrl blocks on AgentCore Memory reads before writing its observable HEAD row → 30-40s integration tests. Theme epic, 2 members.
 done_when: advisory-narrative-ctrl's observable HEAD row is visible to tests in ~5-10s (eager write and/or tightened Memory-retry delays) with no dev/prod consistency skew; both members shipped or dropped.
 rollup: core 0/2 done · captured 0/0 done
@@ -37,6 +25,13 @@ done_when: Each in-scope side-effecting path is made idempotent against at-least
 rollup: core 0/2 done · captured 0/0 done
 - core · parking · [broker-circuit-breaker-concurrent-escalation-duplicate](backlog/broker-circuit-breaker-concurrent-escalation-duplicate.md)
 - core · parking · [sf-start-idempotency-at-least-once-redelivery](backlog/sf-start-idempotency-at-least-once-redelivery.md)
+
+### [backlog-eval-corpus-hardening-leftovers](backlog/backlog-eval-corpus-hardening-leftovers.md) `[epic · parking]` — Auto-spun-out when backlog-eval-corpus-hardening shipped (2026-06-29): 3 genuinely-orthogonal captured members that rode along for unified session context but do not gate the epic's done_when. Holding bucket pending re-clustering by backlog-themes.
+done_when: Each residual finding spun out of the backlog-eval-corpus-hardening epic is resolved, dropped, or re-clustered by backlog-themes into a sharper root-cause theme; all members shipped or dropped.
+rollup: core 0/0 done · captured 0/3 done
+- captured · parking · [bef-judge-blind-to-subworktree-diff](backlog/bef-judge-blind-to-subworktree-diff.md)
+- captured · parking · [bef-scenario-tags-reusable-suite](backlog/bef-scenario-tags-reusable-suite.md)
+- captured · parking · [benchmark-backlog-skill-cost-figures-stale](backlog/benchmark-backlog-skill-cost-figures-stale.md)
 
 ### [backlog-skills-simplification](backlog/backlog-skills-simplification.md) `[epic · parking]` — Reduce accreted complexity in the backlog skill suite (~3,900 lines, 19 F-fixes, rationale interleaved into procedures) WITHOUT regressing hard-won lessons or changing behavior.
 done_when: Both core members terminal: (β) SKILL.md procedures read as lean imperative steps with backstory relocated to a LESSONS/pitfalls log and terse guardrails kept inline; (γ) load-bearing multi-step bash dances are encapsulated in tested .mjs helpers rather than narrated in prose. No backlog behavior or lint invariant changed; no F-lesson knowledge deleted.
@@ -212,7 +207,7 @@ rollup: core 0/3 done · captured 0/0 done
 - core · parking · [portfolio-drift-detected-registry-collision](backlog/portfolio-drift-detected-registry-collision.md)
 - core · parking · [weight-drift-detector](backlog/weight-drift-detector.md)
 
-**Parking health:** 30 theme epic(s), 12 orphan(s) — drive orphans → 0 with `/backlog-themes`
+**Parking health:** 31 theme epic(s), 12 orphan(s) — drive orphans → 0 with `/backlog-themes`
 
 ## ACTIVE
 
@@ -242,6 +237,7 @@ _(none)_
 
 ## Recently Shipped (last 10)
 
+- 2026-06-29 — [backlog-eval-corpus-hardening](backlog/backlog-eval-corpus-hardening.md) [epic] — SHIPPED 2026-06-29. Live-validated + hardened the backlog-eval-framework corpus into a trustworthy regression reference: committed full-corpus baseline (50 scenarios, all green, no flips), every scenario gates deterministically, drive-to-ship routes to the stubbed finishing skill. 5 core members shipped; 3 captured spun out to backlog-eval-corpus-hardening-leftovers.
 - 2026-06-28 — [bef-baseline-surfaced-scenario-failures](backlog/bef-baseline-surfaced-scenario-failures.md) [bug] — All 4 baseline-red scenarios now gate deterministically GREEN ×3 (add-mint, bne-ship-clean, bne-e6, bne-promote-clean). Root causes were NOT the first-cycle hypotheses — evidence (transcripts) drove corrected fixes. `[epic:backlog-eval-corpus-hardening · core]`
 - 2026-06-28 — [bef-resume-partial-scenario-flaky](backlog/bef-resume-partial-scenario-flaky.md) [bug] — bne-resume-partial eval scenario is flaky (rubric 1/5↔4/5, worker flails 35-43 turns on epic resume); rubricGate:4 exposed it. `[epic:backlog-eval-corpus-hardening · core]`
 - 2026-06-28 — [bne-resume-absent-fresh-unreachable-memberloop](backlog/bne-resume-absent-fresh-unreachable-memberloop.md) [tooling] — bne-resume-absent-fresh asserts memberLoopEntered:false via subskill denials, but the orchestrator circumvents Skill() denies via raw Bash and drives the fresh run to PR — same root cause as bne-promote-clean. `[epic:backlog-eval-corpus-hardening · core]`
@@ -251,4 +247,3 @@ _(none)_
 - 2026-06-26 — [dead-code-cleanup](backlog/dead-code-cleanup.md) [epic] — Vestigial code left behind by prior refactors that no checker flags — unread wrappers, unused repo methods, stale comments, a dead consumer read. Debt-class theme epic, 5 members (cooldown split out during execution-ctrl prune).
 - 2026-06-26 — [execution-ctrl-cooldown-feature-dead-code](backlog/execution-ctrl-cooldown-feature-dead-code.md) [refactor] — Surfaced 2026-06-26 while pruning OrderRepository in execution-ctrl-orderrepository-prune-unused-methods. The CoolDown feature is half-dead: OrderRepository.setCoolDown (the WRITE side) has ZERO production callers (only its own unit test), so the CoolDown row is never written. Yet safety-checks.service.ts:41 still calls getCoolDown on every staged-order safety check → it always reads null → the cooldown guard is a permanent no-op. Same 'read of data the producer never writes' pattern the epic targets. Removing it deletes a (currently no-op) safety-check branch, so it needs its own verdict — NOT a trivial method prune. Verify the no-op claim (grep setCoolDown = zero writers) before deleting setCoolDown + getCoolDown + the safety-check cooldown branch + coolDownPk helper. `[epic:dead-code-cleanup · core]`
 - 2026-06-26 — [execution-ctrl-orderrepository-prune-unused-methods](backlog/execution-ctrl-orderrepository-prune-unused-methods.md) [refactor] — Surfaced 2026-06-09 when the dead OrderLifecycleService was deleted (salvaged to main from the dropped residual-generic-subject-casts-cleanup workstream). After that delete, OrderRepository.createOrder + createStagedOrder (services/execution/execution-ctrl/src/repositories/order.repository.ts) are unused — only updateOrderStatus stays live (called by staged-order-processor.ts; the live event-listener path creates orders via the record() intent, not the repository). Promote when touching execution-ctrl's repository, or fold into a dead-code sweep. Verify zero callers (grep) before pruning. `[epic:dead-code-cleanup · core]`
-- 2026-06-26 — [stale-memory-write-comments-phase-a-cleanup](backlog/stale-memory-write-comments-phase-a-cleanup.md) [refactor] — 6 stale comments in decision-workflow-ctrl + cdk-constructs reference writeAgentOutput / BatchCreate / ListMemoryRecords. Verification (2026-06-26) narrowed this: only ~3 are genuinely stale; the eventual-consistency comments are correct (explain why code AVOIDS ListMemoryRecords), the BatchCreateMemoryRecords hits are live IAM test assertions, and writeAgentOutput has zero refs. `[epic:dead-code-cleanup · core]`
