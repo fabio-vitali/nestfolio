@@ -36,6 +36,21 @@ A subtle behavioral change here could regress one of the F-bugs the prose curren
   and write characterization tests that pin *current* behavior before refactoring.
 - Each extracted helper must ship with a `node --test` suite covering the F-scenario it preserves.
 
+**Compare-observability constraint (load-bearing — keeps the epic's compare gate honest).** The
+`/benchmark-backlog` harness intercepts the external boundary via **PATH-shim binaries** (`gh`, `nx`,
+`deploy.sh`, `backlog-next-worker` — `grade.mjs` string-matches `$BEF_STUBS_LOG`); internal git/
+worktree/run-state ops are graded by **end-state**, not call-log (`structural-lint.mjs` enforces the
+split). So a helper that *shells out* to the stubbed CLI binary (`execSync('gh …')`) stays fully
+observable — the call-log assertions fire identically prose-vs-helper. **But a helper that swaps the
+CLI for a library** (e.g. Octokit instead of `gh`, the AWS SDK instead of `deploy.sh`) makes the shim
+go silent: a `callLog.called:['gh …']` then mis-reads as a regression (false RED) and, worse, a
+`neverCalled:['gh pr merge']` passes **vacuously** (false GREEN — "never self-merged" only because we
+stopped watching `gh`). **Rule:** γ helpers keep the external boundary at the stubbed CLI binary. If a
+library swap is genuinely unavoidable for some op, that op needs a **new shim at its seam** in
+`scripts/benchmark-backlog/stubs/` *before* the compare is trustworthy — the one case where γ touches
+the harness rather than just the skills. (The PR-merge and deploy dances are the at-risk ones; the
+worktree/resume dances use plain `git`, which the harness runs for real and grades by state.)
+
 **Relationship to β.** Do β first (it makes the procedures legible, surfacing exactly which bash
 blocks are load-bearing) — but both ship in the **one** `backlog-skills-simplification` branch/PR.
 

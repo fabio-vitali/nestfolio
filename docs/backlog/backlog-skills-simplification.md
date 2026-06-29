@@ -66,3 +66,9 @@ Method, run at epic pre-done:
   tokens/pass and exceeds one subscription window). Narrow with `--skill=` to the skills β/γ actually
   restructure and cap `--iterations`; widen only if a gate looks shaky. Surface the token cost via
   `AskUserQuestion` before launching (the skill already gates full-corpus runs).
+- **Precondition — keep the external boundary observable.** The harness grades the external boundary
+  via PATH-shim binaries (`gh`/`nx`/`deploy.sh`/`backlog-next-worker`) and internal git/worktree ops
+  by end-state, so the grade is implementation-blind to prose-vs-helper — *provided* γ helpers shell
+  out to the stubbed CLI binaries rather than swapping in a library (which silently mutes the shim →
+  false green/red). If any helper must use a library, add a shim at that seam first. See the
+  `backlog-skills-procedure-to-tested-helpers` "Compare-observability constraint".
