@@ -1,8 +1,8 @@
 ---
 id: bef-baseline-surfaced-scenario-failures
-status: parking
+status: shipped
 type: bug
-notes: "Live baseline found 4 reds. Confirming ×3 re-run (2026-06-27): bne-ship-clean 0/3 consistent (likely the missing finishing stub → bef-finishing-stub-drive-to-ship, not a prose bug); bne-e6-zero-tests-red 2/3 FLAKY (real — 1/3 it ships with zero tests); add-mint-aggregation + bne-promote-clean still unconfirmed (iterations=1)."
+notes: "All 4 baseline-red scenarios now gate deterministically GREEN ×3 (add-mint, bne-ship-clean, bne-e6, bne-promote-clean). Root causes were NOT the first-cycle hypotheses — evidence (transcripts) drove corrected fixes."
 references: []
 out_of_scope:
   - "next-lane-doc-layer — its terminal-expectation scenario bug was fixed in the same workstream (scenarios/next-lane-doc-layer.scenario.mjs); flips green on next rebaseline."
@@ -11,7 +11,8 @@ out_of_scope:
 spec: null
 plan: null
 topic_memory: [project_backlog_eval_framework.md]
-validation_gate: null
+validation_gate: "All 4 scenarios GREEN ×3, flip=false (targeted regression, Opus 4.8): add-mint-aggregation, bne-ship-clean, bne-e6-zero-tests-red, bne-promote-clean. Corrected fixes on feat/epic-backlog-eval-corpus-hardening — mint non-blocking (4270f0d9); E1 promote msg+push + E6 zero-collected gate (3ba1d0e1); sub-worktree-aware grading + --keep/transcript harness fixes (eb650d60); branch-aware golden + denial-drop + deploy-bearing e6 fixture (071753e6); promote timeoutMs (3f… see log). Mechanism pre-verified without LLM (branch-aware golden vs real sandbox, worker deploy-file commit, detect-deploy-needed=true, fixture lint-clean, 60/60 unit tests)."
+closed: 2026-06-28
 epic: backlog-eval-corpus-hardening
 epic_role: core
 ---
@@ -70,3 +71,31 @@ gates deterministically"). `bne-ship-clean` is cross-linked to the finishing-stu
 split into a new defect; `bne-e6` is the one confirmed *new* orchestrator reliability finding here.
 Split either out only if its remediation diverges (e.g. `bne-e6` turns out to need its own focused
 de-flake workstream).
+
+## Resolution (2026-06-28) — the first-cycle hypotheses were mostly WRONG
+
+A first fix cycle (mint→non-blocking, e6→prose-prominence, promote→E1-push, ship-clean→finishing-stub)
+confirmed only `add-mint`. The ×3 confirm showed 3/4 still red — so I gathered **evidence** (per
+`systematic-debugging`): transcripts + sandbox git state, enabled by fixing a real harness bug (bare
+`--keep` parsed falsy → never retained sandboxes/transcripts) and adding transcript-on-`--keep`. The
+real root causes:
+
+- **`bne-ship-clean`** — NOT the missing finishing stub. The golden read epic frontmatter at the
+  sandbox **root** (still `active` — the E1 promote marker), but an epic ships `shipped`+`closed` on the
+  unmerged sub-worktree branch `feat/epic-drn-epic`. Fix: `golden.onBranch` reads the branch (new
+  branch-aware grading in `grade.mjs`; same blindness as the captured `bef-judge-blind-to-subworktree-diff`).
+- **`bne-promote-clean`** — the E1 push fix WORKED (marker reached origin/main); the real failure was
+  `memberLoopEntered:false`, which is **unachievable**: subskill denials can't stop the orchestrator (it
+  Bash-runs `worker.mjs`/`gh`, circumventing `Skill()` denies, and drives to PR-open). Fix: drop the
+  denials + assertion, assert the promote outcome, add `timeoutMs:900000` (heaviest ~50-turn run).
+  Surfaced a sibling bug filed as core member `bne-resume-absent-fresh-unreachable-memberloop`.
+- **`bne-e6-zero-tests-red`** — prose prominence had ZERO effect (still 2/3). The `epic-drainable`
+  fixture has no code → `0 collected` is a **legitimate no-op**, not unambiguously the false-green bug
+  (`detect-deploy-needed=false` proven). Fix: new deploy-bearing fixture `epic-deploy-open` (open member
+  `zce-2` ships a TIER1 service file via gated `BEF_WORKER_DEPLOY_FILE`) so the epic deploys → e2e is
+  required → `0 collected` is unambiguously RED.
+- **`add-mint-aggregation`** — non-blocking `backlog-add` mint suggest + `terminal:completed`
+  (canonized via the `--auto` decision log).
+
+All four GREEN ×3, flip=false. Lesson reinforced: **evidence before fixes** — the cheap "obvious"
+hypotheses were wrong on 3 of 4; transcripts + sandbox state were decisive.

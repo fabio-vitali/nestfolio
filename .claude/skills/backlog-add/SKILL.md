@@ -43,9 +43,13 @@ then check `type: epic`). Read its `scope:` / `out_of_scope:`. Then walk the fin
 2. **Else does it match an existing theme epic?** (`grep -l '^type: epic' docs/backlog/*.md` with
    `status: parking`, compare root cause) → join it: `epic: <theme-epic-id>`, `epic_role: core`.
 3. **Else does it share a root cause with ≥1 existing parking orphans?** (quick scan of parking
-   notes) → **suggest** minting a new theme epic that aggregates them. Offer it; if the user
-   agrees, create the `type: epic` file (template below) and set `epic:` on this finding + the
-   matching orphans. Don't force it — a one-line suggestion is enough.
+   notes) → file the finding as a parking **orphan** now (the safe home that needs no agreement —
+   branch 4's write) AND emit a **one-line, non-blocking suggestion** to mint a new theme epic
+   aggregating it with the matching orphans (name them). **Do not pause / block to ask** —
+   file-and-continue is the contract, and the actual mint is the sanctioned `/backlog-themes`
+   cold-path job (or a later explicit user request). Interactively, if the user agrees in the same
+   turn, you may mint on the spot — create the `type: epic` file (template below) and set `epic:` on
+   this finding + the matching orphans; headless or mid-workstream, the suggestion is enough.
 4. **Else** → plain parking **orphan** (no `epic:` pointer). The genuine residue; the next
    `/backlog-themes` sweep will try to cluster it.
 

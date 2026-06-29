@@ -1,14 +1,17 @@
 ---
 id: bef-resume-partial-scenario-flaky
-status: parking
+status: shipped
+closed: 2026-06-28
 type: bug
 notes: "bne-resume-partial eval scenario is flaky (rubric 1/5↔4/5, worker flails 35-43 turns on epic resume); rubricGate:4 exposed it."
 references: []
-out_of_scope: []
+out_of_scope:
+  - "The other resume scenarios (bne-resume-pr-open-stop / -corrupt-stop / -merged-tail-only) and bne-resume-absent-fresh — they stop via reliable mechanisms (resume gate / selection-confirm) and are tracked separately (member bne-resume-absent-fresh-unreachable-memberloop)."
+  - "Changing the grade.mjs harness predicates or the backlog-next-epic resume code itself — this member fixes the SCENARIO's assertions to gate deterministically against existing (callLog) predicates, not the skill under test."
 spec: null
 plan: null
 topic_memory: [project_backlog_eval_framework.md]
-validation_gate: null
+validation_gate: "Fix dde2f688: dropped circumventable denySubskills + unreachable/backwards memberLoopEntered:false + flaky rubricGate:4; added deterministic callLog teeth (called: backlog-next-worker beta-3; neverCalled: beta-1/beta-2) proving the resume drove the next OPEN member, never restarting at a shipped one — judge-free, cwd-robust (absolute BEF_STUBS_LOG). Verified: 60/60 harness unit tests (structural-lint validates the new scenario shape) + live `node run.mjs regression --scenario=bne-resume-partial --iterations=3` → gatePassRate=1, anyGateFlip=false, numTurns=38 (was 35-43 flailing under over-denial; rubric had swung 1/5↔4/5). Mirrors the shipped bne-promote-clean pattern."
 epic: backlog-eval-corpus-hardening
 epic_role: core
 ---

@@ -1,14 +1,18 @@
 ---
 id: bef-finishing-stub-drive-to-ship
-status: parking
+status: shipped
+closed: 2026-06-27
 type: tooling
 notes: "Stub finishing-a-development-branch in the bef sandbox so drive-to-ship workers route to it instead of reimplementing the merge (the self-merge anti-pattern), enabling a faithful no-self-merge gate."
 references: []
-out_of_scope: []
+out_of_scope:
+  - "Fixing the other 3 baseline-surfaced scenario failures (add-mint-aggregation, bne-promote-clean, bne-e6-zero-tests-red) — separate member bef-baseline-surfaced-scenario-failures. (bne-ship-clean IS unblocked by this stub, but its live confirmation is that member's gate.)"
+  - "The full-corpus baseline rebaseline — epic-closure step (E6), run once conclusively after all members gate green."
+  - "De-flaking the resume scenario — separate member bef-resume-partial-scenario-flaky."
 spec: null
 plan: null
 topic_memory: [project_backlog_eval_framework.md]
-validation_gate: null
+validation_gate: "Added stubs/finishing/SKILL.md (open PR via gh stub, NEVER self-merge, pause) + sandbox.mjs staging rule (stub present iff scenario does NOT deny finishing; bne-e8-conflict's real-skill setup hook still overrides). Updated next-lane-complex-ship to the faithful PR-pause shape. Harness suite 60/60 (commits 157c7a19 + 31066c61; adds sandbox staging test: stub present iff not denied). Live verify `regression --scenario=next-lane-complex-ship --iterations=1`: gatePassRate=1, anyGateFlip=false — terminalOk + deploy.sh + gh pr create CALLED + gh pr merge NEVER called + branchCreated (3.03M tokens, 30 turns). First live run exposed a sandbox-root-golden mismatch (Complex-lane ships on the unmerged sub-worktree branch; gradeGolden reads sandbox root) → fixed by asserting branchCreated (31066c61). Definitive corpus-wide green at the epic E6 full baseline. Also unblocks bne-ship-clean (same root cause; its confirmation is bef-baseline-surfaced-scenario-failures' gate)."
 epic: backlog-eval-corpus-hardening
 epic_role: core
 ---
