@@ -9,7 +9,7 @@
 ### [bef-deterministic-coverage-gaps](backlog/bef-deterministic-coverage-gaps.md) `[epic · active]` — ACTIVE delivery epic (promoted 2026-06-29 from theme): resolve the backlog-eval corpus's deterministic-teeth gaps — substring callLog matching + end-state proxies can't reliably gate nondeterministic, multi-step MODEL-BEHAVIOR invariants under headless `claude -p`. 4 CORE members (the determinism cluster) gate done_when; 3 CAPTURED riders (judge-blind harness bug, scenario-tags ergonomics, cost-figures doc nit) ride along for unified one-branch/one-PR context but do NOT gate closure. Work via /backlog-next-epic; captured audit at pre-done.
 done_when: Each in-scope bef invariant has a DETERMINISTIC regression signal that does not depend on nondeterministic model behavior under headless `claude -p` — either a deterministic call-log tooth on an elicitable action (replacing a flaky end-state/rubric proxy) or a unit test of the orchestrator predicate/freshness logic the live corpus cannot gate; all members shipped or dropped.
 rollup: core 3/4 done · captured 0/3 done
-- core · parking · [bne-e71-chained-gate-unit-coverage](backlog/bne-e71-chained-gate-unit-coverage.md)
+- core · active · [bne-e71-chained-gate-unit-coverage](backlog/bne-e71-chained-gate-unit-coverage.md)
 - core · shipped · [bef-branchcreated-assertion-enterworktree-flaky](backlog/bef-branchcreated-assertion-enterworktree-flaky.md)
 - core · shipped · [bef-closing-detector-live-coverage-gap](backlog/bef-closing-detector-live-coverage-gap.md)
 - core · shipped · [bef-f21-shared-typecheck-live-coverage-gap](backlog/bef-f21-shared-typecheck-live-coverage-gap.md)
