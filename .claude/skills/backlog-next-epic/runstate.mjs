@@ -132,6 +132,19 @@ export function e2eIsFresh(state, headSha) {
   return !!state.e2e && typeof state.e2e.sha === 'string' && state.e2e.sha === headSha;
 }
 
+/** Exit codes for the `e2e-fresh` CLI seam (E7.2 / F-14). The orchestrator's E7.2
+ * ship-precondition reads ONLY this exit code: 0 = recorded green still matches HEAD
+ * (safe to ship), 1 = HEAD moved since the recorded green (a re-opened/reworked member,
+ * forcing a return to E6 before ship). The chained-second-gate invariant has no
+ * deterministic live-corpus signal, so this exit-code mapping IS its regression gate. */
+export const E2E_FRESH_EXIT = { FRESH: 0, STALE: 1 };
+
+/** Map the freshness verdict → the e2e-fresh CLI exit code — the single source of truth
+ * for the 0/1 mapping main() routes through (so a hardcoded-code regression is caught). */
+export function freshExitCode(isFresh) {
+  return isFresh ? E2E_FRESH_EXIT.FRESH : E2E_FRESH_EXIT.STALE;
+}
+
 /** Serialize canonically (pretty, trailing newline) — the ONLY way the file is written. */
 export function serializeRunState(state) {
   return JSON.stringify(validateRunState(state), null, 2) + '\n';
@@ -201,9 +214,10 @@ function main() {
     case 'e2e-fresh': {
       const state = loadOrExit();
       const head = defaultExec('git rev-parse HEAD').trim();
-      if (e2eIsFresh(state, head)) { console.log('e2e FRESH'); break; }
+      const code = freshExitCode(e2eIsFresh(state, head));
+      if (code === E2E_FRESH_EXIT.FRESH) { console.log('e2e FRESH'); break; }
       console.error(`e2e STALE — recorded sha ${state.e2e?.sha ?? '(none)'} != HEAD ${head}; re-run E6`);
-      process.exit(1);
+      process.exit(code);
     }
     default:
       console.error(`unknown command: ${cmd}`); process.exit(1);

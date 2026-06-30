@@ -1,11 +1,17 @@
 ---
 id: bne-e71-chained-gate-unit-coverage
-status: parking
+status: shipped
+closed: 2026-06-30
 type: tooling
 notes: "The backlog-next-epic chained-second-gate invariant (after a captured-promote rework, re-run the batched gate before shipping) is not deterministically coverable as a live corpus scenario — its premise is the E7.1 audit's model judgment and 'gate ran twice' is uncountable by the substring callLog teeth. bne-e71-chained-e6 now gates on the deterministic deploy-bearing green-ship path + keeps the chained-gate as an informational rubric; deterministic coverage belongs at the unit level."
 references: []
+out_of_scope:
+  - "The dropped live corpus scenarios (bne-e71-chained-e6 / next-closing-detector) — they stay as documented/informational rubrics; this member adds the UNIT-level signal only."
+  - "The pure e2eIsFresh predicate — already unit-tested (the existing setE2e/e2eIsFresh case). This member closes the untested e2e-fresh CLI exit-code seam (process exit 0 fresh / 1 stale) the E7.2 ship-precondition actually reads."
+  - "Any change to E7.2 routing behavior or the orchestrator's reaction to the exit code — that reaction stays model behavior; only the deterministic exit-code contract beneath it is gated."
 spec: null
 plan: null
+validation_gate: "SHIPPED via 020877a8 on epic branch feat/epic-bef-deterministic-coverage-gaps. Extracted a pure exported E2E_FRESH_EXIT + freshExitCode helper in runstate.mjs and routed main()'s e2e-fresh case through it, then added 4 CLI exit-code-contract tests (runstate.test.mjs 17/17 pass; full backlog-next-epic suite 61/61 pass) gating the deterministic SEAM the orchestrator's E7.2 ship-precondition reads: exit 0 = recorded green still matches HEAD (safe to ship), 1 = HEAD moved since the recorded green (re-opened/reworked member → re-run E6). Pins the values + polarity, the real e2eIsFresh→exit-code seam, and a hermetic CLI smoke that performs a REAL HEAD move in a throwaway git repo (the literal 'record at SHA-A → move HEAD → assert stale' member scenario) plus the absent→exit-3 load contract. Tier-0 skill change — detect-deploy-needed + detect-doc-derivation both exit 10 (no deploy, no derived-doc regen); the chained-gate's model-behavior half (E7.1 audit judgment, 'gate ran twice') stays documented/informational. Closes the chained-second-gate invariant's deterministic regression signal at the unit/exit-code level where the dropped live corpus scenario (bne-e71-chained-e6) cannot. Mirrors the shipped bef-closing-detector / bef-f21-shared-typecheck CLI-exit-contract pattern."
 topic_memory: [project_backlog_eval_framework.md]
 epic: bef-deterministic-coverage-gaps
 epic_role: core

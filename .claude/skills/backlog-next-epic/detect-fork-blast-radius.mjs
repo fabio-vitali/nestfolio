@@ -24,6 +24,16 @@ export const SURFACE_PATTERNS = [
 
 export const isSurfaceFile = (f) => SURFACE_PATTERNS.some((re) => re.test(f));
 
+// Exit-code contract the orchestrator's F-21 / E5 case-3 routing keys off:
+//   0 = no shared-surface hit (safe to auto-resolve)
+//   1 = shared-surface hit(s)  (escalate to the AskUserQuestion floor)
+//   2 = usage error (no patterns given)
+// Value 1 (not 10) is load-bearing: E5 case-3 reads "exit 1 = a shared-surface hit".
+export const BLAST_EXIT = { SAFE: 0, ESCALATE: 1, USAGE: 2 };
+
+/** Pure: map a shared-surface hit count to the CLI exit code the routing reads. */
+export const blastExitCode = (hitCount) => (hitCount === 0 ? BLAST_EXIT.SAFE : BLAST_EXIT.ESCALATE);
+
 /** Pure: scan fileEntries [{path, content}] for any literal pattern. */
 export function scanSurfaces(patterns, fileEntries) {
   const hits = [];
@@ -41,7 +51,7 @@ function main() {
   const patterns = process.argv.slice(2).filter(Boolean);
   if (patterns.length === 0) {
     console.error('Usage: detect-fork-blast-radius.mjs <pattern> [<pattern>...]');
-    process.exit(2);
+    process.exit(BLAST_EXIT.USAGE);
   }
   const repoRoot = execSync('git rev-parse --show-toplevel').toString().trim();
   const files = execSync('git ls-files', { cwd: repoRoot })
@@ -50,11 +60,11 @@ function main() {
   const hits = scanSurfaces(patterns, entries);
   if (hits.length === 0) {
     console.log(`✓ no shared-surface references to [${patterns.join(', ')}] — safe to auto-resolve`);
-    process.exit(0);
+  } else {
+    console.error(`✗ ${hits.length} shared-surface reference(s) — escalate to the AskUserQuestion floor:`);
+    for (const h of hits) console.error(`  ${h.path}:${h.line}  [${h.pattern}]  ${h.text}`);
   }
-  console.error(`✗ ${hits.length} shared-surface reference(s) — escalate to the AskUserQuestion floor:`);
-  for (const h of hits) console.error(`  ${h.path}:${h.line}  [${h.pattern}]  ${h.text}`);
-  process.exit(1);
+  process.exit(blastExitCode(hits.length));
 }
 
 if (import.meta.url === `file://${process.argv[1]}` || fileURLToPath(import.meta.url) === process.argv[1]) {

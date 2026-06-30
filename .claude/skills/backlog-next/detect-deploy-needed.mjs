@@ -138,6 +138,18 @@ export function classifyChanges(changedFiles) {
   };
 }
 
+// CLI exit-code contract. This is the deterministic SEAM the /backlog-next closing
+// phase (Step 6.3) routes on: exit 0 ⇒ deploy needed ⇒ route to the deploy + e2e
+// validation gate before ship; exit 10 ⇒ no deploy ⇒ skip 6.4 (doc-derivation / ship
+// close). The exit code is a pure function of `deploy` — it never depends on the
+// nx-graph resolver (whose failure is caught and falls back without changing it).
+// Extracted as a pure export so the contract is unit-testable without git or nx
+// (bef-closing-detector-live-coverage-gap: the live corpus can't gate the model's
+//  routing under headless `claude -p`, but this exit-code seam it reads can be unit-gated).
+export const DEPLOY_EXIT = { NEEDED: 0, NONE: 10 };
+export const deployExitCode = (deployNeeded) =>
+  deployNeeded ? DEPLOY_EXIT.NEEDED : DEPLOY_EXIT.NONE;
+
 // Deploy-time couplings the nx graph cannot express (no import edge). The shell
 // host bundle (nestfolio-host) and the Native-Federation singleton surface
 // (frontend-deps) have no independent deploy target — they are built and uploaded
@@ -198,7 +210,7 @@ function main() {
     console.log('deploy=false');
     console.log('reason=no changes vs base');
     console.log('services=');
-    process.exit(10);
+    process.exit(DEPLOY_EXIT.NONE);
   }
 
   const { deploy: deployNeeded, services: pathServices, triggers, skipped, unknownPaths, seedFiles } = classifyChanges(changedFiles);
@@ -256,7 +268,7 @@ function main() {
     }
   }
 
-  process.exit(deployNeeded ? 0 : 10);
+  process.exit(deployExitCode(deployNeeded));
 }
 
 if (import.meta.url === `file://${process.argv[1]}` || fileURLToPath(import.meta.url) === process.argv[1]) {

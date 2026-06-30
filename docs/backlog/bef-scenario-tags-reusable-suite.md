@@ -2,7 +2,7 @@
 id: bef-scenario-tags-reusable-suite
 status: parking
 type: tooling
-notes: "Add self-declaring `tags: [...]` to scenarios + a runner `--tag=` filter, so a reusable named subset (e.g. core) can be re-run identically before/after backlog-skills-simplification. Build when that epic starts; pin membership only after the corpus is green."
+notes: "Add self-declaring `tags: [...]` to scenarios + a runner `--tag=` filter, so a reusable named subset (e.g. core) can be re-run identically before/after backlog-skills-simplification. Build when that epic starts; pin membership only after the corpus is green. Captured under bef-deterministic-coverage-gaps for unified PR context; un-pointed back to a standalone parking orphan at that epic's close (2026-06-30) — confirmed orthogonal ergonomics work by the captured audit (matches the 2026-06-29 backlog-themes adjudication)."
 references: []
 out_of_scope:
   - "Pinning the canonical subset membership now — defer until bef-baseline-surfaced-scenario-failures gates green (don't canonize a red subset)."
@@ -11,8 +11,6 @@ spec: null
 plan: null
 topic_memory: [project_backlog_eval_framework.md]
 validation_gate: null
-epic: bef-deterministic-coverage-gaps
-epic_role: captured
 ---
 
 # Reusable eval subset via scenario tags + `--tag` filter
