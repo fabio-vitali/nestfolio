@@ -1,8 +1,14 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
+import { spawnSync } from 'node:child_process';
+import { mkdtempSync, rmSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { dirname, resolve, join } from 'node:path';
+import { fileURLToPath } from 'node:url';
 import {
   RUNSTATE_KEYS,
   E8_MARKER,
+  E2E_FRESH_EXIT,
   runStatePath,
   initRunState,
   validateRunState,
@@ -10,6 +16,7 @@ import {
   appendDecision,
   setE2e,
   e2eIsFresh,
+  freshExitCode,
   serializeRunState,
 } from '../runstate.mjs';
 
@@ -100,4 +107,116 @@ test('serializeRunState is pretty-printed with a trailing newline and validates 
   assert.ok(out.endsWith('\n'));
   assert.ok(out.includes('\n  "epic"'));
   assert.throws(() => serializeRunState({ ...fresh(), nope: 1 }), /unknown run-state key/);
+});
+
+// ---------------------------------------------------------------------------
+// CLI exit-code contract for the `e2e-fresh` freshness gate (E7.2 / F-14).
+//
+// The pure predicate e2eIsFresh is unit-tested above. What it does NOT assert — and
+// what the orchestrator's E7.2 ship-precondition actually keys off — is the freshness
+// → EXIT-CODE mapping of `node runstate.mjs e2e-fresh <epic-id>`: exit 0 (recorded
+// green still matches HEAD → safe to ship) vs exit 1 (HEAD moved since the recorded
+// green → a re-opened/reworked member, force a return to E6 before ship). That exit
+// code is the deterministic SEAM the orchestrator reads.
+//
+// bne-e71-chained-gate-unit-coverage: the chained-second-gate invariant (after a
+// captured-promote rework moves HEAD, the batched gate must re-run before ship) is NOT
+// deterministically coverable as a live corpus scenario — its premise is the E7.1
+// audit's model judgment and "the gate ran twice" is uncountable by the substring
+// callLog teeth. This suite gates the deterministic exit-code seam beneath that
+// behavior — the epic's sanctioned "unit test of the orchestrator predicate the live
+// corpus cannot gate". Mirrors the shipped bef-closing-detector / bef-f21-shared-
+// typecheck detect-CLI-exit-contract pattern.
+// ---------------------------------------------------------------------------
+
+const HERE = dirname(fileURLToPath(import.meta.url));
+const RUNSTATE = resolve(HERE, '..', 'runstate.mjs');
+
+// --- the documented codes themselves (pin the values + polarity, not just behavior) ---
+
+test('e2e-fresh exit codes are the documented 0 (fresh) / 1 (stale)', () => {
+  assert.equal(E2E_FRESH_EXIT.FRESH, 0);
+  assert.equal(E2E_FRESH_EXIT.STALE, 1);
+});
+
+// --- the seam: real freshness verdict → real exit-code mapping ---
+
+test('freshExitCode maps the chained-gate freshness verdict to the e2e-fresh exit code', () => {
+  const recorded = setE2e(fresh(), { commands: ['jest', 'pw'], outcome: 'green', sha: 'A' });
+  // (a) recorded green pinned at SHA-A, HEAD still A → fresh → exit 0 (safe to ship)
+  assert.equal(freshExitCode(e2eIsFresh(recorded, 'A')), E2E_FRESH_EXIT.FRESH);
+  // (b)+(c) HEAD moved to B (a re-opened/reworked member) → stale → exit 1 (re-run E6)
+  assert.equal(freshExitCode(e2eIsFresh(recorded, 'B')), E2E_FRESH_EXIT.STALE);
+  // no recorded evidence at all → not fresh → exit 1 (never ship on an unproduced gate)
+  assert.equal(freshExitCode(e2eIsFresh(fresh(), 'A')), E2E_FRESH_EXIT.STALE);
+});
+
+test('freshExitCode is binary 0/1 on the boolean verdict', () => {
+  assert.equal(freshExitCode(true), E2E_FRESH_EXIT.FRESH);
+  assert.equal(freshExitCode(false), E2E_FRESH_EXIT.STALE);
+});
+
+// --- CLI wiring smoke: the real script honors the contract end-to-end, against a REAL
+// HEAD move. Proves main()'s e2e-fresh case routes its exit through freshExitCode +
+// e2eIsFresh + `git rev-parse HEAD` (catches a regression where main() hardcodes a
+// different code or stops reading HEAD). Fully hermetic: a throwaway git repo whose
+// own HEAD is the thing that moves — the literal member scenario "(a) record at SHA-A,
+// (b) move HEAD, (c) assert stale". ---
+
+function git(cwd, args) {
+  const r = spawnSync('git', args, { cwd, encoding: 'utf8' });
+  assert.equal(r.status, 0, `git ${args.join(' ')} failed: ${r.stderr}`);
+  return r.stdout.trim();
+}
+
+function runstate(cwd, args, input) {
+  const r = spawnSync('node', [RUNSTATE, ...args], { cwd, encoding: 'utf8', input });
+  assert.equal(r.error, undefined, `spawn failed: ${r.error?.message}`);
+  return r;
+}
+
+function freshRepo() {
+  const repo = mkdtempSync(join(tmpdir(), 'e2e-fresh-cli-'));
+  git(repo, ['init', '-q', '-b', 'main']);
+  git(repo, ['config', 'user.email', 'test@nestfolio.dev']);
+  git(repo, ['config', 'user.name', 'test']);
+  git(repo, ['commit', '-q', '--allow-empty', '-m', 'm0']);
+  return repo;
+}
+
+test('CLI e2e-fresh: FRESH (exit 0) at the recorded SHA, STALE (exit 1) after HEAD moves', () => {
+  const repo = freshRepo();
+  try {
+    const shaA = git(repo, ['rev-parse', 'HEAD']);
+    // init run-state + record an e2e green pinned to SHA-A (the recorded batched-gate pass)
+    assert.equal(runstate(repo, ['init', 'epic-x', '--branch=feat/epic-epic-x', '--worktree=w']).status, 0);
+    assert.equal(
+      runstate(repo, ['set-e2e', 'epic-x'],
+        JSON.stringify({ commands: ['jest', 'pw'], outcome: 'green', sha: shaA })).status,
+      0,
+    );
+
+    // (a) recorded at SHA-A, HEAD === SHA-A → FRESH (exit 0): safe to ship
+    assert.equal(runstate(repo, ['e2e-fresh', 'epic-x']).status, E2E_FRESH_EXIT.FRESH);
+
+    // (b) move HEAD — simulate the E7.1 audit promoting + reworking a captured member
+    git(repo, ['commit', '-q', '--allow-empty', '-m', 'm1 (member reworked)']);
+
+    // (c) recorded green is now stale → STALE (exit 1): the chained second gate must re-run E6
+    const stale = runstate(repo, ['e2e-fresh', 'epic-x']);
+    assert.equal(stale.status, E2E_FRESH_EXIT.STALE);
+    assert.match(stale.stderr, /e2e STALE/);
+  } finally {
+    rmSync(repo, { recursive: true, force: true });
+  }
+});
+
+test('CLI e2e-fresh: absent run-state exits 3 (never a false-fresh on a missing gate)', () => {
+  const repo = freshRepo();
+  try {
+    // no run-state written → loadOrExit must report absent (exit 3), NOT a freshness verdict
+    assert.equal(runstate(repo, ['e2e-fresh', 'never-inited']).status, 3);
+  } finally {
+    rmSync(repo, { recursive: true, force: true });
+  }
 });
