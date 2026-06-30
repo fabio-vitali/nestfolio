@@ -93,6 +93,16 @@ design choice: a check is written **once** and runs in three **trigger contexts*
   simply a registered check** — an executable test that either passes or files a finding — *not* a
   stored note that drifts. The same move covers **dependencies**: a precondition is just a check
   (see §8 cautions).
+- **The same move binds the project's own artifacts.** A spec, an architecture doc, a flow definition
+  is not a separate binding subsystem — each is a **dossier** in the knowledge store *or* the
+  **reference a `staleness`/`inconsistency` check validates code against** (a broken path, or a flow
+  that no longer matches the code, is just a finding). So "bind the Runtime to the repo's specs and
+  flows" needs no new mechanism — it is checks pointed at those references.
+- **Checks are cost-tiered across their contexts.** The one library spans cheap deterministic checks
+  (run as **gates** on every item) and expensive judgment-or-live checks (run as scheduled **audits**,
+  or **batched once at an epic boundary** — e.g. the live-e2e suite — never per item). *Where* a check
+  runs is chosen by its cost as much as its meaning: *exit 0 ≠ pass*, but neither does "run the whole
+  suite on every edit."
 - One thing to build, test, and port.
 
 ---
@@ -185,6 +195,17 @@ fungible. The seams already exist (worker/orchestrator split, Skill-tool routing
 this *names* an existing discipline more than it adds one. **Derived rule:** *subagents for fan-out,
 never to hide the interactive worker* (the Tier-2 scar, §8).
 
+**Two axes of portability — harness *and* project.** The adapter above keeps the core from depending
+on any *harness*; a second, parallel seam keeps it from depending on any *project*. Everything
+specific to the codebase under management — its architecture invariants (for Nestfolio: "no API
+between services," "all handlers are event-processor pipelines," the 7-construct CDK shape), its flow
+specs, its domain dossiers — lives entirely in the **per-project check library + knowledge store +
+adapter bindings.** The engine — queue, planner, loop, state machine — knows none of it. So the
+Runtime binds to **no** architecture: serverless, monolith, event-driven, microfrontend are all just
+content the checks encode. The architecture coupling is real but **quarantined**, exactly as the
+harness coupling is. This is the honest answer to "should the Runtime assume Nestfolio's shape?" —
+no: Nestfolio is the first *check library*, not a constraint on the engine.
+
 ---
 
 ## 8. Design laws and hard-won cautions
@@ -202,6 +223,20 @@ never to hide the interactive worker* (the Tier-2 scar, §8).
 5. **Evidence before done** — nothing is "shipped" without proof; *exit 0 ≠ pass*.
 6. **Stateless executor** — the agent is disposable; all state lives on disk; a `/clear` is free.
 7. **Harness-agnostic core, maximal adapter** — progressive enhancement (§7).
+
+**Operational laws (corollaries that earned their own name).** These do not compete with the seven
+above — each is a tightening of one of them that proved load-bearing enough to state outright.
+
+8. **Scoped wake** (a tightening of *stateless executor*) — each wake hands the executor the *minimal
+   sufficient* payload: the active item, the **scope** it touches, and only the dossiers and checks
+   that scope reaches — never the whole store. Context economy is the operational complement to a
+   disposable executor: a fungible executor is only *cheap* if each wake is *small*. (An audit already
+   runs over a **scope**; this law extends the same scoping to what an item's worker is handed.)
+9. **Legibility** (the positive form of the Tier-2 scar below, plus *the floor*) — the developer can
+   always see what is **active**, what is **queued** and *why* (the derived priority), what findings
+   are open, and what is **paused on the floor** — and can interject at any point. State the developer
+   cannot see cannot be trusted or corrected; keep the decision-bearing spine *visible*, not just
+   inline.
 
 **Hard-won cautions — open directions, not bans.**
 
@@ -258,7 +293,35 @@ collapse into corollaries of the laws above, so neither adds a new prohibition.
 
 ---
 
-## 10. Open questions (next phase)
+## 10. Relationship to the current system (does it replace the backlog?)
+
+The Runtime does **not** discard the Nestfolio `backlog-*` suite — it **promotes it to the reference
+implementation.** This document is the de-facto runtime that suite already grew into, re-stated in
+plain vocabulary (the `(was …)` renames in §6 are exactly this: `backlog-add → intake`,
+`backlog-themes → grouping pass`, `parking → later`, `preflight/postflight → pre/post-checks`). Most
+components already exist in embryo:
+
+| Runtime component | Today in Nestfolio |
+|---|---|
+| index · linter | `BACKLOG.md` (generated) · `backlog-lint` (11 invariants, `--fix`) |
+| intake · grouping pass | `backlog-add` (epic-aware router) · `backlog-themes` |
+| planner (`next` · `rank` · `impact`) | `backlog-next` routing + read-time index regeneration |
+| execution engine (worker · orchestrator) | `backlog-next` (single) · `backlog-next-epic` (epic) |
+| gates · audits | pre/postflight gates · the `audit-*` skills + nx targets (e.g. read-model-drift) |
+| knowledge store | `MEMORY.md` topic dossiers + `docs/architecture/*` |
+| eval harness | `benchmark-backlog` (the grading harness) |
+
+The genuinely **new** surface is the **watch engine + invariant registry + learning-loop closure**
+(§3's backward edge): today checks are scattered across skills, nx targets, and pre-commit hooks with
+no single registry, and the *lesson → registered check → eval scenario* path is human-stitched
+(§11.4). So "replace the backlog system" is the wrong frame — the move is: **generalize its engine,
+name its parts, add the watch loop, and quarantine its Nestfolio-specific content into the per-project
+check library (§7).** It keeps working *with* Nestfolio precisely because Nestfolio becomes its first
+check library, not a constraint baked into the engine.
+
+---
+
+## 11. Open questions (next phase)
 
 1. **Product name** — TBD (plain, standard; chosen later).
 2. **Realization taxonomy** — how each component becomes one of the end-goal artifact types:
@@ -271,3 +334,11 @@ collapse into corollaries of the laws above, so neither adds a new prohibition.
 5. **The deep fork** — is the spine the **item** (work-centric, today's shape) or the **check**
    (consistency-centric, where work is just how a failing check gets resolved)? §4 leans toward the
    check being the atom; whether it becomes the organizing *spine* is the central next decision.
+6. **Configuration surface** — which policies are tunable knobs (rank weights, lane thresholds, the
+   floor's sensitivity) versus *derived or checked*; and how configuration itself avoids becoming the
+   drift-prone stored state law 2 forbids (a stored knob that nothing re-validates is the same scar as
+   §8's `severity` field).
+7. **Operational surface** — should the developer-facing view (law 9) merely *render* runtime state,
+   or also *run* tools and operations (deploys, data queries, triggering an audit)? Leaning:
+   operations run through the single executor + adapter, not a parallel console — but a read-mostly
+   view with a few safe, floor-gated actions is open.
