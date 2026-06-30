@@ -1,8 +1,9 @@
 ---
 id: bef-deterministic-coverage-gaps
-status: active
+status: shipped
 type: epic
-notes: "ACTIVE delivery epic (promoted 2026-06-29 from theme): resolve the backlog-eval corpus's deterministic-teeth gaps — substring callLog matching + end-state proxies can't reliably gate nondeterministic, multi-step MODEL-BEHAVIOR invariants under headless `claude -p`. 4 CORE members (the determinism cluster) gate done_when; 3 CAPTURED riders (judge-blind harness bug, scenario-tags ergonomics, cost-figures doc nit) ride along for unified one-branch/one-PR context but do NOT gate closure. Work via /backlog-next-epic; captured audit at pre-done."
+closed: 2026-06-30
+notes: "SHIPPED 2026-06-30. Resolved the backlog-eval corpus's deterministic-teeth gaps — substring callLog matching + end-state proxies can't reliably gate nondeterministic, multi-step MODEL-BEHAVIOR invariants under headless `claude -p`. All 4 CORE members shipped: 1 flake-face de-flake (dropped the flaky branchCreated proxy for terminal+rubric) + 3 un-gateable-face fixes that moved the deterministic signal to named unit tests of the orchestrator predicate/freshness seams (CLI exit-code contracts for detect-deploy-needed / detect-doc-derivation / detect-fork-blast-radius, and runstate e2e-fresh). The 3 CAPTURED riders (judge-blind harness bug, scenario-tags ergonomics, cost-figures doc nit) passed the captured audit as genuinely orthogonal and were un-pointed back to standalone parking orphans (matching the 2026-06-29 backlog-themes adjudication). One PR. See [[project_backlog_eval_framework]]."
 done_when: "Each in-scope bef invariant has a DETERMINISTIC regression signal that does not depend on nondeterministic model behavior under headless `claude -p` — either a deterministic call-log tooth on an elicitable action (replacing a flaky end-state/rubric proxy) or a unit test of the orchestrator predicate/freshness logic the live corpus cannot gate; all members shipped or dropped."
 scope: "bef corpus scenarios/invariants whose deterministic gate fails because the signal rides nondeterministic, multi-step model behavior under headless `claude -p`: (1) an EXISTING scenario whose end-state/rubric proxy flakes because the worker action it proxies is nondeterministic; (2) a DROPPED invariant whose premise is a model judgment or multi-step model execution that substring callLog / end-state proxies cannot assert, so its real coverage belongs at the unit level (predicate routing/execution, freshness logic). Fix pattern: move the deterministic signal off the flaky model-behavior proxy — to a call-log tooth where elicitable, else to a named unit test."
 out_of_scope:
@@ -13,7 +14,7 @@ references: []
 spec: null
 plan: null
 topic_memory: [project_backlog_eval_framework.md]
-validation_gate: null
+validation_gate: "Deterministic gate GREEN at branch tip 35b4da9e (the e2e-validated SHA): backlog-next-epic 61/61 + backlog-next 49/49 + benchmark-backlog 64/64 (incl. 'every scenario passes the structural lint', 'every scenario references an existing fixture dir') — the CLI exit-code-contract + e2e-fresh unit tests the 4 core members produced, plus the de-flaked next-lane-complex scenario. Expensive Jest-e2e/Playwright NO-OP: detect-deploy-needed deploy=false (all branch changes Tier 0 — skill .mjs helpers + their unit tests + 1 eval scenario + backlog docs; no service/frontend/flow touched, nothing deployable to exercise). Per-member integration gates were green at each member ship. 3 orthogonal captured riders un-pointed to standalone parking orphans at close (decision log entry 4). One PR."
 ---
 
 # bef deterministic coverage gaps — model-behavior invariants vs the corpus's teeth
@@ -57,3 +58,14 @@ load-bearing is promoted to core, the rest spin out to `<epic>-leftovers` if sti
 - `bef-judge-blind-to-subworktree-diff` (harness bug: the LLM judge can't see sub-worktree diffs → incomplete grading evidence; latent today. Distinct fix: make the judge see the full diff)
 - `bef-scenario-tags-reusable-suite` (ergonomics: self-declaring scenario tags + a `--tag` runner filter for reusable named subsets)
 - `benchmark-backlog-skill-cost-figures-stale` (doc nit: `benchmark-backlog/SKILL.md` hardcodes a stale "6 bne scenarios" cost figure vs the live corpus)
+
+### Disposition at close (2026-06-30)
+
+The captured audit re-tested all 3 against `done_when` and confirmed each is **genuinely orthogonal**
+(harness bug / ergonomics feature / doc nit — none load-bearing for the determinism predicate). Rather
+than mint a `bef-deterministic-coverage-gaps-leftovers` bucket, each was **un-pointed back to a
+standalone parking orphan** (removed `epic:`/`epic_role:`): `backlog-themes` had already adjudicated
+these exact 3 on 2026-06-29 (recorded in the now-`dropped` `backlog-eval-corpus-hardening-leftovers`) as
+heterogeneous with **no single root cause** → orphans. Minting the leftovers shell would recreate a
+just-dissolved bucket for the identical items. Un-pointing is the stable, rule-9-compliant fixed point
+(see decision-log entry 4 in the PR body).
