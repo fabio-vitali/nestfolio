@@ -1,6 +1,6 @@
 ---
 id: runtime-spec-3-forward-edge-impl
-status: parking
+status: active
 rank: null
 type: feature
 epic: runtime-realization
@@ -13,7 +13,7 @@ out_of_scope:
 spec: docs/superpowers/specs/2026-07-01-runtime-spec-3-forward-edge-and-capability-seams.md
 plan: null
 topic_memory: []
-notes: "Slice 3 of runtime-realization — forward edge & capability seams: watch/intake/planner/execution + the scope-gate, the six capability interfaces + the <<HARNESS-PAUSE>> sentinel, the journal idempotency contract, three-rings/two-seams, the no-lost-value equivalence map (migrates surfaces into content-ring YAML), the eval harness, the starter library + on-ramp, the operational surface. PARKING until SPECs 1 AND 2 ship — its plan is authored INLINE at MAX effort against their MERGED contracts. Promote parking→active via /backlog-next once SPEC 2 ships (remove this trigger sentence on promotion)."
+notes: "Slice 3 of runtime-realization — forward edge & capability seams: watch/intake/planner/execution + the scope-gate, the six capability interfaces + the <<HARNESS-PAUSE>> sentinel, the journal idempotency contract, three-rings/two-seams, the no-lost-value equivalence map (migrates surfaces into content-ring YAML), the eval harness, the starter library + on-ramp, the operational surface. Promoted parking→active 2026-07-01: trigger fired — SPEC 1 (runtime-spec-1-check-registry-impl) AND SPEC 2 (runtime-spec-2-backward-edge-impl) both shipped, so its plan is authored INLINE at MAX effort against their MERGED, battle-tested contracts."
 ---
 
 # SPEC 3 — forward edge & capability seams — build
