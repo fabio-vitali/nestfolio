@@ -15,7 +15,7 @@ out_of_scope:
   - Physically relocating `tools/*-exclusions.json` or rewriting `backlog-lint`/`audit-*`/nx drift targets to route through the registry — realization detail, not the core schema+helpers.
   - The capability adapters and the harness seam (SPEC 3, seam #1) — ring-1 core depends outward on nothing.
 spec: docs/superpowers/specs/2026-07-01-runtime-spec-1-check-registry-and-atom.md
-plan: null
+plan: docs/superpowers/plans/2026-07-01-runtime-spec-1-check-registry-impl.md
 topic_memory: []
 notes: "Slice 1 of the runtime-realization epic — build SPEC 1, the check registry & hybrid atom (ring-1 core: check/item/finding schemas, four finding kinds, three contexts, lifecycle state machine, meta-check + rot-detectors, git-native layout + the six typed helpers loadRegistry/resolveEvaluator/runCheck/findByScope/advanceLifecycle/metaCheck). Foundational: freezes the schema SPEC 2 & 3 consume. Phase 1 = re-author the implementation plan INLINE at Opus 4.8 MAX effort (the first plan was written at default effort and DELETED by the user); then execute inline + visible (TDD) on an isolated worktree → own PR. Ring-1 stays project-/harness-agnostic; Nestfolio's live checks are the first content-ring proof slice."
 ---
