@@ -11,7 +11,7 @@ out_of_scope:
   - "SPEC 1 (registry/atom) and SPEC 2 (backward edge) — separate slices of runtime-realization."
   - "A second host adapter / full 34-surface content-ring migration — beyond this slice's proof scope."
 spec: docs/superpowers/specs/2026-07-01-runtime-spec-3-forward-edge-and-capability-seams.md
-plan: null
+plan: docs/superpowers/plans/2026-07-01-runtime-spec-3-forward-edge-impl.md
 topic_memory: []
 notes: "Slice 3 of runtime-realization — forward edge & capability seams: watch/intake/planner/execution + the scope-gate, the six capability interfaces + the <<HARNESS-PAUSE>> sentinel, the journal idempotency contract, three-rings/two-seams, the no-lost-value equivalence map (migrates surfaces into content-ring YAML), the eval harness, the starter library + on-ramp, the operational surface. Promoted parking→active 2026-07-01: trigger fired — SPEC 1 (runtime-spec-1-check-registry-impl) AND SPEC 2 (runtime-spec-2-backward-edge-impl) both shipped, so its plan is authored INLINE at MAX effort against their MERGED, battle-tested contracts."
 ---
