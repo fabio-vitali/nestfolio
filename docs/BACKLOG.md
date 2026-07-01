@@ -154,6 +154,13 @@ rollup: core 0/2 done · captured 0/0 done
 - core · parking · [e2e-contract-emission-bytypename-helper-extract](backlog/e2e-contract-emission-bytypename-helper-extract.md)
 - core · parking · [generalise-appsync-iam-publisher-lib](backlog/generalise-appsync-iam-publisher-lib.md)
 
+### [runtime-realization](backlog/runtime-realization.md) `[epic · parking]` — Delivery epic orchestrating the BUILD of the Long-Horizon Engineering Runtime from its three realization specs (derived + shipped in runtime-realization-specs). THREE SEQUENTIAL VERTICAL SLICES in dependency order — SPEC 1 (ring-1 check registry & hybrid atom) → SPEC 2 (backward edge / learning loop, the moat) → SPEC 3 (forward edge & capability seams). Each slice: plan → build → ship as its OWN complex-lane PR; the next slice's plan is then authored against the prior slice's MERGED, battle-tested contract. METHOD (user-decided): plan authoring = INLINE, Opus 4.8 MAX effort, one slice at a time (NEVER batch all 3 plans up front — building SPEC 1 re-freezes schema deltas SPECs 2/3 consume; ≥3 already found); plan review = OPTIONAL ultracode adversarial pass per plan before build; execution = INLINE + visible (user preference + vision legibility law), TDD, isolated worktree per slice; ultracode reserved for execution FAN-OUT only where a plan's tasks are genuinely independent. Members worked INDIVIDUALLY via /backlog-next (per-spec PRs) — deliberately NOT the batched single-branch /backlog-next-epic flow (the frozen-contract dependency forbids building SPEC 2 before SPEC 1 is merged). Precedent for a delivery epic drained via individual member PRs from parking: order-execution-money-path. The first SPEC 1 plan was authored then DELETED (user forgot max-effort); slice 1 restarts with a fresh max-effort plan.
+done_when: All three core build slices shipped. SPEC 1: ring-1 engine (check/item/finding schemas + the six typed helpers loadRegistry/resolveEvaluator/runCheck/findByScope/advanceLifecycle/metaCheck, all §13 golden gates green) + its content-ring proof slice. SPEC 2: the backward-edge learning loop (mint/curate at the floor, provenance/supersession, enforcement-as-memory) dogfooded on the 5 real mechanizable feedback_* lessons. SPEC 3: forward edge + the six capability interfaces + journal + the no-lost-value equivalence map + its proof slice. Each built TDD-first and dev-verified; every §15 re-freeze delta surfaced during a build reconciled back into SPEC 1. Every core member shipped or dropped.
+rollup: core 0/3 done · captured 0/0 done
+- core · active · [runtime-spec-1-check-registry-impl](backlog/runtime-spec-1-check-registry-impl.md)
+- core · parking · [runtime-spec-2-backward-edge-impl](backlog/runtime-spec-2-backward-edge-impl.md)
+- core · parking · [runtime-spec-3-forward-edge-impl](backlog/runtime-spec-3-forward-edge-impl.md)
+
 ### [ssm-override-warm-cache-test-isolation](backlog/ssm-override-warm-cache-test-isolation.md) `[epic · parking]` — Warm-Lambda Parameters-and-Secrets SSM cache (+ override/restore state) defeats SsmOverrideFixture → real-API leak + resilience-trap misses. Theme epic, 2 members.
 done_when: A warm Lambda can no longer serve restored/real SSM param values mid-test (cache-bust or fixture-aware invalidation), so SsmOverrideFixture isolation holds; both members shipped or dropped.
 rollup: core 0/2 done · captured 0/0 done
@@ -195,12 +202,11 @@ rollup: core 0/3 done · captured 0/0 done
 - core · parking · [portfolio-drift-detected-registry-collision](backlog/portfolio-drift-detected-registry-collision.md)
 - core · parking · [weight-drift-detector](backlog/weight-drift-detector.md)
 
-**Parking health:** 29 theme epic(s), 11 orphan(s) — drive orphans → 0 with `/backlog-themes`
+**Parking health:** 30 theme epic(s), 11 orphan(s) — drive orphans → 0 with `/backlog-themes`
 
 ## ACTIVE
 
-_(none)_
-
+- [runtime-spec-1-check-registry-impl](backlog/runtime-spec-1-check-registry-impl.md) [feature] — Slice 1 of the runtime-realization epic — build SPEC 1, the check registry & hybrid atom (ring-1 core: check/item/finding schemas, four finding kinds, three contexts, lifecycle state machine, meta-check + rot-detectors, git-native layout + the six typed helpers loadRegistry/resolveEvaluator/runCheck/findByScope/advanceLifecycle/metaCheck). Foundational: freezes the schema SPEC 2 & 3 consume. Phase 1 = re-author the implementation plan INLINE at Opus 4.8 MAX effort (the first plan was written at default effort and DELETED by the user); then execute inline + visible (TDD) on an isolated worktree → own PR. Ring-1 stays project-/harness-agnostic; Nestfolio's live checks are the first content-ring proof slice. `[epic:runtime-realization · core]`
 
 ## QUEUED
 
