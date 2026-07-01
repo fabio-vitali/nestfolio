@@ -1,6 +1,11 @@
 ---
 name: No DDB seeding in integration tests
-description: Integration test fixtures must populate state via events or mutations, never DdbSeedFixture or direct DDB writes
+description: Integration test fixtures must populate state via events or
+  mutations, never DdbSeedFixture or direct DDB writes
 type: feedback
+mints:
+  - check: no-ddb-seed-in-integration
+    ratified: 2026-07-01T16:17:05.233Z
+    status: active
 ---
 Integration test fixtures must NEVER write directly to service DDB tables. Populate state through the application's own pipelines: EventBridge events or AppSync mutations. (In-repo ring-2 mirror.)

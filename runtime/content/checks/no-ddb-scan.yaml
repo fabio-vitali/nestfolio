@@ -1,0 +1,21 @@
+id: no-ddb-scan
+property: No ScanCommand/.scan(/scanAll under services/**/src, and no
+  FilterExpression on a GSI key attribute (__typename/tenantId/timestamp).
+kind: drift
+evaluator:
+  type: deterministic
+  run: cmd:node tools/check-no-ddb-scan.mjs
+cost_tier: cheap
+contexts:
+  - invariant
+  - gate
+scope:
+  paths:
+    - services/**/src/**/*.ts
+  dossiers:
+    - feedback_no_scan_no_filter.md
+status: active
+provenance:
+  minted_by: no-ddb-scan-guard
+  lesson: feedback_no_scan_no_filter.md
+  ratified: 2026-07-01T16:17:05.225Z

@@ -1,0 +1,22 @@
+id: no-agent-result-fallback
+property: No ?? {} / ?? [] fallback on an AgentCore/orchestrator invocation
+  result in advisory agent services.
+kind: drift
+evaluator:
+  type: deterministic
+  run: cmd:node tools/check-no-agent-result-fallback.mjs
+cost_tier: cheap
+contexts:
+  - invariant
+  - gate
+scope:
+  paths:
+    - services/advisory/**/src/**/*.ts
+  dossiers:
+    - feedback_no_silent_fallback_in_agent_results.md
+  exclusions: tools/agent-result-fallback-exclusions.json
+status: active
+provenance:
+  minted_by: no-agent-result-fallback-guard
+  lesson: feedback_no_silent_fallback_in_agent_results.md
+  ratified: 2026-07-01T16:17:05.232Z

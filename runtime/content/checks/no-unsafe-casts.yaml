@@ -1,0 +1,22 @@
+id: no-unsafe-casts
+property: No unsafe double-cast, as-any, or eslint-disable in production source
+  (services/libs/apps **/src, excluding test/**).
+kind: drift
+evaluator:
+  type: deterministic
+  run: cmd:node tools/check-no-unsafe-casts.mjs
+cost_tier: cheap
+contexts:
+  - invariant
+scope:
+  paths:
+    - services/**/src/**/*.ts
+    - libs/**/src/**/*.ts
+    - apps/**/src/**/*.ts
+  dossiers:
+    - feedback_prefer_libraries_over_casts.md
+status: active
+provenance:
+  minted_by: no-unsafe-casts-guard
+  lesson: feedback_prefer_libraries_over_casts.md
+  ratified: 2026-07-01T16:17:05.234Z

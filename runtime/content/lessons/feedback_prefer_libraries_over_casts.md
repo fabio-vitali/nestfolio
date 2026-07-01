@@ -1,6 +1,12 @@
 ---
 name: Prefer libraries over type casts
-description: Use proper libraries (aws-sdk-client-mock, etc.) instead of type casts or eslint-disable; research ecosystem solutions before hand-rolling workarounds
+description: Use proper libraries (aws-sdk-client-mock, etc.) instead of type
+  casts or eslint-disable; research ecosystem solutions before hand-rolling
+  workarounds
 type: feedback
+mints:
+  - check: no-unsafe-casts
+    ratified: 2026-07-01T16:17:05.234Z
+    status: active
 ---
 Always propose ecosystem libraries over manual workarounds, unsafe type casts, or lint suppression. (In-repo ring-2 mirror.)

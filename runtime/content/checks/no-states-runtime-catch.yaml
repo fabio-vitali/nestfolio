@@ -1,0 +1,20 @@
+id: no-states-runtime-catch
+property: No Step Functions Catch/Retry whose ErrorEquals includes States.Runtime.
+kind: drift
+evaluator:
+  type: deterministic
+  run: cmd:node tools/check-no-states-runtime-catch.mjs
+cost_tier: cheap
+contexts:
+  - invariant
+  - gate
+scope:
+  paths:
+    - services/**/src/**/*.ts
+  dossiers:
+    - feedback_states_runtime_uncatchable.md
+status: active
+provenance:
+  minted_by: no-states-runtime-catch-guard
+  lesson: feedback_states_runtime_uncatchable.md
+  ratified: 2026-07-01T16:17:05.236Z
