@@ -1,0 +1,4 @@
+{
+  "checksDir": "runtime/content/checks",
+  "exclusionsRoot": "runtime/content/exclusions"
+}

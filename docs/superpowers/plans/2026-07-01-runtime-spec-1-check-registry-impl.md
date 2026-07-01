@@ -140,13 +140,13 @@ runtime/
       "executor": "nx:run-commands",
       "cache": true,
       "inputs": ["{projectRoot}/engine/**/*", "{projectRoot}/content/**/*", "{projectRoot}/runtime.config.json"],
-      "options": { "command": "node --test runtime/engine/test/*.test.mjs" }
+      "options": { "command": "node --test runtime/engine/test/*.test.mjs", "forwardAllArgs": false }
     },
     "typecheck": {
       "executor": "nx:run-commands",
       "cache": true,
       "inputs": ["{projectRoot}/engine/schema/**/*.ts", "{projectRoot}/tsconfig.json", "{workspaceRoot}/tsconfig.base.json"],
-      "options": { "command": "tsc --noEmit -p runtime/tsconfig.json" }
+      "options": { "command": "tsc --noEmit -p runtime/tsconfig.json", "forwardAllArgs": false }
     }
   },
   "tags": ["scope:runtime", "type:lib"]
