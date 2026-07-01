@@ -98,17 +98,19 @@ test('runtime.config.json carries the triggersFile binding', () => {
   assert.equal(cfg.triggersFile, 'runtime/content/triggers.yaml');
 });
 
-test('project.json test target discovers loop + adapter test trees', () => {
+test('project.json test + typecheck targets discover the new trees', () => {
   const proj = JSON.parse(readFileSync('runtime/project.json', 'utf8'));
   const cmd = proj.targets.test.options.command;
   assert.match(cmd, /engine\/loop\/test\/\*\.test\.mjs/);
   assert.match(cmd, /adapters\/\*\*\/test\/\*\.test\.mjs/);
+  // the typecheck cache MUST bust on a capability-contract type edit (else a broken contract stays green)
+  assert.match(JSON.stringify(proj.targets.typecheck.inputs), /engine\/\*\*\/\*\.ts|capabilities/);
 });
 
-test('tsconfig includes the capability + journal .ts contracts', () => {
+test('tsconfig includes the capability contract + the journal schema explicitly', () => {
   const ts = JSON.parse(readFileSync('runtime/tsconfig.json', 'utf8'));
   assert.ok(ts.include.some((g) => g.includes('capabilities')));
-  assert.ok(ts.include.some((g) => g.includes('journal.schema')));
+  assert.ok(ts.include.includes('engine/schema/journal.schema.ts'));   // non-vacuous: an explicit entry
 });
 ```
 
@@ -129,21 +131,20 @@ Expected: FAIL — `triggersFile` undefined; command lacks the new globs; includ
 }
 ```
 
-`runtime/project.json` — extend ONLY the `test` command (leave `inputs`/`cache` intact, add the two globs):
+`runtime/project.json` — (a) extend the `test` command + add `"{projectRoot}/adapters/**/*"` to the `test` target `inputs`; (b) **widen the `typecheck` target `inputs`** — the current `engine/**/schema/**/*.ts` glob misses `engine/capabilities/*.ts`, so a type error in the capability contract would return a stale-green cache:
 
 ```json
+// test target — command:
 "command": "node --test runtime/engine/test/*.test.mjs runtime/engine/backward/test/*.test.mjs runtime/engine/loop/test/*.test.mjs runtime/adapters/**/test/*.test.mjs"
+// typecheck target — replace the schema-only inputs glob with the whole .ts surface:
+"inputs": ["{projectRoot}/engine/**/*.ts", "{projectRoot}/tsconfig.json", "{workspaceRoot}/tsconfig.base.json"]
 ```
 
-Also add `"{projectRoot}/adapters/**/*"` to the `test` target `inputs` array (so adapter edits bust the cache).
-
-`runtime/tsconfig.json` — extend `include`:
+`runtime/tsconfig.json` — extend `include` (the explicit `journal.schema.ts` entry is redundant with the `engine/schema/**` glob but keeps the wiring test's assertion **non-vacuous** — it verifies the journal contract is deliberately in the typecheck set):
 
 ```json
-"include": ["engine/schema/**/*.ts", "engine/backward/schema/**/*.ts", "engine/capabilities/**/*.ts"]
+"include": ["engine/schema/**/*.ts", "engine/schema/journal.schema.ts", "engine/backward/schema/**/*.ts", "engine/capabilities/**/*.ts"]
 ```
-
-(`engine/schema/**/*.ts` already covers `journal.schema.ts`; `engine/capabilities/**/*.ts` adds the new contract. The test asserts both patterns are present — `journal.schema` is matched by the existing `engine/schema/**` glob, so also add an explicit `"engine/schema/journal.schema.ts"`? No — keep globs; update the test to check the covering glob. Adjust the tsconfig test assertion to `ts.include.some(g => g.includes('schema'))` for journal, which the existing glob satisfies.)
 
 Create `runtime/content/triggers.yaml` (§6.1) — the cadence config; itself a checked knob:
 
@@ -513,6 +514,20 @@ test('A5: a parked ask fulfilled by a Choice resumes with the recorded choice �
   assert.equal(calls, 0);                           // the human is NOT re-asked
 });
 
+test('A5b: a parked ask survives a process restart — awaiting→fulfil→step through the git-native NDJSON', async () => {
+  const root = freshRoot();                         // durability is the load-bearing §4.3 guarantee — prove it on DISK, not in-memory
+  const j1 = makeJournal({ root }); j1.begin('item-a', meta('item-a'));
+  const decision = { id: 'd', question: 'merge?', options: [{ label: 'Merge', value: 'merge', recommended: true }] };
+  j1.awaiting('item-a', 'ship.merge', decision);
+  const j2 = makeJournal({ root });                 // fresh instance = process restart, reads NDJSON from disk
+  j2.fulfil('item-a', 'ship.merge', { decisionId: 'd', value: 'merge' });
+  const j3 = makeJournal({ root });                 // another restart — resume
+  let calls = 0;
+  const v = await j3.step('item-a', 'ship.merge', async () => { calls++; return 'x'; });
+  assert.equal(v.value, 'merge');                   // recorded Choice survived NDJSON append + RecordedDecision validation
+  assert.equal(calls, 0);                           // the human is NOT re-asked after a restart
+});
+
 test('A6: e2e freshness — a recorded e2e sha not matching HEAD is stale (forces return to E6)', () => {
   const j = inMemoryJournal(); j.begin('epic-b', meta('epic-b'));
   j.record('epic-b', 'e2e', { sha: 'abc', green: true });
@@ -613,17 +628,25 @@ export function inMemoryJournal() {
   });
 }
 
-/** e2e-freshness helper (F-14): the recorded e2e step's sha must match HEAD. */
+/** e2e-freshness helper (F-14). NOTE: journal.step is sha-AGNOSTIC — it short-circuits on ANY 'complete'
+ *  record for a key, regardless of HEAD. e2e freshness is therefore a SEPARATE mechanism: F2 records the
+ *  result via journal.record('e2e', {sha, green}) and gates re-runs with e2eIsFresh(ledger, HEAD) BEFORE
+ *  deciding to re-run — a moved HEAD ⇒ stale ⇒ return to E6. Do NOT model e2e freshness as a step() replay. */
 export function e2eIsFresh(ledger, headSha) {
   const rec = ledger?.steps?.get('e2e');
   return !!rec && rec.value?.sha === headSha;
+}
+
+/** HEAD sha (cwd-independent) — the freshness key for the epic-pre-done e2e batch (F-14, §5). */
+export function gitHeadSha(exec = (c) => execSync(c, { encoding: 'utf8' })) {
+  return exec('git rev-parse HEAD').trim();
 }
 ```
 
 - [ ] **Step 4: Run test to verify it passes**
 
 Run: `node --test runtime/engine/test/journal.test.mjs`
-Expected: PASS (6/6).
+Expected: PASS (7/7).
 
 - [ ] **Step 5: Commit**
 
@@ -637,7 +660,7 @@ git --no-pager log --oneline -1
 
 ## Phase D — Seam unification: migrate SPEC 2's backward edge onto the formal `ask`/`journal` (fork Q1)
 
-**Decision realized:** SPEC 2 shipped a placeholder seam (`inMemoryJournal` with `has/get/record`; `headlessAsk` returning `{sentinel}`). This phase makes SPEC 3's formal `Journal` + `Decision`/`Choice` the single contract — the strict-superset made literal. **The backward edge becomes `async`** (it now awaits `journal.step` + `ask`), gaining resume-by-replay for free. **Every task ends with the full backward-suite regression gate** (`node --test runtime/engine/backward/test/*.test.mjs`) — the 16 shipped test files stay green throughout. **Migration invariants:** (a) `present-floor` preserves its `{choice, selected, sentinel}` return so `mint`/`curate` change only by `async`/`await`; (b) all backward idempotency uses a single `runId='backward'` with the existing composite keys (`mint:<id>:ratify`, `curate:<id>:<transition>`), so keys are unchanged; (c) the `<<HARNESS-PAUSE: <act> <id>>>` sentinel string is preserved verbatim (the runner's `PAUSE_RE` depends on it).
+**Decision realized:** SPEC 2 shipped a placeholder seam (`inMemoryJournal` with `has/get/record`; `headlessAsk` returning `{sentinel}`). This phase makes SPEC 3's formal `Journal` + `Decision`/`Choice` the single contract — the strict-superset made literal. **The backward edge becomes `async`** (it now awaits `journal.step` + `ask`), gaining resume-by-replay for free. **Every task ends with the full backward-suite regression gate** (`node --test runtime/engine/backward/test/*.test.mjs`) — the 16 shipped test files stay green throughout. **Migration invariants:** (a) `present-floor` preserves its `{choice, selected, sentinel}` return so `mint`/`curate` *lib* code changes only by `async`/`await` — but their **test-injected `ask` fakes move to the formal `Choice` shape** `async (d)=>({decisionId:d.id, value:X})` (D5 Step 1), since the new `presentFloor` reads `answer.value`; (b) all backward idempotency uses a single `runId='backward'` with the existing composite keys (`mint:<id>:ratify`, `curate:<id>:<transition>`), so keys are unchanged; (c) the `<<HARNESS-PAUSE: <act> <id>>>` sentinel string is preserved verbatim (the runner's `PAUSE_RE` depends on it).
 
 ### Task D1: `backward/lib/capabilities.mjs` — formal Journal default + `ask(Decision)→Choice` headless default
 
@@ -827,22 +850,23 @@ git --no-pager log --oneline -1
 
 **Interfaces:**
 - Consumes: `inMemoryJournal` (default); `landEvalScenario`, `advanceLifecycle`, `reconcileLesson` (unchanged, sync).
-- Produces: `export async function registerRatified({draft, floorApproval, journal, checksDir, dossierRoot, scenariosDir})→Promise<{check, decision, landing, mints}>`. The atomic unit is `journal.step('backward', 'mint:<id>:ratify', fn)`: replay ⇒ the recorded result, side effects skipped.
+- Produces: `export async function registerRatified({draft, floorApproval, journal, checksDir, dossierRoot, scenariosDir})→Promise<{check, event, decision, landing, mints}>` — `event` is preserved from `advanceLifecycle`. **Refusal** (floorless/illegal) returns `{check, event:'REFUSED_NO_FLOOR', landing, decision:null, mints:[]}` BEFORE `journal.step` — NOT recorded (so a later floor-approved ratify can still proceed) and NO check yaml. The atomic durable unit is `journal.step('backward', 'mint:<id>:ratify', fn)` guarding **only the success path**: replay ⇒ the recorded result, side effects skipped.
 
-- [ ] **Step 1: Update the failing test** — add the replay assertion (the resume-by-replay bonus):
+- [ ] **Step 1: Update the failing test** — `await` every call; add the replay assertion; keep the floorless-refusal test (RR2) green:
 
-In `register-ratified.test.mjs`, make every `registerRatified(...)` call `await`ed, and add:
+In `register-ratified.test.mjs`, make every `registerRatified(...)` call `await`ed. **The existing RR2 test** (`floorApproval:false` ⇒ `decision:null`, `event:'REFUSED_NO_FLOOR'`, no `${id}.yaml`) is what locks the event-guard — DO NOT weaken it to a `check == null` assertion (the candidate check is **non-null** on refusal). Add the replay test:
 
 ```js
-test('a second registerRatified with the same journal replays — no double land/advance/reconcile', async () => {
+test('a second registerRatified with the same journal replays — the journaled effects (yaml write + reconcile) run once', async () => {
   const journal = inMemoryJournal();
   const first = await registerRatified({ draft, floorApproval: true, journal, checksDir, dossierRoot, scenariosDir });
-  let landed = 0;
-  const scenariosDir2 = /* a dir a spy wraps, or re-count files */ scenariosDir;
-  const second = await registerRatified({ draft, floorApproval: true, journal, checksDir, dossierRoot, scenariosDir: scenariosDir2 });
-  assert.deepEqual(second, first);   // recorded value returned; effects not repeated
+  const second = await registerRatified({ draft, floorApproval: true, journal, checksDir, dossierRoot, scenariosDir });
+  assert.deepEqual(second, first);   // journal.step replayed the recorded value; yaml write + reconcile NOT repeated
+  assert.equal(second.event, 'RATIFIED');   // the success path carries the event too
 });
 ```
+
+If RR2 is not already present from SPEC 2, add it: `floorApproval:false` ⇒ assert `r.event === 'REFUSED_NO_FLOOR'`, `r.decision === null`, and `existsSync(join(checksDir, \`${draft.entry.id}.yaml\`)) === false` (the refusal returns before `journal.step`, so nothing is persisted or journaled).
 
 - [ ] **Step 2: Run test to verify it fails**
 
@@ -851,25 +875,31 @@ Expected: FAIL — `registerRatified` returns a plain object (not a Promise) / n
 
 - [ ] **Step 3: Wrap the atomic unit in `journal.step`**
 
-In `register-ratified.mjs`, change the signature to `export async function registerRatified(...)` and wrap the existing land→advance→write→reconcile body:
+In `register-ratified.mjs`, change the signature to `export async function registerRatified(...)`. The refactor: **land + advance run before** `journal.step` (advance is pure and decides the refusal); only the durable **write + reconcile** run inside the keyed step (success path only), so a refusal is never journaled:
 
 ```js
 export async function registerRatified({ draft, floorApproval, journal = inMemoryJournal(), checksDir, dossierRoot, scenariosDir }) {
   const id = draft.entry.id;
-  return await journal.step('backward', `mint:${id}:ratify`, async () => {
-    const landing = landEvalScenario({ draft, scenariosDir });                 // (1) FIRST — satisfies a judgment ratify guard
-    const advanced = advanceLifecycle({ check: draft.entry, transition: 'ratify', floorApproval }); // (2)
-    if (advanced.check == null) throw new Error(`ratify refused: ${advanced.event}`);
+  const landing = landEvalScenario({ draft, scenariosDir });                     // (1) FIRST — idempotent by check id
+  const advanced = advanceLifecycle({ check: draft.entry, transition: 'ratify', floorApproval }); // (2) floor + legality (pure)
+  // REFUSAL (floorless/illegal): advanceLifecycle returns the ORIGINAL, NON-null check with event
+  // 'REFUSED_NO_FLOOR' (only `decline` returns check:null) — so an `advanced.check == null` guard would
+  // NEVER fire. Guard on the EVENT and return WITHOUT writing the check yaml and WITHOUT journaling, so a
+  // later floor-approved ratify can still proceed (the `mint:<id>:ratify` key stays unrecorded).
+  if (advanced.event !== 'RATIFIED' || advanced.check == null) {
+    return { check: advanced.check, event: advanced.event, landing, decision: null, mints: [] };
+  }
+  return await journal.step('backward', `mint:${id}:ratify`, async () => {       // (3) atomic durable write, keyed
     writeFileSync(join(checksDir, `${id}.yaml`), yaml.stringify(advanced.check));
     const { mints } = reconcileLesson({ lesson: draft.entry.provenance.lesson, check: id,
-      transition: 'ratify', ratified: advanced.check.provenance.ratified, dossierRoot });          // (3)
+      transition: 'ratify', ratified: advanced.check.provenance.ratified, dossierRoot });          // (4)
     const decision = { act: 'mint', transition: 'ratify', check: id, /* …existing FloorDecision fields… */ };
-    return { check: advanced.check, decision, landing, mints };
+    return { check: advanced.check, event: 'RATIFIED', decision, landing, mints };
   });
 }
 ```
 
-(Preserve the existing imports `writeFileSync`, `join`, `yaml`, and the exact `decision` FloorDecision fields already in the file — only the async wrap + `journal.step` are new. The order (1→2→3) is load-bearing and unchanged.)
+(Preserve the existing imports `writeFileSync`, `join`, `yaml`, and the exact `decision` FloorDecision fields already in the file. `advanceLifecycle` is pure, so calling it before `journal.step` to decide the refusal is free. This matches SPEC 2's original refusal return — **RR2 asserts `decision:null` + `event:'REFUSED_NO_FLOOR'` + no check yaml** — while keeping the success path's land→write→reconcile atomic. `landEvalScenario` is idempotent-by-check-id, so landing before the floor check is safe even on refusal.)
 
 - [ ] **Step 4: Run test to verify it passes**
 
@@ -936,7 +966,7 @@ git --no-pager log --oneline -1
 **Interfaces:**
 - Produces: `export async function runMint({item, lesson, proposal, ask, journal, checksDir, dossierRoot, scenariosDir})→Promise<{kind, …}>` and `export async function runCurate({guard, trigger, finding, proposedSuccessor, rationale, ask, journal, checksDir, dossierRoot})→Promise<{kind, …}>` — same result shapes, now awaited.
 
-- [ ] **Step 1: Update the failing tests** — every `runMint(...)`/`runCurate(...)` call across the six test files gets `await` (they run inside `async` `test(...)` callbacks). No assertion changes beyond awaiting.
+- [ ] **Step 1: Update the failing tests** — TWO mechanical rewrites across the six files: **(a)** every `runMint(...)`/`runCurate(...)` call gets `await` (they run inside `async test(...)` callbacks); **(b)** every injected `ask` fake is rewritten from the OLD `() => ({ selected: 'X' })` shape to the formal Choice shape **`async (d) => ({ decisionId: d.id, value: 'X' })`**. This is load-bearing: D2's new `presentFloor` reads `answer.value`, so a `{selected}` fake yields `answer.value === undefined`, trips the out-of-options pause branch, and silently flips every positive-path result to `paused` (breaking MI1/MI3, CU1/CU2/CU4, RET1, SUP1, and all 5 dogfood ratify cases). Injection sites to rewrite: `mint.test.mjs` (ratify, decline), `curate.test.mjs` (retire, keep, supersede), `dogfood.test.mjs` (ratify ×5), `retire-proof.test.mjs` (retire), `supersede-proof.test.mjs` (supersede). Assertions on the *result* (`kind: 'minted'|'declined'|'retired'|…`) stay unchanged.
 
 - [ ] **Step 2: Run tests to verify they fail**
 
@@ -1055,10 +1085,12 @@ test('C1: a cheap global invariant fires even when its scope does not overlap ch
   assert.deepEqual(sel.map((c) => c.id), ['inv']);   // global invariants always ride
 });
 
-test('C2: an expensive audit does NOT fire on a cheap-ceiling commit trigger', () => {
-  const aud = check({ id: 'aud', contexts: ['audit'], cost_tier: 'expensive', scope: { paths: ['services/other/x.ts'] } });
-  const sel = selectChecks({ registry: registry([aud]), trigger: { on: 'commit', contexts: ['invariant', 'gate'], cost_ceiling: 'cheap' }, changedScope: ['services/other/x.ts'] });
-  assert.deepEqual(sel, []);   // cost_ceiling refuses it
+test('C2: an expensive check in an ACTIVATED context does NOT fire on a cheap-ceiling commit (cost filter)', () => {
+  // contexts:['gate'] IS in the commit trigger, so ONLY the cost_ceiling can exclude it — this exercises
+  // affordable(), not activated(). (An [audit] check would be excluded by the context filter, proving nothing about cost.)
+  const exp = check({ id: 'exp', contexts: ['gate'], cost_tier: 'expensive', scope: { paths: ['services/other/x.ts'] } });
+  const sel = selectChecks({ registry: registry([exp]), trigger: { on: 'commit', contexts: ['invariant', 'gate'], cost_ceiling: 'cheap' }, changedScope: ['services/other/x.ts'] });
+  assert.deepEqual(sel, []);   // cost_ceiling refuses it despite the context overlap
 });
 
 test('C3: an epic-pre-done trigger fires an expensive audit', () => {
@@ -1181,7 +1213,10 @@ git --no-pager log --oneline -1
 ```js
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { scopeGate, singleActive } from '../lib/scope-gate.mjs';
+import { mkdtempSync, writeFileSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
+import { scopeGate, singleActive, readItems } from '../lib/scope-gate.mjs';
 
 test('B1: a diff fully inside declared scope → withinScope, no findings', () => {
   const r = scopeGate({ activeItem: { id: 'x', scope: 'services/foo/**' }, diffPaths: ['services/foo/bar.ts'] });
@@ -1203,6 +1238,15 @@ test('B3: single-active — two active items is a broken floor', () => {
   const items = [{ id: 'a', status: 'active' }, { id: 'b', status: 'active' }, { id: 'c', status: 'queued' }];
   assert.equal(singleActive(items).length, 2);   // != 1 ⇒ the CLI exits 1
 });
+
+test('the CLI self-resolves the active item — readItems parses frontmatter, singleActive picks it', () => {
+  const dir = mkdtempSync(join(tmpdir(), 'bl-'));
+  writeFileSync(join(dir, 'a.md'), '---\nid: a\nstatus: active\nscope: "src/**"\n---\nbody');
+  writeFileSync(join(dir, 'b.md'), '---\nid: b\nstatus: queued\n---\nbody');
+  const actives = singleActive(readItems(dir));
+  assert.equal(actives.length, 1);
+  assert.equal(actives[0].scope, 'src/**');   // the scope the starter check gates against, resolved from disk
+});
 ```
 
 - [ ] **Step 2: Run test to verify it fails**
@@ -1217,10 +1261,13 @@ Create `runtime/engine/lib/scope-gate.mjs`:
 ```js
 // runtime/engine/lib/scope-gate.mjs — the scope-gate check (§9.2). "diff ⊆ the active item's scope"
 // is a check that BITES: an escape files an inconsistency Finding and blocks the gate. Closes failure
-// mode 3 structurally (with single-active). Pure core + a thin git-diff CLI. No fix — an escape is a
-// floor decision (widen scope, split the item, or revert).
+// mode 3 structurally (with single-active). Pure cores + a self-resolving CLI (two modes: scope-gate +
+// --single-active). No fix — an escape is a floor decision (widen scope, split the item, or revert).
 import { fileURLToPath } from 'node:url';
 import { execSync } from 'node:child_process';
+import { readFileSync, readdirSync, existsSync } from 'node:fs';
+import { join } from 'node:path';
+import yaml from 'yaml';
 import { globsOverlap } from './glob-overlap.mjs';
 
 const isoNow = () => new Date().toISOString();
@@ -1240,13 +1287,38 @@ export function scopeGate({ activeItem, diffPaths }) {
 
 export function singleActive(items) { return items.filter((i) => i.status === 'active'); }
 
+/** Minimal frontmatter reader — ring-1 MUST NOT import .claude/skills (seam #1). Returns [{id, ...fm}]. */
+export function readItems(backlogDir) {
+  if (!existsSync(backlogDir)) return [];
+  return readdirSync(backlogDir).filter((f) => f.endsWith('.md')).map((f) => {
+    const m = readFileSync(join(backlogDir, f), 'utf8').match(/^---\n([\s\S]*?)\n---/);
+    const fm = m ? yaml.parse(m[1]) : {};
+    return { id: fm?.id ?? f.replace(/\.md$/, ''), ...fm };
+  });
+}
+
 function main() {
-  // The active item's scope is the PROJECT binding (Nestfolio: the single status:active backlog file).
-  // Reads the git diff; the caller wires `--item-scope` from the active item's frontmatter.
+  // Both starter evaluators invoke this with NO --item-scope, so the CLI SELF-RESOLVES the active item
+  // from --backlog-dir (default docs/backlog). --item-scope is an explicit override (tests). The item
+  // store dir is injected, not hard-coded, so ring-1 stays project-agnostic (the pure cores never read fs).
   const args = Object.fromEntries(process.argv.slice(2).map((a) => a.replace(/^--/, '').split('=')));
-  if (!args['item-scope']) { console.error('usage: scope-gate.mjs --item-scope=<glob[,glob]> [--item-id=<id>]'); process.exit(2); }
+  const backlogDir = args['backlog-dir'] ?? 'docs/backlog';
+
+  if ('single-active' in args) {                                        // the `single-active` starter check
+    const actives = singleActive(readItems(backlogDir));
+    if (actives.length !== 1) console.log(`single-active broken: ${actives.length} active items (${actives.map((i) => i.id).join(', ')})`);
+    process.exit(actives.length === 1 ? 0 : 1);
+  }
+
+  let activeItem;                                                       // the `active-item-scope-gate` check
+  if (args['item-scope']) activeItem = { id: args['item-id'], scope: args['item-scope'] };
+  else {
+    const actives = singleActive(readItems(backlogDir));
+    if (actives.length !== 1) { console.log(`scope-gate: expected exactly one active item, found ${actives.length}`); process.exit(actives.length === 0 ? 0 : 1); }
+    activeItem = actives[0];
+  }
   const diffPaths = execSync('git diff --name-only', { encoding: 'utf8' }).split('\n').filter(Boolean);
-  const r = scopeGate({ activeItem: { id: args['item-id'], scope: args['item-scope'] }, diffPaths });
+  const r = scopeGate({ activeItem, diffPaths });
   for (const f of r.findings) console.log(f.detail);
   process.exit(r.withinScope ? 0 : 1);
 }
@@ -1256,7 +1328,7 @@ if (process.argv[1] && process.argv[1] === fileURLToPath(import.meta.url)) main(
 - [ ] **Step 4: Run test to verify it passes**
 
 Run: `node --test runtime/engine/test/scope-gate.test.mjs`
-Expected: PASS (3/3). (B4 — `metaCheck` proves the starter `active-item-scope-gate.yaml` is cheap-by-construction — lands in Phase I with the YAML.)
+Expected: PASS (4/4). (B4 — `metaCheck` proves the starter `active-item-scope-gate.yaml` is cheap-by-construction — lands in Phase I with the YAML. The two starter evaluators (`scope-gate.mjs` bare + `--single-active`) are now runtime-exercised by the self-resolution test above, so the pack cannot ship green-but-unrunnable.)
 
 - [ ] **Step 5: Commit**
 
@@ -1298,6 +1370,14 @@ test('a gate finding blocks (exit 0 ≠ pass reads the finding count)', async ()
   assert.equal(r.passed, false);
   assert.equal(r.findings[0].check, 'bad');
 });
+
+test('a throwing evaluator fails closed — a gap finding, not an uncaught rejection', async () => {
+  const judgeCheck = gate({ id: 'j', evaluator: { type: 'judgment', run: 'skill:x' },
+    flake_contract: { eval_scenario: 'x', allowed_flake_rate: 0.1, calibration: 'c' } });
+  const r = await runGate({ registry: registry([judgeCheck]), boundary: 'ship', item: { id: 'i', scope: 'a/x.ts' } });   // no judge → JudgeCapabilityUnavailable
+  assert.equal(r.passed, false);
+  assert.equal(r.findings[0].kind, 'gap');
+});
 ```
 
 - [ ] **Step 2: Run test to verify it fails**
@@ -1328,7 +1408,12 @@ export async function runGate({ registry, boundary, item, judge }) {
   const findings = []; let allRan = true;
   for (const check of selected.values()) {
     const context = check.contexts.includes('gate') ? 'gate' : 'invariant';
-    const r = await runCheck({ check, context, judge });
+    let r;
+    try { r = await runCheck({ check, context, judge }); }
+    catch (e) {   // a throwing evaluator (skill: with no judge, module-not-found) FAILS CLOSED via a gap finding
+      findings.push({ id: `${check.id}#err`, check: check.id, kind: 'gap', scope: check.scope.paths, detail: `evaluator error: ${e.message}`, raised_at: isoNow() });
+      continue;
+    }
     if (!r.ran) { allRan = false; continue; }
     r.findings.forEach((f, n) => findings.push({ id: `${check.id}#${n}`, check: check.id, kind: f.kind, scope: f.scope, detail: f.detail, raised_at: isoNow() }));
   }
@@ -1350,7 +1435,7 @@ if (process.argv[1] && process.argv[1] === fileURLToPath(import.meta.url)) main(
 - [ ] **Step 4: Run test to verify it passes**
 
 Run: `node --test runtime/engine/test/run-gate.test.mjs`
-Expected: PASS (2/2).
+Expected: PASS (3/3) — clean pass, a finding blocks, and a throwing evaluator fails closed via a gap finding.
 
 - [ ] **Step 5: Commit**
 
@@ -1682,7 +1767,7 @@ git --no-pager log --oneline -1
 - Test: `runtime/engine/loop/test/orchestrator.test.mjs`
 
 **Interfaces:**
-- Produces: `runOrchestrator({epic, members, capabilities, registry})→Promise<TaskResult>`. Drives **core** members one-at-a-time via `execute` (inline — captured members excluded); batches the expensive checks once at `epic-pre-done` via `runWatch`; the single merge is an `ask`. **The member loop NEVER uses `fanOut`** (the Tier-2 scar — asserted negatively).
+- Produces: `runOrchestrator({epic, members, capabilities, registry})→Promise<TaskResult>`. Drives **core** members one-at-a-time via `execute` (inline — captured members excluded); batches the expensive checks once at `epic-pre-done` via `runWatch`; the single merge is an `ask`. **The member loop NEVER uses `fanOut`** (the Tier-2 scar — asserted negatively). The `epic-pre-done` batch is **sha-conditional** (`e2eIsFresh`, F-14): a moved HEAD re-runs it rather than replaying stale findings (injectable `capabilities.gitHeadSha` for tests; defaults to the real `git rev-parse HEAD`).
 
 - [ ] **Step 1: Write the failing test**
 
@@ -1711,6 +1796,23 @@ test('orchestrator drives CORE members inline via execute (never fanOut) and ask
   assert.equal(caps.calls.some((c) => c[0] === 'fanOut'), false);    // the member loop is NOT fanned out
   assert.equal(caps.calls.filter((c) => c[0] === 'ask').length, 1);  // one merge ask
 });
+
+test('epic-pre-done is sha-conditional — a FRESH recorded e2e is REPLAYED, not re-run', async () => {
+  const caps = spyCaps(); caps.gitHeadSha = () => 'sha1';
+  caps.journal.begin('epic-e', { runId: 'epic-e', branch: 'b', worktree: 'w', auto: false });
+  caps.journal.record('epic-e', 'e2e', { sha: 'sha1', green: false, findings: [{ id: 'recorded#0', check: 'x', kind: 'gap', detail: 'd', raised_at: 't' }] });
+  const r = await runOrchestrator({ epic: { id: 'e' }, members: [], capabilities: caps, registry });
+  assert.equal(r.status, 'failed');                    // replayed the recorded finding (fresh vs HEAD) — did NOT re-run to []
+  assert.equal(r.findings[0].id, 'recorded#0');
+});
+
+test('epic-pre-done RE-RUNS when the recorded e2e sha is STALE (HEAD moved)', async () => {
+  const caps = spyCaps(); caps.gitHeadSha = () => 'sha2';   // HEAD advanced past the recorded sha1
+  caps.journal.begin('epic-e', { runId: 'epic-e', branch: 'b', worktree: 'w', auto: false });
+  caps.journal.record('epic-e', 'e2e', { sha: 'sha1', green: false, findings: [{ id: 'stale#0', check: 'x', kind: 'gap', detail: 'd', raised_at: 't' }] });
+  const r = await runOrchestrator({ epic: { id: 'e' }, members: [], capabilities: caps, registry });
+  assert.equal(r.status, 'done');                      // did NOT replay the stale finding; re-ran (empty registry → []) → merge ask
+});
 ```
 
 - [ ] **Step 2: Run test to verify it fails**
@@ -1726,7 +1828,9 @@ Create `runtime/engine/loop/orchestrator.mjs`:
 // runtime/engine/loop/orchestrator.mjs — the epic spine (§9.3). Drives CORE members one-at-a-time via
 // execute (INLINE — the decision-bearing spine, never fanOut), batches the expensive checks once at
 // epic-pre-done via runWatch, single merge via ask. fanOut is reserved for BREADTH work only.
+// The epic-pre-done batch is SHA-CONDITIONAL (e2eIsFresh, F-14): a moved HEAD re-runs it, never replays stale.
 import { runWatch } from '../lib/run-watch.mjs';
+import { e2eIsFresh, gitHeadSha } from '../lib/journal.mjs';
 
 export async function runOrchestrator({ epic, members, capabilities, registry }) {
   const { journal, execute, ask } = capabilities;
@@ -1740,8 +1844,18 @@ export async function runOrchestrator({ epic, members, capabilities, registry })
     if (res.status !== 'done') return { taskId: epic.id, status: res.status, summary: `member ${m.id}: ${res.summary}` };
   }
 
-  const findings = await journal.step(runId, 'epic-pre-done.watch', async () =>
-    runWatch({ registry, trigger: { on: 'epic-pre-done', contexts: ['audit', 'gate'], cost_ceiling: 'expensive' }, changedScope: ['**/*'], judge: capabilities.judge }));
+  // epic-pre-done batch — the expensive checks (incl. the live e2e). SHA-CONDITIONAL, not step-replay:
+  // journal.step short-circuits on ANY recorded value, so a resume after HEAD moved would replay STALE
+  // findings. Gate on e2eIsFresh (F-14) — a moved HEAD ⇒ re-run against the new tree, then re-record.
+  const headSha = (capabilities.gitHeadSha ?? gitHeadSha)();
+  const ledger = journal.read(runId);
+  let findings;
+  if (e2eIsFresh(ledger, headSha)) {
+    findings = ledger.steps.get('e2e').value.findings;                  // fresh vs HEAD — replay, no re-run
+  } else {
+    findings = await runWatch({ registry, trigger: { on: 'epic-pre-done', contexts: ['audit', 'gate'], cost_ceiling: 'expensive' }, changedScope: ['**/*'], judge: capabilities.judge });
+    journal.record(runId, 'e2e', { sha: headSha, green: findings.length === 0, findings });   // key 'e2e' — e2eIsFresh reads it
+  }
   if (findings.length) return { taskId: epic.id, status: 'failed', summary: `epic-pre-done raised ${findings.length} findings`, findings };
 
   const choice = await ask({ id: `merge-${epic.id}`, question: `Merge epic ${epic.id} (single PR)?`,
@@ -1753,7 +1867,7 @@ export async function runOrchestrator({ epic, members, capabilities, registry })
 - [ ] **Step 4: Run test to verify it passes**
 
 Run: `node --test runtime/engine/loop/test/orchestrator.test.mjs`
-Expected: PASS.
+Expected: PASS (3/3) — the inline-members/single-merge spine + both sha-conditional freshness cases (replay-when-fresh, re-run-when-stale).
 
 - [ ] **Step 5: Commit**
 
