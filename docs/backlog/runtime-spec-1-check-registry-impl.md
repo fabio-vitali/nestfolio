@@ -1,6 +1,6 @@
 ---
 id: runtime-spec-1-check-registry-impl
-status: active
+status: shipped
 rank: null
 type: feature
 epic: runtime-realization
@@ -16,6 +16,17 @@ out_of_scope:
   - The capability adapters and the harness seam (SPEC 3, seam #1) — ring-1 core depends outward on nothing.
 spec: docs/superpowers/specs/2026-07-01-runtime-spec-1-check-registry-and-atom.md
 plan: docs/superpowers/plans/2026-07-01-runtime-spec-1-check-registry-impl.md
+validation_gate: >
+  61 deterministic golden-gate tests green (`node --test runtime/engine/test/*.test.mjs`): §13 A×5
+  loadRegistry, B×6 metaCheck, C×7 advanceLifecycle, D×4 findByScope, E×4 runCheck, F×4 resolveEvaluator,
+  plus schema/glob-overlap/content-ring units. `nx test runtime` + `nx typecheck runtime` both green
+  (tsc --noEmit proves the frozen .ts contract compiles under strict; `.mjs`→`.ts` runs via Node-24
+  native type-stripping, zero build). First content-ring proof slice — 6 real entries (one per evaluator
+  scheme cmd/module/eslint/skill + the registry-integrity meta-check) — loads with zero errors and
+  metaCheck is fully clean. No deploy (pure node library; runtime/** classified Tier-0 no-deploy).
+  Branch feat/runtime-spec-1-check-registry-impl (12 TDD commits). SPEC 1 §15 build-reconciliation
+  recorded: NO schema-shape delta — SPECs 2 & 3 consume the frozen contract verbatim.
+closed: 2026-07-01
 topic_memory: []
 notes: "Slice 1 of the runtime-realization epic — build SPEC 1, the check registry & hybrid atom (ring-1 core: check/item/finding schemas, four finding kinds, three contexts, lifecycle state machine, meta-check + rot-detectors, git-native layout + the six typed helpers loadRegistry/resolveEvaluator/runCheck/findByScope/advanceLifecycle/metaCheck). Foundational: freezes the schema SPEC 2 & 3 consume. Phase 1 = re-author the implementation plan INLINE at Opus 4.8 MAX effort (the first plan was written at default effort and DELETED by the user); then execute inline + visible (TDD) on an isolated worktree → own PR. Ring-1 stays project-/harness-agnostic; Nestfolio's live checks are the first content-ring proof slice."
 ---
