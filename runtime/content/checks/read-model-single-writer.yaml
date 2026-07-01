@@ -1,0 +1,23 @@
+id: read-model-single-writer
+property: >
+  Every governed read-model row has exactly one writer: a command-owned P1 is guarded, a projection
+  never accumulates, and no (service,typename) is written by both a command and an event-processor
+  intent factory unless registered in ReadModelOwnership or the exclusion sidecar.
+kind: inconsistency
+evaluator:
+  type: deterministic
+  run: "cmd:node tools/check-read-model-drift.mjs"
+cost_tier: moderate
+contexts: [audit]
+scope:
+  paths:
+    - "services/**/src/read-model-ownership.ts"
+    - "services/**/src/**/*.ts"
+  dossiers:
+    - "docs/architecture/READ-MODEL-OWNERSHIP.md"
+  exclusions: "tools/read-model-exclusions.json"
+status: active
+provenance:
+  minted_by: "read-model-redesign-ws-d"
+  lesson: "MEMORY/feedback_bff_is_read_model.md"
+  ratified: "2026-07-01"

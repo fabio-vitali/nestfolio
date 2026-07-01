@@ -1,0 +1,16 @@
+id: backlog-id-matches-filename
+property: "Every backlog file's `id` frontmatter matches its filename stem (backlog-lint rule 1)."
+kind: inconsistency
+evaluator:
+  type: deterministic
+  run: "module:.claude/skills/backlog-lint/lib/rules.mjs#ruleIdMatchesFilename"
+cost_tier: cheap
+contexts: [invariant, gate]
+scope:
+  paths:
+    - "docs/backlog/*.md"
+status: active
+provenance:
+  minted_by: "backlog-redesign"
+  lesson: "docs/superpowers/specs/2026-05-07-backlog-redesign-design.md"
+  ratified: "2026-07-01"

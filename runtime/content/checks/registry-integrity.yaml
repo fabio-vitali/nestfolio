@@ -1,0 +1,18 @@
+id: registry-integrity
+property: >
+  The check registry itself is internally consistent: every enforced surface has an active entry,
+  every entry resolves to a runnable evaluator, every judgment check has its eval scenario, no stored
+  knob is unchecked, and no invariant-context check is expensive (the meta-check, SPEC 1 §8).
+kind: inconsistency
+evaluator:
+  type: deterministic
+  run: "cmd:node runtime/engine/lib/meta-check.mjs"
+cost_tier: moderate
+contexts: [audit]
+scope:
+  paths:
+    - "runtime/content/checks/*.yaml"
+status: active
+provenance:
+  minted_by: "starter-pack"
+  ratified: "2026-07-01"

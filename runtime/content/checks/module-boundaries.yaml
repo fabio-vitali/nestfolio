@@ -1,0 +1,16 @@
+id: module-boundaries
+property: "No import crosses an nx module boundary that the project's tag rules forbid."
+kind: inconsistency
+evaluator:
+  type: deterministic
+  run: "eslint:@nx/enforce-module-boundaries"
+cost_tier: cheap
+contexts: [gate]
+scope:
+  paths:
+    - "services/**/src/**/*.ts"
+    - "libs/**/src/**/*.ts"
+status: active
+provenance:
+  minted_by: "starter-pack"
+  ratified: "2026-07-01"

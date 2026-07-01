@@ -1,0 +1,22 @@
+id: integration-test-completeness
+property: >
+  A service's integration suite uses createTestContext + cleanup.runAll + OrphanReaper, seeds only
+  via events/mutations (no DdbSeedFixture), mocks all externals, and covers each BFF mutation.
+kind: gap
+evaluator:
+  type: judgment
+  run: "skill:audit-integration-test"
+cost_tier: expensive
+contexts: [audit]
+scope:
+  paths: ["services/**/test/integration/**"]
+status: active
+flake_contract:
+  eval_scenario: "runtime/eval/scenarios/integration-test-completeness.scenario.mjs"
+  allowed_flake_rate: 0.05
+  calibration: "n=20 runs on a known-good + known-bad service pair; gatePassRate >= 0.95"
+  min_confidence: 0.7
+provenance:
+  minted_by: "integration-test-audit-skill"
+  lesson: "MEMORY/feedback_no_seeder_fixtures.md"
+  ratified: "2026-07-01"

@@ -1,0 +1,16 @@
+id: service-card-fresh
+property: "A service CLAUDE.md card's machine-derived sections are not stale versus its service.stack.ts."
+kind: staleness
+evaluator:
+  type: deterministic
+  run: "cmd:node tools/check-service-card-drift.mjs"
+cost_tier: moderate
+contexts: [gate, audit]
+scope:
+  paths:
+    - "services/**/CLAUDE.md"
+    - "services/**/src/*.stack.ts"
+status: active
+provenance:
+  minted_by: "card-drift-gate"
+  ratified: "2026-07-01"
