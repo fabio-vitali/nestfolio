@@ -32,8 +32,10 @@ runtime/
     schema/               # check.schema.ts · item.schema.ts · finding.schema.ts  (zod + z.infer types)
     lib/                  # the six helpers + fs-walk / glob-overlap / errors utilities
     test/                 # node:test golden gates (§13 A–F) + schema/glob/content-ring suites
-  content/checks/*.yaml   # RING 3 — Nestfolio's first check library (proof slice)
-  eval/scenarios/*.mjs    # judgment-check eval scenarios (SPEC 2 authors; stubbed here)
+    backward/             # RING 1 — SPEC 2, the backward edge (mint · curate). See engine/backward/README.md
+  content/checks/*.yaml   # RING 3 — Nestfolio's check library (5 dogfood checks minted by SPEC 2 + SPEC 1 proof slice)
+  content/lessons/*.md    # RING 3 — lesson mirrors carrying `mints:` pointers (enforcement-as-memory)
+  eval/scenarios/*.mjs    # RING 3 — judgment/drift eval scenarios (materialized by SPEC 2's mint procedure)
 ```
 
 ## The six helpers (`engine/lib/`)
