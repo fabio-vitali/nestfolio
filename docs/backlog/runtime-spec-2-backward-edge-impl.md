@@ -22,7 +22,7 @@ validation_gate: |
   Content ring materialized BY the mint procedure itself (5 checks + 5 eval scenarios + 5 reconciled lessons;
   loadRegistry 11 checks / 0 errors). Tier-0 no-deploy (detect-deploy exit 10); derivation=false. Complex lane,
   own PR via finishing-a-development-branch.
-topic_memory: []
+topic_memory: [project_runtime_realization.md]
 notes: "Slice 2 of runtime-realization — the backward edge / learning loop (the MOAT): mint + curate at the floor, provenance/supersession chains, enforcement-as-memory (mints:), eval-scenario landing; dogfooded FIRST on the 5 real mechanizable feedback_* lessons (no_scan_no_filter, no_silent_fallback_in_agent_results, no_seeder_fixtures, prefer_libraries_over_casts, states_runtime_uncatchable). Its plan MUST be authored INLINE at MAX effort against SPEC 1's MERGED contract (status/provenance/FlakeContract/advanceLifecycle), not the paper schema. Parking trigger cleared 2026-07-01 — SPEC 1 (runtime-spec-1-check-registry-impl) shipped, unblocking this slice; now active as the next runtime-realization vertical slice."
 ---
 
