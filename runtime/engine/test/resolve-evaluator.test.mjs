@@ -47,3 +47,16 @@ test('each scheme resolves via its dispatch branch with the right kind', () => w
   assert.equal(eslint.kind, 'deterministic');
   assert.equal(skill.kind, 'judgment');
 }));
+
+// E0 (SPEC 3 §15 delta) — an injected judge realizes the deferred skill: invocation
+test('a skill: check with an injected judge invokes it instead of throwing', async () => {
+  const check = { id: 'j', property: 'p', kind: 'inconsistency', cost_tier: 'expensive', contexts: ['audit'],
+    status: 'active', scope: { paths: ['**/*'] }, evaluator: { type: 'judgment', run: 'skill:audit-x' },
+    flake_contract: { eval_scenario: 'runtime/eval/scenarios/j.scenario.mjs', allowed_flake_rate: 0.1, calibration: 'x' },
+    provenance: { minted_by: 'x' } };
+  const judge = async () => [{ detail: 'judged violation', scope: ['a'] }];
+  const { kind, invoke } = resolveEvaluator({ check, judge });
+  assert.equal(kind, 'judgment');
+  const findings = await invoke();
+  assert.equal(findings[0].detail, 'judged violation');
+});

@@ -4,11 +4,11 @@
 import { fileURLToPath } from 'node:url';
 import { resolveEvaluator } from './resolve-evaluator.mjs';
 
-export async function runCheck({ check, context }) {
+export async function runCheck({ check, context, judge }) {
   if (!check.contexts.includes(context)) {
     return { findings: [], ran: false, skippedReason: 'context-not-declared' };
   }
-  const { invoke } = resolveEvaluator({ check });
+  const { invoke } = resolveEvaluator({ check, judge });
   const findings = await invoke();
   return { findings: findings.map((f) => ({ ...f, kind: check.kind })), ran: true };
 }

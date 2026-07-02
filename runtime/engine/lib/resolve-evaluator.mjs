@@ -15,14 +15,17 @@ function toFindings(result, check) {
   return result.map((r) => ({ kind: check.kind, ...r }));
 }
 
-export function resolveEvaluator({ check }) {
+export function resolveEvaluator({ check, judge }) {
   const parsed = parseRun(check.evaluator.run);
   if (!parsed) throw new EvaluatorUnresolved(check.evaluator.run, 'no valid scheme');
   const { scheme, target } = parsed;
 
   if (scheme === 'skill') {
     if (!check.flake_contract) throw new JudgmentContractMissing(check.id);
-    return { kind: 'judgment', invoke: () => { throw new JudgeCapabilityUnavailable(check.evaluator.run); } };
+    // SPEC 3 seam #1 (§15 delta): only INVOCATION defers. An injected judge realizes it; without one the throw is unchanged.
+    return { kind: 'judgment', invoke: judge
+      ? async () => toFindings(await judge(check), check)
+      : () => { throw new JudgeCapabilityUnavailable(check.evaluator.run); } };
   }
   if (scheme === 'cmd') {
     return { kind: 'deterministic', invoke: () => {
