@@ -28,12 +28,19 @@ export function validDraft(overrides = {}) {
   };
 }
 
-/** Run `fn(dirs)` inside a fresh tmpdir with checks/, lessons/, scenarios/ subdirs. */
+/** Run `fn(dirs)` inside a fresh tmpdir with checks/, lessons/, scenarios/ subdirs.
+ *  DUAL-MODE: if `fn` returns a promise (SPEC-3 async backward edge), cleanup is deferred until it
+ *  settles; a sync `fn` cleans up immediately. Either way a throw/rejection propagates after cleanup. */
 export function withTmpContent(fn) {
   const root = mkdtempSync(join(tmpdir(), 'nf-backward-'));
   const dirs = { root, checksDir: join(root, 'checks'), lessonsDir: join(root, 'lessons'), scenariosDir: join(root, 'scenarios') };
   for (const d of [dirs.checksDir, dirs.lessonsDir, dirs.scenariosDir]) mkdirSync(d, { recursive: true });
-  try { return fn(dirs); } finally { rmSync(root, { recursive: true, force: true }); }
+  const cleanup = () => rmSync(root, { recursive: true, force: true });
+  let result;
+  try { result = fn(dirs); } catch (e) { cleanup(); throw e; }
+  if (result && typeof result.then === 'function') return result.finally(cleanup);
+  cleanup();
+  return result;
 }
 
 /** Write a lesson dossier `<name>.md` with YAML frontmatter + body under `dir`. */
