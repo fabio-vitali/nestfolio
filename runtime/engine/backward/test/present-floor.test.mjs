@@ -1,25 +1,32 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { presentFloor } from '../lib/present-floor.mjs';
-import { validDraft } from './_fixtures.mjs';
+import { presentFloor, toDecision } from '../lib/present-floor.mjs';
 
-const mintChoice = () => ({ act: 'mint', candidate: validDraft().entry, lesson: 'feedback_sample.md',
-  rationale: 'r', recommended: 'ratify', options: ['ratify', 'edit', 'decline'] });
+const mintChoice = { act: 'mint', candidate: { id: 'no-x' }, lesson: 'feedback_x.md', rationale: 'because',
+  recommended: 'ratify', options: ['ratify', 'edit', 'decline'] };
 
-test('PF1 default (headless) ask → paused with sentinel, no selected', () => {
-  const r = presentFloor({ choice: mintChoice() });
-  assert.match(r.sentinel, /HARNESS-PAUSE: mint sample-mint/);
-  assert.equal(r.selected, undefined);
+test('toDecision maps a FloorChoice to a well-formed Decision (exactly one recommended)', () => {
+  const d = toDecision(mintChoice);
+  assert.equal(d.id, 'mint-no-x');
+  assert.equal(d.options.filter((o) => o.recommended).length, 1);
+  assert.deepEqual(d.options.map((o) => o.value), ['ratify', 'edit', 'decline']);
 });
 
-test('PF2 an injected ask returning {selected:ratify} resolves', () => {
-  const r = presentFloor({ choice: mintChoice(), ask: () => ({ selected: 'ratify' }) });
+test('a selection in options is returned as selected', async () => {
+  const ask = async (d) => ({ decisionId: d.id, value: 'ratify' });
+  const r = await presentFloor({ choice: mintChoice, ask });
   assert.equal(r.selected, 'ratify');
   assert.equal(r.sentinel, undefined);
 });
 
-test('PF3 an injected ask returning an out-of-set selection degrades to a pause (never a silent default)', () => {
-  const r = presentFloor({ choice: mintChoice(), ask: () => ({ selected: 'yolo' }) });
+test('a PAUSE-valued choice (headless) → sentinel, never a silent default', async () => {
+  const r = await presentFloor({ choice: mintChoice });   // default headlessAsk → PAUSE
   assert.equal(r.selected, undefined);
-  assert.match(r.sentinel, /HARNESS-PAUSE/);
+  assert.equal(r.sentinel, '<<HARNESS-PAUSE: mint no-x>>');
+});
+
+test('an out-of-options answer is also treated as a pause', async () => {
+  const ask = async (d) => ({ decisionId: d.id, value: 'bogus' });
+  const r = await presentFloor({ choice: mintChoice, ask });
+  assert.equal(r.sentinel, '<<HARNESS-PAUSE: mint no-x>>');
 });

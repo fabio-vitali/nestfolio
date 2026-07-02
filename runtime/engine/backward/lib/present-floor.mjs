@@ -1,18 +1,30 @@
-// present-floor.mjs — presentFloor(): binds the ask() capability (§6). In headless/--auto the injected
-// ask returns a <<HARNESS-PAUSE>> sentinel and this NEVER self-resolves. A malformed/absent selection
-// is treated as a pause, never a silent default (the recommended-bearing-choice discipline).
-import { headlessAsk } from './capabilities.mjs';
+// present-floor.mjs — the floor BRIDGE (§4.3, fork Q1). Builds a formal Decision from the domain
+// FloorChoice, awaits the formal ask(Decision)→Choice, maps back to {choice, selected, sentinel}.
+// A PAUSE value or an out-of-options answer is a pause (never a silent default) — the recommended-
+// bearing-choice discipline. The <<HARNESS-PAUSE: act id>> string is preserved (runner PAUSE_RE).
+import { headlessAsk, PAUSE } from './capabilities.mjs';
 import { fileURLToPath } from 'node:url';
 
-export function presentFloor({ choice, ask = headlessAsk }) {
-  const answer = ask({ choice }) ?? {};
-  if (typeof answer.sentinel === 'string') return { choice, selected: undefined, sentinel: answer.sentinel };
-  const selected = answer.selected;
-  if (!choice.options.includes(selected)) {
-    const id = choice.act === 'mint' ? choice.candidate.id : choice.guard.id;
+export function toDecision(choice) {
+  const id = choice.act === 'mint' ? choice.candidate.id : choice.guard.id;
+  const question = choice.act === 'mint'
+    ? `Ratify candidate check "${id}" minted from lesson ${choice.lesson}?`
+    : `Curate check "${id}" (${choice.trigger})?`;
+  return {
+    id: `${choice.act}-${id}`,
+    question,
+    options: choice.options.map((v) => ({ label: v, value: v, recommended: v === choice.recommended })),
+    context: choice.rationale,
+  };
+}
+
+export async function presentFloor({ choice, ask = headlessAsk }) {
+  const answer = (await ask(toDecision(choice))) ?? {};
+  const id = choice.act === 'mint' ? choice.candidate.id : choice.guard.id;
+  if (answer.value === PAUSE || !choice.options.includes(answer.value)) {
     return { choice, selected: undefined, sentinel: `<<HARNESS-PAUSE: ${choice.act} ${id}>>` };
   }
-  return { choice, selected, sentinel: undefined };
+  return { choice, selected: answer.value, sentinel: undefined };
 }
 
 function main() { console.error('present-floor.mjs is a library; import presentFloor'); process.exit(2); }
