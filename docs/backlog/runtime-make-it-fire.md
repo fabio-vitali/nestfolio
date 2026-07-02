@@ -9,7 +9,7 @@ references: []
 out_of_scope:
   - "The full operator view+executor (that is runtime-operational-surface)."
   - "Migrating the remaining checks (runtime-check-migration-completion)."
-spec: null
+spec: docs/superpowers/specs/2026-07-03-runtime-make-it-fire-design.md
 plan: null
 topic_memory: [project_runtime_realization.md]
 validation_gate: null
