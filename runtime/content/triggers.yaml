@@ -1,0 +1,19 @@
+# runtime/content/triggers.yaml — watch-engine cadence config (content ring, seam #2).
+# Itself a stored knob ⇒ scope of the watch-config-valid check (law §13.2).
+triggers:
+  - on: commit
+    contexts: [invariant, gate]
+    cost_ceiling: cheap
+  - on: merge
+    contexts: [invariant, gate]
+    cost_ceiling: cheap
+  - on: schedule
+    cron: "0 6 * * *"
+    contexts: [audit]
+    cost_ceiling: moderate
+  - on: epic-pre-done
+    contexts: [audit, gate]
+    cost_ceiling: expensive
+  - on: manual
+    contexts: [gate, audit, invariant]
+    cost_ceiling: expensive

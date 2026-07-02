@@ -9,5 +9,5 @@
     "skipLibCheck": true,
     "types": []
   },
-  "include": ["engine/schema/**/*.ts", "engine/backward/schema/**/*.ts"]
+  "include": ["engine/schema/**/*.ts", "engine/schema/journal.schema.ts", "engine/backward/schema/**/*.ts", "engine/capabilities/**/*.ts"]
 }

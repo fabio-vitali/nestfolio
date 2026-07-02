@@ -1,4 +1,5 @@
 {
   "checksDir": "runtime/content/checks",
-  "exclusionsRoot": "runtime/content/exclusions"
+  "exclusionsRoot": "runtime/content/exclusions",
+  "triggersFile": "runtime/content/triggers.yaml"
 }
