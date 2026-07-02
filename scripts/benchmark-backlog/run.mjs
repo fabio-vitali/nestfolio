@@ -1,6 +1,8 @@
 import { join } from 'node:path';
 import { readFileSync, existsSync, writeFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
+import { defineSuite } from './suite.mjs';                 // SPEC 3 H1 — the live reusable suite seam
+import { STUB_BINARIES } from './structural-lint.mjs';
 
 // Spike correction: the short version was only 2/3 reliable; this 6/6 version is binding.
 export const PAUSE_CONVENTION =
@@ -185,7 +187,7 @@ if (process.argv[1] && process.argv[1] === fileURLToPath(import.meta.url)) {
     // flag silently no-op'd). `--iterations=3` etc. are unaffected (Number(opts.iterations) still coerces).
     rest.filter((a) => a.startsWith('--')).map((a) => { const [k, ...v] = a.replace(/^--/, '').split('='); return [k, v.length ? v.join('=') : true]; })
   );
-  const suite = { buildSandbox, grade: gradeScenario, scenarios };
+  const suite = defineSuite({ buildSandbox, stubs: STUB_BINARIES, grade: gradeScenario, scenarios });
   if (mode === 'compare') { const pos = rest.filter((a) => !a.startsWith('--')); opts.refA = pos[0]; opts.refB = pos[1]; }
   const rows = await runMode(mode, { ...opts, iterations: Number(opts.iterations ?? 3) }, suite);
   console.log(JSON.stringify(rows, null, 2));
