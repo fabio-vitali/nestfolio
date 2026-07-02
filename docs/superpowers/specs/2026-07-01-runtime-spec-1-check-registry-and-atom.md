@@ -613,3 +613,10 @@ This spec is **foundational** — SPECs 2 and 3 depend on its schema verbatim. B
 2. **`resolveEvaluator({check})` stays sync + structural** (signature unchanged). `module:` specifiers are **file-resolvable paths resolved against `cwd`** (the spec's `module:backlog-lint#…` shorthand is realized as `module:.claude/skills/backlog-lint/lib/rules.mjs#ruleIdMatchesFilename`); `module:` existence is checked at resolve-time (absent file ⇒ `EvaluatorUnresolved`), while `cmd:`/`eslint:` deep existence is deferred to invoke-time. No `root` parameter was added.
 3. **`skill:` (judgment) resolves but its `invoke` throws `JudgeCapabilityUnavailable`** — ring-1 does not run skills; the judge capability is SPEC 3's seam #1. Resolution (kind detection + the `flake_contract`/`JudgmentContractMissing` guard) is complete in ring-1; only invocation defers.
 4. **`runCheck`/`metaCheck`/`advanceLifecycle` ship usage-stub CLIs.** Their pure cores are the frozen contract (fully gated); the CLIs need a *loaded registry* / *floor procedure* that SPEC 2 (floor) and SPEC 3 (watch-engine registry-resolving CLI) own. The `module:` heterogeneous-rule *invocation* convention (real backlog rules have varied signatures) is likewise a content-ring/SPEC-3 realization detail — ring-1 proves **resolution** (meta-check assertion 2), not heterogeneous invocation.
+
+**Build reconciliation (SPEC 3 realized, 2026-07-01 — `runtime-spec-3-forward-edge-impl`).** One
+backward-compatible delta: `resolveEvaluator({check, judge?})` and `runCheck({check, context, judge?})`
+gained an **optional `judge` capability** (`(check) => Promise<Array<{detail, evidence?, scope?}>>`).
+Without it, a `skill:` check's `invoke` still throws `JudgeCapabilityUnavailable` (clarification 3
+unchanged); with it, invoke calls the injected judge — SPEC 3's seam #1 realized. No schema-shape
+change; every SPEC 1 helper signature is otherwise consumed verbatim.
