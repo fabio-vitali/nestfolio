@@ -1,0 +1,95 @@
+// runtime/engine/lib/journal.mjs — the git-native, append-only, keyed NDJSON journal (§5).
+// Ring-1: git is universal infrastructure, NOT a harness primitive. Two backings share one contract:
+// makeJournal({root}) (persistent) + inMemoryJournal() (tests/headless). Resume = replay: a 'complete'
+// step short-circuits (fn NOT re-invoked); a torn tail line is dropped (crash-safe, generalizes F-11).
+import { execSync } from 'node:child_process';
+import { existsSync, mkdirSync, readFileSync, appendFileSync, writeFileSync } from 'node:fs';
+import { join } from 'node:path';
+import { validateStepRecord, validateRunMeta } from '../schema/journal.schema.ts';
+
+const isoNow = () => new Date().toISOString();
+
+/** Resolve the git-common-dir (cwd-independent, shared across worktrees) — the runstate.mjs form. */
+export function gitCommonDir(exec = (c) => execSync(c, { encoding: 'utf8' })) {
+  return exec('git rev-parse --path-format=absolute --git-common-dir').trim().replace(/\/$/, '');
+}
+
+/** Parse an NDJSON step-ledger line-by-line; a torn/invalid line is DROPPED (tail-heal, §5). */
+function parseSteps(text) {
+  const steps = new Map();
+  for (const line of text.split('\n')) {
+    if (!line.length) continue;
+    let parsed;
+    try { parsed = JSON.parse(line); } catch { continue; }   // torn line → drop
+    const v = validateStepRecord(parsed);
+    if (!v.ok) continue;                                       // malformed record → drop
+    steps.set(v.value.key, v.value);                           // last-write-wins per key
+  }
+  return steps;
+}
+
+/** The one contract, over an injected storage backing. */
+function makeBacking({ readMeta, writeMeta, readSteps, appendStep }) {
+  return {
+    begin(runId, meta) {
+      const v = validateRunMeta(meta);
+      if (!v.ok) throw new Error(`journal.begin: invalid RunMeta: ${v.error}`);
+      if (readMeta(runId) == null) writeMeta(runId, v.value);   // idempotent: existing run → NOOP
+    },
+    async step(runId, key, fn, strategy = 'keyed-effect') {
+      if (strategy === 'pure-rederive') return await fn();       // never ledgered — replay is free
+      const existing = readSteps(runId).get(key);
+      if (existing?.status === 'complete') return existing.value; // REPLAY — fn NOT invoked
+      const value = await fn();                                   // execute exactly once
+      appendStep(runId, { key, status: 'complete', value, ts: isoNow() });
+      return value;
+    },
+    record(runId, key, value) { appendStep(runId, { key, status: 'complete', value, ts: isoNow() }); },
+    read(runId) {
+      const meta = readMeta(runId);
+      if (meta == null) return null;                             // FRESH
+      return { meta, steps: readSteps(runId) };
+    },
+    awaiting(runId, key, decision) { appendStep(runId, { key, status: 'awaiting', decision, ts: isoNow() }); },
+    fulfil(runId, key, choice) { appendStep(runId, { key, status: 'complete', value: choice, ts: isoNow() }); },
+  };
+}
+
+/** Git-native persistent journal. root defaults to <git-common-dir>; tests pass a temp root. */
+export function makeJournal({ root = gitCommonDir() } = {}) {
+  const runDir = (runId) => join(root, 'journal', runId);
+  const metaPath = (runId) => join(runDir(runId), 'meta.json');
+  const stepsPath = (runId) => join(runDir(runId), 'steps.ndjson');
+  return makeBacking({
+    readMeta: (runId) => (existsSync(metaPath(runId)) ? JSON.parse(readFileSync(metaPath(runId), 'utf8')) : null),
+    writeMeta: (runId, meta) => { mkdirSync(runDir(runId), { recursive: true }); writeFileSync(metaPath(runId), JSON.stringify(meta, null, 2) + '\n'); },
+    readSteps: (runId) => (existsSync(stepsPath(runId)) ? parseSteps(readFileSync(stepsPath(runId), 'utf8')) : new Map()),
+    appendStep: (runId, rec) => { mkdirSync(runDir(runId), { recursive: true }); appendFileSync(stepsPath(runId), JSON.stringify(rec) + '\n'); },
+  });
+}
+
+/** In-memory Journal (same contract) — tests + the headless backward-edge default. */
+export function inMemoryJournal() {
+  const metas = new Map();
+  const lines = new Map();   // runId → StepRecord[]
+  return makeBacking({
+    readMeta: (runId) => metas.get(runId) ?? null,
+    writeMeta: (runId, meta) => metas.set(runId, meta),
+    readSteps: (runId) => { const m = new Map(); for (const r of lines.get(runId) ?? []) m.set(r.key, r); return m; },
+    appendStep: (runId, rec) => { const a = lines.get(runId) ?? []; a.push(rec); lines.set(runId, a); },
+  });
+}
+
+/** e2e-freshness helper (F-14). NOTE: journal.step is sha-AGNOSTIC — it short-circuits on ANY 'complete'
+ *  record for a key, regardless of HEAD. e2e freshness is therefore a SEPARATE mechanism: F2 records the
+ *  result via journal.record('e2e', {sha, green}) and gates re-runs with e2eIsFresh(ledger, HEAD) BEFORE
+ *  deciding to re-run — a moved HEAD ⇒ stale ⇒ return to E6. Do NOT model e2e freshness as a step() replay. */
+export function e2eIsFresh(ledger, headSha) {
+  const rec = ledger?.steps?.get('e2e');
+  return !!rec && rec.value?.sha === headSha;
+}
+
+/** HEAD sha (cwd-independent) — the freshness key for the epic-pre-done e2e batch (F-14, §5). */
+export function gitHeadSha(exec = (c) => execSync(c, { encoding: 'utf8' })) {
+  return exec('git rev-parse HEAD').trim();
+}
