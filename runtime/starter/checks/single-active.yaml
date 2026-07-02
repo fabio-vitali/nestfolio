@@ -1,0 +1,9 @@
+id: single-active
+property: "at most one active item and one active epic (lint rules 2/11)"
+kind: inconsistency
+evaluator: { type: deterministic, run: "cmd:node runtime/engine/lib/scope-gate.mjs --single-active" }
+cost_tier: cheap
+contexts: [invariant]
+scope: { paths: ["docs/backlog/*.md"] }
+status: active
+provenance: { minted_by: "starter-pack", ratified: "2026-07-01" }

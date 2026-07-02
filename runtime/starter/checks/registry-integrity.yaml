@@ -1,0 +1,9 @@
+id: registry-integrity
+property: "the meta-check — every enforced surface has an entry; every entry runnable; every judgment check guarded"
+kind: inconsistency
+evaluator: { type: deterministic, run: "cmd:node runtime/engine/lib/meta-check.mjs" }
+cost_tier: moderate
+contexts: [audit, gate]
+scope: { paths: ["runtime/content/checks/*.yaml"] }
+status: active
+provenance: { minted_by: "starter-pack", ratified: "2026-07-01" }

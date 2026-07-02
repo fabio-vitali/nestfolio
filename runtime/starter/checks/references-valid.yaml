@@ -1,0 +1,9 @@
+id: references-valid
+property: "every item's references path and #anchor resolves (lint rule 3)"
+kind: staleness
+evaluator: { type: deterministic, run: "cmd:node .claude/skills/backlog-lint/lint.mjs" }
+cost_tier: cheap
+contexts: [gate]
+scope: { paths: ["docs/backlog/*.md"] }
+status: active
+provenance: { minted_by: "starter-pack", ratified: "2026-07-01" }

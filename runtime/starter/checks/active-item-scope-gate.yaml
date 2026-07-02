@@ -1,0 +1,17 @@
+id: active-item-scope-gate
+property: >
+  The working-tree diff belongs to exactly one active item (single-active), and every changed path is
+  matched by that item's declared scope. A path changed outside scope is an out-of-scope escape.
+kind: inconsistency
+evaluator:
+  type: deterministic
+  run: "cmd:node runtime/engine/lib/scope-gate.mjs"
+cost_tier: cheap
+contexts: [invariant, gate]
+scope:
+  paths: ["**/*"]
+status: active
+provenance:
+  minted_by: "starter-pack"
+  lesson: "feedback_pivot_to_worktree.md"
+  ratified: "2026-07-01"

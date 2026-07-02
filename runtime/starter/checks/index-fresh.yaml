@@ -1,0 +1,12 @@
+id: index-fresh
+property: "the generated index byte-matches the render of frontmatter (lint rule 7)"
+kind: drift
+evaluator:
+  type: deterministic
+  run: "cmd:node .claude/skills/backlog-lint/lint.mjs --check-index"
+  fix: "node .claude/skills/backlog-lint/lint.mjs --fix"
+cost_tier: cheap
+contexts: [gate]
+scope: { paths: ["docs/BACKLOG.md"] }
+status: active
+provenance: { minted_by: "starter-pack", ratified: "2026-07-01" }
