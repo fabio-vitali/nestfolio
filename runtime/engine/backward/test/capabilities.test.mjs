@@ -1,26 +1,18 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { headlessAsk, inMemoryJournal } from '../lib/capabilities.mjs';
-import { validDraft, validCheck } from './_fixtures.mjs';
+import { headlessAsk, inMemoryJournal, PAUSE } from '../lib/capabilities.mjs';
 
-test('CAP1 headlessAsk on a mint choice returns a HARNESS-PAUSE sentinel naming the candidate', () => {
-  const a = headlessAsk({ choice: { act: 'mint', candidate: validDraft().entry } });
-  assert.match(a.sentinel, /^<<HARNESS-PAUSE: mint sample-mint>>$/);
-  assert.equal(a.selected, undefined);   // NEVER self-resolves
+test('headlessAsk returns a formal Choice whose value is the PAUSE sentinel (never a selection)', async () => {
+  const choice = await headlessAsk({ id: 'mint-x', question: 'ratify?', options: [{ label: 'Ratify', value: 'ratify', recommended: true }] });
+  assert.deepEqual(choice, { decisionId: 'mint-x', value: PAUSE });
 });
 
-test('CAP2 headlessAsk on a curate choice names the guard', () => {
-  const a = headlessAsk({ choice: { act: 'curate', guard: validCheck({ id: 'no-ddb-scan' }) } });
-  assert.match(a.sentinel, /curate no-ddb-scan/);
-});
-
-test('CAP3 inMemoryJournal records once and replays the same value (idempotent)', () => {
+test('inMemoryJournal is the formal Journal (step is idempotent by key)', async () => {
   const j = inMemoryJournal();
-  assert.equal(j.has('k'), false);
-  const first = j.record('k', { v: 1 });
-  assert.equal(j.has('k'), true);
-  const second = j.record('k', { v: 2 });   // second write ignored
-  assert.deepEqual(first, { v: 1 });
-  assert.deepEqual(second, { v: 1 });
-  assert.deepEqual(j.get('k'), { v: 1 });
+  let calls = 0;
+  const a = await j.step('backward', 'mint:x:ratify', async () => { calls++; return { ok: true }; });
+  const b = await j.step('backward', 'mint:x:ratify', async () => { calls++; return { ok: false }; });
+  assert.deepEqual(a, { ok: true });
+  assert.deepEqual(b, { ok: true });   // replay — second fn NOT run
+  assert.equal(calls, 1);
 });
