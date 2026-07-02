@@ -21,10 +21,10 @@ function seedFresh(lessonsDir, lesson) {
 }
 
 for (const { item, lesson, proposal } of DOGFOOD) {
-  test(`DOGFOOD ${proposal.id}: ratify → active yaml + landed scenario + reconciled mints`, () => {
-    withTmpContent(({ checksDir, lessonsDir, scenariosDir }) => {
+  test(`DOGFOOD ${proposal.id}: ratify → active yaml + landed scenario + reconciled mints`, () =>
+    withTmpContent(async ({ checksDir, lessonsDir, scenariosDir }) => {
       seedFresh(lessonsDir, lesson);   // real in-repo mirror, pre-mint state
-      const r = runMint({ item, lesson, proposal, ask: () => ({ selected: 'ratify' }), journal: inMemoryJournal(), checksDir, dossierRoot: lessonsDir, scenariosDir });
+      const r = await runMint({ item, lesson, proposal, ask: async (d) => ({ decisionId: d.id, value: 'ratify' }), journal: inMemoryJournal(), checksDir, dossierRoot: lessonsDir, scenariosDir });
       assert.equal(r.kind, 'minted', `${proposal.id} should mint`);
       const persisted = parse(readFileSync(join(checksDir, `${proposal.id}.yaml`), 'utf8'));
       assert.equal(validateCheck(persisted).ok, true, `${proposal.id} yaml invalid`);
@@ -36,15 +36,14 @@ for (const { item, lesson, proposal } of DOGFOOD) {
       assert.ok(existsSync(join(scenariosDir, `${proposal.id}.scenario.mjs`)));
       const mints = parse(/^---\n([\s\S]*?)\n---/.exec(readFileSync(join(lessonsDir, lesson), 'utf8'))[1]).mints;
       assert.deepEqual(mints, [{ check: proposal.id, ratified: persisted.provenance.ratified, status: 'active' }]);
-    });
-  });
+    }));
 }
 
-test('DOGFOOD --auto pauses every lesson (never self-ratifies)', () => {
+test('DOGFOOD --auto pauses every lesson (never self-ratifies)', async () => {
   for (const { item, lesson, proposal } of DOGFOOD) {
-    withTmpContent(({ checksDir, lessonsDir, scenariosDir }) => {
+    await withTmpContent(async ({ checksDir, lessonsDir, scenariosDir }) => {
       seedFresh(lessonsDir, lesson);
-      const r = runMint({ item, lesson, proposal, journal: inMemoryJournal(), checksDir, dossierRoot: lessonsDir, scenariosDir });   // headless
+      const r = await runMint({ item, lesson, proposal, journal: inMemoryJournal(), checksDir, dossierRoot: lessonsDir, scenariosDir });   // headless
       assert.equal(r.kind, 'paused');
       assert.equal(existsSync(join(checksDir, `${proposal.id}.yaml`)), false);
     });

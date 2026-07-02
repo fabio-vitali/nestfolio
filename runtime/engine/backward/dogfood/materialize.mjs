@@ -7,11 +7,11 @@ import { runMint } from '../lib/mint.mjs';
 import { inMemoryJournal } from '../lib/capabilities.mjs';
 import { DOGFOOD } from './lessons.mjs';
 
-function main() {
+async function main() {
   const journal = inMemoryJournal();
   const dirs = { checksDir: 'runtime/content/checks', dossierRoot: 'runtime/content/lessons', scenariosDir: 'runtime/eval/scenarios' };
   for (const { item, lesson, proposal } of DOGFOOD) {
-    const r = runMint({ item, lesson, proposal, ask: () => ({ selected: 'ratify' }), journal, ...dirs });
+    const r = await runMint({ item, lesson, proposal, ask: async (d) => ({ decisionId: d.id, value: 'ratify' }), journal, ...dirs });
     if (r.kind !== 'minted') { console.error(`FAILED to mint ${proposal.id}: ${r.kind}`); process.exit(1); }
     console.log(`minted ${proposal.id} → ${dirs.checksDir}/${proposal.id}.yaml`);
   }
