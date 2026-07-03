@@ -156,13 +156,14 @@ rollup: core 0/2 done · captured 0/0 done
 
 ### [runtime-operationalization](backlog/runtime-operationalization.md) `[epic · parking]` — Adopt/operationalize the Long-Horizon Engineering Runtime: make it FIRE on real triggers, migrate the remaining ~23 enforced surfaces into the content ring, reconcile the item schema with docs/backlog, build a regression/benchmark harness, and ship the operator surface. runtime-realization shipped the 3 library slices; THIS epic makes the runtime the project's live enforcement + work loop.
 done_when: The runtime is the project's LIVE enforcement + work-driver, not a dormant library: it fires on at least one real trigger (hook/CI/schedule) via injected live capabilities; the ~34-surface migration into runtime/content/checks is complete (old tools/check-*.mjs + backlog-lint rules + audit skills all represented as CheckEntries); item.schema is reconciled with docs/backlog and validated on read; a baseline/regression harness protects runtime releases; the operator surface (view+executor) is shipped. Every core member shipped or dropped.
-rollup: core 0/6 done · captured 0/0 done
+rollup: core 0/6 done · captured 0/1 done
 - core · queued · [runtime-make-it-fire](backlog/runtime-make-it-fire.md)
 - core · parking · [runtime-check-goldengates-ci](backlog/runtime-check-goldengates-ci.md)
 - core · parking · [runtime-check-migration-completion](backlog/runtime-check-migration-completion.md)
 - core · parking · [runtime-item-schema-reconciliation](backlog/runtime-item-schema-reconciliation.md)
 - core · parking · [runtime-operational-surface](backlog/runtime-operational-surface.md)
 - core · parking · [runtime-regression-harness](backlog/runtime-regression-harness.md)
+- captured · parking · [runtime-typescript-port](backlog/runtime-typescript-port.md)
 
 ### [ssm-override-warm-cache-test-isolation](backlog/ssm-override-warm-cache-test-isolation.md) `[epic · parking]` — Warm-Lambda Parameters-and-Secrets SSM cache (+ override/restore state) defeats SsmOverrideFixture → real-API leak + resilience-trap misses. Theme epic, 2 members.
 done_when: A warm Lambda can no longer serve restored/real SSM param values mid-test (cache-bust or fixture-aware invalidation), so SsmOverrideFixture isolation holds; both members shipped or dropped.
