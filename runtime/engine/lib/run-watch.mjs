@@ -21,12 +21,12 @@ export function selectChecks({ registry, trigger, changedScope }) {
   return [...candidates.values()].filter((c) => activated(c) && affordable(c));
 }
 
-export async function runWatch({ registry, trigger, changedScope, judge }) {
+export async function runWatch({ registry, trigger, changedScope, stagedFiles, judge }) {
   const findings = [];
   for (const check of selectChecks({ registry, trigger, changedScope })) {
     const context = check.contexts.find((ctx) => trigger.contexts.includes(ctx));
     let result;
-    try { result = await runCheck({ check, context, judge }); }
+    try { result = await runCheck({ check, context, judge, stagedFiles }); }
     catch (e) {
       findings.push({ id: `${check.id}#err`, check: check.id, kind: 'gap',
         scope: check.scope.paths, detail: `evaluator error: ${e.message}`, raised_at: isoNow() });
