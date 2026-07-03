@@ -154,17 +154,21 @@ rollup: core 0/2 done · captured 0/0 done
 - core · parking · [e2e-contract-emission-bytypename-helper-extract](backlog/e2e-contract-emission-bytypename-helper-extract.md)
 - core · parking · [generalise-appsync-iam-publisher-lib](backlog/generalise-appsync-iam-publisher-lib.md)
 
-### [runtime-operationalization](backlog/runtime-operationalization.md) `[epic · parking]` — Adopt/operationalize the Long-Horizon Engineering Runtime: make it FIRE on real triggers, migrate the remaining ~23 enforced surfaces into the content ring, reconcile the item schema with docs/backlog, build a regression/benchmark harness, and ship the operator surface. runtime-realization shipped the 3 library slices; THIS epic makes the runtime the project's live enforcement + work loop.
-done_when: The runtime is the project's LIVE enforcement + work-driver, not a dormant library: it fires on at least one real trigger (hook/CI/schedule) via injected live capabilities; the ~34-surface migration into runtime/content/checks is complete (old tools/check-*.mjs + backlog-lint rules + audit skills all represented as CheckEntries); item.schema is reconciled with docs/backlog and validated on read; a baseline/regression harness protects runtime releases; the operator surface (view+executor) is shipped. Every core member shipped or dropped.
-rollup: core 1/6 done · captured 0/3 done
+### [runtime-operationalization](backlog/runtime-operationalization.md) `[epic · parking]` — Adopt/operationalize the Long-Horizon Engineering Runtime via the probes-first roadmap (re-scoped 2026-07-03): P1 probe the two unproven bets (execute seam, backward edge) → P2 moat live (mint/curate in anger, before enforcement triples) → P3 parity oracle + item schema → P4 check migration with cadence + CI golden gates → P5 work-driver strangler re-platform with soak gate → P6 user-triggered legacy retirement + operator surface. runtime-realization shipped the 3 library slices; THIS epic makes the runtime the project's live enforcement + work-driver, reversibly (docs/backlog stays the one item store — procedures migrate, never data).
+done_when: The runtime is the project's LIVE enforcement + work-driver, demonstrated not asserted: (1) enforcement — the gate fires diff-scoped on commit (shipped) AND every migrated check runs on a real cadence (commit gate / CI / schedule / epic-batch; judgment checks via a live judge binding), the ~34-surface migration into runtime/content/checks is complete, and the check golden gates run in CI; (2) the backward edge is live-in-anger — at least one real lesson minted through a real floor into a registered check, and curate-at-the-floor is the only sanctioned path past a failing guard (skip-hatch instrumented); (3) item.schema is reconciled with docs/backlog and validated on read; (4) the parity oracle is green — the regression harness grades the runtime loop against the legacy backlog skills on the same scenarios, plus a greenfield adoption e2e; (5) the work-driver is re-platformed — the backlog skills run on the engine loop with legacy fallback, soaked over ≥5 real workstreams with zero fallbacks; (6) the operator surface (view+executor) is shipped. Every core member shipped or dropped.
+rollup: core 1/9 done · captured 0/4 done
+- core · parking · [runtime-backward-edge-live](backlog/runtime-backward-edge-live.md)
 - core · parking · [runtime-check-goldengates-ci](backlog/runtime-check-goldengates-ci.md)
 - core · parking · [runtime-check-migration-completion](backlog/runtime-check-migration-completion.md)
 - core · parking · [runtime-item-schema-reconciliation](backlog/runtime-item-schema-reconciliation.md)
 - core · parking · [runtime-operational-surface](backlog/runtime-operational-surface.md)
 - core · parking · [runtime-regression-harness](backlog/runtime-regression-harness.md)
+- core · parking · [runtime-seam-probe](backlog/runtime-seam-probe.md)
+- core · parking · [runtime-work-driver-replatform](backlog/runtime-work-driver-replatform.md)
 - core · shipped · [runtime-make-it-fire](backlog/runtime-make-it-fire.md)
 - captured · parking · [gate-surfaced-source-debt](backlog/gate-surfaced-source-debt.md)
 - captured · parking · [no-agent-result-fallback-check-overbroad](backlog/no-agent-result-fallback-check-overbroad.md)
+- captured · parking · [runtime-design-redteam](backlog/runtime-design-redteam.md)
 - captured · parking · [runtime-typescript-port](backlog/runtime-typescript-port.md)
 
 ### [ssm-override-warm-cache-test-isolation](backlog/ssm-override-warm-cache-test-isolation.md) `[epic · parking]` — Warm-Lambda Parameters-and-Secrets SSM cache (+ override/restore state) defeats SsmOverrideFixture → real-API leak + resilience-trap misses. Theme epic, 2 members.

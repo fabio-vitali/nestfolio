@@ -4,7 +4,7 @@ status: parking
 type: refactor
 epic: runtime-operationalization
 epic_role: core
-notes: "Migrate the remaining ~23 enforced surfaces (backlog-lint rules 4-11, 3 typed/appsync check-*.mjs, pre-commit structural checks, 4 audit-* skills) into runtime/content/checks CheckEntry YAML — the no-lost-value §12 map, finished."
+notes: "Migrate the remaining ~23 enforced surfaces (backlog-lint rules 4-11, 3 typed/appsync check-*.mjs, pre-commit structural checks, 4 audit-* skills) into runtime/content/checks CheckEntry YAML — the no-lost-value §12 map, finished. ACCEPTANCE (2026-07-03): 'migrated' = the check RUNS on a real cadence (commit gate / CI / schedule / epic-batch), not 'has YAML'; the judgment tier requires a live judge binding + at least one real audit-context execution. Sequenced AFTER runtime-backward-edge-live (curate must exist before enforcement triples)."
 references: []
 out_of_scope: []
 spec: null
@@ -30,3 +30,12 @@ SPEC 1 §12 / SPEC 3 §12:
 
 Do this behind the proven live path from `runtime-make-it-fire` — migrate checks only once something actually
 runs them.
+
+**Acceptance (added 2026-07-03, roadmap P4):** "migrated" means the check **runs on a real cadence** —
+commit gate, CI, schedule, or epic-batch — not merely "has a YAML entry." For the judgment tier
+(`audit-*` skills) that requires wiring a **live judge binding** (`skill:` scheme → a real Skill/headless
+invocation) and at least one real `audit`-context execution with findings routed through intake.
+
+**Sequencing (binding):** starts only after `runtime-backward-edge-live` ships — curate-at-the-floor must
+exist as the sanctioned bypass before enforcement scale triples, or `RUNTIME_GATE_SKIP` becomes de-facto
+curation (the drift design law 5 forbids).
