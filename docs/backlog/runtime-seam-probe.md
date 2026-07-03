@@ -1,6 +1,7 @@
 ---
 id: runtime-seam-probe
-status: parking
+status: queued
+rank: 4
 type: feature
 epic: runtime-operationalization
 epic_role: core
@@ -14,6 +15,10 @@ validation_gate: null
 ---
 
 # Runtime seam probe — one real workstream through the loop spine
+
+**Promoted 2026-07-03** (parking → queued rank 4): the roadmap trigger fired — both P0/P1b predecessors
+shipped (`runtime-make-it-fire` PR#30, `runtime-design-redteam` verdict solid-with-deltas) and the p1
+contract-re-freeze delta list this probe builds on is now recorded. Next in the approved P-phase order.
 
 The single biggest unproven bet in the runtime design is the **execute seam**: `Task`/`TaskResult`
 (`engine/capabilities/index.ts`) has never been forced through real work. `engine/loop/worker.mjs` is a
