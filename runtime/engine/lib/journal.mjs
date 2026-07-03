@@ -9,6 +9,11 @@ import { validateStepRecord, validateRunMeta } from '../schema/journal.schema.ts
 
 const isoNow = () => new Date().toISOString();
 
+export const PAUSE = '<<HARNESS-PAUSE>>';
+
+/** Re-freeze 2026-07-03: a paused TaskResult (status 'paused' + a Decision) — step() parks it. */
+export function isPaused(v) { return v?.status === 'paused' && typeof v?.decision?.id === 'string'; }
+
 /** Resolve the git-common-dir (cwd-independent, shared across worktrees) — the runstate.mjs form. */
 export function gitCommonDir(exec = (c) => execSync(c, { encoding: 'utf8' })) {
   return exec('git rev-parse --path-format=absolute --git-common-dir').trim().replace(/\/$/, '');
@@ -39,8 +44,12 @@ function makeBacking({ readMeta, writeMeta, readSteps, appendStep }) {
     async step(runId, key, fn, strategy = 'keyed-effect') {
       if (strategy === 'pure-rederive') return await fn();       // never ledgered — replay is free
       const existing = readSteps(runId).get(key);
-      if (existing?.status === 'complete') return existing.value; // REPLAY — fn NOT invoked
-      const value = await fn();                                   // execute exactly once
+      if (existing?.status === 'complete') return existing.value; // REPLAY — fn NOT invoked (incl. a fulfilled park)
+      const value = await fn();                                   // execute (an awaiting record does NOT short-circuit)
+      if (isPaused(value)) {                                      // PARK-not-complete: replay re-invokes until fulfilled
+        appendStep(runId, { key, status: 'awaiting', decision: value.decision, ts: isoNow() });
+        return value;
+      }
       appendStep(runId, { key, status: 'complete', value, ts: isoNow() });
       return value;
     },
@@ -78,6 +87,30 @@ export function inMemoryJournal() {
     readSteps: (runId) => { const m = new Map(); for (const r of lines.get(runId) ?? []) m.set(r.key, r); return m; },
     appendStep: (runId, rec) => { const a = lines.get(runId) ?? []; a.push(rec); lines.set(runId, a); },
   });
+}
+
+/** Awaiting records with no later completion (parseSteps is last-write-wins per key). */
+export function pendingDecisions(ledger) {
+  return ledger ? [...ledger.steps.values()].filter((r) => r.status === 'awaiting') : [];
+}
+
+/** Choice-shaped step completions — the spine threads these into Task.choices (pure-data resume). */
+export function fulfilledChoices(ledger) {
+  return ledger ? [...ledger.steps.values()]
+    .filter((r) => r.status === 'complete' && typeof r.value?.decisionId === 'string' && 'value' in (r.value ?? {}))
+    .map((r) => r.value) : [];
+}
+
+/** The journaled floor ask (§4.3): replay a fulfilled Choice; park a PAUSE; record only terminal answers.
+ *  recordWhen(choice) false ⇒ the answer is a deferral (e.g. 'hold') — parked as awaiting, re-asked next wake. */
+export async function askStep({ journal, runId, decision, ask, recordWhen = () => true }) {
+  const existing = journal.read(runId)?.steps.get(decision.id);
+  if (existing?.status === 'complete') return existing.value;   // fulfilled — never re-ask
+  const choice = await ask(decision);
+  if (choice.value === PAUSE) { journal.awaiting(runId, decision.id, decision); return null; }
+  if (recordWhen(choice)) journal.fulfil(runId, decision.id, choice);
+  else journal.awaiting(runId, decision.id, decision);
+  return choice;
 }
 
 /** e2e-freshness helper (F-14). NOTE: journal.step is sha-AGNOSTIC — it short-circuits on ANY 'complete'

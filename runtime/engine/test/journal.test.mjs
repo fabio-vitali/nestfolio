@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import { mkdtempSync, writeFileSync, readFileSync, mkdirSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { makeJournal, inMemoryJournal, e2eIsFresh } from '../lib/journal.mjs';
+import { makeJournal, inMemoryJournal, e2eIsFresh, isPaused, pendingDecisions, fulfilledChoices, askStep, PAUSE } from '../lib/journal.mjs';
 
 const freshRoot = () => mkdtempSync(join(tmpdir(), 'jrnl-'));
 const meta = (runId) => ({ runId, branch: 'feat/x', worktree: '.wt/x', auto: false });
@@ -79,4 +79,71 @@ test('A6: e2e freshness — a recorded e2e sha not matching HEAD is stale (force
   j.record('epic-b', 'e2e', { sha: 'abc', green: true });
   assert.equal(e2eIsFresh(j.read('epic-b'), 'abc'), true);
   assert.equal(e2eIsFresh(j.read('epic-b'), 'def'), false);
+});
+
+const DEC = { id: 'ship-x', question: 'Ship x?', options: [{ label: 'Ship', value: 'ship', recommended: true }, { label: 'Hold', value: 'hold' }] };
+const PAUSED_RESULT = { taskId: 'x', status: 'paused', summary: 'parked', decision: { id: 'execute:x', question: 'Perform x', options: [{ label: 'Fulfil', value: 'fulfil', recommended: true }] } };
+
+test('JP1 step parks a paused TaskResult: awaiting under the STEP key, no complete record', async () => {
+  const j = inMemoryJournal(); j.begin('item-x', { runId: 'item-x', auto: false });
+  const v = await j.step('item-x', 'execute:x', async () => PAUSED_RESULT);
+  assert.equal(v.status, 'paused');
+  const rec = j.read('item-x').steps.get('execute:x');
+  assert.equal(rec.status, 'awaiting');
+  assert.equal(rec.decision.id, 'execute:x');
+});
+test('JP2 a parked step re-invokes fn on replay (not short-circuited)', async () => {
+  const j = inMemoryJournal(); j.begin('item-x', { runId: 'item-x', auto: false });
+  let calls = 0;
+  const fn = async () => { calls++; return PAUSED_RESULT; };
+  await j.step('item-x', 'execute:x', fn); await j.step('item-x', 'execute:x', fn);
+  assert.equal(calls, 2);
+});
+test('JP3 fulfil completes the parked key; replay short-circuits with the fulfilled value', async () => {
+  const j = inMemoryJournal(); j.begin('item-x', { runId: 'item-x', auto: false });
+  await j.step('item-x', 'execute:x', async () => PAUSED_RESULT);
+  j.fulfil('item-x', 'execute:x', { taskId: 'x', status: 'done', summary: 'performed by session' });
+  let calls = 0;
+  const v = await j.step('item-x', 'execute:x', async () => { calls++; return PAUSED_RESULT; });
+  assert.equal(calls, 0); assert.equal(v.status, 'done');
+});
+test('JP4 pendingDecisions lists awaiting-only; fulfilment removes it', async () => {
+  const j = inMemoryJournal(); j.begin('item-x', { runId: 'item-x', auto: false });
+  await j.step('item-x', 'execute:x', async () => PAUSED_RESULT);
+  assert.equal(pendingDecisions(j.read('item-x')).length, 1);
+  j.fulfil('item-x', 'execute:x', { taskId: 'x', status: 'done', summary: 'ok' });
+  assert.equal(pendingDecisions(j.read('item-x')).length, 0);
+});
+test('JP5 fulfilledChoices returns Choice-shaped completions only', async () => {
+  const j = inMemoryJournal(); j.begin('item-x', { runId: 'item-x', auto: false });
+  j.fulfil('item-x', 'ship-x', { decisionId: 'ship-x', value: 'ship' });
+  j.record('item-x', 'gate.start', { passed: true, findings: [] });
+  const cs = fulfilledChoices(j.read('item-x'));
+  assert.equal(cs.length, 1); assert.equal(cs[0].value, 'ship');
+});
+test('JP6 askStep: PAUSE parks and returns null; fulfil then replay returns the Choice without re-asking', async () => {
+  const j = inMemoryJournal(); j.begin('item-x', { runId: 'item-x', auto: false });
+  let asks = 0;
+  const pausingAsk = async (d) => { asks++; return { decisionId: d.id, value: PAUSE }; };
+  assert.equal(await askStep({ journal: j, runId: 'item-x', decision: DEC, ask: pausingAsk }), null);
+  assert.equal(j.read('item-x').steps.get('ship-x').status, 'awaiting');
+  j.fulfil('item-x', 'ship-x', { decisionId: 'ship-x', value: 'ship' });
+  const c = await askStep({ journal: j, runId: 'item-x', decision: DEC, ask: pausingAsk });
+  assert.equal(c.value, 'ship'); assert.equal(asks, 1);
+});
+test('JP7 askStep recordWhen: a non-terminal answer (hold) is NOT recorded complete — re-asked next wake', async () => {
+  const j = inMemoryJournal(); j.begin('item-x', { runId: 'item-x', auto: false });
+  let asks = 0;
+  const holdAsk = async (d) => { asks++; return { decisionId: d.id, value: 'hold' }; };
+  const rw = (c) => c.value === 'ship';
+  const c1 = await askStep({ journal: j, runId: 'item-x', decision: DEC, ask: holdAsk, recordWhen: rw });
+  assert.equal(c1.value, 'hold');
+  assert.equal(j.read('item-x').steps.get('ship-x').status, 'awaiting');
+  const c2 = await askStep({ journal: j, runId: 'item-x', decision: DEC, ask: holdAsk, recordWhen: rw });
+  assert.equal(c2.value, 'hold'); assert.equal(asks, 2);
+});
+test('JP8 isPaused guards shape', () => {
+  assert.equal(isPaused(PAUSED_RESULT), true);
+  assert.equal(isPaused({ status: 'paused' }), false);
+  assert.equal(isPaused({ status: 'done', summary: 'x' }), false);
 });
