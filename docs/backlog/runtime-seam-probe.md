@@ -58,3 +58,34 @@ rediscovering the known holes.
 
 Roadmap: P1a of the probes-first adoption plan (see epic body). Run INLINE — the worker is the
 decision-bearing spine; never isolate it behind a subagent.
+
+
+## Probe evidence (2026-07-04)
+
+Loop-driven tail executed via `node runtime/adapters/claude-code/run-item.mjs runtime-seam-probe`:
+drive exit sequence **1 -> 3 -> 3 -> 3 -> 3 -> 0** (gate-fail on pre-ratchet debt; execute park + re-park
+on replay; execute fulfilled with the real victim fix; ship ask parked; HOLD deferral re-asked, never
+wedged; ship Choice fulfilled -> done). Journal at `<git-common-dir>/journal/item-runtime-seam-probe/`
+(15 step records): the pre-ratchet FAILED gate.start is retained as history and gates re-ran fresh on
+every wake (checks-not-effects live); both park kinds exercised (execute-park fulfilled with a
+TaskResult, ask-park with a Choice); both floor branches proven live (hold + ship).
+
+## Contract-gap list (measured — deliverable 3)
+
+1. **Item gates vs whole-tree debt (the big one).** Global invariants ride every item gate whole-scope;
+   the first live drive was blocked by 5 pre-existing-debt checks. Interim: baseline-exclusion ratchet
+   (94 paths, binding removal contract in `gate-surfaced-source-debt`); per-file granularity proved
+   BLUNT at 72 files for `no-unsafe-casts`. Proper semantics filed -> `runtime-gate-baseline-semantics`
+   (captured member): baseline-relative / diff-aware item gates.
+2. **Epic park-key != bubbled decision.id** (whole-branch review, Medium): the orchestrator parks members
+   under `member.<id>` while the adapter's decision.id is `execute:<id>`. Convention documented in SPEC 3
+   §18 + GUIDE (always fulfil by `pending[].key`); a structural unification belongs to
+   `runtime-work-driver-replatform` (P5).
+3. **Items need scope discipline.** This item had no `scope:` frontmatter -> `Task.scope: []` -> zero
+   gate-context checks selected by scope (only invariants rode). Harmless here; for P5 the item store
+   must carry validated scope (`runtime-item-schema-reconciliation` covers the read-path validation).
+4. **Minor driver ergonomics:** CLI JSON fulfil values are clunky but workable; `run-gate.mjs` ignores
+   its `boundary` param (pre-existing — start/ship run identical sets; noted for the check migration).
+5. **The re-frozen seam itself: SUFFICIENT.** Task/TaskResult(paused+decision)/choices/locus,
+   park-not-complete, fulfil-is-completion, askStep recordWhen — no further type gaps surfaced under
+   real use. The p1 re-freeze survived contact.

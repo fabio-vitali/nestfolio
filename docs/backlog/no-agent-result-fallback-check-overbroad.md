@@ -1,6 +1,6 @@
 ---
 id: no-agent-result-fallback-check-overbroad
-status: parking
+status: shipped
 type: refactor
 notes: "The no-agent-result-fallback content-ring check flags EVERY ?? {} / ?? [] in advisory src (38), not only AgentCore/orchestrator-result fallbacks — over-broad vs its own stated property."
 references: []
@@ -8,7 +8,8 @@ out_of_scope: []
 spec: null
 plan: null
 topic_memory: [project_runtime_realization.md]
-validation_gate: null
+closed: 2026-07-04
+validation_gate: "Narrowed via the runtime-seam-probe probe run (loop execute payload, commit cce3641b): FALLBACK_RE now requires an agent/orchestrator-ish LHS; golden gates NARF1-4 green (4/4) incl. new good/db-read.ts false-positive fixture; whole-tree 38 -> 0 true positives (all 38 adjudicated: input-side subject coalesces or DB reads, result side guarded by discriminant throws); fallback exclusion sidecar empty. Ships in the runtime-seam-probe PR."
 epic: runtime-operationalization
 epic_role: captured
 ---
