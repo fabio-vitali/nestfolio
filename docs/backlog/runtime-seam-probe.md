@@ -1,6 +1,6 @@
 ---
 id: runtime-seam-probe
-status: active
+status: shipped
 type: feature
 epic: runtime-operationalization
 epic_role: core
@@ -15,7 +15,8 @@ out_of_scope:
 spec: docs/superpowers/specs/2026-07-03-runtime-seam-probe-design.md
 plan: docs/superpowers/plans/2026-07-03-runtime-seam-probe.md
 topic_memory: [project_runtime_realization.md]
-validation_gate: null
+closed: 2026-07-04
+validation_gate: "p1 contract re-freeze SHIPPED + probe run COMPLETE. Build: 8 SDD tasks + final-review fix wave (commits 1845c267..156ecba9), every task reviewed, whole-branch review READY-WITH-FIXES resolved. Gate: runtime suites 214/214 green + tsc clean + tools golden gates 125/125 (node --test, worktree direct gate). Probe: drive exits 1->3->3->3->3->0 via run-item.mjs; journal item-runtime-seam-probe 15 records; gates re-ran every wake incl. recovery from a real failed gate; execute-park fulfilled with the real victim fix (cce3641b, 38->0); ship ask survived a live HOLD deferral then completed on the human ship Choice. Contract-gap list recorded in body; seam verdict: sufficient. Victim no-agent-result-fallback-check-overbroad shipped in same PR."
 ---
 
 # Runtime seam probe — one real workstream through the loop spine
