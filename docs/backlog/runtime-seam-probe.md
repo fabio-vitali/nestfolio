@@ -1,13 +1,17 @@
 ---
 id: runtime-seam-probe
-status: queued
-rank: 4
+status: active
 type: feature
 epic: runtime-operationalization
 epic_role: core
 notes: "P1a probe: drive ONE real simple-lane workstream end-to-end through the engine loop (runWorker + live capabilities, session as runner) and produce the measured Task/TaskResult/ask contract-gap list — the empirical 'solid vs dream' test for the execute seam."
 references: []
-out_of_scope: []
+out_of_scope:
+  - "The work-driver re-platform of the backlog skills (runtime-work-driver-replatform, P5) — this probe drives ONE workstream, it does not migrate the skills."
+  - "Backward-edge procedural fixes — torn curate, successor guarantees, floor visibility, key epochs (runtime-backward-edge-live, P2)."
+  - "Mechanical hardening — fail-closed registry, ACMR, atomic meta.json, journal locking, registry-integrity CLI, single-active semantics, starter-pack self-containment (runtime-redteam-hardening, P2)."
+  - "Check migration, judge cadence, operator surface, parity harness (their own members)."
+  - "A second-host adapter — portability proof lands with the adoption e2e, not here."
 spec: null
 plan: null
 topic_memory: [project_runtime_realization.md]
