@@ -156,13 +156,15 @@ rollup: core 0/2 done · captured 0/0 done
 
 ### [runtime-operationalization](backlog/runtime-operationalization.md) `[epic · parking]` — Adopt/operationalize the Long-Horizon Engineering Runtime: make it FIRE on real triggers, migrate the remaining ~23 enforced surfaces into the content ring, reconcile the item schema with docs/backlog, build a regression/benchmark harness, and ship the operator surface. runtime-realization shipped the 3 library slices; THIS epic makes the runtime the project's live enforcement + work loop.
 done_when: The runtime is the project's LIVE enforcement + work-driver, not a dormant library: it fires on at least one real trigger (hook/CI/schedule) via injected live capabilities; the ~34-surface migration into runtime/content/checks is complete (old tools/check-*.mjs + backlog-lint rules + audit skills all represented as CheckEntries); item.schema is reconciled with docs/backlog and validated on read; a baseline/regression harness protects runtime releases; the operator surface (view+executor) is shipped. Every core member shipped or dropped.
-rollup: core 1/6 done · captured 0/1 done
+rollup: core 1/6 done · captured 0/3 done
 - core · parking · [runtime-check-goldengates-ci](backlog/runtime-check-goldengates-ci.md)
 - core · parking · [runtime-check-migration-completion](backlog/runtime-check-migration-completion.md)
 - core · parking · [runtime-item-schema-reconciliation](backlog/runtime-item-schema-reconciliation.md)
 - core · parking · [runtime-operational-surface](backlog/runtime-operational-surface.md)
 - core · parking · [runtime-regression-harness](backlog/runtime-regression-harness.md)
 - core · shipped · [runtime-make-it-fire](backlog/runtime-make-it-fire.md)
+- captured · parking · [gate-surfaced-source-debt](backlog/gate-surfaced-source-debt.md)
+- captured · parking · [no-agent-result-fallback-check-overbroad](backlog/no-agent-result-fallback-check-overbroad.md)
 - captured · parking · [runtime-typescript-port](backlog/runtime-typescript-port.md)
 
 ### [ssm-override-warm-cache-test-isolation](backlog/ssm-override-warm-cache-test-isolation.md) `[epic · parking]` — Warm-Lambda Parameters-and-Secrets SSM cache (+ override/restore state) defeats SsmOverrideFixture → real-API leak + resilience-trap misses. Theme epic, 2 members.
@@ -206,7 +208,7 @@ rollup: core 0/3 done · captured 0/0 done
 - core · parking · [portfolio-drift-detected-registry-collision](backlog/portfolio-drift-detected-registry-collision.md)
 - core · parking · [weight-drift-detector](backlog/weight-drift-detector.md)
 
-**Parking health:** 30 theme epic(s), 13 orphan(s) — drive orphans → 0 with `/backlog-themes`
+**Parking health:** 30 theme epic(s), 11 orphan(s) — drive orphans → 0 with `/backlog-themes`
 
 ## ACTIVE
 
@@ -226,9 +228,7 @@ _(none)_
 - [benchmark-agents-skill-simplification](backlog/benchmark-agents-skill-simplification.md) [refactor] — benchmark-agents SKILL.md (§5/§6) prescribes report templates inline; relocate to run.ts+templates.
 - [benchmark-backlog-skill-cost-figures-stale](backlog/benchmark-backlog-skill-cost-figures-stale.md) [tooling] — benchmark-backlog/SKILL.md cost gate hardcodes '6 bne scenarios' but the live corpus has 35 bne / 53 total — understates the spend ~6× (real 1×≈90M, 3×≈270M tokens). Derive the count dynamically. Captured under bef-deterministic-coverage-gaps for unified PR context; un-pointed back to a standalone parking orphan at that epic's close (2026-06-30) — confirmed orthogonal doc-drift nit by the captured audit (matches the 2026-06-29 backlog-themes adjudication).
 - [bump-tsconfig-es2022-to-es2023](backlog/bump-tsconfig-es2022-to-es2023.md) [tooling] — Enable .toSpliced/.toReversed/.with workspace-wide; promote on second use case.
-- [gate-surfaced-source-debt](backlog/gate-surfaced-source-debt.md) [bug] — Pre-existing source violations surfaced when the runtime gate first fired: no-ddb-scan (4), no-ddb-seed (11), no-states-runtime-catch (1).
 - [integration-suite-lever-5-cdk-bundling](backlog/integration-suite-lever-5-cdk-bundling.md) [refactor] — cdk-constructs:test bundles 57 assets in 32s as it synthesizes per-construct stacks in tests. This sits in the unit suite, not integration. Dossier called out as out-of-scope for integration slowness but worth tracking if unit wall-clock becomes a concern.
-- [no-agent-result-fallback-check-overbroad](backlog/no-agent-result-fallback-check-overbroad.md) [refactor] — The no-agent-result-fallback content-ring check flags EVERY ?? {} / ?? [] in advisory src (38), not only AgentCore/orchestrator-result fallbacks — over-broad vs its own stated property.
 - [rebalance-planner-mode-awareness](backlog/rebalance-planner-mode-awareness.md) [refactor] — rebalance-planner stays mode-blind; promote on mode-correlated gap.
 - [rename-nestfolio-integ-prefix-to-prefix](backlog/rename-nestfolio-integ-prefix-to-prefix.md) [refactor] — Verbose NESTFOLIO_INTEG_ namespace is friction; rename atomically + sweep docs.
 - [test-support-typecheck-put-event-type-test-drift](backlog/test-support-typecheck-put-event-type-test-drift.md) [tooling] — test-support:typecheck red on main — put-event.type-test @ts-expect-error drifted off the now-relocated overload error (false-red, not a masked real error)

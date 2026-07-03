@@ -9,6 +9,8 @@ spec: null
 plan: null
 topic_memory: [project_runtime_realization.md]
 validation_gate: null
+epic: runtime-operationalization
+epic_role: captured
 ---
 
 # Gate-surfaced source debt (content-ring invariants never previously enforced)

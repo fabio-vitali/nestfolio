@@ -9,6 +9,8 @@ spec: null
 plan: null
 topic_memory: [project_runtime_realization.md]
 validation_gate: null
+epic: runtime-operationalization
+epic_role: captured
 ---
 
 # `no-agent-result-fallback` check is over-broad
