@@ -3,7 +3,7 @@ property: "Every backlog file's `id` frontmatter matches its filename stem (back
 kind: inconsistency
 evaluator:
   type: deterministic
-  run: "module:.claude/skills/backlog-lint/lib/rules.mjs#ruleIdMatchesFilename"
+  run: "module:runtime/content/lib/backlog-id-core.mjs#backlogIdViolations"
 cost_tier: cheap
 contexts: [invariant, gate]
 scope:
