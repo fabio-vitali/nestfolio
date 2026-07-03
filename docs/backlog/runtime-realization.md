@@ -1,6 +1,6 @@
 ---
 id: runtime-realization
-status: parking
+status: shipped
 type: epic
 notes: "Delivery epic orchestrating the BUILD of the Long-Horizon Engineering Runtime from its three realization specs (derived + shipped in runtime-realization-specs). THREE SEQUENTIAL VERTICAL SLICES in dependency order — SPEC 1 (ring-1 check registry & hybrid atom) → SPEC 2 (backward edge / learning loop, the moat) → SPEC 3 (forward edge & capability seams). Each slice: plan → build → ship as its OWN complex-lane PR; the next slice's plan is then authored against the prior slice's MERGED, battle-tested contract. METHOD (user-decided): plan authoring = INLINE, Opus 4.8 MAX effort, one slice at a time (NEVER batch all 3 plans up front — building SPEC 1 re-freezes schema deltas SPECs 2/3 consume; ≥3 already found); plan review = OPTIONAL ultracode adversarial pass per plan before build; execution = INLINE + visible (user preference + vision legibility law), TDD, isolated worktree per slice; ultracode reserved for execution FAN-OUT only where a plan's tasks are genuinely independent. Members worked INDIVIDUALLY via /backlog-next (per-spec PRs) — deliberately NOT the batched single-branch /backlog-next-epic flow (the frozen-contract dependency forbids building SPEC 2 before SPEC 1 is merged). Precedent for a delivery epic drained via individual member PRs from parking: order-execution-money-path. The first SPEC 1 plan was authored then DELETED (user forgot max-effort); slice 1 restarts with a fresh max-effort plan."
 done_when: "All three core build slices shipped. SPEC 1: ring-1 engine (check/item/finding schemas + the six typed helpers loadRegistry/resolveEvaluator/runCheck/findByScope/advanceLifecycle/metaCheck, all §13 golden gates green) + its content-ring proof slice. SPEC 2: the backward-edge learning loop (mint/curate at the floor, provenance/supersession, enforcement-as-memory) dogfooded on the 5 real mechanizable feedback_* lessons. SPEC 3: forward edge + the six capability interfaces + journal + the no-lost-value equivalence map + its proof slice. Each built TDD-first and dev-verified; every §15 re-freeze delta surfaced during a build reconciled back into SPEC 1. Every core member shipped or dropped."
@@ -18,7 +18,9 @@ references:
   - docs/vision/long-horizon-engineering-runtime.md
 spec: null
 plan: null
-topic_memory: []
+topic_memory: [project_runtime_realization.md]
+validation_gate: "All 3 core build slices shipped + dev-verified: SPEC 1/2/3 (runtime-spec-{1,2,3}-*-impl) — 172 runtime node:test + tsc green; backward edge dogfooded on 5 lessons; forward edge + 6 capability seams + journal + §12 no-lost-value map shipped. Every core member terminal; the captured operational-surface member re-homed to runtime-operationalization, where adoption/operationalization continues."
+closed: "2026-07-02"
 ---
 
 # runtime-realization — build the Long-Horizon Engineering Runtime (delivery epic)

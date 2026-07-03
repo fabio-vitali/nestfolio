@@ -9,8 +9,8 @@ spec: null
 plan: null
 topic_memory: [project_runtime_realization.md]
 validation_gate: null
-epic: runtime-realization
-epic_role: captured
+epic: runtime-operationalization
+epic_role: core
 ---
 
 # Runtime operational surface (§14 Option B) — view + executor CLI
@@ -37,7 +37,7 @@ these, not new engine logic.
 
 **Trigger (why parking, not queued).** Build once the capability seam is **dogfooded by a real consumer** —
 i.e. after the loop spine drives at least one real workstream end-to-end through the adapter — so the
-operator surface is shaped by observed need, not speculation. Until then this rides along the
-`runtime-realization` theme as a `captured` member (orthogonal to the epic's 3-slice `done_when`).
+operator surface is shaped by observed need, not speculation. It is a `core` member of the
+`runtime-operationalization` epic; its trigger is `runtime-make-it-fire` (the first real consumer of the seam).
 
 Topic dossier: `project_runtime_realization.md`.

@@ -7,7 +7,12 @@ import { spawnSync } from 'node:child_process';
 import { isAbsolute, resolve as resolvePath } from 'node:path';
 import { pathToFileURL, fileURLToPath } from 'node:url';
 import { parseRun } from '../schema/check.schema.ts';
+import { globsOverlap } from './glob-overlap.mjs';
 import { EvaluatorUnresolved, JudgmentContractMissing, JudgeCapabilityUnavailable } from './errors.mjs';
+
+// SPEC 3 §-delta (diff-scoping): resolveEvaluator takes an optional concrete `stagedFiles` list and narrows
+// attribution — cmd via RUNTIME_STAGED_PATHS env, eslint via staged∩scope file args. Additive; audit path
+// (stagedFiles undefined) unchanged. NOT a frozen-schema/capability change → no SPEC 1 re-freeze.
 
 /** Normalize any evaluator return into Finding-ish objects; empty array = passed. */
 function toFindings(result, check) {
@@ -15,7 +20,13 @@ function toFindings(result, check) {
   return result.map((r) => ({ kind: check.kind, ...r }));
 }
 
-export function resolveEvaluator({ check, judge }) {
+/** staged files (if provided) that match this check's scope globs; else the check's whole scope (audit path). */
+export function eslintFiles(check, stagedFiles) {
+  if (stagedFiles == null) return check.scope.paths;
+  return stagedFiles.filter((f) => check.scope.paths.some((p) => globsOverlap(f, p)));
+}
+
+export function resolveEvaluator({ check, judge, stagedFiles }) {
   const parsed = parseRun(check.evaluator.run);
   if (!parsed) throw new EvaluatorUnresolved(check.evaluator.run, 'no valid scheme');
   const { scheme, target } = parsed;
@@ -29,7 +40,8 @@ export function resolveEvaluator({ check, judge }) {
   }
   if (scheme === 'cmd') {
     return { kind: 'deterministic', invoke: () => {
-      const r = spawnSync(target, { shell: true, encoding: 'utf8' });
+      const env = stagedFiles == null ? process.env : { ...process.env, RUNTIME_STAGED_PATHS: stagedFiles.join('\n') };
+      const r = spawnSync(target, { shell: true, encoding: 'utf8', env });
       if (r.status === 0) return [];
       return toFindings([{ detail: check.property, evidence: `${r.stdout ?? ''}${r.stderr ?? ''}`.trim(), scope: check.scope.paths }], check);
     } };
@@ -49,7 +61,9 @@ export function resolveEvaluator({ check, judge }) {
   // eslint:
   if (!target.length) throw new EvaluatorUnresolved(check.evaluator.run, 'empty eslint rule id');
   return { kind: 'deterministic', invoke: () => {
-    const r = spawnSync('npx', ['eslint', '--rule', `{"${target}":"error"}`, ...check.scope.paths], { encoding: 'utf8' });
+    const files = eslintFiles(check, stagedFiles);
+    if (!files.length) return [];
+    const r = spawnSync('npx', ['eslint', '--rule', `{"${target}":"error"}`, ...files], { encoding: 'utf8' });
     return r.status === 0 ? [] : toFindings([{ detail: check.property, evidence: (r.stdout ?? '').trim(), scope: check.scope.paths }], check);
   } };
 }

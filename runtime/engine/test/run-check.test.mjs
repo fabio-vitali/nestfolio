@@ -1,5 +1,8 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
+import { mkdtempSync, writeFileSync, rmSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
 import { runCheck } from '../lib/run-check.mjs';
 import { validCheck } from './_fixtures.mjs';
 
@@ -8,6 +11,19 @@ test('a check invoked in an undeclared context is refused with context-not-decla
   const check = validCheck({ contexts: ['audit'], evaluator: { type: 'deterministic', run: 'cmd:true' } });
   const r = await runCheck({ check, context: 'gate' });
   assert.deepEqual(r, { findings: [], ran: false, skippedReason: 'context-not-declared' });
+});
+
+// SF3 — runCheck forwards stagedFiles to the evaluator (observable via the cmd env)
+test('runCheck forwards stagedFiles to the evaluator', async () => {
+  const root = mkdtempSync(join(tmpdir(), 'nf-rc-'));
+  try {
+    const script = join(root, 's.mjs');
+    writeFileSync(script, 'process.stdout.write(process.env.RUNTIME_STAGED_PATHS ?? "<unset>"); process.exit(1);', 'utf8');
+    const check = validCheck({ contexts: ['invariant'], evaluator: { type: 'deterministic', run: `cmd:node ${script}` } });
+    const r = await runCheck({ check, context: 'invariant', stagedFiles: ['libs/a/src/x.ts'] });
+    assert.equal(r.ran, true);
+    assert.equal(r.findings[0].evidence, 'libs/a/src/x.ts');
+  } finally { rmSync(root, { recursive: true, force: true }); }
 });
 
 // E2 — declared context → runs

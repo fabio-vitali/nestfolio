@@ -12,6 +12,13 @@ NC='\033[0m'
 ERRORS=0
 WARNINGS=0
 
+# Runtime enforcement gate (runtime-make-it-fire) — content-ring commit-trigger checks over the STAGED set,
+# via the ring-1 watch engine (diff-scoped: findings are attributed to staged files). Runs on EVERY commit,
+# so it MUST precede the services-only early-exit below. Fail-closed: non-zero exit blocks the commit.
+if ! node runtime/adapters/git/pre-commit-gate.mjs; then
+  exit 1
+fi
+
 CHANGED_SERVICES=$(git diff --cached --name-only | grep '^services/' | cut -d'/' -f1-3 | sort -u || true)
 
 if [ -z "$CHANGED_SERVICES" ]; then

@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { resolveEvaluator } from '../lib/resolve-evaluator.mjs';
+import { resolveEvaluator, eslintFiles } from '../lib/resolve-evaluator.mjs';
 import { EvaluatorUnresolved, JudgmentContractMissing } from '../lib/errors.mjs';
 import { validCheck, withTmpDir } from './_fixtures.mjs';
 import { writeFileSync } from 'node:fs';
@@ -59,4 +59,25 @@ test('a skill: check with an injected judge invokes it instead of throwing', asy
   assert.equal(kind, 'judgment');
   const findings = await invoke();
   assert.equal(findings[0].detail, 'judged violation');
+});
+
+// SF1 — cmd: check receives RUNTIME_STAGED_PATHS from stagedFiles; undefined → env unset; [] → ''
+test('a cmd: check receives RUNTIME_STAGED_PATHS from stagedFiles', () => withTmpDir((root) => {
+  const script = join(root, 's.mjs');
+  writeFileSync(script, 'process.stdout.write(process.env.RUNTIME_STAGED_PATHS ?? "<unset>"); process.exit(1);', 'utf8');
+  const check = validCheck({ evaluator: { type: 'deterministic', run: `cmd:node ${script}` } });
+  const scoped = resolveEvaluator({ check, stagedFiles: ['libs/a/src/x.ts', 'libs/a/src/y.ts'] }).invoke();
+  assert.equal(scoped[0].evidence, 'libs/a/src/x.ts\nlibs/a/src/y.ts');
+  const audit = resolveEvaluator({ check }).invoke();
+  assert.equal(audit[0].evidence, '<unset>');
+  const empty = resolveEvaluator({ check, stagedFiles: [] }).invoke();
+  assert.equal(empty[0].evidence, '');   // set-but-empty → '' (nothing staged), NOT <unset>
+}));
+
+// SF2 — eslintFiles: undefined → whole scope; list → staged∩scope; empty intersection → []
+test('eslintFiles narrows staged files to the check scope', () => {
+  const check = validCheck({ scope: { paths: ['libs/**/src/**/*.ts'] }, evaluator: { type: 'deterministic', run: 'eslint:@nx/enforce-module-boundaries' } });
+  assert.deepEqual(eslintFiles(check, undefined), ['libs/**/src/**/*.ts']);
+  assert.deepEqual(eslintFiles(check, ['libs/a/src/x.ts', 'services/b/src/y.ts']), ['libs/a/src/x.ts']);
+  assert.deepEqual(eslintFiles(check, []), []);
 });
