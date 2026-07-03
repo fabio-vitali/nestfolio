@@ -18,7 +18,7 @@ test('an awaiting step may carry a decision, a complete step a value', () => {
 test('RunMeta pins the runstate.mjs slice keys', () => {
   const ok = validateRunMeta({ runId: 'item-x', branch: 'feat/x', worktree: '.wt/x', auto: false });
   assert.equal(ok.ok, true);
-  assert.equal(validateRunMeta({ runId: 'x' }).ok, false); // missing branch/worktree/auto
+  assert.equal(validateRunMeta({ runId: 'x' }).ok, false); // missing auto (branch/worktree are optional since the 2026-07-03 re-freeze)
 });
 
 test('STEP_STRATEGIES is the closed three-value set', () => {

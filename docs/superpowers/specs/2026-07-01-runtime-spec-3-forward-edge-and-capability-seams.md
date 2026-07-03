@@ -704,3 +704,5 @@ is not a capability. §4.3's protocol is now the *interactive* binding too: the 
 (`adapters/claude-code/run-item.mjs`) parks, the session performs/fulfils, replay advances.
 
 **Dependency rule:** ring-1 (this spec's helpers + the capability *types*) **never depends outward** — not on any adapter (`runtime/adapters/**`) and not on any project content (`runtime/content/**`). If the realization needs a schema change, it comes *back* to SPEC 1 and re-freezes the contract; this spec pins the frozen block and does not re-shape it unilaterally.
+
+**Fulfil-key convention.** Always fulfil by the pending record's `key` (as printed in `pending[].key`), never by the bubbled `decision.id` — they coincide for a worker's execute-park (`execute:<id>`) but differ for an epic member park (journal key `member.<id>` vs. the adapter's decision id `execute:<id>`).

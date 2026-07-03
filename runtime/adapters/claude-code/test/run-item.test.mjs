@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import { mkdtempSync, mkdirSync, writeFileSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
+import { spawnSync } from 'node:child_process';
 import { driveItem } from '../run-item.mjs';
 import { inMemoryJournal } from '../../../engine/lib/journal.mjs';
 import { makeAsk } from '../ask.mjs';
@@ -51,4 +52,9 @@ test('DRV3 unknown item → exit 2', async () => {
     const { exit } = await driveItem({ itemId: 'nope', backlogDir: dir, checksDir: checks, capabilities: caps(inMemoryJournal()) });
     assert.equal(exit, 2);
   } finally { rmSync(root, { recursive: true, force: true }); }
+});
+test('DRV4 CLI --fulfil with a missing/malformed trailing value prints usage and exits 2 (no crash)', () => {
+  const r = spawnSync('node', ['runtime/adapters/claude-code/run-item.mjs', 'x', '--fulfil', 'k'], { encoding: 'utf8', cwd: process.cwd() });
+  assert.equal(r.status, 2);
+  assert.match(r.stderr, /usage: run-item\.mjs/);
 });

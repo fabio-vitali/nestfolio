@@ -26,11 +26,13 @@ export async function driveItem({ itemId, backlogDir, checksDir, fulfil, capabil
 async function main() {
   const [itemId] = process.argv.slice(2).filter((a) => !a.startsWith('--'));
   const fi = process.argv.indexOf('--fulfil'); const vi = process.argv.indexOf('--value');
-  if (!itemId || (fi >= 0) !== (vi >= 0)) { console.error('usage: run-item.mjs <item-id> [--fulfil <key> --value <json>]'); process.exit(2); }
+  const fv = fi >= 0 ? process.argv[fi + 1] : undefined; const vv = vi >= 0 ? process.argv[vi + 1] : undefined;
+  const badPair = fi >= 0 && (fv === undefined || fv.startsWith('--') || vv === undefined || vv.startsWith('--'));
+  if (!itemId || (fi >= 0) !== (vi >= 0) || badPair) { console.error('usage: run-item.mjs <item-id> [--fulfil <key> --value <json>]'); process.exit(2); }
   const cfg = JSON.parse(readFileSync('runtime/runtime.config.json', 'utf8'));
   const capabilities = makeClaudeCodeCapabilities({});
   const { exit, out } = await driveItem({ itemId, backlogDir: cfg.backlogDir ?? 'docs/backlog', checksDir: cfg.checksDir,
-    fulfil: fi >= 0 ? { key: process.argv[fi + 1], value: JSON.parse(process.argv[vi + 1]) } : undefined, capabilities });
+    fulfil: fi >= 0 ? { key: fv, value: JSON.parse(vv) } : undefined, capabilities });
   console.log(JSON.stringify(out, null, 2));
   process.exit(exit);
 }

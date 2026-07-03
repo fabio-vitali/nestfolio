@@ -155,6 +155,11 @@ This IS the interactive binding now — there is no separate "wire a real host" 
 the session performing the parked work *is* the host. Wiring a real host for `fanOut`/`runProcedure`/
 `onTrigger` is still §7.
 
+**Fulfil by `key`, not by `decision.id`.** Always fulfil the pending record's `key` (as printed in
+`pending[].key`) — never the bubbled `decision.id`. They coincide for a plain worker's execute-park
+(both `execute:<id>`), but differ for an epic member park (journal key `member.<id>`, while the
+adapter's decision id is still `execute:<id>`).
+
 ---
 
 ## 6. Testing & regression protection
