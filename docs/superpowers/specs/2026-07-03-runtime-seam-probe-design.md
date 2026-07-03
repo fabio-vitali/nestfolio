@@ -125,12 +125,15 @@ export interface Summary {                             // fanOut result — stil
   lying `done`. `makeFanOut` maps sub-results to the new `Summary` (findings bubble; a paused sub-task
   bubbles as `paused`, never answered in isolation). `makeAsk` unchanged (interactive passthrough /
   PAUSE sentinel).
-- **Driver** (`engine/loop/run-item.mjs`, NEW, house module conventions): thin CLI —
-  `node runtime/engine/loop/run-item.mjs <item-id> [--fulfil <key> --value <json>]` — loads the item
-  from `docs/backlog` frontmatter, assembles `makeClaudeCodeCapabilities` with the git-native journal,
-  invokes `runWorker`, prints the result + any pending decision as JSON, exit 0 done / 3 paused /
-  1 failed / 2 usage. The session drives it repeatedly; `--fulfil` completes a parked key (a `Choice`
-  for ask-parks, a `TaskResult` for execute-parks) before re-driving. (Ring-1 file; reads the config-declared backlog dir — the
+- **Driver** (`adapters/claude-code/run-item.mjs`, NEW — ring-2: it assembles the adapter, so it may
+  not live in `engine/` per the import-boundary rule): thin CLI —
+  `node runtime/adapters/claude-code/run-item.mjs <item-id> [--fulfil <key> --value <json>]` — loads
+  the item from the backlog dir (config-declared, default `docs/backlog`) via `readItems`, assembles
+  `makeClaudeCodeCapabilities` with the git-native journal, invokes `runWorker`, prints the result +
+  any pending decisions as JSON, exit 0 done / 3 paused / 1 failed / 2 usage. The session drives it
+  repeatedly; `--fulfil` completes a parked key (a `Choice` for ask-parks, a `TaskResult` for
+  execute-parks) before re-driving. Parks are keyed by the PARKED STEP's key (for execute-parks the
+  adapter sets `decision.id` = the step key `execute:<task.id>` by construction). (Ring-1 file; reads the config-declared backlog dir — the
   hardcoded-default question stays with `runtime-redteam-hardening`'s rebind-surface fix.)
 - **Re-freeze record:** append a dated delta section to SPEC 3 (after §17) summarizing the §3/§4
   changes with a pointer to this design doc; add a one-line pointer in SPEC 1 §15. Ships in this PR

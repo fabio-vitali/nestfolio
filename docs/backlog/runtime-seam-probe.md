@@ -13,7 +13,7 @@ out_of_scope:
   - "Check migration, judge cadence, operator surface, parity harness (their own members)."
   - "A second-host adapter — portability proof lands with the adoption e2e, not here."
 spec: docs/superpowers/specs/2026-07-03-runtime-seam-probe-design.md
-plan: null
+plan: docs/superpowers/plans/2026-07-03-runtime-seam-probe.md
 topic_memory: [project_runtime_realization.md]
 validation_gate: null
 ---
