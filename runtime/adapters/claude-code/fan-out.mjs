@@ -5,6 +5,8 @@ export function makeFanOut({ runTask } = {}) {
   const run = runTask ?? (async (t) => ({ taskId: t.id, status: 'done', summary: `ran ${t.id}` }));
   return async function fanOut(tasks) {
     const results = await Promise.all(tasks.map((t) => run(t)));
-    return results.map((r) => ({ taskId: r.taskId, status: r.status, summary: r.summary }));   // strip the rest
+    return results.map((r) => ({ taskId: r.taskId, status: r.status, summary: r.summary,
+      ...(r.findings ? { findings: r.findings } : {}),
+      ...(r.status === 'paused' && r.decision ? { decision: r.decision } : {}) }));   // bounded fields only — never a transcript
   };
 }

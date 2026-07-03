@@ -25,3 +25,20 @@ test('journal is the git-native ring-1 journal (has begin/step/read)', () => {
   assert.equal(typeof caps.journal.begin, 'function');
   assert.equal(typeof caps.journal.step, 'function');
 });
+
+test('AD-A no-runner execute PARKS (paused + Task-shaped decision keyed execute:<id>) — never lies done', async () => {
+  const { execute } = makeClaudeCodeCapabilities({});
+  const r = await execute({ id: 't1', prompt: 'do t1', scope: [] });
+  assert.equal(r.status, 'paused');
+  assert.equal(r.decision.id, 'execute:t1');
+  assert.equal(r.decision.options.filter((o) => o.recommended).length, 1);
+});
+
+test('AD-B fanOut bubbles findings and paused decisions in the Summary (still transcript-free)', async () => {
+  const { fanOut } = makeClaudeCodeCapabilities({ runTask: async (t) => t.id === 'a'
+    ? { taskId: 'a', status: 'done', summary: 'ok', findings: [{ id: 'f', check: 'c', kind: 'drift', scope: [], detail: 'd', raised_at: 'now' }], transcript: 'SHOULD BE STRIPPED' }
+    : { taskId: 'b', status: 'paused', summary: 'hit a decision', decision: { id: 'q1', question: 'q', options: [{ label: 'x', value: 'x', recommended: true }] } } });
+  const [a, b] = await fanOut([{ id: 'a' }, { id: 'b' }]);
+  assert.equal(a.findings.length, 1); assert.equal('transcript' in a, false);
+  assert.equal(b.status, 'paused'); assert.equal(b.decision.id, 'q1');
+});
