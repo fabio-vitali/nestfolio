@@ -24,3 +24,12 @@ test('RunMeta pins the runstate.mjs slice keys', () => {
 test('STEP_STRATEGIES is the closed three-value set', () => {
   assert.deepEqual([...STEP_STRATEGIES].sort(), ['external-idempotent', 'keyed-effect', 'pure-rederive']);
 });
+
+test('RF1 RunMeta accepts a locus-free run (no branch/worktree)', () => {
+  const r = validateRunMeta({ runId: 'item-x', auto: false });
+  assert.equal(r.ok, true);
+});
+
+test('RF2 RunMeta still rejects unknown keys', () => {
+  assert.equal(validateRunMeta({ runId: 'item-x', auto: false, lane: 'complex' }).ok, false);
+});

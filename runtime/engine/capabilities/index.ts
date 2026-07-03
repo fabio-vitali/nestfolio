@@ -8,17 +8,18 @@ export interface Task {
   scope: string[];            // paths the task may touch (feeds the scope-gate, §9)
   procedure?: string;         // optional named sub-procedure (runProcedure)
   payload?: unknown;
+  choices?: Choice[];         // re-freeze 2026-07-03: fulfilled floor answers from prior wakes (pure-data resume)
+  locus?: { branch?: string; worktree?: string };   // re-freeze: execution locus — spine stops hardcoding
 }
-export interface TaskResult {
-  taskId: string;
-  status: 'done' | 'failed' | 'paused';
-  summary: string;            // bounded prose — NEVER a transcript
-  findings?: Finding[];
-}
+export type TaskResult =      // re-freeze 2026-07-03: discriminated union — paused REQUIRES its Decision
+  | { taskId: string; status: 'done' | 'failed'; summary: string; findings?: Finding[] }
+  | { taskId: string; status: 'paused'; summary: string; decision: Decision };
 export interface Summary {    // the ONLY thing fanOut returns (the Tier-2 scar)
   taskId: string;
-  status: 'done' | 'failed';
+  status: 'done' | 'failed' | 'paused';   // re-freeze: a paused sub-task BUBBLES, never answers in isolation
   summary: string;            // a transcript here is a SEAM VIOLATION
+  findings?: Finding[];       // re-freeze: §4.2 bubbling rule's carrier (breadth work feeds intake)
+  decision?: Decision;        // re-freeze: present iff paused
 }
 
 export interface Decision {

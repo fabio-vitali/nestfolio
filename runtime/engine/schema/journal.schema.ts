@@ -14,8 +14,8 @@ export type StepStrategy = (typeof STEP_STRATEGIES)[number];
 
 export const RunMetaSchema = z.object({
   runId: z.string().min(1),
-  branch: z.string().min(1),
-  worktree: z.string().min(1),
+  branch: z.string().min(1).optional(),    // re-freeze 2026-07-03: "no worktree" is representable
+  worktree: z.string().min(1).optional(),
   auto: z.boolean(),
 }).strict();
 export type RunMeta = z.infer<typeof RunMetaSchema>;
