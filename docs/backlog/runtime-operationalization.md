@@ -34,8 +34,12 @@ re-scoped 2026-07-03 after the post-make-it-fire design review):
   - `runtime-design-redteam` — P1b (captured): adversarial multi-agent review of vision+specs vs code.
 - **P2 — the moat, before the bulk:**
   - `runtime-backward-edge-live` — mint-in-anger + curate as the only sanctioned gate bypass +
-    skip-hatch instrumentation. **Binding: precedes the bulk check migration** (otherwise
-    `RUNTIME_GATE_SKIP` becomes de-facto curation at 3x enforcement scale — the anti-moat before the moat).
+    skip-hatch instrumentation + the red-team's backward-edge p2 deltas. **Binding: precedes the bulk
+    check migration** (otherwise `RUNTIME_GATE_SKIP` becomes de-facto curation at 3x enforcement scale —
+    the anti-moat before the moat).
+  - `runtime-redteam-hardening` — the red-team's confirmed mechanical fixes (fail-closed registry, ACMR,
+    atomic meta.json, journal locking, runnable registry-integrity, single-active semantics, starter-pack
+    self-containment).
 - **P3 — the migration oracle:**
   - `runtime-item-schema-reconciliation` — align `item.schema.ts` with `docs/backlog`, validate on read.
   - `runtime-regression-harness` — re-scoped as the PARITY ORACLE: same scenarios graded on legacy skills

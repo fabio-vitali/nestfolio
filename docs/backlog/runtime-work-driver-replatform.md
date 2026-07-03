@@ -39,5 +39,12 @@ item store; the runtime reads it directly (validated after `runtime-item-schema-
 loop with ZERO legacy fallbacks, AND the parity oracle (`runtime-regression-harness`) green — same
 scenarios, runtime ≥ legacy. Legacy-path deletion is a separate, user-triggered act (P6), never bundled.
 
+**Red-team p3 design additions (added 2026-07-03, see `runtime-design-redteam` — parity map holes that
+must be designed before this member can claim parity):** a Finding currency for agent-observed
+side-findings (`Finding.check` is required today, but the dominant `backlog-add` source is agent
+observation, not a check — needs a reserved provenance or a schema extension); a designed equivalent for
+`backlog-themes` cold-path clustering + the epic leftovers spin-out; a runtime home for the
+MEMORY↔backlog dossier-sync half of `lint --fix` (`related_workstreams` regeneration).
+
 Roadmap: P5 of the probes-first adoption plan (see epic body). Depends on: `runtime-seam-probe`,
 `runtime-backward-edge-live`, `runtime-item-schema-reconciliation`, `runtime-regression-harness`.

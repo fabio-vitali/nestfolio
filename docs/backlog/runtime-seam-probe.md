@@ -38,5 +38,14 @@ investment (check migration, work-driver re-platform), probe the seam empiricall
 are structural (the contract shape is wrong, not just thin), STOP the epic sequence and re-freeze specs
 before `runtime-work-driver-replatform` is attempted.
 
+**Red-team pre-work (added 2026-07-03):** `runtime-design-redteam` already CONFIRMED structural contract
+gaps — do the **p1 re-freeze first**, then build the probe on the re-frozen contract: `TaskResult.decision`
++ parked step key; a typed resume channel into `execute`; `journal.step` gains an `awaiting` outcome
+(fulfil-then-replay re-invokes fn WITH the choice — today a paused member journals as `complete` and
+wedges); declare `judge`/`gitHeadSha` as capabilities (or route judgment through `execute`);
+`Summary.findings`; `Task` locus/lane; gate-step keys gain an attempt/sha epoch (a failed gate currently
+replays failed forever). The probe then validates the re-frozen contract empirically instead of
+rediscovering the known holes.
+
 Roadmap: P1a of the probes-first adoption plan (see epic body). Run INLINE — the worker is the
 decision-bearing spine; never isolate it behind a subagent.

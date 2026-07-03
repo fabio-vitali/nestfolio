@@ -35,6 +35,14 @@ curation, i.e. exactly the silent drift design law 5 forbids. Migrating ~23 more
 4. **Skip-hatch instrumentation:** every `RUNTIME_GATE_SKIP` use is journaled and surfaced as a finding —
    a skip is itself drift evidence. Curate becomes the cheap, sanctioned path; skip becomes visible debt.
 
+5. **Red-team p2 deltas (added 2026-07-03, see `runtime-design-redteam`):** fix torn-curate ordering
+   (reconcile the lesson before/atomically-with lowering the guard on disk — today a reconcile failure
+   leaves the guard lowered and the retry refused, permanently); the curate-supersede successor gets the
+   FULL mint guarantees (CheckEntrySchema validation + eval-scenario landing — today it is written
+   unvalidated with no scenario); the floor Decision renders the complete candidate/successor (today
+   `toDecision` drops them — the human ratifies sight-unseen); backward journal keys gain a lifecycle
+   epoch (today a legitimate re-mint of a retired check id replays the old result and writes nothing).
+
 **Sequencing (binding):** ships BEFORE `runtime-check-migration-completion` starts.
 
 Roadmap: P2 of the probes-first adoption plan (see epic body).
