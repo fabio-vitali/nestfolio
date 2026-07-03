@@ -42,29 +42,32 @@ Diff-scoping narrows **what a check scans** (attribution), never **which checks 
 - **Source-drift checks** — scan source files for a bad pattern. **Diff-scoped:** report only violations in staged files. (`no-unsafe-casts`, `no-ddb-scan`, `no-ddb-seed-in-integration`, `no-states-runtime-catch`, `no-agent-result-fallback`, `module-boundaries`.)
 - **Repo-integrity checks** — assert a whole-collection invariant that must hold regardless of what you staged. **Whole-scope, unchanged.** (`backlog-id-matches-filename`, `service-card-fresh`.) A `module:` (zero-arg) evaluator cannot attribute a finding to a file, and these checks *should* block on any collection breakage — so leaving them whole-scope is correct, not a gap.
 
-## 4. Architecture — thread `changedScope` into each evaluator's native channel
+## 4. Architecture — thread a distinct `stagedFiles` into each evaluator's native channel
 
-`changedScope` already enters `runWatch`. Thread it one more hop so the evaluator can scope its own scan:
+**Selection scope and attribution scope are different concerns and must not share a param.** `runWatch`'s existing `changedScope` drives *selection* (`findByScope` — which checks run) and legitimately carries **globs**: the CLI/audit path defaults to `changedScope: ['**/*']`. Attribution (*what a selected check scans*) needs a **concrete file list**, so threading the selection `changedScope` into attribution would misread `['**/*']` as a literal path — cmd tools would scan nothing and eslint would lint the whole repo on every audit. So attribution gets its own **new** param, `stagedFiles` (a concrete repo-relative list, or `undefined`):
 
 ```
 pre-commit-gate.mjs (ring-2)
-  └─ runWatch({ registry, trigger, changedScope: stagedFiles })
-       └─ runCheck({ check, context, judge, changedScope })          // NEW param, passed through
-            └─ resolveEvaluator({ check, judge, changedScope })      // NEW param
-                 └─ invoke()   // distributes changedScope per evaluator type
+  └─ runWatch({ registry, trigger, changedScope: staged, stagedFiles: staged })
+       └─ runCheck({ check, context, judge, stagedFiles })           // NEW param, passed through
+            └─ resolveEvaluator({ check, judge, stagedFiles })       // NEW param
+                 └─ invoke()   // distributes stagedFiles per evaluator type
 ```
 
-Signature changes (ring-1):
-- `runCheck({ check, context, judge, changedScope })` — forwards `changedScope` unchanged.
-- `resolveEvaluator({ check, judge, changedScope })` — distributes it.
+Signature changes (ring-1, all additive/optional):
+- `runWatch({ … , stagedFiles })` — forwards it into each `runCheck`.
+- `runCheck({ check, context, judge, stagedFiles })` — forwards it into `resolveEvaluator`.
+- `resolveEvaluator({ check, judge, stagedFiles })` — distributes it.
+
+`stagedFiles` is `undefined` on the audit/CLI path (→ whole-tree, unchanged) and a concrete list (possibly empty) from the gate. `changedScope` semantics are untouched. Note this is internal function plumbing, not a change to any frozen §4-schema or capability interface — so no SPEC 1 re-freeze is required.
 
 Per-type distribution inside `resolveEvaluator`:
 
-- **`cmd:`** — when `changedScope` is present, set `RUNTIME_STAGED_PATHS` (newline-joined) in the spawn's `env`. The shared `tools/lib/text-scan.mjs` gains a **staged mode**: when `RUNTIME_STAGED_PATHS` is set, `walkFiles` yields only those paths that pass the tool's own `includeUnder`/`ext`/`excludeTest` filters (instead of walking the tree). All five dogfood tools inherit this for free — no per-tool edits. Tools that do **not** use `text-scan` (`check-service-card-drift.mjs`) simply ignore the env and stay whole-scope, which is correct for the repo-integrity class.
-- **`eslint:`** — when `changedScope` is present, lint `changedScope` filtered to files matching the check's scope (and the tool's ext), instead of `check.scope.paths`. Empty filtered list → no files → `[]`.
+- **`cmd:`** — when `stagedFiles` is present (non-`undefined`, incl. `[]`), set `RUNTIME_STAGED_PATHS` (newline-joined) in the spawn's `env`. The shared `tools/lib/text-scan.mjs` gains a **staged mode**, keyed on env **presence** (`'RUNTIME_STAGED_PATHS' in process.env`, so `''` means *nothing staged* → scan nothing, distinct from *unset* → whole-tree): `walkFiles` yields only staged paths that pass the tool's own `includeUnder`/`ext`/`excludeTest` filters. All five dogfood tools inherit this for free — no per-tool edits. Tools that do **not** use `text-scan` (`check-service-card-drift.mjs`) ignore the env and stay whole-scope — correct for the repo-integrity class.
+- **`eslint:`** — when `stagedFiles` is present, lint `stagedFiles` filtered (via `globsOverlap`) to the check's scope, instead of `check.scope.paths`. Empty intersection → no spawn → `[]`.
 - **`module:`** — no attribution channel (zero-arg core). Unchanged; stays whole-scope (repo-integrity class).
 
-When `changedScope` is **absent** (the `audit`/`merge`/CLI path), every evaluator behaves exactly as today — whole-tree. This is a pure additive capability; existing callers are unaffected.
+When `stagedFiles` is **`undefined`** (the `audit`/`merge`/CLI path), every evaluator behaves exactly as today — whole-tree. This is a pure additive capability; existing callers are unaffected.
 
 ## 5. The `backlog-id-matches-filename` crash (fix, in-scope)
 
@@ -95,11 +98,11 @@ Exit codes stay `0` clean / `1` findings / `2` crash-or-no-trigger; `RUNTIME_GAT
 
 ## 8. Testing
 
-- **Unit — `changedScope` threading (per evaluator type):**
-  - `cmd:` — a fixture check whose tool scans a temp file; assert a staged-hit yields the finding and a staged-miss (violation exists in the tree but not in `changedScope`) yields `[]`.
-  - `eslint:` — assert the eslint invocation receives the staged∩scope file list, and an empty intersection short-circuits to `[]` without spawning.
-  - `module:` — assert it ignores `changedScope` (whole-scope) and still returns violations.
-- **Unit — `text-scan.mjs` staged mode:** `RUNTIME_STAGED_PATHS` set → `walkFiles` yields only staged paths passing the filters; unset → whole-tree walk unchanged.
+- **Unit — `stagedFiles` threading (per evaluator type):**
+  - `cmd:` — a fixture cmd that echoes `RUNTIME_STAGED_PATHS`; assert it receives the joined `stagedFiles`, and `undefined` leaves the env unset.
+  - `eslint:` — assert the exported `eslintFiles(check, stagedFiles)` helper returns the whole scope on `undefined`, the staged∩scope intersection otherwise, and `[]` (no spawn) on empty intersection.
+  - `module:` — assert it ignores `stagedFiles` (whole-scope) and still returns violations.
+- **Unit — `text-scan.mjs` staged mode:** `RUNTIME_STAGED_PATHS` set → `walkFiles` yields only staged paths passing the filters; `''` → yields nothing; unset → whole-tree walk unchanged.
 - **Unit — backlog-id adapter:** clean dir → `[]`; an id/filename mismatch fixture → one violation; called zero-arg (no throw).
 - **Integration — the gate over the real registry:** a clean staged set → `exit 0` (the make-it-fire green path, now achievable); a staged violation → `exit 1`.
 - **Smoke** (§6) both ways; **`pnpm nx test runtime`** stays green.
