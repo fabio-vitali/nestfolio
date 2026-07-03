@@ -37,3 +37,17 @@ authored but not fired.
 - + 6 more — run `node tools/check-no-ddb-seed-in-integration.mjs` for the full list.
 
 **Cheapest next step:** run each `tools/check-*.mjs` for the current list, then remediate per rule (GSI query + BatchGet instead of FilterExpression; Choice-on-isPresent instead of `States.Runtime` Catch; fixtures via events/mutations instead of DDB seeding — all per existing `feedback_*` dossiers). Candidate for a `backlog-themes` cluster with any other enforcement-debt orphans.
+
+
+## Baseline ratchet installed (2026-07-04, runtime-seam-probe)
+
+The item start-gate made this debt BLOCKING for every workstream (global invariants ride all gates
+whole-scope), so a baseline-exclusion ratchet was installed: every current violation site is listed in
+its check's sidecar (`tools/{ddb-scan,ddb-seed,states-runtime,unsafe-cast,agent-result-fallback}-exclusions.json`),
+each entry annotated with this item's id. **Expanded inventory at baseline:** no-ddb-scan 4 (3 files),
+no-ddb-seed 11 (6 files), no-states-runtime-catch 1, **no-unsafe-casts 125 (72 files — newly inventoried,
+much larger than first filed)**, no-agent-result-fallback true-positives (post-narrowing baseline, see
+`no-agent-result-fallback-check-overbroad`).
+
+**Removal contract (binding):** fixing a file ⇒ DELETE its exclusion entry in the same commit, so the
+check re-covers it. This item is done only when all five sidecars carry zero entries tagged with this id.

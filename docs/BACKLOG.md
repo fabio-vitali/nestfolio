@@ -156,7 +156,7 @@ rollup: core 0/2 done · captured 0/0 done
 
 ### [runtime-operationalization](backlog/runtime-operationalization.md) `[epic · parking]` — Adopt/operationalize the Long-Horizon Engineering Runtime via the probes-first roadmap (re-scoped 2026-07-03): P1 probe the two unproven bets (execute seam, backward edge) → P2 moat live (mint/curate in anger, before enforcement triples) → P3 parity oracle + item schema → P4 check migration with cadence + CI golden gates → P5 work-driver strangler re-platform with soak gate → P6 user-triggered legacy retirement + operator surface. runtime-realization shipped the 3 library slices; THIS epic makes the runtime the project's live enforcement + work-driver, reversibly (docs/backlog stays the one item store — procedures migrate, never data).
 done_when: The runtime is the project's LIVE enforcement + work-driver, demonstrated not asserted: (1) enforcement — the gate fires diff-scoped on commit (shipped) AND every migrated check runs on a real cadence (commit gate / CI / schedule / epic-batch; judgment checks via a live judge binding), the ~34-surface migration into runtime/content/checks is complete, and the check golden gates run in CI; (2) the backward edge is live-in-anger — at least one real lesson minted through a real floor into a registered check, and curate-at-the-floor is the only sanctioned path past a failing guard (skip-hatch instrumented); (3) item.schema is reconciled with docs/backlog and validated on read; (4) the parity oracle is green — the regression harness grades the runtime loop against the legacy backlog skills on the same scenarios, plus a greenfield adoption e2e; (5) the work-driver is re-platformed — the backlog skills run on the engine loop with legacy fallback, soaked over ≥5 real workstreams with zero fallbacks; (6) the operator surface (view+executor) is shipped. Every core member shipped or dropped.
-rollup: core 1/10 done · captured 1/4 done
+rollup: core 1/10 done · captured 1/5 done
 - core · active · [runtime-seam-probe](backlog/runtime-seam-probe.md)
 - core · parking · [runtime-backward-edge-live](backlog/runtime-backward-edge-live.md)
 - core · parking · [runtime-check-goldengates-ci](backlog/runtime-check-goldengates-ci.md)
@@ -169,6 +169,7 @@ rollup: core 1/10 done · captured 1/4 done
 - core · shipped · [runtime-make-it-fire](backlog/runtime-make-it-fire.md)
 - captured · parking · [gate-surfaced-source-debt](backlog/gate-surfaced-source-debt.md)
 - captured · parking · [no-agent-result-fallback-check-overbroad](backlog/no-agent-result-fallback-check-overbroad.md)
+- captured · parking · [runtime-gate-baseline-semantics](backlog/runtime-gate-baseline-semantics.md)
 - captured · parking · [runtime-typescript-port](backlog/runtime-typescript-port.md)
 - captured · shipped · [runtime-design-redteam](backlog/runtime-design-redteam.md)
 

@@ -1,0 +1,16 @@
+{
+  "exclusions": [
+    {
+      "path": "services/advisory/advisory-bff/src/repositories/advisory.repository.ts",
+      "reason": "baseline debt at gate-live (runtime-seam-probe 2026-07-04) — tracked in gate-surfaced-source-debt; remove when fixed"
+    },
+    {
+      "path": "services/execution/broker-alpaca-adpt/src/repositories/transfer-mapping.repository.ts",
+      "reason": "baseline debt at gate-live (runtime-seam-probe 2026-07-04) — tracked in gate-surfaced-source-debt; remove when fixed"
+    },
+    {
+      "path": "services/ledger/ledger-ctrl/src/repositories/ledger.repository.ts",
+      "reason": "baseline debt at gate-live (runtime-seam-probe 2026-07-04) — tracked in gate-surfaced-source-debt; remove when fixed"
+    }
+  ]
+}

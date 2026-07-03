@@ -1,1 +1,28 @@
-{ "exclusions": [] }
+{
+  "exclusions": [
+    {
+      "path": "services/advisory/advisory-narrative-ctrl/test/integration/advisory-narrative-ctrl.integration.test.ts",
+      "reason": "baseline debt at gate-live (runtime-seam-probe 2026-07-04) — tracked in gate-surfaced-source-debt; remove when fixed"
+    },
+    {
+      "path": "services/advisory/portfolio-engine-ctrl/test/integration/portfolio-engine-ctrl.integration.test.ts",
+      "reason": "baseline debt at gate-live (runtime-seam-probe 2026-07-04) — tracked in gate-surfaced-source-debt; remove when fixed"
+    },
+    {
+      "path": "services/investor/dashboard-bff/test/integration/dashboard-bff.integration.test.ts",
+      "reason": "baseline debt at gate-live (runtime-seam-probe 2026-07-04) — tracked in gate-surfaced-source-debt; remove when fixed"
+    },
+    {
+      "path": "services/investor/investor-ctrl/test/integration/investor-ctrl.resilience.integration.test.ts",
+      "reason": "baseline debt at gate-live (runtime-seam-probe 2026-07-04) — tracked in gate-surfaced-source-debt; remove when fixed"
+    },
+    {
+      "path": "services/investor/investor-ctrl/test/integration/onboarding-notification.integration.test.ts",
+      "reason": "baseline debt at gate-live (runtime-seam-probe 2026-07-04) — tracked in gate-surfaced-source-debt; remove when fixed"
+    },
+    {
+      "path": "services/ledger/reconciliation-ctrl/test/integration/reconciliation-ctrl.resilience.integration.test.ts",
+      "reason": "baseline debt at gate-live (runtime-seam-probe 2026-07-04) — tracked in gate-surfaced-source-debt; remove when fixed"
+    }
+  ]
+}

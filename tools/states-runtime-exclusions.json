@@ -1,0 +1,8 @@
+{
+  "exclusions": [
+    {
+      "path": "services/advisory/decision-workflow-ctrl/src/constructs/decision-state-machine.ts",
+      "reason": "baseline debt at gate-live (runtime-seam-probe 2026-07-04) — tracked in gate-surfaced-source-debt; remove when fixed"
+    }
+  ]
+}

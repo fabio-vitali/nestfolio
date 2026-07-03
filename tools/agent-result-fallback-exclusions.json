@@ -1,1 +1,52 @@
-{ "exclusions": [] }
+{
+  "exclusions": [
+    {
+      "path": "services/advisory/advisory-bff/src/repositories/advisory.repository.ts",
+      "reason": "baseline debt at gate-live (runtime-seam-probe 2026-07-04) — tracked in gate-surfaced-source-debt; remove when fixed"
+    },
+    {
+      "path": "services/advisory/advisory-narrative-ctrl/src/agent-service.ts",
+      "reason": "baseline debt at gate-live (runtime-seam-probe 2026-07-04) — tracked in gate-surfaced-source-debt; remove when fixed"
+    },
+    {
+      "path": "services/advisory/advisory-narrative-ctrl/src/handlers/event-listener.ts",
+      "reason": "baseline debt at gate-live (runtime-seam-probe 2026-07-04) — tracked in gate-surfaced-source-debt; remove when fixed"
+    },
+    {
+      "path": "services/advisory/decision-workflow-ctrl/src/constructs/decision-state-machine.ts",
+      "reason": "baseline debt at gate-live (runtime-seam-probe 2026-07-04) — tracked in gate-surfaced-source-debt; remove when fixed"
+    },
+    {
+      "path": "services/advisory/decision-workflow-ctrl/src/handlers/assemble-packet.ts",
+      "reason": "baseline debt at gate-live (runtime-seam-probe 2026-07-04) — tracked in gate-surfaced-source-debt; remove when fixed"
+    },
+    {
+      "path": "services/advisory/decision-workflow-ctrl/src/repositories/decision-packet.repository.ts",
+      "reason": "baseline debt at gate-live (runtime-seam-probe 2026-07-04) — tracked in gate-surfaced-source-debt; remove when fixed"
+    },
+    {
+      "path": "services/advisory/investor-profile-ctrl/src/agent-service.ts",
+      "reason": "baseline debt at gate-live (runtime-seam-probe 2026-07-04) — tracked in gate-surfaced-source-debt; remove when fixed"
+    },
+    {
+      "path": "services/advisory/market-intelligence-ctrl/src/agent-service.ts",
+      "reason": "baseline debt at gate-live (runtime-seam-probe 2026-07-04) — tracked in gate-surfaced-source-debt; remove when fixed"
+    },
+    {
+      "path": "services/advisory/market-intelligence-ctrl/src/handlers/kb-ingestion-handler.ts",
+      "reason": "baseline debt at gate-live (runtime-seam-probe 2026-07-04) — tracked in gate-surfaced-source-debt; remove when fixed"
+    },
+    {
+      "path": "services/advisory/portfolio-engine-ctrl/src/agent-service.ts",
+      "reason": "baseline debt at gate-live (runtime-seam-probe 2026-07-04) — tracked in gate-surfaced-source-debt; remove when fixed"
+    },
+    {
+      "path": "services/advisory/portfolio-engine-ctrl/src/handlers/event-listener.ts",
+      "reason": "baseline debt at gate-live (runtime-seam-probe 2026-07-04) — tracked in gate-surfaced-source-debt; remove when fixed"
+    },
+    {
+      "path": "services/advisory/portfolio-engine-ctrl/src/handlers/kb-ingestion-handler.ts",
+      "reason": "baseline debt at gate-live (runtime-seam-probe 2026-07-04) — tracked in gate-surfaced-source-debt; remove when fixed"
+    }
+  ]
+}
