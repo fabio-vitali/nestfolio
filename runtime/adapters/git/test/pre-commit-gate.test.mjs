@@ -36,3 +36,12 @@ test('readStaged parses the name list, dropping blank lines', () => {
   const out = readStaged(() => 'a.ts\nservices/x/b.ts\n\n');
   assert.deepEqual(out, ['a.ts', 'services/x/b.ts']);
 });
+
+// SF — the gate passes stagedFiles into watch (for attribution), alongside changedScope (for selection)
+test('runPreCommitGate passes stagedFiles into watch', async () => {
+  let seen;
+  const watch = async (args) => { seen = args; return []; };
+  await runPreCommitGate({ stagedFiles: ['libs/a/src/x.ts'], registry, trigger, watch });
+  assert.deepEqual(seen.stagedFiles, ['libs/a/src/x.ts']);
+  assert.deepEqual(seen.changedScope, ['libs/a/src/x.ts']);
+});

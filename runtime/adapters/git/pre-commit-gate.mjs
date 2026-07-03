@@ -11,7 +11,7 @@ import { runWatch, loadTriggers } from '../../engine/lib/run-watch.mjs';
 // Pure core: given the staged set + a loaded registry + the commit trigger, run the watch and map to an
 // exit code. `watch` is injectable so the unit test stays hermetic (no real check execution).
 export async function runPreCommitGate({ stagedFiles, registry, trigger, watch = runWatch }) {
-  const findings = await watch({ registry, trigger, changedScope: stagedFiles });
+  const findings = await watch({ registry, trigger, changedScope: stagedFiles, stagedFiles });
   return { exitCode: findings.length ? 1 : 0, findings };
 }
 
