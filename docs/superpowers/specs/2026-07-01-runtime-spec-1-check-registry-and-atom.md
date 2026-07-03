@@ -620,3 +620,5 @@ gained an **optional `judge` capability** (`(check) => Promise<Array<{detail, ev
 Without it, a `skill:` check's `invoke` still throws `JudgeCapabilityUnavailable` (clarification 3
 unchanged); with it, invoke calls the injected judge — SPEC 3's seam #1 realized. No schema-shape
 change; every SPEC 1 helper signature is otherwise consumed verbatim.
+
+- 2026-07-03 (seam-probe): journal park/fulfil + TaskResult union re-freeze — see SPEC 3 §18.

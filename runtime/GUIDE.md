@@ -64,6 +64,17 @@ node runtime/engine/lib/run-watch.mjs --on=merge --changed='services/**,libs/**'
 > **does** work — it seeds the 6 starter checks into a *new* repo's content ring (you don't need it here;
 > Nestfolio's content ring is already populated).
 
+### Drive a single backlog item through the loop (park/fulfil, resume-as-replay)
+```bash
+# drives the item until the first unfulfilled park; prints the parked Decision; exit 0 done / 3 paused / 1 failed / 2 usage
+node runtime/adapters/claude-code/run-item.mjs <item-id>
+
+# perform the parked work (or answer the parked floor ask), fulfil the key, and re-drive
+node runtime/adapters/claude-code/run-item.mjs <item-id> --fulfil <key> --value '<json>'
+```
+> With no injected runner/interactive, `execute` and `ask` PARK a durable `awaiting` record in the
+> git-native journal instead of stubbing "done" — see §5.
+
 ---
 
 ## 3. How to add a check (the everyday task)
@@ -118,17 +129,31 @@ Ring-1 never calls a tool directly. It calls **six capabilities** that a host bi
 
 | Capability | What it does | Claude Code binding (`runtime/adapters/claude-code/`) |
 |---|---|---|
-| `execute(task)` | run the inline, visible work | your worker runner (host-supplied) |
+| `execute(task)` | run the inline, visible work | your worker runner (host-supplied) — **parks to the journal if none** |
 | `fanOut(tasks)` | breadth work, parallel | subagents — **summaries only** |
-| `ask(decision)` | a floor decision | AskUserQuestion; **degrades to `<<HARNESS-PAUSE>>`** headless |
+| `ask(decision)` | a floor decision | AskUserQuestion — **parks to the journal if not injected** |
 | `onTrigger(spec, fn)` | subscribe to a cadence | hooks / cron |
 | `runProcedure(name, args)` | run a named procedure | the Skill tool |
 | `journal` | the idempotency ledger | the git-native step-ledger |
 
-**Today these are stubs.** `makeClaudeCodeCapabilities({})` with nothing injected returns: `execute`/`fanOut`
-that claim "done" without doing anything, `ask` that returns PAUSE, `runProcedure` that fails "unknown
-procedure", and an `onTrigger` registry nothing dispatches into. They become live only when a real host
-passes `{ interactive, runner, runTask, procedures }`. Wiring that host is §7.
+**`execute`/`ask` now PARK — they no longer silently stub.** With no `runner`/`interactive` injected,
+`execute` returns a `paused` `TaskResult` (a `Decision` keyed `execute:<task-id>`) instead of claiming
+"done", and the journaled floor ask (`askStep`) parks the same way instead of just handing back an
+in-memory `PAUSE` — both land a durable `awaiting` record in the git-native journal (§4.3/SPEC 3 §18).
+`fanOut` (still claims "done" without a `runTask`), `runProcedure` (still fails "unknown procedure"
+without a `procedures` map), and `onTrigger` (its registry still has nothing dispatching into it) are
+unchanged. You drive the park/fulfil loop by hand, with the session itself as the executor:
+```bash
+# drives item until the first unfulfilled park; prints the parked Decision; exit 0 done / 3 paused / 1 failed / 2 usage
+node runtime/adapters/claude-code/run-item.mjs <item-id>
+
+# perform the parked work (or answer the parked floor ask), then fulfil the key and re-drive — replay
+# short-circuits everything already complete and advances past the park you just answered
+node runtime/adapters/claude-code/run-item.mjs <item-id> --fulfil <key> --value '<json>'
+```
+This IS the interactive binding now — there is no separate "wire a real host" step for `execute`/`ask`;
+the session performing the parked work *is* the host. Wiring a real host for `fanOut`/`runProcedure`/
+`onTrigger` is still §7.
 
 ---
 
@@ -178,5 +203,6 @@ old `pre-commit` gate. The runtime augments them; it does not replace them yet.
 | Run the scope gate | `node runtime/engine/lib/scope-gate.mjs [--single-active]` |
 | Run the watch engine for a trigger | `node runtime/engine/lib/run-watch.mjs --on=commit` |
 | Run one check in a context | `node runtime/engine/lib/run-check.mjs <id> --context <gate\|audit\|invariant>` |
+| Drive a backlog item (park/fulfil loop) | `node runtime/adapters/claude-code/run-item.mjs <item-id> [--fulfil <key> --value '<json>']` |
 | Seed a NEW repo's content ring | `node runtime/cli.mjs init` |
 | Old backlog workflow (unchanged) | `/backlog-next`, `/backlog-add`, `/backlog-themes`, `/backlog-lint` |

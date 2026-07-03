@@ -689,4 +689,18 @@ This spec depends on SPEC 1's frozen contract and is built **after** it; it is b
    6. **The eval harness carry-forward** (§11) — the `defineSuite` seam + the SPEC 2 scenario-home seam.
    7. **The starter pack + on-ramp** (§13) and **the operational surface** (§14, Option B).
 
+## 18. Re-freeze delta — 2026-07-03 (runtime-seam-probe)
+
+Contract deltas from the red-team + seam probe (full rationale:
+`docs/superpowers/specs/2026-07-03-runtime-seam-probe-design.md`):
+`TaskResult` is a discriminated union (paused REQUIRES `decision`); `Task` gains `choices`/`locus`;
+`Summary` gains `findings`/`paused`/`decision` (the §4.2 bubbling carrier); `RunMeta.branch/worktree`
+optional; `journal.step` parks a paused TaskResult as `awaiting` under the STEP key (park-not-complete;
+fulfilling = completing the key); floor asks run through `askStep` (replay a fulfilled Choice; park a
+PAUSE; `recordWhen` gates durable recording so 'hold' re-asks); gates are CHECKS (never `step()`ed —
+re-run each wake, `record()` evidence; the sha-conditional e2e batch is the deliberate exception);
+judgment derives from the DECLARED `runProcedure` (`deriveJudge`) — no seventh capability; `gitHeadSha`
+is not a capability. §4.3's protocol is now the *interactive* binding too: the driver
+(`adapters/claude-code/run-item.mjs`) parks, the session performs/fulfils, replay advances.
+
 **Dependency rule:** ring-1 (this spec's helpers + the capability *types*) **never depends outward** — not on any adapter (`runtime/adapters/**`) and not on any project content (`runtime/content/**`). If the realization needs a schema change, it comes *back* to SPEC 1 and re-freezes the contract; this spec pins the frozen block and does not re-shape it unilaterally.
