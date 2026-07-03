@@ -157,7 +157,7 @@ rollup: core 0/2 done · captured 0/0 done
 ### [runtime-operationalization](backlog/runtime-operationalization.md) `[epic · parking]` — Adopt/operationalize the Long-Horizon Engineering Runtime via the probes-first roadmap (re-scoped 2026-07-03): P1 probe the two unproven bets (execute seam, backward edge) → P2 moat live (mint/curate in anger, before enforcement triples) → P3 parity oracle + item schema → P4 check migration with cadence + CI golden gates → P5 work-driver strangler re-platform with soak gate → P6 user-triggered legacy retirement + operator surface. runtime-realization shipped the 3 library slices; THIS epic makes the runtime the project's live enforcement + work-driver, reversibly (docs/backlog stays the one item store — procedures migrate, never data).
 done_when: The runtime is the project's LIVE enforcement + work-driver, demonstrated not asserted: (1) enforcement — the gate fires diff-scoped on commit (shipped) AND every migrated check runs on a real cadence (commit gate / CI / schedule / epic-batch; judgment checks via a live judge binding), the ~34-surface migration into runtime/content/checks is complete, and the check golden gates run in CI; (2) the backward edge is live-in-anger — at least one real lesson minted through a real floor into a registered check, and curate-at-the-floor is the only sanctioned path past a failing guard (skip-hatch instrumented); (3) item.schema is reconciled with docs/backlog and validated on read; (4) the parity oracle is green — the regression harness grades the runtime loop against the legacy backlog skills on the same scenarios, plus a greenfield adoption e2e; (5) the work-driver is re-platformed — the backlog skills run on the engine loop with legacy fallback, soaked over ≥5 real workstreams with zero fallbacks; (6) the operator surface (view+executor) is shipped. Every core member shipped or dropped.
 rollup: core 1/10 done · captured 1/4 done
-- core · queued · [runtime-seam-probe](backlog/runtime-seam-probe.md)
+- core · active · [runtime-seam-probe](backlog/runtime-seam-probe.md)
 - core · parking · [runtime-backward-edge-live](backlog/runtime-backward-edge-live.md)
 - core · parking · [runtime-check-goldengates-ci](backlog/runtime-check-goldengates-ci.md)
 - core · parking · [runtime-check-migration-completion](backlog/runtime-check-migration-completion.md)
@@ -217,15 +217,13 @@ rollup: core 0/3 done · captured 0/0 done
 
 ## ACTIVE
 
-_(none)_
-
+- [runtime-seam-probe](backlog/runtime-seam-probe.md) [feature] — P1a probe: drive ONE real simple-lane workstream end-to-end through the engine loop (runWorker + live capabilities, session as runner) and produce the measured Task/TaskResult/ask contract-gap list — the empirical 'solid vs dream' test for the execute seam. `[epic:runtime-operationalization · core]`
 
 ## QUEUED
 
 1. [e2e-live-suite-exceeds-bedrock-daily-token-budget](backlog/e2e-live-suite-exceeds-bedrock-daily-token-budget.md) [infra] — One full live-AgentCore e2e run (~7.2k Bedrock invocations) exhausts the dev account daily token-per-day quota mid-suite, so the suite self-throttles and cannot go fully green in a single pass.
 2. [e2e-fixtures-test-stale-detail-envelope-assertion](backlog/e2e-fixtures-test-stale-detail-envelope-assertion.md) [bug] — apps/e2e-feature-tests fixtures.test.ts asserts the old flat detail:{} EB envelope, but the fixtures now emit the DRY {context, subject} envelope — 2 stale-assertion failures unrelated to any service.
 3. [circuit-breaker-lifecycle-e2e-breaker-stuck-open](backlog/circuit-breaker-lifecycle-e2e-breaker-stuck-open.md) [bug] — scenario 14 circuit-breaker-lifecycle e2e: initiateDeposit returns SERVICE_TEMPORARILY_UNAVAILABLE (breaker OPEN) when the test expects it closed — root cause unconfirmed (state-leak vs throttle-storm collateral).
-4. [runtime-seam-probe](backlog/runtime-seam-probe.md) [feature] — P1a probe: drive ONE real simple-lane workstream end-to-end through the engine loop (runWorker + live capabilities, session as runner) and produce the measured Task/TaskResult/ask contract-gap list — the empirical 'solid vs dream' test for the execute seam. `[epic:runtime-operationalization · core]`
 
 ## LATER
 
