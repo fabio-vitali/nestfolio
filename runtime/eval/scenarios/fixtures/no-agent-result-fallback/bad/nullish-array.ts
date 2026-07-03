@@ -1,1 +1,1 @@
-export function handle(result: { holdings?: unknown[] }) { return result.holdings ?? []; }
+const advice = orchestratorResponse.recommendations ?? [];

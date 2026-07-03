@@ -14,7 +14,7 @@ test('NARF2 BAD → ≥1', () => { for (const f of readdirSync(`${FX}/bad`)) ass
 test('NARF3 an excluded path is skipped', () => { assert.equal(findViolations('x ?? {}', 'services/advisory/x/src/ok.ts', new Set(['services/advisory/x/src/ok.ts'])).length, 0); });
 test('NARF4 CLI exits 1 on a bad advisory tree', () => {
   const root = mkdtempSync(join(tmpdir(), 'nf-narf-'));
-  try { mkdirSync(join(root, 'services/advisory/x/src'), { recursive: true }); writeFileSync(join(root, 'services/advisory/x/src/a.ts'), 'const y = r.userGoals ?? {};', 'utf8');
+  try { mkdirSync(join(root, 'services/advisory/x/src'), { recursive: true }); writeFileSync(join(root, 'services/advisory/x/src/a.ts'), 'const y = agentResult.userGoals ?? {};', 'utf8');
     assert.equal(spawnSync('node', [SCRIPT, '--root', root], { encoding: 'utf8' }).status, 1);
   } finally { rmSync(root, { recursive: true, force: true }); }
 });

@@ -1,1 +1,1 @@
-export function handle(result: { userGoals?: unknown }) { return result.userGoals ?? {}; }
+const profile = agentResult.output ?? {};

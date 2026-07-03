@@ -5,13 +5,20 @@
 import { fileURLToPath } from 'node:url';
 import { lineOf, parseRootArg, walkFiles, reportAndExit, parseExclusions } from './lib/text-scan.mjs';
 
-const FALLBACK_RE = /\?\?\s*(\{\s*\}|\[\s*\])/g;
+// An invocation-result fallback: `?? {}` / `?? []` where the LHS expression names an agent/orchestrator
+// result (invoke/invocation/orchestrator/agent*/structured/output) — NOT every nullish-coalesce (the
+// over-broad v1 flagged 38 sites incl. plain DB reads; see no-agent-result-fallback-check-overbroad).
+const FALLBACK_RE = /([A-Za-z0-9_$.\)\]\?!]+)\s*\?\?\s*(\{\s*\}|\[\s*\])/g;
+const AGENTISH_LHS = /\b(invoke|invocation|orchestrat\w*|agent\w*|structured\w*|\.output\b)/i;
 const SIDECAR = 'tools/agent-result-fallback-exclusions.json';
 
 export function findViolations(text, relPath, exclusions = new Set()) {
   if (!relPath.includes('/src/') || exclusions.has(relPath)) return [];
   const v = []; let m; FALLBACK_RE.lastIndex = 0;
-  while ((m = FALLBACK_RE.exec(text))) v.push({ rule: 'agent-result-fallback', relPath, line: lineOf(text, m.index), token: m[0] });
+  while ((m = FALLBACK_RE.exec(text))) {
+    if (!AGENTISH_LHS.test(m[1])) continue;                    // plain nullish-coalesce (DB read etc.) — legitimate
+    v.push({ rule: 'agent-result-fallback', relPath, line: lineOf(text, m.index), token: m[0] });
+  }
   return v;
 }
 

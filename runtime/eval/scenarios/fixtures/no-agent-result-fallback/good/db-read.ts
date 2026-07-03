@@ -1,0 +1,1 @@
+const rows = queryResult.Items ?? [];
