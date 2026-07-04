@@ -1,6 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { runPreCommitGate, shouldSkip, readStaged } from '../pre-commit-gate.mjs';
+import { runPreCommitGate, shouldSkip, readStaged, formatBlockLines, journalSkip, CURATE_CMD } from '../pre-commit-gate.mjs';
+import { inMemoryJournal } from '../../../engine/lib/journal.mjs';
 
 const trigger = { on: 'commit', contexts: ['invariant', 'gate'], cost_ceiling: 'cheap' };
 const registry = { checks: [], byId: new Map(), errors: [] };
@@ -44,4 +45,25 @@ test('runPreCommitGate passes stagedFiles into watch', async () => {
   await runPreCommitGate({ stagedFiles: ['libs/a/src/x.ts'], registry, trigger, watch });
   assert.deepEqual(seen.stagedFiles, ['libs/a/src/x.ts']);
   assert.deepEqual(seen.changedScope, ['libs/a/src/x.ts']);
+});
+
+test('SKIP1 journalSkip appends a skip record with sha+staged under gate-skips', () => {
+  const j = inMemoryJournal();
+  journalSkip({ journal: j, sha: 'abc123', staged: ['a.ts'], ts: '2026-07-04T10:00:00Z' });
+  const rec = j.read('gate-skips').steps.get('skip:2026-07-04T10:00:00Z');
+  assert.deepEqual(rec.value, { sha: 'abc123', staged: ['a.ts'], ts: '2026-07-04T10:00:00Z' });
+});
+
+test('SKIP2 a failing ledger append propagates (fail-closed: caller must NOT honor the skip)', () => {
+  const broken = { begin() {}, record() { throw new Error('disk full'); } };
+  assert.throws(() => journalSkip({ journal: broken, sha: 's', staged: [], ts: 't' }), /disk full/);
+});
+
+test('MSG1 block message names curate as the sanctioned path and demotes the skip hatch', () => {
+  const lines = formatBlockLines([{ id: 'no-x#0', check: 'no-x', kind: 'drift', scope: ['a.ts'], detail: 'X found', raised_at: 't' }]);
+  const text = lines.join('\n');
+  assert.match(text, /run-backward\.mjs curate --check no-x --trigger ship-gate/);
+  assert.match(text, /last resort/i);
+  assert.match(text, /journaled and adjudicated at ship/);
+  assert.equal(CURATE_CMD('y'), 'node runtime/adapters/claude-code/run-backward.mjs curate --check y --trigger ship-gate');
 });

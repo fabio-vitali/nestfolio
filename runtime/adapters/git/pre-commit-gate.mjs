@@ -7,6 +7,7 @@ import { readFileSync } from 'node:fs';
 import { execSync } from 'node:child_process';
 import { loadRegistry } from '../../engine/lib/load-registry.mjs';
 import { runWatch, loadTriggers } from '../../engine/lib/run-watch.mjs';
+import { makeJournal, gitHeadSha } from '../../engine/lib/journal.mjs';
 
 // Pure core: given the staged set + a loaded registry + the commit trigger, run the watch and map to an
 // exit code. `watch` is injectable so the unit test stays hermetic (no real check execution).
@@ -21,16 +22,45 @@ export function readStaged(exec = (c) => execSync(c, { encoding: 'utf8' })) {
   return exec('git diff --cached --name-only --diff-filter=ACM').split('\n').filter(Boolean);
 }
 
+export const CURATE_CMD = (check) =>
+  `node runtime/adapters/claude-code/run-backward.mjs curate --check ${check} --trigger ship-gate`;
+
+/** §3.2 block message: curate is the sanctioned path; the skip hatch is a journaled last resort. */
+export function formatBlockLines(findings) {
+  const lines = [];
+  for (const f of findings) {
+    lines.push(`  ✖ ${f.check}  ${(f.scope ?? []).join(',')}  ${f.detail}`);
+    lines.push(`      deliberate property change? → ${CURATE_CMD(f.check)}`);
+  }
+  lines.push(`runtime gate: ${findings.length} finding(s) — commit blocked. Fix the code, or curate the check at the floor (commands above).`);
+  lines.push('  last resort: RUNTIME_GATE_SKIP=1 — the skip is journaled and adjudicated at ship (ship-recheck must pass before the item closes).');
+  return lines;
+}
+
+/** §3.2 skip ledger — throws on append failure; the caller must then NOT honor the skip (exit 2). */
+export function journalSkip({ journal, sha, staged, ts }) {
+  journal.begin('gate-skips', { runId: 'gate-skips', auto: false });
+  journal.record('gate-skips', `skip:${ts}`, { sha, staged, ts });
+}
+
 async function main() {
   try {
-    if (shouldSkip(process.env)) { console.error('runtime gate: skipped (RUNTIME_GATE_SKIP)'); process.exit(0); }
+    if (shouldSkip(process.env)) {
+      try {
+        journalSkip({ journal: makeJournal({}), sha: gitHeadSha(), staged: readStaged(), ts: new Date().toISOString() });
+      } catch (e) {
+        console.error(`runtime gate: RUNTIME_GATE_SKIP requested but the skip ledger append FAILED — skip NOT honored (fail-closed): ${e.message}`);
+        process.exit(2);
+      }
+      console.error('runtime gate: skipped (RUNTIME_GATE_SKIP) — journaled for ship adjudication');
+      process.exit(0);
+    }
     const cfg = JSON.parse(readFileSync('runtime/runtime.config.json', 'utf8'));
     const registry = loadRegistry({ checksDir: cfg.checksDir });
     const trigger = loadTriggers(cfg.triggersFile).find((t) => t.on === 'commit');
     if (!trigger) { console.error('runtime gate: no "commit" trigger in triggers.yaml'); process.exit(2); }
     const { exitCode, findings } = await runPreCommitGate({ stagedFiles: readStaged(), registry, trigger });
-    for (const f of findings) console.error(`  ✖ ${f.check}  ${(f.scope ?? []).join(',')}  ${f.detail}`);
-    if (findings.length) console.error(`runtime gate: ${findings.length} finding(s) — commit blocked (set RUNTIME_GATE_SKIP=1 to bypass)`);
+    if (findings.length) for (const line of formatBlockLines(findings)) console.error(line);
     process.exit(exitCode);
   } catch (e) {
     console.error(`runtime gate: crashed, blocking commit (fail-closed): ${e.message}`);
