@@ -1,6 +1,7 @@
 ---
 id: runtime-backward-edge-live
-status: active
+status: shipped
+closed: 2026-07-04
 type: feature
 epic: runtime-operationalization
 epic_role: core
@@ -15,7 +16,7 @@ out_of_scope:
 spec: docs/superpowers/specs/2026-07-04-runtime-backward-edge-live-design.md
 plan: docs/superpowers/plans/2026-07-04-runtime-backward-edge-live.md
 topic_memory: [project_runtime_realization.md]
-validation_gate: null
+validation_gate: "Mint-in-anger COMPLETE: no-pipe-exit-masking driven draft→floor(AskUserQuestion)→register→land-eval via run-backward.mjs park/fulfil (journal keys mint:no-pipe-exit-masking:g1:ratify + consider:runtime-backward-edge-live + ship:runtime-backward-edge-live:gate-clean on runId backward; check ACTIVE in runtime/content/checks/, scenario landed, dossier mints: reconciled — commit 88aa733a). Live ship-recheck blocked once in anger (over-broad evaluator) → fixed f76656f1 → green. 369 tests green across 9 suites + tsc clean (Task 15 + final-fix sweep); nx run-many test,lint -p runtime exit 0 (252/252). Final whole-branch review (20 commits, e18cb581..b3406b29 + fix 263902a6): Ready to merge = Yes. Implementation commits 67acc559..f76656f1 on worktree-runtime-backward-edge-live."
 ---
 
 # Backward edge live — mint and curate in anger
