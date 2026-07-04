@@ -218,8 +218,7 @@ rollup: core 0/3 done · captured 0/0 done
 
 ## ACTIVE
 
-_(none)_
-
+- [worker-decision-log-and-standalone-auto](backlog/worker-decision-log-and-standalone-auto.md) [tooling] — Add --auto to standalone /backlog-next (mirroring /backlog-next-epic's decision policy + hard floor) AND unify the decision-log machinery into the worker: new append-only decision-log.mjs in backlog-next writing to the workstream's docs/backlog/<id>.md body; runstate.mjs drops decisions[] (ephemeral, .git-local, deleted post-merge) so the trail becomes committed+durable; E8 renders the PR body by aggregating file sections.
 
 ## QUEUED
 
