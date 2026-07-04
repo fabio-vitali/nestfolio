@@ -7,8 +7,13 @@ import { readFileSync } from 'node:fs';
 import { execSync } from 'node:child_process';
 
 const staged = process.env.RUNTIME_STAGED_PATHS?.split('\n').filter(Boolean);
-const files = (staged ?? execSync("git ls-files 'scripts/*.sh' 'scripts/**/*.sh' 'infrastructure/scripts/*.sh' 'infrastructure/scripts/**/*.sh'", { encoding: 'utf8' }).split('\n').filter(Boolean))
-  .filter((f) => f.endsWith('.sh'));
+// Staged input is filtered to the check's declared scope (scripts/**, infrastructure/scripts/**) —
+// cmd evaluators receive the WHOLE staged set (attribution drift, redteam-hardening #8), so the tool
+// must self-scope like the other minted evaluators, or its own eval fixtures would flag at the gate.
+const inScope = (f) => f.endsWith('.sh') && /^(scripts|infrastructure\/scripts)\//.test(f);
+const files = staged
+  ? staged.filter(inScope)
+  : execSync("git ls-files 'scripts/*.sh' 'scripts/**/*.sh' 'infrastructure/scripts/*.sh' 'infrastructure/scripts/**/*.sh'", { encoding: 'utf8' }).split('\n').filter(Boolean);
 
 const violations = [];
 for (const f of files) {
