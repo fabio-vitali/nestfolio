@@ -47,3 +47,12 @@ test('DC5 a superseding draft carries supersedes_candidate', () => {
   const d = draftCandidate({ item: { id: 'i' }, lesson: 'x', proposal: proposal({ id: 'no-ddb-scan-v2', supersedes_candidate: 'no-ddb-scan' }) });
   assert.equal(d.supersedes_candidate, 'no-ddb-scan');
 });
+
+test('EPOCH-D1 proposal.generation lands on entry.provenance.generation; absent = no key', () => {
+  const item = { id: 'no-ddb-scan-guard' };
+  const lesson = 'feedback_no_scan_no_filter.md';
+  const d2 = draftCandidate({ item, lesson, proposal: { ...proposal(), generation: 2 } });
+  assert.equal(d2.entry.provenance.generation, 2);
+  const d1 = draftCandidate({ item, lesson, proposal: proposal() });
+  assert.equal('generation' in d1.entry.provenance, false);
+});

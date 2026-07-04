@@ -20,7 +20,8 @@ export function draftCandidate({ item, lesson, proposal }) {
     contexts: proposal.contexts,
     scope: proposal.scope,
     status: 'candidate',
-    provenance: { minted_by: item.id, lesson: lessonRef(lesson) },   // Δ2: NO ratified
+    provenance: { minted_by: item.id, lesson: lessonRef(lesson),
+      ...(proposal.generation != null && proposal.generation > 1 ? { generation: proposal.generation } : {}) },   // Δ2: NO ratified; §2.4 epoch
   };
   if (proposal.flake_contract) entry.flake_contract = proposal.flake_contract;   // judgment only
 
