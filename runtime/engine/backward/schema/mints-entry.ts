@@ -8,6 +8,7 @@ export const MintsEntrySchema = z.object({
   ratified: z.string().min(1),                              // ISO date; mirrors check.provenance.ratified
   status: z.enum(['active', 'superseded', 'retired']),      // tracks the minted check's live-or-terminal state
   superseded_by: z.string().optional(),                    // CheckId; set together with status: 'superseded'
+  generation: z.number().int().min(1).optional(),   // epoch of the minted check (absent = 1); entries keyed by (check, generation)
 }).strict().superRefine((e, ctx) => {
   if (e.status === 'superseded' && !e.superseded_by) {
     ctx.addIssue({ code: z.ZodIssueCode.custom, path: ['superseded_by'],

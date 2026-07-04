@@ -64,6 +64,7 @@ export const ProvenanceSchema = z.object({
   supersedes: z.string().optional(),
   superseded_by: z.string().optional(),
   retired_reason: z.string().optional(),
+  generation: z.number().int().min(1).optional(),   // lifecycle epoch (§2.4): absent = 1; re-mint of a terminal id bumps it
 }).strict();
 export type Provenance = z.infer<typeof ProvenanceSchema>;
 

@@ -49,3 +49,11 @@ test('contexts must be non-empty and drawn from the frozen three', () => {
   assert.equal(validateCheck(validCheck({ contexts: [] })).ok, false);
   assert.equal(validateCheck(validCheck({ contexts: ['bogus'] })).ok, false);
 });
+
+test('EPOCH: provenance.generation optional int ≥ 1', () => {
+  const base = validCheck({});
+  const ok = validateCheck({ ...base, provenance: { ...base.provenance, generation: 2 } });
+  assert.equal(ok.ok, true);
+  const bad = validateCheck({ ...base, provenance: { ...base.provenance, generation: 1.5 } });
+  assert.equal(bad.ok, false);
+});

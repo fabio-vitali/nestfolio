@@ -27,3 +27,10 @@ test('M5 unknown extra field is rejected (strict)', () => {
   const r = validateMintsEntry({ check: 'x', ratified: '2026-07-02', status: 'active', note: 'nope' });
   assert.equal(r.ok, false);
 });
+
+test('EPOCH: generation is accepted as an int ≥ 1 and optional (absent = 1)', () => {
+  const ok = validateMintsEntry({ check: 'x', ratified: '2026-07-04', status: 'active', generation: 2 });
+  assert.equal(ok.ok, true);
+  const bad = validateMintsEntry({ check: 'x', ratified: '2026-07-04', status: 'active', generation: 0 });
+  assert.equal(bad.ok, false);
+});
