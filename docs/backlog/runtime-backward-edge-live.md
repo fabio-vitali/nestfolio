@@ -1,7 +1,8 @@
 ---
 id: runtime-backward-edge-live
-status: parking
+status: queued
 type: feature
+rank: 4
 epic: runtime-operationalization
 epic_role: core
 notes: "P2: make the moat live — mint-in-anger (one real lesson → real floor → registered check + eval scenario), mint wired into the ship ritual, curate CLI as the ONLY sanctioned path past a failing guard, RUNTIME_GATE_SKIP instrumented. MUST precede the bulk check migration."
@@ -46,3 +47,9 @@ curation, i.e. exactly the silent drift design law 5 forbids. Migrating ~23 more
 **Sequencing (binding):** ships BEFORE `runtime-check-migration-completion` starts.
 
 Roadmap: P2 of the probes-first adoption plan (see epic body).
+
+**Promoted 2026-07-04 (trigger fired):** the P1 gate is cleared — `runtime-seam-probe` (P1a),
+`runtime-design-redteam` (P1b) and `runtime-make-it-fire` all shipped 2026-07-03. The live diff-scoped
+pre-commit gate is now firing with `RUNTIME_GATE_SKIP` as its only bypass, i.e. the skip-hatch-as-de-facto-
+curation drift this item exists to close is live today, and the bulk check migration remains blocked
+behind it.
