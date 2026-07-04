@@ -13,7 +13,8 @@ import { fileURLToPath } from 'node:url';
 
 export async function registerRatified({ draft, floorApproval, journal = inMemoryJournal(), checksDir, dossierRoot, scenariosDir }) {
   const id = draft.entry.id;
-  const journalKey = `mint:${id}:ratify`;
+  const gen = draft.entry.provenance.generation ?? 1;              // §2.4 epoch
+  const journalKey = `mint:${id}:g${gen}:ratify`;
 
   const landing = landEvalScenario({ draft, scenariosDir });            // step 4.1 (FIRST) — idempotent by check id
 
@@ -28,7 +29,7 @@ export async function registerRatified({ draft, floorApproval, journal = inMemor
     writeFileSync(join(checksDir, `${id}.yaml`), stringify(check), 'utf8');
 
     const reconciled = check.provenance.lesson
-      ? reconcileLesson({ lesson: check.provenance.lesson, check: id, transition: 'ratify', ratified: check.provenance.ratified, dossierRoot })
+      ? reconcileLesson({ lesson: check.provenance.lesson, check: id, transition: 'ratify', ratified: check.provenance.ratified, generation: gen, dossierRoot })
       : { lesson: null, mints: [] };
 
     const decision = {
@@ -36,7 +37,7 @@ export async function registerRatified({ draft, floorApproval, journal = inMemor
       rationale: draft.rationale, provenance: check.provenance, decided_by: 'human',
       decided_at: check.provenance.ratified, journal_key: journalKey,
     };
-    return { check, decision, landing, mints: reconciled.mints };
+    return { check, decision, landing, mints: reconciled.mints, event: 'RATIFIED' };
   });
 }
 

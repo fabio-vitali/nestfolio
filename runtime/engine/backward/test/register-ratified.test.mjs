@@ -45,3 +45,21 @@ test('RR3 replay (same journal_key) is a no-op returning the first result — no
     const raw = readFileSync(join(lessonsDir, 'feedback_sample.md'), 'utf8');
     assert.equal(parse(/^---\n([\s\S]*?)\n---/.exec(raw)[1]).mints.length, 1);
   }));
+
+test('EPOCH-M1 gen-2 ratify executes fresh under its own key; gen-1 record untouched', () =>
+  withTmpContent(async ({ checksDir, lessonsDir, scenariosDir }) => {
+    writeDossier(lessonsDir, 'feedback_sample', { name: 'S', description: 'd', type: 'feedback',
+      mints: [{ check: 'sample-mint', ratified: '2026-07-01', status: 'retired' }] });
+    const journal = inMemoryJournal();
+    journal.begin('backward', { runId: 'backward', auto: false });   // meta needed for journal.read below
+    // seed a COMPLETE gen-1 record — a naive epoch-less key would replay this and write nothing
+    journal.record('backward', 'mint:sample-mint:g1:ratify', { stale: true });
+    const draft = validDraft({ entry: { provenance: { minted_by: 'sample-item', lesson: 'feedback_sample.md', generation: 2 } } });
+    const r = await registerRatified({ draft, floorApproval: true, journal, checksDir, dossierRoot: lessonsDir, scenariosDir });
+    assert.equal(r.event, 'RATIFIED');
+    assert.ok(existsSync(join(checksDir, 'sample-mint.yaml')));                       // gen-2 actually wrote
+    assert.deepEqual(journal.read('backward').steps.get('mint:sample-mint:g1:ratify').value, { stale: true });  // gen-1 untouched
+    const mints = parse(/^---\n([\s\S]*?)\n---/.exec(readFileSync(join(lessonsDir, 'feedback_sample.md'), 'utf8'))[1]).mints;
+    assert.equal(mints.length, 2);
+    assert.equal(mints[1].generation, 2);
+  }));
