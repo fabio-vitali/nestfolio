@@ -62,4 +62,6 @@ test('EPOCH-M1 gen-2 ratify executes fresh under its own key; gen-1 record untou
     const mints = parse(/^---\n([\s\S]*?)\n---/.exec(readFileSync(join(lessonsDir, 'feedback_sample.md'), 'utf8'))[1]).mints;
     assert.equal(mints.length, 2);
     assert.equal(mints[1].generation, 2);
+    assert.equal(r.decision.journal_key, 'mint:sample-mint:g2:ratify');
+    assert.equal(journal.read('backward').steps.get('mint:sample-mint:g2:ratify').status, 'complete');
   }));
