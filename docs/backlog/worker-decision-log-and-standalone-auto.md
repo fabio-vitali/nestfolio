@@ -65,3 +65,21 @@ Investigation findings that shaped the design (AskUserQuestion-resolved 2026-07-
 Mirrors frontmatter: Tier-2 member isolation; deny-hook floor enforcement; auto-approving
 brainstorming designs; resume-gate/e8 mechanics beyond the `decisions[]` key removal;
 retro-fitting old logs; bne-* scenario expansion beyond schema-forced edits.
+
+## RED baseline (2026-07-04)
+
+Pre-edit run of the 4 `next-auto-*` scenarios against HEAD `598b5b17` (harness + fixtures +
+scenarios committed; NO skill-prose edits, NO `decision-log.mjs`). Command:
+`node scripts/benchmark-backlog/run.mjs regression --scenario=… --iterations=1`, model
+claude-opus-4-8. Verbatim gate results:
+
+- `next-auto-design-pause`: **gatePassRate=1** (expected pass — regression tooth; ignorant baseline pauses at the design approval).
+- `next-auto-finishing-pr-stop`: **gatePassRate=1** (plan expected FAIL via rubricGate; 33 turns, 3.1M tokens — the baseline drove the Complex item to PR-pause via the finishing stub AND satisfied the judge on the decision-trail dimension).
+- `next-auto-floor-pause`: **gatePassRate=1** (expected pass — regression tooth; baseline pauses at the force-push).
+- `next-auto-fork-resolve`: **gatePassRate=1** (plan expected FAIL — the primary discriminator). The baseline COMPLETED on main, no branch, and the deterministic `fileContains` tooth confirmed a `## Decision log` section was actually written into `docs/backlog/simple-fork-choice.md` (14 turns, 1.3M tokens). Diagnosis: the epic skill's E5 decision discipline (present in the sandbox) + the fixture's "resolved AS A DECISION" wording let the baseline improvise the target behavior at n=1.
+
+**Consequence:** the 4 scenarios do not RED-discriminate the prose edit at n=1 — they serve as
+regression teeth (guarding against over-eager auto-resolution and self-merge), not as
+before/after evidence. The behavioral change is evidenced by the deterministic suites
+(decision-log.mjs, runstate.mjs schema) + the GREEN run. Report:
+`benchmarks/backlog/regression-2026-07-04T21-53-46-006Z.md` (gitignored). Total RED spend ≈5.8M tokens.
