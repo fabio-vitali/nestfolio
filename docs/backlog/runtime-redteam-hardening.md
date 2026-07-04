@@ -13,7 +13,7 @@ out_of_scope:
   - "Backward-edge procedural mechanics beyond items 9-10's evidence teeth (mint/curate flows themselves shipped in runtime-backward-edge-live)."
   - "Nestfolio-side tools referenced by starter checks (tools/*, .claude/skills/*) — item 7 makes the STARTER PACK self-contained; it does not rewrite those tools."
 spec: null
-plan: null
+plan: docs/superpowers/plans/2026-07-05-runtime-redteam-hardening.md
 topic_memory: [project_runtime_realization.md]
 validation_gate: null
 ---
@@ -70,3 +70,24 @@ via AskUserQuestion (promote & run `--auto`).
 - **Chosen:** Promote & run --auto (USER decision via AskUserQuestion — parking refusal is a floor stop, not auto-resolvable)
 - **Rationale:** Trigger fired: sequenced with-or-right-after runtime-backward-edge-live, which shipped 2026-07-04 (5f46843e), before the bulk check migration triples enforcement. Epic runtime-operationalization is parked and drained via individual member PRs (precedent: make-it-fire, seam-probe, backward-edge-live), so standalone /backlog-next is the intended path.
 - **Rejected:** Promote only / leave parked — user explicitly chose to run now; deferring adds no information and the migration is sequenced behind this hardening.
+
+### D2 — 2026-07-04
+- **Decision:** Item 4 mechanism: journal concurrency control
+- **Options:** Per-step cross-process lock held across fn() | Per-runId writer lease (enforced single-writer rule)
+- **Chosen:** Per-runId writer lease: writer.json {pid,host,acquired_at} sidecar next to meta.json; writeMeta/appendStep assert ownership; dead-pid (same host) is taken over; live foreign pid or foreign host throws JournalWriterConflict. Read path takes no lease.
+- **Rationale:** The backlog enumerates both options. A lock held across fn() risks stale locks on crash and would deadlock same-runId nesting; the lease is deadlock-free, re-entrant by construction (pid-scoped), matches the enforced-single-writer wording literally, and short-lived CLI writers (gate, ship-recheck, run-backward) chain naturally via dead-pid takeover. blast-radius gate: exit 0 on makeJournal.
+- **Rejected:** Step-scoped locking — serializes long evaluator runs, stale-lock recovery needs the same pid-liveness machinery anyway, and adds a wait/retry loop for a race that single-writer semantics forbid outright.
+
+### D3 — 2026-07-04
+- **Decision:** Item 9 semantics: gate-clean sha-freshness teeth in postflight
+- **Options:** Warn when gate-clean.sha != merged branch tip (backlog example) | Fail when non-docs paths changed since gate-clean.sha (docs-allowlist diff); warn-only when sha is not an ancestor of HEAD
+- **Chosen:** Docs-allowlist diff teeth: git diff --name-only <gate-clean.sha>..HEAD must be within docs/backlog/** + docs/BACKLOG.md, else ship-gate-evidence FAILS; sha not an ancestor (squash-merge) degrades to a warning.
+- **Rationale:** The branch tip ALWAYS postdates gate-clean in the normal flow (6.5/6.6 ship+index docs commits land after the recheck), so naive tip-equality would false-fail every single run; the real property is no unadjudicated NON-DOCS commit after the recheck, which the allowlist diff captures precisely and deterministically. blast-radius gate: exit 0 on backwardEvidenceFailures.
+- **Rejected:** Naive tip equality (false positive by construction); hard-fail on unresolvable sha (squash-merge rewrites history — cannot adjudicate mechanically, so it degrades to a warning instead).
+
+### D4 — 2026-07-04
+- **Decision:** Item 7 approach: starter-pack self-containment
+- **Options:** Ship generic evaluators inside runtime/starter/evaluators/ | Have runtime init generate project-specific bindings
+- **Chosen:** Ship generic evaluators inside runtime/: 3 new self-contained CLIs (no-unsafe-casts scanner, references-valid, index-fresh) under runtime/starter/evaluators/, starter YAMLs re-pointed; the content ring keeps Nestfolio-specific bindings (tools/, .claude/skills/) legally.
+- **Rationale:** The backlog allows either. Shipping evaluators keeps runtime init a pure copy (no templating machinery), works day-0 on a greenfield repo, and preserves the starter/content ring split: starter = generic seed, content = project bindings. Generic index-fresh/references-valid properties are honest weaker forms of lint rules 7/3, stated as such in the YAML property text.
+- **Rejected:** init-generated bindings — needs templating plus per-project wiring before the checks are live, i.e. still dead on arrival at day 0, which is exactly the finding.
