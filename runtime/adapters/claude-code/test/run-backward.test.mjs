@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import { mkdtempSync, mkdirSync, writeFileSync, readFileSync, rmSync, existsSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
+import { spawnSync } from 'node:child_process';
 import { parse, stringify } from 'yaml';
 import { inMemoryJournal } from '../../../engine/lib/journal.mjs';
 import { mintCommand, deriveGeneration, mirrorLesson, parseFlags } from '../run-backward.mjs';
@@ -110,4 +111,16 @@ test('BWD5 mirrorLesson copies an external dossier once, frontmatter intact', as
 test('BWD6 parseFlags: value flags, boolean flags, missing values', () => {
   assert.deepEqual(parseFlags(['--item', 'x', '--none', '--reason', 'r']), { item: 'x', none: true, reason: 'r' });
   assert.deepEqual(parseFlags(['--fulfil', '--value']), { fulfil: true, value: true });   // degenerate → caller treats as usage error
+});
+
+test('BWD-CLI1 malformed --value JSON → exit 2 with a clean one-line error (no stack trace)', () => {
+  const r = spawnSync('node', ['runtime/adapters/claude-code/run-backward.mjs', 'mint', '--item', 'x', '--lesson', 'y', '--proposal', 'z', '--fulfil', 'k', '--value', '{bad'], { encoding: 'utf8', cwd: process.cwd() });
+  assert.equal(r.status, 2);
+  assert.match(r.stderr, /invalid JSON for --value/);
+  assert.doesNotMatch(r.stderr, /SyntaxError/);
+});
+test('BWD-CLI2 unknown subcommand → exit 2 usage, and does NOT touch the journal', () => {
+  const r = spawnSync('node', ['runtime/adapters/claude-code/run-backward.mjs', 'frobnicate'], { encoding: 'utf8', cwd: process.cwd() });
+  assert.equal(r.status, 2);
+  assert.match(r.stderr, /usage: run-backward\.mjs/);
 });

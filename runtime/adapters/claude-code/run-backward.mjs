@@ -5,7 +5,7 @@
 // AskUserQuestion and re-invokes with --fulfil <decision-id> --value '<choice-json>'; replay advances.
 // Exit: 0 done / 3 parked / 1 refused-or-failed / 2 usage. runId 'backward' (one shared floor ledger).
 import { fileURLToPath } from 'node:url';
-import { readFileSync, writeFileSync, existsSync, mkdirSync, copyFileSync } from 'node:fs';
+import { readFileSync, existsSync, mkdirSync, copyFileSync } from 'node:fs';
 import { join, basename } from 'node:path';
 import { parse } from 'yaml';
 import { runMint } from '../../engine/backward/lib/mint.mjs';
@@ -116,27 +116,47 @@ function usage() {
   process.exit(2);
 }
 
+/** Finding 1: malformed/missing JSON input must exit 2 with a one-line message naming the offending
+ *  flag — never an uncaught SyntaxError/ENOENT stack trace. */
+function parseJsonFlag(str, flagName) {
+  try { return JSON.parse(str); }
+  catch (err) { console.error(`run-backward: invalid JSON for --${flagName}: ${err.message}`); process.exit(2); }
+}
+function readJsonFlag(path, flagName) {
+  let text;
+  try { text = readFileSync(path, 'utf8'); }
+  catch (err) { console.error(`run-backward: cannot read file for --${flagName}: ${err.message}`); process.exit(2); }
+  return parseJsonFlag(text, flagName);
+}
+
 async function main() {
   const cmd = process.argv[2];
   const f = parseFlags(process.argv.slice(3));
+  // Finding 2: validate everything I/O-free FIRST — a bare/misspelled invocation must never touch
+  // the shared git-common-dir journal. Only once validation clears do we read cfg / begin / dispatch.
+  if (!['mint', 'curate', 'consider'].includes(cmd)) usage();
   if ((f.fulfil !== undefined) !== (f.value !== undefined) || f.fulfil === true || f.value === true) usage();
+  if (cmd === 'mint' && (typeof f.item !== 'string' || typeof f.lesson !== 'string' || typeof f.proposal !== 'string')) usage();
+  if (cmd === 'curate' && (typeof f.check !== 'string' || typeof f.trigger !== 'string')) usage();
+
+  const value = f.fulfil ? parseJsonFlag(f.value, 'value') : undefined;
+  const proposal = cmd === 'mint' ? readJsonFlag(f.proposal, 'proposal') : undefined;
+  const successorDraft = cmd === 'curate' && typeof f.successor === 'string' ? readJsonFlag(f.successor, 'successor') : undefined;
+
   const cfg = JSON.parse(readFileSync('runtime/runtime.config.json', 'utf8'));
   const journal = makeJournal({});                                 // root = git-common-dir (shared across worktrees)
   journal.begin(RUN_ID, { runId: RUN_ID, auto: false });
-  if (f.fulfil) journal.fulfil(RUN_ID, f.fulfil, JSON.parse(f.value));
+  if (f.fulfil) journal.fulfil(RUN_ID, f.fulfil, value);
   let r;
   if (cmd === 'mint') {
-    if (typeof f.item !== 'string' || typeof f.lesson !== 'string' || typeof f.proposal !== 'string') usage();
-    r = await mintCommand({ itemId: f.item, lessonFile: f.lesson, proposal: JSON.parse(readFileSync(f.proposal, 'utf8')), journal, cfg });
+    r = await mintCommand({ itemId: f.item, lessonFile: f.lesson, proposal, journal, cfg });
   } else if (cmd === 'curate') {
-    if (typeof f.check !== 'string' || typeof f.trigger !== 'string') usage();
-    const successorDraft = typeof f.successor === 'string' ? JSON.parse(readFileSync(f.successor, 'utf8')) : undefined;
     r = await curateCommand({ checkId: f.check, trigger: f.trigger, successorDraft, reason: typeof f.reason === 'string' ? f.reason : '', journal, cfg });
-  } else if (cmd === 'consider') {
+  } else {
     r = considerCommand({ itemId: f.item, minted: typeof f.minted === 'string' ? f.minted : undefined,
       none: f.none === true, reason: typeof f.reason === 'string' ? f.reason : undefined,
       journal, sha: gitHeadSha(), ts: new Date().toISOString() });
-  } else usage();
+  }
   console.log(JSON.stringify(r.out, null, 2));
   process.exit(r.exit);
 }
