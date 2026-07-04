@@ -9,7 +9,7 @@ import { inMemoryJournal } from '../lib/capabilities.mjs';
 import { withTmpContent } from './_fixtures.mjs';
 
 test('SUP1 sync-supersede no-ddb-scan → v2: chain both sides + mints re-aimed', () =>
-  withTmpContent(async ({ checksDir, lessonsDir }) => {
+  withTmpContent(async ({ checksDir, lessonsDir, scenariosDir }) => {
     cpSync('runtime/content/checks/no-ddb-scan.yaml', join(checksDir, 'no-ddb-scan.yaml'));
     cpSync('runtime/content/lessons/feedback_no_scan_no_filter.md', join(lessonsDir, 'feedback_no_scan_no_filter.md'));
     const guard = loadRegistry({ checksDir }).byId.get('no-ddb-scan');
@@ -17,8 +17,10 @@ test('SUP1 sync-supersede no-ddb-scan → v2: chain both sides + mints re-aimed'
       property: 'No ScanCommand/.scan(/scanAll under services/**/src, and no FilterExpression on a GSI KEY attribute (__typename/tenantId/timestamp) — a reviewed FilterExpression on a NON-key attribute is allowed.',
       evaluator: { type: 'deterministic', run: 'cmd:node tools/check-no-ddb-scan.mjs' },
       provenance: { minted_by: 'narrow-ddb-filter-allowance', lesson: 'feedback_no_scan_no_filter.md', ratified: '2026-09-11' } };
+    const proposedSuccessor = { entry: successor, eval_scenario: { path: 'runtime/eval/scenarios/no-ddb-scan-v2.scenario.mjs',
+      fixtures: { good: [], bad: [] }, target_pass_rate: 1.0 }, rationale: 'narrowed' };
     const finding = { id: 'f-sync', check: 'no-ddb-scan', kind: 'drift', scope: ['services/x/src/a.ts'], detail: 'reviewed non-key FilterExpression flagged', raised_at: '2026-09-11T00:00:00Z' };
-    const r = await runCurate({ guard, trigger: 'ship-gate-blocking', finding, proposedSuccessor: successor, rationale: 'property was too broad; narrow to GSI key attrs', ask: async (d) => ({ decisionId: d.id, value: 'supersede' }), journal: inMemoryJournal(), checksDir, dossierRoot: lessonsDir });
+    const r = await runCurate({ guard, trigger: 'ship-gate-blocking', finding, proposedSuccessor, rationale: 'property was too broad; narrow to GSI key attrs', ask: async (d) => ({ decisionId: d.id, value: 'supersede' }), journal: inMemoryJournal(), checksDir, dossierRoot: lessonsDir, scenariosDir });
     assert.equal(r.kind, 'superseded');
     assert.equal(parse(readFileSync(join(checksDir, 'no-ddb-scan.yaml'), 'utf8')).provenance.superseded_by, 'no-ddb-scan-v2');
     assert.equal(parse(readFileSync(join(checksDir, 'no-ddb-scan-v2.yaml'), 'utf8')).provenance.supersedes, 'no-ddb-scan');

@@ -36,7 +36,9 @@ test('CU4 §11.2-2 sync + human supersede → kind superseded, successor active'
   withTmpContent(async (dirs) => {
     seed(dirs.lessonsDir);
     const successor = validCheck({ id: 'no-ddb-scan-v2', status: 'active', provenance: { minted_by: 'narrow-ddb-filter-allowance', lesson: 'feedback_x.md', ratified: '2026-09-11' } });
-    const r = await runCurate({ guard: guard(), trigger: 'ship-gate-blocking', finding: finding('drift'), proposedSuccessor: successor, rationale: 'narrowed', ask: async (d) => ({ decisionId: d.id, value: 'supersede' }), journal: inMemoryJournal(), checksDir: dirs.checksDir, dossierRoot: dirs.lessonsDir });
+    const proposedSuccessor = { entry: successor, eval_scenario: { path: 'runtime/eval/scenarios/no-ddb-scan-v2.scenario.mjs',
+      fixtures: { good: [], bad: [] }, target_pass_rate: 1.0 }, rationale: 'narrowed' };
+    const r = await runCurate({ guard: guard(), trigger: 'ship-gate-blocking', finding: finding('drift'), proposedSuccessor, rationale: 'narrowed', ask: async (d) => ({ decisionId: d.id, value: 'supersede' }), journal: inMemoryJournal(), checksDir: dirs.checksDir, dossierRoot: dirs.lessonsDir, scenariosDir: dirs.scenariosDir });
     assert.equal(r.kind, 'superseded');
     assert.equal(r.successor.provenance.supersedes, 'no-ddb-scan');
   }));

@@ -32,10 +32,9 @@ test('CG2 retire → status retired, retired_reason recorded, lesson mints entry
   }));
 
 test('CG3 supersede → old superseded_by successor, successor active supersedes old, BOTH yamls persisted, mints re-aimed', () =>
-  withTmpContent(async ({ checksDir, lessonsDir }) => {
+  withTmpContent(async ({ checksDir, lessonsDir, scenariosDir }) => {
     seed(lessonsDir);
-    const successor = validCheck({ id: 'no-ddb-scan-v2', status: 'active', provenance: { minted_by: 'narrow-ddb-filter-allowance', lesson: 'feedback_x.md', ratified: '2026-09-11' } });
-    const r = await curateGuard({ guard: activeGuard(), trigger: 'ship-gate-blocking', transition: 'supersede', successor, floorApproval: true, rationale: 'narrowed to GSI key attrs', checksDir, dossierRoot: lessonsDir });
+    const r = await curateGuard({ guard: activeGuard(), trigger: 'ship-gate-blocking', transition: 'supersede', successor: successorDraft(), floorApproval: true, rationale: 'narrowed to GSI key attrs', checksDir, dossierRoot: lessonsDir, scenariosDir });
     assert.equal(r.check.status, 'superseded');
     assert.equal(r.check.provenance.superseded_by, 'no-ddb-scan-v2');
     assert.equal(r.successor.provenance.supersedes, 'no-ddb-scan');
@@ -77,4 +76,50 @@ test('EPOCH-C1 journal key carries the guard generation', () =>
     const r = await curateGuard({ guard: activeGuard(), trigger: 'dangling-scope', transition: 'retire',
       floorApproval: true, rationale: 'x', retiredReason: 'x', journal, checksDir, dossierRoot: lessonsDir });
     assert.equal(r.decision.journal_key, 'curate:no-ddb-scan:g1:retire');
+  }));
+
+const successorDraft = (o = {}) => ({
+  entry: validCheck({ id: 'no-ddb-scan-v2', status: 'active',
+    provenance: { minted_by: 'narrow-ddb', lesson: 'feedback_x.md', ratified: '2026-07-04' }, ...(o.entry ?? {}) }),
+  eval_scenario: { path: 'runtime/eval/scenarios/no-ddb-scan-v2.scenario.mjs',
+    fixtures: { good: ['fixtures/no-ddb-scan-v2/good/ok.ts'], bad: ['fixtures/no-ddb-scan-v2/bad/violation.ts'] },
+    target_pass_rate: 1.0 },
+  rationale: 'narrowed to GSI key attrs',
+  ...o.rest,
+});
+
+test('SUCC1 invalid successor entry → REFUSED_INVALID_SUCCESSOR before the journal step (no record, no disk)', () =>
+  withTmpContent(async ({ checksDir, lessonsDir, scenariosDir }) => {
+    seed(lessonsDir);
+    const journal = inMemoryJournal();
+    const bad = successorDraft(); delete bad.entry.property;                       // breaks CheckEntrySchema
+    const r = await curateGuard({ guard: activeGuard(), trigger: 'ship-gate', transition: 'supersede',
+      successor: bad, floorApproval: true, rationale: 'narrow', journal, checksDir, dossierRoot: lessonsDir, scenariosDir });
+    assert.equal(r.event, 'REFUSED_INVALID_SUCCESSOR');
+    assert.equal(r.decision, null);
+    assert.equal(existsSync(join(checksDir, 'no-ddb-scan.yaml')), false);          // guard untouched
+    assert.equal(existsSync(join(checksDir, 'no-ddb-scan-v2.yaml')), false);
+    journal.begin('backward', { runId: 'backward', auto: false });
+    assert.equal([...journal.read('backward').steps.keys()].length, 0);            // no journal record
+  }));
+
+test('SUCC2 valid successor → both YAMLs + landed scenario + chained provenance + mints re-aimed', () =>
+  withTmpContent(async ({ checksDir, lessonsDir, scenariosDir }) => {
+    seed(lessonsDir);
+    const r = await curateGuard({ guard: activeGuard(), trigger: 'ship-gate', transition: 'supersede',
+      successor: successorDraft(), floorApproval: true, rationale: 'narrow', checksDir, dossierRoot: lessonsDir, scenariosDir });
+    assert.equal(r.check.provenance.superseded_by, 'no-ddb-scan-v2');
+    assert.equal(r.successor.provenance.supersedes, 'no-ddb-scan');
+    assert.ok(existsSync(join(checksDir, 'no-ddb-scan-v2.yaml')));
+    assert.ok(existsSync(join(scenariosDir, 'no-ddb-scan-v2.scenario.mjs')));      // §2.2: full mint guarantees
+    assert.equal(r.landing.check, 'no-ddb-scan-v2');
+  }));
+
+test('SUCC3 missing eval_scenario → refused (a successor without a scenario is a naked guard)', () =>
+  withTmpContent(async ({ checksDir, lessonsDir, scenariosDir }) => {
+    seed(lessonsDir);
+    const noScenario = successorDraft(); delete noScenario.eval_scenario;
+    const r = await curateGuard({ guard: activeGuard(), trigger: 'ship-gate', transition: 'supersede',
+      successor: noScenario, floorApproval: true, rationale: 'narrow', checksDir, dossierRoot: lessonsDir, scenariosDir });
+    assert.equal(r.event, 'REFUSED_INVALID_SUCCESSOR');
   }));
