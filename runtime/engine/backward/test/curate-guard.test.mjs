@@ -4,6 +4,7 @@ import { existsSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { parse } from 'yaml';
 import { curateGuard } from '../lib/curate-guard.mjs';
+import { inMemoryJournal } from '../lib/capabilities.mjs';
 import { withTmpContent, writeDossier, validCheck } from './_fixtures.mjs';
 
 const activeGuard = (o = {}) => validCheck({ id: 'no-ddb-scan', status: 'active',
@@ -51,4 +52,29 @@ test('CG4 floorless retire refuses — no persist', () =>
     const r = await curateGuard({ guard: activeGuard(), trigger: 'dangling-scope', transition: 'retire', floorApproval: false, rationale: 'x', checksDir, dossierRoot: lessonsDir });
     assert.equal(r.decision, null);
     assert.equal(existsSync(join(checksDir, 'no-ddb-scan.yaml')), false);
+  }));
+
+test('TORN-CURATE a throwing reconcile leaves the guard ACTIVE on disk and unrecorded — retry converges', () =>
+  withTmpContent(async ({ checksDir, lessonsDir }) => {
+    // NO dossier seeded → reconcileLesson throws ENOENT inside the step
+    const journal = inMemoryJournal();
+    const guard = activeGuard();
+    await assert.rejects(() => curateGuard({ guard, trigger: 'dangling-scope', transition: 'retire',
+      floorApproval: true, rationale: 'code deleted', retiredReason: 'gone', journal, checksDir, dossierRoot: lessonsDir }));
+    assert.equal(existsSync(join(checksDir, 'no-ddb-scan.yaml')), false);   // guard NOT lowered on disk (the red-team hole)
+    // retry after the operator fixes the dossier: same journal, same guard object — converges
+    seed(lessonsDir);
+    const r = await curateGuard({ guard, trigger: 'dangling-scope', transition: 'retire',
+      floorApproval: true, rationale: 'code deleted', retiredReason: 'gone', journal, checksDir, dossierRoot: lessonsDir });
+    assert.equal(r.check.status, 'retired');
+    assert.ok(existsSync(join(checksDir, 'no-ddb-scan.yaml')));
+  }));
+
+test('EPOCH-C1 journal key carries the guard generation', () =>
+  withTmpContent(async ({ checksDir, lessonsDir }) => {
+    seed(lessonsDir);
+    const journal = inMemoryJournal();
+    const r = await curateGuard({ guard: activeGuard(), trigger: 'dangling-scope', transition: 'retire',
+      floorApproval: true, rationale: 'x', retiredReason: 'x', journal, checksDir, dossierRoot: lessonsDir });
+    assert.equal(r.decision.journal_key, 'curate:no-ddb-scan:g1:retire');
   }));

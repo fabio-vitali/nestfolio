@@ -17,16 +17,20 @@ export async function curateGuard({ guard, trigger, transition, successor, floor
   const res = advanceLifecycle({ check: guard, transition, floorApproval, successor, retiredReason });   // pure
   if (res.event !== 'RETIRED' && res.event !== 'SUPERSEDED') return { check: guard, event: res.event, decision: null };  // refusal BEFORE journal.step
 
-  const journalKey = `curate:${guard.id}:${transition}`;
+  const gen = guard.provenance.generation ?? 1;                    // §2.4 epoch
+  const journalKey = `curate:${guard.id}:g${gen}:${transition}`;
   return await journal.step('backward', journalKey, async () => {
+    // §2.1 order: reconcile FIRST, then the YAML writes. reconcile throws → nothing touched disk → clean
+    // retry. A write-throw after reconcile leaves the guard ACTIVE on disk, so the retry re-runs
+    // advanceLifecycle legally and every reconcile branch is idempotent → retry converges.
+    const lesson = guard.provenance.lesson;
+    const reconciled = lesson
+      ? reconcileLesson({ lesson, check: guard.id, transition, successor: successor?.id, generation: gen, dossierRoot })
+      : { lesson: null, mints: [] };
+
     mkdirSync(checksDir, { recursive: true });
     writeFileSync(join(checksDir, `${res.check.id}.yaml`), stringify(res.check), 'utf8');
     if (res.successor) writeFileSync(join(checksDir, `${res.successor.id}.yaml`), stringify(res.successor), 'utf8');
-
-    const lesson = guard.provenance.lesson;
-    const reconciled = lesson
-      ? reconcileLesson({ lesson, check: guard.id, transition, successor: successor?.id, dossierRoot })
-      : { lesson: null, mints: [] };
 
     const decision = {
       act: 'curate', transition, check: guard.id, successor: successor?.id, lesson: lesson ?? undefined,
