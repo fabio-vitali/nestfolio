@@ -29,6 +29,7 @@ import { execSync } from 'node:child_process';
 import { existsSync, readFileSync, readdirSync, rmSync, statSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { makeJournal } from '../../../runtime/engine/lib/journal.mjs';
 
 export const VALID_LANES = ['doc-layer', 'simple', 'complex', 'epic-member'];
 
@@ -37,6 +38,41 @@ export const VALID_LANES = ['doc-layer', 'simple', 'complex', 'epic-member'];
  * `epic-member` lane defers them to the epic-level close. */
 export function runsComplexChecks(lane) {
   return lane === 'complex';
+}
+
+/** Backward-edge ritual evidence (§4.2, runtime-backward-edge-live) — pure, so the matrix test can
+ * feed synthetic ledgers. Missing snapshot ⇒ degrade to existence-only with a warning; the hard
+ * requirement (records exist) stays. */
+export function backwardEvidenceFailures({ backwardLedger, skipsLedger, id, snapshotTimestamp }) {
+  const failures = [];
+  const warnings = [];
+  const windowed = Boolean(snapshotTimestamp);
+  if (!windowed) warnings.push('no preflight snapshot found — backward-edge evidence checks degraded to existence-only');
+  const steps = backwardLedger?.steps ?? new Map();
+
+  const clean = steps.get(`ship:${id}:gate-clean`);
+  if (!clean || clean.status !== 'complete') {
+    failures.push({ rule: 'ship-gate-evidence',
+      message: `no ship:${id}:gate-clean record on runId 'backward'. Run: node runtime/adapters/git/ship-recheck.mjs --item ${id}` });
+  } else if (windowed && !(clean.ts > snapshotTimestamp)) {
+    failures.push({ rule: 'ship-gate-evidence',
+      message: `ship:${id}:gate-clean (${clean.ts}) predates the preflight snapshot (${snapshotTimestamp}) — stale evidence; re-run ship-recheck.` });
+  } else {
+    const skips = [...(skipsLedger?.steps?.values() ?? [])].filter((r) => r.key.startsWith('skip:') && r.ts > clean.ts);
+    if (skips.length) failures.push({ rule: 'ship-gate-evidence',
+      message: `${skips.length} RUNTIME_GATE_SKIP use(s) postdate the last gate-clean — unadjudicated skip debt; re-run ship-recheck.`,
+      detail: skips.map((s) => s.key).join('\n') });
+  }
+
+  const considered = steps.get(`consider:${id}`);
+  if (!considered || considered.status !== 'complete') {
+    failures.push({ rule: 'mint-considered',
+      message: `no consider:${id} record on runId 'backward'. Record the mint consideration ("none" is a legal answer): node runtime/adapters/claude-code/run-backward.mjs consider --item ${id} (--minted <check-id> | --none) --reason '…'` });
+  } else if (windowed && !(considered.ts > snapshotTimestamp)) {
+    failures.push({ rule: 'mint-considered',
+      message: `consider:${id} (${considered.ts}) predates the preflight snapshot — record THIS workstream's consideration.` });
+  }
+  return { failures, warnings };
 }
 
 /** Resolve REPO_ROOT for the CURRENT working tree, robust to a DEAD cwd. `--show-toplevel`
@@ -74,6 +110,7 @@ function main() {
   };
 
   const failures = [];
+  const warnings = [];
 
   // 1. Tree clean — delta-aware. Excuses dirt that (a) existed at preflight or
   // (b) is known background-tool litter; sweeps litter dirs from the repo root.
@@ -101,11 +138,9 @@ function main() {
   }
 
   // Load the preflight snapshot (graceful if absent — e.g. resumed workstream).
+  const gitCommonDirAbs = sh('git rev-parse --path-format=absolute --git-common-dir');
   let snapshot = { timestamp: null, status: '' };
-  const snapshotPath = join(
-    sh('git rev-parse --path-format=absolute --git-common-dir'),
-    'backlog-next-snapshot.json',
-  );
+  const snapshotPath = join(gitCommonDirAbs, 'backlog-next-snapshot.json');
   if (existsSync(snapshotPath)) {
     try { snapshot = JSON.parse(readFileSync(snapshotPath, 'utf8')); }
     catch { /* corrupt snapshot — fall back to empty */ }
@@ -135,7 +170,6 @@ function main() {
 
   // Orphan-runner warning (never a failure): nx/jest processes older than the
   // snapshot timestamp are a likely litter source — surface, do not block.
-  const warnings = [];
   if (snapshot.timestamp) {
     const snapMs = Date.parse(snapshot.timestamp);
     const ps = shSafe('ps -A -o lstart=,pid=,command=');
@@ -185,6 +219,19 @@ function main() {
           });
         }
       }
+    }
+  }
+
+  // 3b. Backward-edge ritual evidence (simple + complex; doc-layer exempt; epic-member defers to epic close).
+  if (args.id && (lane === 'simple' || lane === 'complex')) {
+    try {
+      const journal = makeJournal({ root: gitCommonDirAbs });
+      const r = backwardEvidenceFailures({ backwardLedger: journal.read('backward'),
+        skipsLedger: journal.read('gate-skips'), id: args.id, snapshotTimestamp: snapshot.timestamp });
+      failures.push(...r.failures);
+      warnings.push(...r.warnings);
+    } catch (e) {
+      failures.push({ rule: 'ship-gate-evidence', message: `could not read the backward journal: ${e.message}` });
     }
   }
 
