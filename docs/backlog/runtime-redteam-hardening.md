@@ -1,13 +1,17 @@
 ---
 id: runtime-redteam-hardening
-status: queued
+status: active
 type: bug
-rank: 4
 epic: runtime-operationalization
 epic_role: core
 notes: "P2 mechanical hardening from the red-team's confirmed findings (see runtime-design-redteam): fail-closed registry errors in the gate, --diff-filter=ACMR, atomic+guarded meta.json, journal locking/single-writer, runnable registry-integrity CLI, single-active at-most-one + epic-aware semantics, starter-pack self-containment, cmd-attribution scope drift. All deterministic, no design ambiguity — each fix ships with a regression test."
 references: []
-out_of_scope: []
+out_of_scope:
+  - "Contract/design changes — the seam v1 re-freeze and journal keying redesign routed to runtime-seam-probe; ring-1 engine schemas stay frozen. This item is mechanical fixes + regression tests only."
+  - "The bulk check migration (P4), cadence wiring, and CI golden gates — sequenced AFTER this hardening; no new checks are migrated or authored here."
+  - "Net-new checks or lessons — those flow through the backward edge (mint) / backlog-add, not this workstream."
+  - "Backward-edge procedural mechanics beyond items 9-10's evidence teeth (mint/curate flows themselves shipped in runtime-backward-edge-live)."
+  - "Nestfolio-side tools referenced by starter checks (tools/*, .claude/skills/*) — item 7 makes the STARTER PACK self-contained; it does not rewrite those tools."
 spec: null
 plan: null
 topic_memory: [project_runtime_realization.md]
