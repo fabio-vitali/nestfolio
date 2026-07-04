@@ -12,7 +12,7 @@ out_of_scope:
   - "Baseline-relative / diff-aware item-gate semantics — runtime-gate-baseline-semantics."
   - "Parity oracle / regression harness (runtime-regression-harness), work-driver re-platform (P5), operator surface (P6), TypeScript port."
   - "Re-designing ring-1 engine contracts (schemas/helpers) — frozen by runtime-realization; only the four red-team p2 backward-edge deltas listed in this file are in scope."
-spec: null
+spec: docs/superpowers/specs/2026-07-04-runtime-backward-edge-live-design.md
 plan: null
 topic_memory: [project_runtime_realization.md]
 validation_gate: null
