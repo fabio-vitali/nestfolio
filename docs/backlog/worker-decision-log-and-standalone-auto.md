@@ -1,6 +1,7 @@
 ---
 id: worker-decision-log-and-standalone-auto
-status: active
+status: shipped
+closed: 2026-07-05
 type: tooling
 notes: "Add --auto to standalone /backlog-next (mirroring /backlog-next-epic's decision policy + hard floor) AND unify the decision-log machinery into the worker: new append-only decision-log.mjs in backlog-next writing to the workstream's docs/backlog/<id>.md body; runstate.mjs drops decisions[] (ephemeral, .git-local, deleted post-merge) so the trail becomes committed+durable; E8 renders the PR body by aggregating file sections."
 references: []
@@ -14,7 +15,7 @@ out_of_scope:
 spec: null
 plan: docs/superpowers/plans/2026-07-04-worker-decision-log-and-standalone-auto.md
 topic_memory: [project_backlog_eval_framework.md]
-validation_gate: null
+validation_gate: "RED baseline 2026-07-04 (pre-edit HEAD 598b5b17): gatePassRate=1 x4 — unexpected all-pass, AskUserQuestion-resolved to keep scenarios as regression teeth. GREEN 2026-07-05 (post-edit bca79780): gatePassRate=1 x4 verbatim (design-pause 11t, finishing-pr-stop 37t deploy+PR-stop, floor-pause 7t, fork-resolve 23t with fileContains-verified '## Decision log'). Deterministic suites all green: backlog-next 61/61, backlog-next-epic 60/60, backlog-lint 66/66, benchmark-backlog 67/67. Commits 4e35b046 (fileContains grader), 5f9f50ee (fixtures), 598b5b17 (scenarios), 240e4586 (RED record), f770a9ff (decision-log.mjs), 10ccc8cc (runstate drops decisions[]), 49e44ce1 (backlog-next --auto prose), 9e6bfd9b (epic consumes worker log), bca79780 (CLAUDE.md pointer), d6a69edc (GREEN record). ship-recheck gate-clean + mint-considered --none journaled at d6a69edc."
 ---
 
 # Worker-owned decision log + standalone /backlog-next --auto
