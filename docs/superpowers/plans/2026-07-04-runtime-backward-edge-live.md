@@ -507,6 +507,14 @@ Inside the journal step, before the reconcile (scenario landing is idempotent by
 
 successor references in reconcile + decision become `successor?.entry?.id`; the step return gains `...(landing ? { landing } : {})`.
 
+**Write order inside the step (floor decision 2026-07-04, supersedes the Task 6 snippet's order):** landing → reconcile → `mkdirSync` → **successor YAML first, guard YAML LAST** — the guard write is the commit point of the act. A crash between the two writes then leaves the guard ACTIVE on disk (plus a harmless already-active successor), so a disk-reloading retry re-runs `advanceLifecycle` legally and converges; guard-first would leave a superseded guard with no successor and a permanently-refused retry. Reusable pattern: the lifecycle-bearing write always goes last.
+
+```js
+    mkdirSync(checksDir, { recursive: true });
+    if (res.successor) writeFileSync(join(checksDir, `${res.successor.id}.yaml`), stringify(res.successor), 'utf8');
+    writeFileSync(join(checksDir, `${res.check.id}.yaml`), stringify(res.check), 'utf8');   // guard LAST = commit point
+```
+
 In `curate.mjs`: signature gains `scenariosDir`; pass it to both `curateGuard` calls (retire path too — harmless); the supersede call passes `successor: proposedSuccessor` (already draft-shaped now). No other logic change — `proposed_successor` in the choice now carries the envelope, which Task 4's render prints via `.entry`.
 
 - [ ] **Step 4: Update existing call sites to the envelope shape:**
@@ -1414,5 +1422,5 @@ npm test | tee /tmp/test.log | tail -5
 ## Self-Review Notes
 
 - **Spec coverage:** §2.1→Task 6; §2.2→Task 7; §2.3→Task 4; §2.4→Tasks 1-3,5-7; §3.1→Tasks 9-10; §3.2→Task 11; §3.3→Task 12; §4.1→Task 14; §4.2→Task 13; §5→Task 16; §6 error paths→SUCC1/SUCC3, SKIP2, TORN-CURATE, BWD2 replay, BWD8 keep; §7 test matrix→Tasks 1-13 tests.
-- **Known judgment calls (flag in PR body):** (a) mint on a LIVE on-disk id refuses (exit 1) — spec only defines terminal-id derivation; refusal is the safe complement. (b) `edit` fulfilment re-opens the floor via a fresh `awaiting` append (last-write-wins) — required for the spec's re-proposal loop to converge; `decline` deliberately KEEPS replay semantics (§6 "reprints the recorded result"). (c) The gate keeps `--diff-filter=ACM` (ACMR is the *gate*'s redteam-hardening delta, out of scope here); ship-recheck uses ACMR per §3.3.
+- **Known judgment calls (flag in PR body):** (a) mint on a LIVE on-disk id refuses (exit 1) — spec only defines terminal-id derivation; refusal is the safe complement. (b) `edit` fulfilment re-opens the floor via a fresh `awaiting` append (last-write-wins) — required for the spec's re-proposal loop to converge; `decline` deliberately KEEPS replay semantics (§6 "reprints the recorded result"). (c) The gate keeps `--diff-filter=ACM` (ACMR is the *gate*'s redteam-hardening delta, out of scope here); ship-recheck uses ACMR per §3.3. (d) **Floor decision 2026-07-04:** supersede writes successor YAML first, guard YAML last (commit point) — Task 6's review showed guard-first violates the §2.1 torn-retry invariant on the two-write path (superseded guard + missing successor + disk-reloading retry refused forever).
 - **Type consistency spot-checks:** `successor?.entry` everywhere in curate-guard after Task 7 (advanceLifecycle gets `.entry`, reconcile gets `.entry.id`, decision gets `.entry.id`); `generation ?? 1` never stored when 1 (provenance via draftCandidate, mints via reconcileLesson) but ALWAYS rendered in ids/keys as `g1`.
