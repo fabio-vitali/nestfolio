@@ -61,7 +61,14 @@ export function mirrorLesson({ lessonFile, lessonsDir }) {
   return rel;
 }
 
-const paused = (journal, result) => ({ exit: 3, out: { result, pending: pendingDecisions(journal.read(RUN_ID)) } });
+/** Finding (Minor C): the shared `backward` ledger can carry OTHER acts' stale parks. Filter
+ *  pendingDecisions to the decision this act is actually waiting on; fall back to the unfiltered
+ *  list if the filter yields empty (defensive — a park must never go invisible). */
+const paused = (journal, result, decisionId) => {
+  const all = pendingDecisions(journal.read(RUN_ID));
+  const mine = decisionId ? all.filter((r) => r.key === decisionId) : all;
+  return { exit: 3, out: { result, pending: mine.length ? mine : all } };
+};
 
 export async function mintCommand({ itemId, lessonFile, proposal, journal, ask = headlessAsk, cfg }) {
   journal.begin(RUN_ID, { runId: RUN_ID, auto: false });
@@ -72,7 +79,7 @@ export async function mintCommand({ itemId, lessonFile, proposal, journal, ask =
   const r = await runMint({ item: { id: itemId }, lesson: lessonRel, proposal: p,
     ask: makeJournaledAsk({ journal, ask }), journal,
     checksDir: cfg.checksDir, dossierRoot: cfg.lessonsDir, scenariosDir: cfg.scenariosDir });
-  if (r.kind === 'paused') return paused(journal, r);
+  if (r.kind === 'paused') return paused(journal, r, `mint-${proposal.id}-g${gen.generation}`);
   if (r.kind === 'rejected') return { exit: 1, out: { result: r } };
   if (r.kind === 'edit') {
     // Re-open the floor (last-write-wins): the revised proposal must ask fresh, not replay 'edit'.
@@ -91,10 +98,21 @@ export async function curateCommand({ checkId, trigger, successorDraft, reason =
   if (!existsSync(guardPath)) return { exit: 1, out: { error: `no such check on disk: ${guardPath}` } };
   const v = validateCheck(parse(readFileSync(guardPath, 'utf8')));
   if (!v.ok) return { exit: 1, out: { error: `invalid guard YAML for "${checkId}": ${v.error}` } };
+  const guardGen = v.value.provenance.generation ?? 1;
+  const decisionId = `curate-${checkId}-g${guardGen}`;
   const r = await runCurate({ guard: v.value, trigger, proposedSuccessor: successorDraft, rationale: reason,
     ask: makeJournaledAsk({ journal, ask }), journal,
     checksDir: cfg.checksDir, dossierRoot: cfg.lessonsDir, scenariosDir: cfg.scenariosDir });
-  if (r.kind === 'paused') return paused(journal, r);
+  if (r.kind === 'paused') return paused(journal, r, decisionId);
+  if (r.kind === 'kept') {
+    // Mirror the 'edit' precedent above: a fulfilled 'keep' must not permanently foreclose the floor —
+    // re-open it so the NEXT curate of this guard/generation asks fresh instead of replaying 'kept'.
+    const choice = { act: 'curate', guard: v.value, trigger, ...(successorDraft ? { proposed_successor: successorDraft } : {}),
+      rationale: reason, recommended: trigger === 'dangling-scope' ? 'retire' : 'keep', options: ['retire', 'supersede', 'keep'] };
+    const decision = toDecision(choice);
+    journal.awaiting(RUN_ID, decision.id, decision);
+    return { exit: 0, out: { result: r } };
+  }
   return { exit: r.decision ? 0 : 1, out: { result: r } };         // refusals carry decision: null
 }
 
@@ -139,25 +157,34 @@ async function main() {
   if (cmd === 'mint' && (typeof f.item !== 'string' || typeof f.lesson !== 'string' || typeof f.proposal !== 'string')) usage();
   if (cmd === 'curate' && (typeof f.check !== 'string' || typeof f.trigger !== 'string')) usage();
 
-  const value = f.fulfil ? parseJsonFlag(f.value, 'value') : undefined;
-  const proposal = cmd === 'mint' ? readJsonFlag(f.proposal, 'proposal') : undefined;
-  const successorDraft = cmd === 'curate' && typeof f.successor === 'string' ? readJsonFlag(f.successor, 'successor') : undefined;
+  // Minor B: everything below has cleared usage validation (I/O-free) — a throw from here on (config
+  // read, journal I/O, dispatch) is an unexpected crash, not a usage error. It gets its OWN exit code
+  // (1, refused-or-failed) rather than an uncaught-exception stack trace; the JSON-parsing exits (2)
+  // above are untouched — they already exit before this point.
+  try {
+    const value = f.fulfil ? parseJsonFlag(f.value, 'value') : undefined;
+    const proposal = cmd === 'mint' ? readJsonFlag(f.proposal, 'proposal') : undefined;
+    const successorDraft = cmd === 'curate' && typeof f.successor === 'string' ? readJsonFlag(f.successor, 'successor') : undefined;
 
-  const cfg = JSON.parse(readFileSync('runtime/runtime.config.json', 'utf8'));
-  const journal = makeJournal({});                                 // root = git-common-dir (shared across worktrees)
-  journal.begin(RUN_ID, { runId: RUN_ID, auto: false });
-  if (f.fulfil) journal.fulfil(RUN_ID, f.fulfil, value);
-  let r;
-  if (cmd === 'mint') {
-    r = await mintCommand({ itemId: f.item, lessonFile: f.lesson, proposal, journal, cfg });
-  } else if (cmd === 'curate') {
-    r = await curateCommand({ checkId: f.check, trigger: f.trigger, successorDraft, reason: typeof f.reason === 'string' ? f.reason : '', journal, cfg });
-  } else {
-    r = considerCommand({ itemId: f.item, minted: typeof f.minted === 'string' ? f.minted : undefined,
-      none: f.none === true, reason: typeof f.reason === 'string' ? f.reason : undefined,
-      journal, sha: gitHeadSha(), ts: new Date().toISOString() });
+    const cfg = JSON.parse(readFileSync('runtime/runtime.config.json', 'utf8'));
+    const journal = makeJournal({});                               // root = git-common-dir (shared across worktrees)
+    journal.begin(RUN_ID, { runId: RUN_ID, auto: false });
+    if (f.fulfil) journal.fulfil(RUN_ID, f.fulfil, value);
+    let r;
+    if (cmd === 'mint') {
+      r = await mintCommand({ itemId: f.item, lessonFile: f.lesson, proposal, journal, cfg });
+    } else if (cmd === 'curate') {
+      r = await curateCommand({ checkId: f.check, trigger: f.trigger, successorDraft, reason: typeof f.reason === 'string' ? f.reason : '', journal, cfg });
+    } else {
+      r = considerCommand({ itemId: f.item, minted: typeof f.minted === 'string' ? f.minted : undefined,
+        none: f.none === true, reason: typeof f.reason === 'string' ? f.reason : undefined,
+        journal, sha: gitHeadSha(), ts: new Date().toISOString() });
+    }
+    console.log(JSON.stringify(r.out, null, 2));
+    process.exit(r.exit);
+  } catch (e) {
+    console.error(`run-backward: crashed: ${e.message}`);
+    process.exit(1);
   }
-  console.log(JSON.stringify(r.out, null, 2));
-  process.exit(r.exit);
 }
 if (process.argv[1] && process.argv[1] === fileURLToPath(import.meta.url)) main();

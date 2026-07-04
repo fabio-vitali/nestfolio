@@ -204,8 +204,9 @@ pnpm nx run nestfolio-e2e:e2e                                                # s
 2. **If the cause maps to an already-shipped member:** re-open it (`status: active`), fix on the epic branch, re-run that member's per-member integration tests, then **return to E6** and re-run the batched e2e.
 3. **If it's a genuinely new gap** (not any member's regression): file it `queued` via `backlog-add` as a member of this epic (`epic: <id>`), then **loop back to E4** to work it. An e2e gap that blocks the epic is `queued`, never parking ([[feedback-e2e-gaps-queued-not-parking]]).
 4. Only a **green** batched run lets you proceed to E7. Never ship on red.
-5. **Backward-edge ritual (epic-batched).** Members skipped Step 6.4b; the epic runs it ONCE here over the whole branch delta:
-   `node runtime/adapters/git/ship-recheck.mjs --item <epic-id>` — findings → fix or curate at the floor (`node runtime/adapters/claude-code/run-backward.mjs curate --check <check-id> --trigger ship-gate`, park → AskUserQuestion → `--fulfil`; in `--auto`, curate is a guard-lowering act — ALWAYS floor-paused, never auto-resolved). Repeat until green (journals `ship:<epic-id>:gate-clean`). Then ONE mint consideration for the epic's ship (AskUserQuestion over the epic's lessons; "none" is legal): `node runtime/adapters/claude-code/run-backward.mjs consider --item <epic-id> (--minted <check-id> | --none) --reason '…'`. The epic postflight (complex lane, `--id=<epic-id>`) enforces both records.
+
+**Backward-edge ritual (epic-batched).** Members skipped Step 6.4b; the epic runs it ONCE here over the whole branch delta:
+`node runtime/adapters/git/ship-recheck.mjs --item <epic-id>` — findings → fix or curate at the floor (`node runtime/adapters/claude-code/run-backward.mjs curate --check <check-id> --trigger ship-gate`, park → AskUserQuestion → `--fulfil`; in `--auto`, curate is a guard-lowering act — ALWAYS floor-paused, never auto-resolved). Repeat until green (journals `ship:<epic-id>:gate-clean`). Then ONE mint consideration for the epic's ship (AskUserQuestion over the epic's lessons; "none" is legal): `node runtime/adapters/claude-code/run-backward.mjs consider --item <epic-id> (--minted <check-id> | --none) --reason '…'`. The epic postflight (complex lane, `--id=<epic-id>`) enforces both records.
 
 ### E7. Captured audit + epic ship
 

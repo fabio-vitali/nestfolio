@@ -20,6 +20,15 @@ test('FC2 a CurateChoice parses via the discriminated union', () => {
 test('FC3 an unknown act is rejected', () => {
   assert.equal(FloorChoiceSchema.safeParse({ ...mintChoice(), act: 'nope' }).success, false);
 });
+test('FC4 a proposed_successor as the §4.1 draft envelope (entry+eval_scenario+rationale) validates', () => {
+  const successor = { entry: validCheck({ id: 'no-ddb-scan-v2' }),
+    eval_scenario: { path: 'p', fixtures: { good: [], bad: [] }, target_pass_rate: 1 }, rationale: 'narrowed' };
+  assert.equal(FloorChoiceSchema.safeParse({ ...curateChoice(), proposed_successor: successor }).success, true);
+});
+test('FC5 a proposed_successor as a bare CheckEntry (no envelope) is rejected', () => {
+  const bareEntry = validCheck({ id: 'no-ddb-scan-v2' });
+  assert.equal(FloorChoiceSchema.safeParse({ ...curateChoice(), proposed_successor: bareEntry }).success, false);
+});
 test('FD1 a ratify decision (empty rationale allowed) passes', () => {
   const r = validateFloorDecision({ act: 'mint', transition: 'ratify', check: 'no-ddb-scan', rationale: '',
     provenance: { minted_by: 'i', ratified: '2026-07-02' }, decided_by: 'human', decided_at: '2026-07-02T00:00:00Z', journal_key: 'mint:no-ddb-scan:ratify' });

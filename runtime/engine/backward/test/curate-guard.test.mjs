@@ -15,7 +15,7 @@ const seed = (lessonsDir) => writeDossier(lessonsDir, 'feedback_x', { name: 'X',
 test('CG1 keep is a NO-OP: no persist, no state change, never calls advanceLifecycle', () =>
   withTmpContent(async ({ checksDir, lessonsDir }) => {
     seed(lessonsDir);
-    const r = await curateGuard({ guard: activeGuard(), trigger: 'ship-gate-blocking', transition: 'keep', rationale: '', checksDir, dossierRoot: lessonsDir });
+    const r = await curateGuard({ guard: activeGuard(), trigger: 'ship-gate', transition: 'keep', rationale: '', checksDir, dossierRoot: lessonsDir });
     assert.equal(r.kept, true);
     assert.equal(r.check.status, 'active');
     assert.equal(existsSync(join(checksDir, 'no-ddb-scan.yaml')), false);
@@ -34,7 +34,7 @@ test('CG2 retire → status retired, retired_reason recorded, lesson mints entry
 test('CG3 supersede → old superseded_by successor, successor active supersedes old, BOTH yamls persisted, mints re-aimed', () =>
   withTmpContent(async ({ checksDir, lessonsDir, scenariosDir }) => {
     seed(lessonsDir);
-    const r = await curateGuard({ guard: activeGuard(), trigger: 'ship-gate-blocking', transition: 'supersede', successor: successorDraft(), floorApproval: true, rationale: 'narrowed to GSI key attrs', checksDir, dossierRoot: lessonsDir, scenariosDir });
+    const r = await curateGuard({ guard: activeGuard(), trigger: 'ship-gate', transition: 'supersede', successor: successorDraft(), floorApproval: true, rationale: 'narrowed to GSI key attrs', checksDir, dossierRoot: lessonsDir, scenariosDir });
     assert.equal(r.check.status, 'superseded');
     assert.equal(r.check.provenance.superseded_by, 'no-ddb-scan-v2');
     assert.equal(r.successor.provenance.supersedes, 'no-ddb-scan');

@@ -150,7 +150,7 @@ test('BWD7 curate parks with the full guard render; fulfil retire lowers the gua
   } finally { rmSync(root, { recursive: true, force: true }); }
 });
 
-test('BWD8 curate keep: no disk change, exit 0', async () => {
+test('BWD8 curate keep: no disk change, exit 0; keep re-opens the floor — a THIRD invoke parks again (not a replay)', async () => {
   const { root, cfg } = tmpCfg();
   try {
     seedGuard(cfg); seedMintedLesson(cfg);
@@ -162,6 +162,10 @@ test('BWD8 curate keep: no disk change, exit 0', async () => {
     assert.equal(r.exit, 0);
     assert.equal(r.out.result.kind, 'kept');
     assert.equal(parse(readFileSync(join(cfg.checksDir, 'no-x.yaml'), 'utf8')).status, 'active');
+    const r3 = await curateCommand(args);                                       // floor re-opened by the fulfilled keep
+    assert.equal(r3.exit, 3);
+    assert.equal(r3.out.pending[0].decision.id, 'curate-no-x-g1');
+    assert.notEqual(r3.out.result.kind, 'kept');                                // NOT a replay of the fulfilled answer
   } finally { rmSync(root, { recursive: true, force: true }); }
 });
 

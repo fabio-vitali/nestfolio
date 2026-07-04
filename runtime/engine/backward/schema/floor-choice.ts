@@ -3,6 +3,7 @@
 import { z } from 'zod';
 import { CheckEntrySchema } from '../../schema/check.schema.ts';
 import { FindingSchema } from '../../schema/finding.schema.ts';
+import { EvalScenarioDraftSchema } from './candidate-draft.ts';
 
 export const MintChoiceSchema = z.object({
   act: z.literal('mint'),
@@ -17,9 +18,13 @@ export type MintChoice = z.infer<typeof MintChoiceSchema>;
 export const CurateChoiceSchema = z.object({
   act: z.literal('curate'),
   guard: CheckEntrySchema,
-  trigger: z.enum(['ship-gate-blocking', 'dangling-scope']),
-  finding: FindingSchema,
-  proposed_successor: CheckEntrySchema.optional(),
+  trigger: z.enum(['ship-gate', 'dangling-scope']),
+  finding: FindingSchema.optional(),                       // the live driver's curate never passes one
+  proposed_successor: z.object({                           // the §4.1 draft envelope, not a bare CheckEntry
+    entry: CheckEntrySchema,
+    eval_scenario: EvalScenarioDraftSchema,
+    rationale: z.string().min(1),
+  }).strict().optional(),
   rationale: z.string(),                                   // sync: WHY the property is no longer intended
   recommended: z.enum(['keep', 'supersede', 'retire']),
   options: z.tuple([z.literal('retire'), z.literal('supersede'), z.literal('keep')]),

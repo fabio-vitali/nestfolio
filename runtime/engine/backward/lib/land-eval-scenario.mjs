@@ -10,7 +10,11 @@ export function landEvalScenario({ draft, scenariosDir }) {
   const kind = entry.evaluator.type;
   const scenarioPath = join(scenariosDir, `${entry.id}.scenario.mjs`);
   mkdirSync(dirname(scenarioPath), { recursive: true });
-  if (!existsSync(scenarioPath)) writeFileSync(scenarioPath, renderScenarioModule(entry, eval_scenario), 'utf8');
+  // §2.4 epoch-aware: a gen-1 write is absent-only (idempotent replay never clobbers). A gen>1 re-mint
+  // (retire/supersede-and-remint of the SAME check id) carries a changed evaluator/fixtures — the stale
+  // gen-1 file must be overwritten, or the re-minted check silently keeps guarding on old fixtures.
+  const gen = entry.provenance?.generation ?? 1;
+  if (!existsSync(scenarioPath) || gen > 1) writeFileSync(scenarioPath, renderScenarioModule(entry, eval_scenario), 'utf8');
 
   const landing = {
     check: entry.id,
