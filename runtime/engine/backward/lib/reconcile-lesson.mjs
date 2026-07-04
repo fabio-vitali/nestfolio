@@ -19,19 +19,20 @@ function writeDossierFile(path, front, body) {
   writeFileSync(path, `---\n${stringify(front).trimEnd()}\n---\n${body}`, 'utf8');
 }
 
-export function reconcileLesson({ lesson, check, transition, successor, ratified, dossierRoot }) {
+export function reconcileLesson({ lesson, check, transition, successor, ratified, dossierRoot, generation = 1 }) {
   const path = isAbsolute(lesson) ? lesson : join(dossierRoot, lesson);
   const { front, body } = readDossier(path);
   const mints = Array.isArray(front.mints) ? front.mints.map((e) => ({ ...e })) : [];
   const stamp = ratified ?? new Date().toISOString().slice(0, 10);
+  const sameEpoch = (e) => e.check === check && (e.generation ?? 1) === generation;   // §2.4: keyed by (check, generation)
 
   if (transition === 'ratify') {
-    if (!mints.some((e) => e.check === check)) mints.push({ check, ratified: stamp, status: 'active' });
+    if (!mints.some(sameEpoch)) mints.push({ check, ratified: stamp, status: 'active', ...(generation > 1 ? { generation } : {}) });
   } else if (transition === 'retire') {
-    const e = mints.find((x) => x.check === check);
+    const e = mints.find(sameEpoch);
     if (e) e.status = 'retired';
   } else if (transition === 'supersede') {
-    const e = mints.find((x) => x.check === check);
+    const e = mints.find(sameEpoch);
     if (e) { e.status = 'superseded'; e.superseded_by = successor; }
     if (successor && !mints.some((x) => x.check === successor)) mints.push({ check: successor, ratified: stamp, status: 'active' });
   } else {

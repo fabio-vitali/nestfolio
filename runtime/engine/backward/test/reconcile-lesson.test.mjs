@@ -57,3 +57,34 @@ test('RL5 a lesson with no frontmatter throws (cannot reconcile)', () => {
     assert.throws(() => reconcileLesson({ lesson: 'bad.md', check: 'x', transition: 'ratify', dossierRoot: lessonsDir }), /frontmatter/);
   });
 });
+
+test('EPOCH-R1 gen-2 ratify appends a second entry keyed (check, generation); gen-1 stays terminal', () =>
+  withTmpContent(({ lessonsDir }) => {
+    writeDossier(lessonsDir, 'feedback_g', { name: 'G', description: 'd', type: 'feedback',
+      mints: [{ check: 'no-x', ratified: '2026-07-01', status: 'retired' }] });
+    const { mints } = reconcileLesson({ lesson: 'feedback_g.md', check: 'no-x', transition: 'ratify',
+      ratified: '2026-07-04', generation: 2, dossierRoot: lessonsDir });
+    assert.equal(mints.length, 2);
+    assert.equal(mints[0].status, 'retired');                       // gen-1 untouched
+    assert.deepEqual(mints[1], { check: 'no-x', ratified: '2026-07-04', status: 'active', generation: 2 });
+  }));
+
+test('EPOCH-R2 retire targets only the matching generation', () =>
+  withTmpContent(({ lessonsDir }) => {
+    writeDossier(lessonsDir, 'feedback_g', { name: 'G', description: 'd', type: 'feedback',
+      mints: [{ check: 'no-x', ratified: '2026-07-01', status: 'retired' },
+              { check: 'no-x', ratified: '2026-07-04', status: 'active', generation: 2 }] });
+    const { mints } = reconcileLesson({ lesson: 'feedback_g.md', check: 'no-x', transition: 'retire',
+      generation: 2, dossierRoot: lessonsDir });
+    assert.equal(mints[1].status, 'retired');
+    assert.equal(mints[0].status, 'retired');                       // was already; untouched, not duplicated
+  }));
+
+test('EPOCH-R3 default generation=1 preserves existing behavior (idempotent ratify)', () =>
+  withTmpContent(({ lessonsDir }) => {
+    writeDossier(lessonsDir, 'feedback_g', { name: 'G', description: 'd', type: 'feedback',
+      mints: [{ check: 'no-x', ratified: '2026-07-01', status: 'active' }] });
+    const { mints } = reconcileLesson({ lesson: 'feedback_g.md', check: 'no-x', transition: 'ratify',
+      ratified: '2026-07-04', dossierRoot: lessonsDir });
+    assert.equal(mints.length, 1);                                  // no duplicate for (no-x, g1)
+  }));
