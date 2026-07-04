@@ -1,7 +1,8 @@
 ---
 id: runtime-redteam-hardening
-status: parking
+status: queued
 type: bug
+rank: 4
 epic: runtime-operationalization
 epic_role: core
 notes: "P2 mechanical hardening from the red-team's confirmed findings (see runtime-design-redteam): fail-closed registry errors in the gate, --diff-filter=ACMR, atomic+guarded meta.json, journal locking/single-writer, runnable registry-integrity CLI, single-active at-most-one + epic-aware semantics, starter-pack self-containment, cmd-attribution scope drift. All deterministic, no design ambiguity — each fix ships with a regression test."
@@ -48,5 +49,20 @@ The confirmed, deterministic subset of `runtime-design-redteam` findings — no 
     write lands but the guard write crashes.
 
 Source: `runtime-design-redteam` verdict (2026-07-03); items 9–10 from the `runtime-backward-edge-live`
-final whole-branch review (2026-07-04). Sequenced P2 — with or right after `runtime-backward-edge-live`,
-before the bulk migration triples enforcement on these mechanisms.
+final whole-branch review (2026-07-04).
+
+Promoted parking → queued 2026-07-05: trigger fired — the item was sequenced "with or right after
+`runtime-backward-edge-live`, before the bulk migration triples enforcement on these mechanisms", and
+`runtime-backward-edge-live` shipped 2026-07-04 (local-merge 5f46843e). Promotion approved by the user
+via AskUserQuestion (promote & run `--auto`).
+
+## Decision log
+
+<!-- append-only (F-6): entries are never edited or removed; a reversal is a NEW entry referencing the superseded one. Written by decision-log.mjs — do not hand-edit. -->
+
+### D1 — 2026-07-04
+- **Decision:** Work parked item runtime-redteam-hardening standalone under --auto?
+- **Options:** Promote & run --auto | Promote only | Leave parked
+- **Chosen:** Promote & run --auto (USER decision via AskUserQuestion — parking refusal is a floor stop, not auto-resolvable)
+- **Rationale:** Trigger fired: sequenced with-or-right-after runtime-backward-edge-live, which shipped 2026-07-04 (5f46843e), before the bulk check migration triples enforcement. Epic runtime-operationalization is parked and drained via individual member PRs (precedent: make-it-fire, seam-probe, backward-edge-live), so standalone /backlog-next is the intended path.
+- **Rejected:** Promote only / leave parked — user explicitly chose to run now; deferring adds no information and the migration is sequenced behind this hardening.
