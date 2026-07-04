@@ -1,5 +1,7 @@
 {
   "checksDir": "runtime/content/checks",
   "exclusionsRoot": "runtime/content/exclusions",
-  "triggersFile": "runtime/content/triggers.yaml"
+  "triggersFile": "runtime/content/triggers.yaml",
+  "lessonsDir": "runtime/content/lessons",
+  "scenariosDir": "runtime/eval/scenarios"
 }
