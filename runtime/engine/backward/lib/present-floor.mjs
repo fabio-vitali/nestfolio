@@ -4,17 +4,34 @@
 // bearing-choice discipline. The <<HARNESS-PAUSE: act id>> string is preserved (runner PAUSE_RE).
 import { headlessAsk, PAUSE } from './capabilities.mjs';
 import { fileURLToPath } from 'node:url';
+import { stringify } from 'yaml';
+
+/** §2.3: the Decision renders the COMPLETE act — the human never ratifies sight-unseen. */
+function renderContext(choice) {
+  if (choice.act === 'mint') {
+    return [`RATIONALE: ${choice.rationale ?? ''}`,
+      '--- candidate check (full YAML) ---',
+      stringify(choice.candidate).trimEnd()].join('\n');
+  }
+  const parts = [`TRIGGER: ${choice.trigger}`, `RATIONALE: ${choice.rationale ?? ''}`,
+    '--- current guard (full YAML) ---', stringify(choice.guard).trimEnd()];
+  if (choice.finding) parts.push('--- finding ---', stringify(choice.finding).trimEnd());
+  if (choice.proposed_successor) parts.push('--- proposed successor (full YAML) ---',
+    stringify(choice.proposed_successor.entry ?? choice.proposed_successor).trimEnd());
+  return parts.join('\n');
+}
 
 export function toDecision(choice) {
-  const id = choice.act === 'mint' ? choice.candidate.id : choice.guard.id;
+  const entity = choice.act === 'mint' ? choice.candidate : choice.guard;
+  const gen = entity.provenance?.generation ?? 1;                  // §2.4: gen-1 fulfilment can never replay into gen-2
   const question = choice.act === 'mint'
-    ? `Ratify candidate check "${id}" minted from lesson ${choice.lesson}?`
-    : `Curate check "${id}" (${choice.trigger})?`;
+    ? `Ratify candidate check "${entity.id}" minted from lesson ${choice.lesson}?`
+    : `Curate check "${entity.id}" (${choice.trigger})?`;
   return {
-    id: `${choice.act}-${id}`,
+    id: `${choice.act}-${entity.id}-g${gen}`,
     question,
     options: choice.options.map((v) => ({ label: v, value: v, recommended: v === choice.recommended })),
-    context: choice.rationale,
+    context: renderContext(choice),
   };
 }
 
