@@ -1,13 +1,17 @@
 ---
 id: runtime-backward-edge-live
-status: queued
+status: active
 type: feature
-rank: 4
 epic: runtime-operationalization
 epic_role: core
 notes: "P2: make the moat live — mint-in-anger (one real lesson → real floor → registered check + eval scenario), mint wired into the ship ritual, curate CLI as the ONLY sanctioned path past a failing guard, RUNTIME_GATE_SKIP instrumented. MUST precede the bulk check migration."
 references: []
-out_of_scope: []
+out_of_scope:
+  - "The ~23-surface bulk check migration itself — runtime-check-migration-completion, sequenced AFTER this ships."
+  - "Mechanical red-team hardening deltas routed to runtime-redteam-hardening (fail-closed registry errors, --diff-filter=ACMR, atomic meta.json, journal locking, registry-integrity CLI, single-active semantics, starter-pack self-containment)."
+  - "Baseline-relative / diff-aware item-gate semantics — runtime-gate-baseline-semantics."
+  - "Parity oracle / regression harness (runtime-regression-harness), work-driver re-platform (P5), operator surface (P6), TypeScript port."
+  - "Re-designing ring-1 engine contracts (schemas/helpers) — frozen by runtime-realization; only the four red-team p2 backward-edge deltas listed in this file are in scope."
 spec: null
 plan: null
 topic_memory: [project_runtime_realization.md]
