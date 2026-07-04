@@ -124,6 +124,36 @@ AFFECTED=$(node tools/affected-projects.mjs --base=origin/main --with-target=tes
 
 Then run only the **involved** `apps/e2e-feature-tests` scenarios — pick from the workstream's context (which flows/services it touched). **NEVER the full e2e suite. NEVER Playwright.** See [[feedback-always-rerun-e2e]]. If any scenario fails-then-passes on a rerun, pull CloudWatch evidence from the failing window before continuing and run a second confirmation pass — flakes are real failures, not noise. See [[feedback-flake-means-broken]]. Dev-account operations need no confirmation — see [[feedback-sole-dev-no-shared-caution]].
 
+**6.4b Backward-edge ritual — ship recheck + mint consideration (simple + complex lanes; doc-layer exempt).**
+
+1. **Ship recheck** — adjudicate the branch delta against the live checks. This is the single adjudication point: it catches what `RUNTIME_GATE_SKIP` bypassed and what `--no-verify` worktree commits never ran:
+
+   ```bash
+   node runtime/adapters/git/ship-recheck.mjs --item <id>        # --base defaults to origin/main
+   ```
+
+   Findings → fix the code, or — when the *property itself* is wrong — curate at the floor (the ONLY sanctioned path past a failing guard):
+
+   ```bash
+   node runtime/adapters/claude-code/run-backward.mjs curate --check <check-id> --trigger ship-gate [--reason '…']
+   ```
+
+   The curate parks (exit 3) printing the pending Decision with the full guard YAML — surface it via **AskUserQuestion** (retire / supersede / keep), then re-invoke with `--fulfil <decision-id> --value '{"decisionId":"<decision-id>","value":"<choice>"}'`. Supersede requires `--successor <draft.json>` (`{entry, eval_scenario, rationale}` — the successor gets full mint guarantees). Repeat ship-recheck until green — it journals `ship:<id>:gate-clean`, which postflight requires. `keep` leaves the guard up: the delta must then be fixed; keep can never become a stealth bypass.
+
+2. **Mint consideration** — ask the human via **AskUserQuestion**: *"did this ship surface a mechanizable, recurring, still-intended lesson?"* If yes: write the proposal JSON (CandidateDraft fields + `gates`), then drive the mint floor:
+
+   ```bash
+   node runtime/adapters/claude-code/run-backward.mjs mint --item <id> --lesson <dossier.md> --proposal <proposal.json>
+   ```
+
+   (parks with the full candidate YAML in the Decision → AskUserQuestion ratify/edit/decline → `--fulfil`). **Either way**, record the consideration — "nothing mechanizable" is a legal answer, silence is not:
+
+   ```bash
+   node runtime/adapters/claude-code/run-backward.mjs consider --item <id> (--minted <check-id> | --none) --reason '…'
+   ```
+
+   Postflight enforces both records (`ship-gate-evidence`, `mint-considered`).
+
 **6.5 Ship the backlog file.** Edit `docs/backlog/<id>.md` → `status: shipped`, fill `validation_gate:` with concrete evidence (commit SHA, deploy log line, integ/e2e command output), **and stamp `closed: <today>`** (the authoritative Recently-Shipped date — see the 6.6 note). Commit.
 
 **6.6 Regen index.** `node .claude/skills/backlog-lint/lint.mjs --fix`. Commit.
@@ -163,7 +193,7 @@ When the `/backlog-next-epic` orchestrator drives this skill, it passes the memb
 - **Step 5 (Downstream routing).** Route to the same downstream skill as usual, with ONE critical change: `superpowers:executing-plans` and `superpowers:subagent-driven-development` end with an **unconditional handoff to `superpowers:finishing-a-development-branch`** (their "complete development" step). In epic-member mode you must **drive only their task-execution phase and STOP before that finishing handoff** — the member is "done" at commit-on-branch + green per-member integration tests. Do NOT let the downstream skill open a PR, merge, or clean the branch; **return control to `/backlog-next-epic`**. This is what preserves the one-branch/one-PR invariant: the finishing handoff is the orchestrator's job at epic close (E8), never the member's. (If a member routes to `superpowers:brainstorming` for a `type: design` slice, see the orchestrator's E5 — in `--auto` such members do not auto-resolve the brainstorming approval gate.)
 - **Floor (self-contained).** In `--auto` epic-member mode, a `type: design` brainstorming approval gate and any irreversible / outward-facing action (staging/prod ops, real-money/broker actions, `git push --force`, `git branch -D`, destructive deletes, anything outside `dev-*`) are **NEVER** auto-resolved — pause via **AskUserQuestion** (a prose pause is a skill violation) and surface to the orchestrator. _(Why this floor is restated in the worker rather than referenced from E5: see [LESSONS.md](./LESSONS.md) F-8.)_
 - **Step 6.1 (Regen derived docs).** Pass the **member-start HEAD** captured at Step 4 as the base — `node .claude/skills/backlog-next/detect-doc-derivation.mjs --base=<member-start-HEAD>` — so the detector reports only THIS member's source delta, not every earlier member's. Standalone/non-epic runs keep the default `origin/main` base (no prior member, so the cumulative diff IS the member delta). _(Why the default base falsely reports `derivation=true` on every resume: see [LESSONS.md](./LESSONS.md) F-2.)_
-- **Step 6.4 (Deploy + validation).** Run the per-member **integration** tests (and a per-member deploy if 6.3 says so), but **SKIP the e2e block** — the expensive Jest e2e + Playwright run once at epic pre-done, batched by the orchestrator.
+- **Step 6.4 (Deploy + validation).** Run the per-member **integration** tests (and a per-member deploy if 6.3 says so), but **SKIP the e2e block** — the expensive Jest e2e + Playwright run once at epic pre-done, batched by the orchestrator. Also SKIP Step 6.4b — the backward-edge ritual (ship-recheck + mint consideration) runs once at the epic pre-done gate with `--item <epic-id>`; the epic-member postflight lane does not check backward evidence.
 - **Step 6.7 / 6.8 (Finish + cleanup).** **SKIP both.** Do NOT route to `finishing-a-development-branch`, do NOT clean up the worktree, do NOT push `main`. The orchestrator does one merge / one PR / one cleanup at epic close.
 - **Step 7 (Postflight).** Run `node .claude/skills/backlog-next/postflight.mjs --lane=epic-member --id=<id>` (checks 1–3 only). Then **return control to `/backlog-next-epic`** — it advances to the next member or moves to the epic pre-done gate.
 
