@@ -170,6 +170,36 @@ test('rule 8: parking + trigger in notes — skipped (only queued is gated)', ()
   assert.deepEqual(rulePromotionTriggerGated(f), []);
 });
 
+test('rule 8: "Promote only" inside the Decision log section — pass (resolved option, not a trigger)', () => {
+  const f = file('a', { status: 'queued', rank: 1 });
+  f.body = [
+    'Real context, trigger already documented as fired.',
+    '',
+    '## Decision log',
+    '',
+    '### D1 — 2026-07-05',
+    '- **Options:** Promote & run --auto | Promote only | Leave parked',
+    '- **Chosen:** Promote & run --auto',
+  ].join('\n');
+  assert.deepEqual(rulePromotionTriggerGated(f), []);
+});
+
+test('rule 8: trigger BEFORE a Decision log section still fails (strip is section-scoped)', () => {
+  const f = file('a', { status: 'queued', rank: 1 });
+  f.body = 'Promote once the migration lands.\n\n## Decision log\n\n### D1\n- **Chosen:** x';
+  const v = rulePromotionTriggerGated(f);
+  assert.equal(v.length, 1);
+  assert.match(v[0].message, /unmet promotion trigger/i);
+});
+
+test('rule 8: trigger in a section AFTER the Decision log still fails', () => {
+  const f = file('a', { status: 'queued', rank: 1 });
+  f.body = 'Context.\n\n## Decision log\n\n### D1\n- **Chosen:** x\n\n## Later\nPromote after Phase 4 ships.';
+  const v = rulePromotionTriggerGated(f);
+  assert.equal(v.length, 1);
+  assert.match(v[0].message, /unmet promotion trigger/i);
+});
+
 // ── frontmatter-parseable: located gate for malformed YAML ─────────────────
 test('frontmatter-parseable: located violation naming the file when parseError set', () => {
   const f = { id: 'bad', filename: 'bad.md', path: '/dummy/bad.md',

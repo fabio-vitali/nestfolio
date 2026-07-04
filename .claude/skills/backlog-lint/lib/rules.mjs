@@ -49,7 +49,12 @@ export function rulePromotionTriggerGated(file) {
   if (file.frontmatter?.status !== 'queued') return [];
   // Scan BOTH the notes: frontmatter AND the body — trigger language in notes
   // escapes a body-only scan and silently keeps an unmet item queued.
-  const text = `${file.frontmatter?.notes ?? ''}\n${file.body ?? ''}`;
+  // The machine-written `## Decision log` section is excluded: its entries record
+  // RESOLVED options ("Promote only | Leave parked"), not unmet trigger language,
+  // and it is append-only so a false positive there cannot be reworded away.
+  const body = (file.body ?? '')
+    .replace(/^## Decision log\b[\s\S]*?(?=^## |(?![\s\S]))/m, '');
+  const text = `${file.frontmatter?.notes ?? ''}\n${body}`;
   const m = text.match(/\bPromote\s+(when|on|once|until|after|only)\b[^.\n]*/i);
   if (m) {
     return [v('promotion-trigger-gated', file,
