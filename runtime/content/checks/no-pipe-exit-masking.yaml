@@ -1,0 +1,23 @@
+id: no-pipe-exit-masking
+property: Shell scripts that pipe a command into tee/tail must set pipefail (or
+  capture PIPESTATUS) so the pipeline exit code reflects the real command, not
+  the last stage
+kind: drift
+evaluator:
+  type: deterministic
+  run: cmd:node tools/check-pipe-mask.mjs
+cost_tier: cheap
+contexts:
+  - gate
+  - invariant
+scope:
+  paths:
+    - scripts/**/*.sh
+    - infrastructure/scripts/**/*.sh
+  dossiers:
+    - feedback_pipe_masks_exit_code.md
+status: active
+provenance:
+  minted_by: runtime-backward-edge-live
+  lesson: feedback_pipe_masks_exit_code.md
+  ratified: 2026-07-04T17:21:00.389Z
