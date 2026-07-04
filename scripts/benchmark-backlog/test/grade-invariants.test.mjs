@@ -1,6 +1,6 @@
 import { test, after } from 'node:test';
 import assert from 'node:assert/strict';
-import { mkdtempSync, mkdirSync, rmSync } from 'node:fs';
+import { mkdtempSync, mkdirSync, rmSync, writeFileSync } from 'node:fs';
 import { execFileSync } from 'node:child_process';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
@@ -37,6 +37,21 @@ test('state.branchCreated reflects whether a non-main branch exists (Complex-ado
   // an isolation branch (any non-main name) → Complex adoption → branchCreated:true passes
   execFileSync('git', ['branch', 'worktree-standalone-complex'], { cwd: d });
   assert.equal(gradeInvariants({ state: { branchCreated: true } }, {}, d, '').pass, true);
+});
+test('state.fileContains fails when the file is missing or lacks the needle, passes when present', () => {
+  const dir = mkdtempSync(join(tmpdir(), 'gi-fc-')); tmpDirs.push(dir);
+  mkdirSync(join(dir, 'docs/backlog'), { recursive: true });
+  writeFileSync(join(dir, 'docs/backlog/x.md'), '---\nid: x\n---\n\n## Decision log\n\n### D1 — 2026-07-04\n');
+  const run = { terminalKind: 'completed' };
+  // missing file
+  let r = gradeInvariants({ terminal: 'completed', state: { fileContains: [{ file: 'docs/backlog/nope.md', needle: '## Decision log' }] } }, run, dir);
+  assert.equal(r.pass, false);
+  // present file, missing needle
+  r = gradeInvariants({ terminal: 'completed', state: { fileContains: [{ file: 'docs/backlog/x.md', needle: 'NOT-THERE' }] } }, run, dir);
+  assert.equal(r.pass, false);
+  // present file + needle
+  r = gradeInvariants({ terminal: 'completed', state: { fileContains: [{ file: 'docs/backlog/x.md', needle: '## Decision log' }] } }, run, dir);
+  assert.equal(r.pass, true);
 });
 test('terminal mismatch fails', () => {
   const r = gradeInvariants({ terminal: 'pause' }, { terminalKind: 'completed' }, repo(), '');

@@ -1,5 +1,5 @@
 import { execFileSync } from 'node:child_process';
-import { existsSync } from 'node:fs';
+import { existsSync, readFileSync } from 'node:fs';
 import { join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { loadBacklogFiles, parseFrontmatter } from '../../.claude/skills/backlog-lint/lib/frontmatter.mjs';
@@ -106,6 +106,14 @@ export function gradeInvariants(scenario, runResult, sandboxDir, stubsLog = '') 
   if (st.memberLoopEntered != null) {
     const entered = stubsLog.includes('backlog-next-worker');
     if (entered !== st.memberLoopEntered) failures.push(`memberLoopEntered=${entered}, expected ${st.memberLoopEntered}`);
+  }
+  // Deterministic body-content check (root checkout only — branch-side content is judge-verified,
+  // same read model as gradeGolden without onBranch). Used e.g. to prove a '## Decision log'
+  // section was actually written by --auto rather than narrated.
+  for (const { file, needle } of st.fileContains ?? []) {
+    const p = join(sandboxDir, file);
+    if (!existsSync(p)) { failures.push(`fileContains: ${file} not found`); continue; }
+    if (!readFileSync(p, 'utf8').includes(needle)) failures.push(`fileContains: ${file} missing "${needle}"`);
   }
   if (scenario.terminal && runResult.terminalKind !== scenario.terminal) failures.push(`terminal=${runResult.terminalKind}, expected ${scenario.terminal}`);
   if (runResult.terminalKind === 'timeout' && scenario.terminal !== 'timeout') failures.push('run timed out');
