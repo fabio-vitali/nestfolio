@@ -1,6 +1,6 @@
 ---
 name: backlog-next
-description: Workstream router for starting the next backlog item. Picks from docs/BACKLOG.md, classifies complexity (doc-layer / simple / complex), enforces preflight/postflight gates, and routes the closing phase to deploy + true-affected-resolver validation + finishing-a-development-branch.
+description: Workstream router for starting the next backlog item. Picks from docs/BACKLOG.md, classifies complexity (doc-layer / simple / complex), enforces preflight/postflight gates, and routes the closing phase to deploy + true-affected-resolver validation + finishing-a-development-branch. Optional --auto mode auto-resolves decisions unattended (logging each into the workstream file's Decision log, with the same hard floor as the epic orchestrator).
 ---
 
 ## When to invoke
@@ -9,9 +9,18 @@ Two sanctioned entry points: a user typing `/backlog-next` (standalone), **or** 
 
 Accepts an optional `<id>` argument (`/backlog-next <id>`) that overrides the deterministic rank pick in Step 1. Without an argument, the default rule applies (resume single ACTIVE, else top-ranked QUEUED). The argument does NOT bypass any status rules — see Step 1 for the per-status dispatch.
 
+Also accepts `--auto` (`/backlog-next [<id>] --auto`) — fire-and-forget for ONE standalone
+workstream: auto-resolve decisions per § "Standalone `--auto` mode" and log each into the
+workstream file's `## Decision log`, pausing only on the hard floor. Without it, pause at every
+architectural fork as usual. (In epic-member mode `--auto` is not read from the prompt — the
+orchestrator's run-state carries it and E5 governs the policy; this skill's § floor still applies.)
+
 **This skill works one member/standalone workstream — it does NOT orchestrate epics.** If `<id>` is a `type: epic`, stop and tell the user: *"epics are orchestrated by `/backlog-next-epic` — run `/backlog-next-epic <id>`."* Do not promote the epic or pick a member here. (Epic lifecycle — promote, member loop, batched e2e, single-PR close, `--auto` — lives in `/backlog-next-epic`; see [[backlog-next-epic]].)
 
 If `/backlog-next` fires while an ACTIVE workstream is already in flight, report that state and ask whether to resume or switch — do NOT silently start a second workstream. Side-findings mid-execution go through `backlog-add`, never this skill.
+In `--auto`: RESUMING the single active workstream is deterministic — proceed with it (log the
+resume as a decision entry). But a named `<id>` that CONFLICTS with a different in-flight active
+item is a genuine fork — pause via AskUserQuestion even in `--auto`.
 
 **Epic-member mode (invoked by `/backlog-next-epic`).** When the orchestrator drives this skill, it passes a member `<id>` **plus an epic-member context signal** (the active epic + its worktree/branch). In that mode the worker runs the member *inside the already-active epic worktree* and hoists branch-level concerns to the epic. See § "Epic-member mode" below for the per-step deltas.
 
@@ -34,6 +43,14 @@ Hard-fails if: working tree is dirty, local `main` is ahead of `origin/main`, `b
 
 > **Epic-member guard.** A queued/active member of an *active* epic is a non-epic file, so the `type: epic` redirect alone won't catch it. Whenever a picked item (default rank-pick OR named `<id>`) has an `epic:` pointer to a `status: active` epic, **redirect to `/backlog-next-epic <epic-id>` and stop** — do not work it standalone. **Exception:** when *this* skill is invoked BY `/backlog-next-epic` in epic-member mode (the orchestrator passes the epic context), proceed with the member — that IS the intended path; the guard fires only for bare standalone `/backlog-next` calls.
 3. Else **nothing is active and QUEUED is empty** → do NOT auto-promote (promotion is a manual boundary-review call — see Common mistakes). Report that QUEUED is empty and stop for the user to choose: either promote an item into QUEUED first, or — to work an epic — launch it with `/backlog-next-epic` (which lists the available delivery/theme epics).
+
+**`--auto` pick rule.** The default pick order above is deterministic (resume the single ACTIVE,
+else lowest `rank` — a hand-set, rule-6-unique prior user decision), so `--auto` LAUNCHES it
+without a confirm and records the pick as the first decision entry (options = the top of QUEUED).
+This deliberately differs from the epic orchestrator, whose selection is a COMPUTED ordering
+(severity rubric / `--like` semantics) and therefore always confirms even in `--auto`. The
+per-status rules are unaffected: `parking` still refuses, `shipped`/`dropped` still warns and asks
+(a refusal/warning is a stop, not a decision `--auto` may take), not-found still stops.
 
 **With `<id>` argument (`/backlog-next <id>`).** The argument overrides the rank pick. Locate `docs/backlog/<id>.md`. **Redirect to `/backlog-next-epic` and stop if** it is `type: epic` (run `/backlog-next-epic <id>`) **or** it has an `epic:` pointer to a `status: active` epic (run `/backlog-next-epic <epic-id>` — per the epic-member guard above; not worked standalone). Otherwise dispatch by status:
 
@@ -162,6 +179,19 @@ Then run only the **involved** `apps/e2e-feature-tests` scenarios — pick from 
 
 **6.7 Complex lane only:** route to `superpowers:finishing-a-development-branch` for merge / PR / branch cleanup. Do NOT handle the merge manually. **If the local-merge option is chosen, push `main` afterward** — `git push origin main`. The local-merge path does NOT push, but postflight's `main-sync` check AND the next run's preflight both require local `main` == `origin/main` (a local-but-unpushed merge leaves `main` ahead and blocks the next workstream). Pushing the project's own `main` is the routine completion — prior shipped workstreams are already on `origin/main`; it is a dev-account op, not a production/real-money action ([[feedback-sole-dev-no-shared-caution]]). The PR option pushes as part of its own flow.
 
+**In `--auto`:** answer the finishing menu by taking the **PR route** (push + create PR — log the
+choice), render this workstream's `## Decision log` section into the PR body
+(`node .claude/skills/backlog-next/decision-log.mjs render <id>`; `gh pr create`/`gh pr edit
+--body-file`), then **STOP at the open PR via AskUserQuestion** — the merge is the user's;
+`--auto` NEVER runs `gh pr merge` and never local-merges _(same merge-ownership rule as the epic
+E8 — LESSONS F-7/F-33)_. Clean up the worktree only (`worktree-ops.mjs cleanup … --keep-branch`),
+print the PR link, and end the run — Steps 6.8 and 7 belong to the post-merge tail. **Post-merge
+tail (a LATER `/backlog-next <id> --auto` invocation):** when the named item is already
+`status: shipped`, its feature branch still exists, and `gh pr view <branch> --json state` says
+MERGED — do not warn-and-confirm; run the tail instead: ff `main` (`git checkout main && git pull
+--ff-only`), `worktree-ops.mjs cleanup … --delete-branch`, then Step 7 postflight
+(`--lane=complex`). If the PR is still open, re-print the link and stop.
+
 **6.8 Complex lane only — clean up the worktree + branch (the `worktree-ops.mjs` helper, NOT `ExitWorktree`).** Clean up via the helper, which shells out to git from the **main repo root** — `ExitWorktree` reliably FAILS in a cwd-pinned session (the common case for `/backlog-next`), so do NOT call or retry it. The helper resolves the main root itself, so it is safe to run even when the worktree being removed is your pinned cwd. _(Why `ExitWorktree` fails and why `finishing-a-development-branch` leaves the cleanup here: see [LESSONS.md](./LESSONS.md) "`ExitWorktree` fails in cwd-pinned sessions".)_
 
 ```bash
@@ -184,14 +214,77 @@ MAIN=$(git -C "$(git rev-parse --git-common-dir)/.." rev-parse --show-toplevel 2
 
 Hard-fails if: working tree is dirty, `backlog-lint` violates a rule, the shipped item's frontmatter is incomplete, the feature branch wasn't merged + deleted (Complex), or stale worktrees remain. Fix before declaring the job done. (`--lane=epic-member` runs only checks 1–3 — tree-clean, lint, shipped frontmatter — because the member stays on the epic branch; the merge/sync/branch-delete checks belong to the epic-level close run by `/backlog-next-epic`.)
 
+## Standalone `--auto` mode
+
+`/backlog-next [<id>] --auto` runs ONE workstream unattended. A **decision** is an
+architectural/design fork; test/build failures are NOT decisions — route to
+`superpowers:systematic-debugging` with a **bounded budget of at most 3 debug→re-run cycles**;
+exceeding it is a floor item (pause). _(Same budget + rationale as the epic orchestrator E4.3 —
+see [`../backlog-next-epic/LESSONS.md`](../backlog-next-epic/LESSONS.md) F-9.)_
+
+**Decision log (mandatory for every auto-resolved fork).** Append via the helper — entry JSON on
+stdin; it validates the closed shape `{decision, options, chosen, rationale, rejected}` and
+appends to the `## Decision log` section of THIS workstream's `docs/backlog/<id>.md` (append-only
+by construction — a reversal is a NEW entry referencing the superseded one; never hand-edit the
+section):
+
+```bash
+echo '{ "decision": "...", "options": ["..."], "chosen": "...", "rationale": "...", "rejected": "..." }' \
+  | node .claude/skills/backlog-next/decision-log.mjs append <id>
+```
+
+Commit the appended entry with the workstream's next commit (Simple/Doc-layer: on `main` with the
+work; Complex: on the feature branch). The committed section is the asynchronous-review surface
+that replaces synchronous approval — in the Complex lane it also lands verbatim in the PR body
+(Step 6.7).
+
+**Per-source policy** (mirrors epic E5 — decide each known fork in advance, conservative
+catch-all for the rest):
+
+1. **`type: design` items → ALWAYS PAUSE.** The `superpowers:brainstorming` approval gate
+   requires explicit user sign-off on every design; `--auto` never self-approves it.
+2. **Step 6.7 finishing menu → PR route, then STOP at the open PR.** See the Step 6.7 `--auto`
+   rule — never `gh pr merge`, never a local merge.
+3. **In-workstream architectural forks** → run the blast-radius gate first:
+   `node .claude/skills/backlog-next-epic/detect-fork-blast-radius.mjs <fork-subject-symbol>`.
+   **Exit 1 (shared-surface hit) → floor** (contracts/events/shared-lib exports ripple beyond this
+   workstream). **Exit 0** → resolve by selecting the option the project marks **(Recommended)** =
+   the most reusable / generalizable / cleanly-abstracted one (`CLAUDE.md` § "Hard Constraints";
+   reusability breaks ties), append to the decision log, continue.
+4. **Catch-all → PAUSE.** Any fork or sub-skill prompt not enumerated here is unknown territory:
+   do not guess — pause and ask (close the gap by adding the case here).
+
+**Hard floor — pause even in `--auto`** (self-contained on purpose, like the epic-member floor —
+_(see [`../backlog-next-epic/LESSONS.md`](../backlog-next-epic/LESSONS.md) F-8)_; the worst ops
+are ALSO mechanically gated by the harness / `CLAUDE.md` § "Still requires explicit
+confirmation"):
+
+- **Irreversible / outward-facing actions** — staging/prod ops, real-money/broker actions,
+  `git push --force`, `git reset --hard` on shared branches, `git branch -D`, destructive
+  deletes, mutations outside `dev-*`, anything outside this repo.
+- **Scope-boundary fork** — the fork changes this workstream's `out_of_scope:` boundary, or
+  `detect-fork-blast-radius.mjs` exits 1 for it, or it is genuinely balanced (reusability does
+  not break the tie).
+- **Bounded-effort exceeded** — the 3-cycle debug budget is spent.
+- **Cost gates** — an e2e repeat count ≥ the cost-conscious threshold (Step 6.4) surfaces via
+  AskUserQuestion even in `--auto` ([[feedback-e2e-cost-conscious]]).
+- **Backward-edge ritual (6.4b)** — `curate` is a guard-lowering act: ALWAYS floor-paused. The
+  mint consideration stays an AskUserQuestion ("nothing mechanizable" is a legal answer; silence
+  is not).
+
+When the floor fires, the surface MUST be an **AskUserQuestion** widget with a `(Recommended)`
+option — a free-text "this is your call" prose pause is a skill violation _(see
+[`../backlog-next-epic/LESSONS.md`](../backlog-next-epic/LESSONS.md) F-7/F-33)_. Record the
+outcome in the decision log, resume.
+
 ## Epic-member mode (invoked by `/backlog-next-epic`)
 
 When the `/backlog-next-epic` orchestrator drives this skill, it passes the member `<id>` **plus an epic-member context signal**: the active delivery epic, its branch `feat/epic-<id>`, and its already-checked-out worktree. The orchestrator owns the epic worktree, the single merge/PR, and the expensive e2e — so the worker runs the member *inside that worktree* and **hoists branch-level concerns to the epic**. Apply these deltas to the standard procedure:
 
 - **Step 0 (Preflight).** Run `node .claude/skills/backlog-next/preflight.mjs --lane=epic-member` instead of the standard preflight. It checks only tree-clean (within the worktree) + `backlog-lint`; it skips the on-main / main-ahead / stale-worktree checks and the snapshot+daemon side-effects (the orchestrator already ran the full preflight once at epic-start).
 - **Step 3 (Classify) + Step 4 (Adopt).** The member is **always** worked inside the existing epic worktree. Do **NOT** `EnterWorktree` (skip Step 4.1) — the epic branch is already checked out. **First capture the member-start HEAD** — `git rev-parse HEAD` *before* the adoption commit (it is the tip of all prior members' work, i.e. this member's source baseline); remember it for the resume-aware Step 6.1 base below. Then flip the member `docs/backlog/<id>.md` → `status: active`, fill `out_of_scope:`, and commit **on the epic branch** (4.2), then `backlog-lint --fix` + commit (4.3). Use the worktree's own path for every edit.
-- **Step 5 (Downstream routing).** Route to the same downstream skill as usual, with ONE critical change: `superpowers:executing-plans` and `superpowers:subagent-driven-development` end with an **unconditional handoff to `superpowers:finishing-a-development-branch`** (their "complete development" step). In epic-member mode you must **drive only their task-execution phase and STOP before that finishing handoff** — the member is "done" at commit-on-branch + green per-member integration tests. Do NOT let the downstream skill open a PR, merge, or clean the branch; **return control to `/backlog-next-epic`**. This is what preserves the one-branch/one-PR invariant: the finishing handoff is the orchestrator's job at epic close (E8), never the member's. (If a member routes to `superpowers:brainstorming` for a `type: design` slice, see the orchestrator's E5 — in `--auto` such members do not auto-resolve the brainstorming approval gate.)
-- **Floor (self-contained).** In `--auto` epic-member mode, a `type: design` brainstorming approval gate and any irreversible / outward-facing action (staging/prod ops, real-money/broker actions, `git push --force`, `git branch -D`, destructive deletes, anything outside `dev-*`) are **NEVER** auto-resolved — pause via **AskUserQuestion** (a prose pause is a skill violation) and surface to the orchestrator. _(Why this floor is restated in the worker rather than referenced from E5: see [LESSONS.md](./LESSONS.md) F-8.)_
+- **Step 5 (Downstream routing).** Route to the same downstream skill as usual, with ONE critical change: `superpowers:executing-plans` and `superpowers:subagent-driven-development` end with an **unconditional handoff to `superpowers:finishing-a-development-branch`** (their "complete development" step). In epic-member mode you must **drive only their task-execution phase and STOP before that finishing handoff** — the member is "done" at commit-on-branch + green per-member integration tests. Do NOT let the downstream skill open a PR, merge, or clean the branch; **return control to `/backlog-next-epic`**. This is what preserves the one-branch/one-PR invariant: the finishing handoff is the orchestrator's job at epic close (E8), never the member's. (If a member routes to `superpowers:brainstorming` for a `type: design` slice, see the orchestrator's E5 — in `--auto` such members do not auto-resolve the brainstorming approval gate.) Member-scoped fork decisions are appended to the MEMBER's own file — `decision-log.mjs append <member-id>` — committed on the epic branch; the orchestrator aggregates every member section into the PR body at E8.
+- **Floor (self-contained).** In `--auto` (epic-member mode AND standalone — see § "Standalone `--auto` mode"), a `type: design` brainstorming approval gate and any irreversible / outward-facing action (staging/prod ops, real-money/broker actions, `git push --force`, `git branch -D`, destructive deletes, anything outside `dev-*`) are **NEVER** auto-resolved — pause via **AskUserQuestion** (a prose pause is a skill violation) and surface to the orchestrator. _(Why this floor is restated in the worker rather than referenced from E5: see [LESSONS.md](./LESSONS.md) F-8.)_
 - **Step 6.1 (Regen derived docs).** Pass the **member-start HEAD** captured at Step 4 as the base — `node .claude/skills/backlog-next/detect-doc-derivation.mjs --base=<member-start-HEAD>` — so the detector reports only THIS member's source delta, not every earlier member's. Standalone/non-epic runs keep the default `origin/main` base (no prior member, so the cumulative diff IS the member delta). _(Why the default base falsely reports `derivation=true` on every resume: see [LESSONS.md](./LESSONS.md) F-2.)_
 - **Step 6.4 (Deploy + validation).** Run the per-member **integration** tests (and a per-member deploy if 6.3 says so), but **SKIP the e2e block** — the expensive Jest e2e + Playwright run once at epic pre-done, batched by the orchestrator. Also SKIP Step 6.4b — the backward-edge ritual (ship-recheck + mint consideration) runs once at the epic pre-done gate with `--item <epic-id>`; the epic-member postflight lane does not check backward evidence.
 - **Step 6.7 / 6.8 (Finish + cleanup).** **SKIP both.** Do NOT route to `finishing-a-development-branch`, do NOT clean up the worktree, do NOT push `main`. The orchestrator does one merge / one PR / one cleanup at epic close.
@@ -208,10 +301,12 @@ Everything else (Step 2 verify references, Steps 6.2–6.3, 6.5–6.6) runs unch
 - **Dismissing flakes after one rerun.** See [[feedback-flake-means-broken]]. If a scoped e2e scenario fails-then-passes, pull evidence from the failing window before continuing; a confirmation rerun is required, not optional. E2E flakes are QUEUED, never parking — see [[feedback-e2e-gaps-queued-not-parking]].
 - **Trying to `ExitWorktree` for cleanup in Step 6.8.** It reliably FAILS in a cwd-pinned session (`cannot be called from a subagent with a cwd override`). Use Step 6.8's **`worktree-ops.mjs cleanup … --delete-branch`** helper (it shells out to `worktree remove --force` + safe `branch -d` + `prune` from the main root) — that is the reliable path and it breaks the phantom-session leak cycle. Leaving the worktree on disk is what makes the next run launch pinned to it.
 - **Local merge without pushing `main`.** `finishing-a-development-branch`'s local-merge path does not push; postflight `main-sync` and the next preflight both require `main` == `origin/main`. Push in 6.7.
+- **`--auto` auto-resolving a floor decision.** Irreversible/outward ops, shared-surface forks, spent debug budgets, and 6.4b curate ALWAYS pause, `--auto` or not. The decision log is review-after, not a license to act irreversibly unattended.
+- **Hand-editing the `## Decision log` section.** It is append-only via `decision-log.mjs` (F-6): a wrong call is superseded by a NEW entry, never edited away — the committed trail must stay honest.
 
 ## Related
 
-`backlog-next-epic` (the epic orchestrator that drives this skill in epic-member mode), `backlog-add`, `backlog-lint`, `superpowers:brainstorming` / `writing-plans` / `using-git-worktrees` / `executing-plans` / `finishing-a-development-branch`. Supporting files in this skill: `deploy-paths.md`, `doc-derivation-paths.md`, `preflight.mjs`, `postflight.mjs`, `detect-deploy-needed.mjs`, `detect-doc-derivation.mjs`.
+`backlog-next-epic` (the epic orchestrator that drives this skill in epic-member mode), `backlog-add`, `backlog-lint`, `superpowers:brainstorming` / `writing-plans` / `using-git-worktrees` / `executing-plans` / `finishing-a-development-branch`. Supporting files in this skill: `deploy-paths.md`, `doc-derivation-paths.md`, `preflight.mjs`, `postflight.mjs`, `detect-deploy-needed.mjs`, `detect-doc-derivation.mjs`, `decision-log.mjs` (the append-only decision-log helper — the epic orchestrator (`backlog-next-epic`) consumes it for its own orchestrator-level decisions and the E8 PR-body aggregation).
 
 **Run the tests** (use the **glob** form — `node --test <dir>` does not discover suites on Node 24):
 
