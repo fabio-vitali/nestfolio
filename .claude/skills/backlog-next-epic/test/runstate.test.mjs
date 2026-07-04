@@ -13,7 +13,6 @@ import {
   initRunState,
   validateRunState,
   parseRunState,
-  appendDecision,
   setE2e,
   e2eIsFresh,
   freshExitCode,
@@ -22,10 +21,9 @@ import {
 
 const fresh = () => initRunState({ epic: 'e', branch: 'feat/epic-e', worktree: '.claude/worktrees/epic-e' });
 
-test('initRunState: closed 6-key shape, decisions empty, e2e null', () => {
+test('initRunState: closed 5-key shape, e2e null', () => {
   const s = fresh();
   assert.deepEqual(Object.keys(s).sort(), [...RUNSTATE_KEYS].sort());
-  assert.deepEqual(s.decisions, []);
   assert.equal(s.e2e, null);
   assert.equal(s.auto, false);
 });
@@ -45,11 +43,16 @@ test('validateRunState rejects unknown keys (paused_at, per-member decision arra
   assert.throws(() => validateRunState({ ...fresh(), ws3_decisions: [] }), /unknown run-state key "ws3_decisions"/);
 });
 
-test('validateRunState requires all 6 keys and correct types', () => {
+test('validateRunState requires all 5 keys and correct types', () => {
   const { e2e, ...missing } = fresh();
   assert.throws(() => validateRunState(missing), /missing required run-state key "e2e"/);
   assert.throws(() => validateRunState({ ...fresh(), auto: 'yes' }), /auto must be a boolean/);
-  assert.throws(() => validateRunState({ ...fresh(), decisions: {} }), /decisions must be an array/);
+});
+
+// The decision log moved to the committed workstream files (decision-log.mjs). A legacy
+// run-state still carrying decisions[] must be rejected loudly, not silently accepted.
+test('validateRunState rejects the legacy decisions key', () => {
+  assert.throws(() => validateRunState({ ...fresh(), decisions: [] }), /unknown run-state key "decisions"/);
 });
 
 test('validateRunState accepts the optional e8 marker only with its one sanctioned value', () => {
@@ -74,23 +77,6 @@ test('parseRunState ok on a valid serialized state round-trip', () => {
   const res = parseRunState(serializeRunState(fresh()));
   assert.equal(res.ok, true);
   assert.equal(res.state.epic, 'e');
-});
-
-// F-12: every decision lands in the ONE decisions[], tagged by member, append-only.
-test('appendDecision appends to the single decisions[] and requires member', () => {
-  let s = fresh();
-  s = appendDecision(s, { member: 'm1', decision: 'd', chosen: 'a' });
-  s = appendDecision(s, { member: 'm2', decision: 'd2', chosen: 'b' });
-  assert.equal(s.decisions.length, 2);
-  assert.deepEqual(s.decisions.map((d) => d.member), ['m1', 'm2']);
-  assert.throws(() => appendDecision(s, { decision: 'no member' }), /decision\.member/);
-});
-
-test('appendDecision is append-only: prior entries are preserved verbatim', () => {
-  const first = { member: 'm1', decision: 'original', chosen: 'a' };
-  let s = appendDecision(fresh(), first);
-  s = appendDecision(s, { member: 'm1', decision: 'reversal of #0', chosen: 'b' });
-  assert.deepEqual(s.decisions[0], first);   // never mutated
 });
 
 // F-14: e2e evidence is pinned to a sha and goes stale when HEAD moves (re-opened member).

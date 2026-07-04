@@ -13,13 +13,13 @@
  *   branch     string   feat/epic-<id>
  *   worktree   string   .claude/worktrees/epic-<id>
  *   auto       boolean  --auto run?
- *   decisions  array    append-only; ONE flat list, each entry tagged by `member`
  *   e2e        object|null  { commands, outcome, sha } — sha pins the validated HEAD (F-14)
  *   e8?        string   optional; only "PR_OPEN_AWAITING_MERGE" (the E8 hand-off marker)
  *
  * Member status is deliberately NOT stored — it is re-derived from member frontmatter
  * via epic-members.mjs (the single source of truth). Run-state only carries the run
- * marker, `auto`, the decision log, e2e evidence, and the e8 marker.
+ * marker, `auto`, e2e evidence, and the e8 marker. The decision log lives in the
+ * committed workstream files — `.claude/skills/backlog-next/decision-log.mjs` (F-6).
  *
  * CLI (read-modify-write is atomic per call; complex payloads come from stdin so the
  * caller never hand-crafts the raw FILE):
@@ -28,7 +28,6 @@
  *                                                              or "FRESH" (exit 3) if absent,
  *                                                              or a clean error (exit 2) if malformed
  *   node runstate.mjs init  <epic-id> --branch=B --worktree=W [--auto]
- *   node runstate.mjs append-decision <epic-id>  <stdin: decision object>
  *   node runstate.mjs set-e2e         <epic-id>  <stdin: e2e object or "null">
  *   node runstate.mjs set-e8          <epic-id> PR_OPEN_AWAITING_MERGE
  *   node runstate.mjs e2e-fresh       <epic-id>                        → exit 0 if e2e.sha === HEAD, else 1 (F-14)
@@ -39,7 +38,7 @@ import { execSync } from 'node:child_process';
 import { readFileSync, writeFileSync, existsSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 
-export const RUNSTATE_KEYS = ['epic', 'branch', 'worktree', 'auto', 'decisions', 'e2e'];
+export const RUNSTATE_KEYS = ['epic', 'branch', 'worktree', 'auto', 'e2e'];
 const OPTIONAL_KEYS = ['e8'];
 export const E8_MARKER = 'PR_OPEN_AWAITING_MERGE';
 
@@ -58,7 +57,7 @@ function defaultExec(cmd) {
 
 /** A fresh run-state object (E3). */
 export function initRunState({ epic, branch, worktree, auto = false }) {
-  return { epic, branch, worktree, auto: !!auto, decisions: [], e2e: null };
+  return { epic, branch, worktree, auto: !!auto, e2e: null };
 }
 
 /** Validate against the closed schema. Returns the (same) object or throws a clear
@@ -71,7 +70,7 @@ export function validateRunState(state) {
   const allowed = new Set([...RUNSTATE_KEYS, ...OPTIONAL_KEYS]);
   for (const k of Object.keys(state)) {
     if (!allowed.has(k)) {
-      throw new Error(`unknown run-state key "${k}" — closed schema is {${RUNSTATE_KEYS.join(', ')}} (+ optional e8). Do NOT invent per-member arrays or paused_at; append decisions to the single decisions[] tagged by member.`);
+      throw new Error(`unknown run-state key "${k}" — closed schema is {${RUNSTATE_KEYS.join(', ')}} (+ optional e8). Do NOT invent per-member arrays or paused_at; decisions belong in the workstream file's Decision log (decision-log.mjs).`);
     }
   }
   for (const k of RUNSTATE_KEYS) {
@@ -81,7 +80,6 @@ export function validateRunState(state) {
     throw new Error('epic/branch/worktree must be strings');
   }
   if (typeof state.auto !== 'boolean') throw new Error('auto must be a boolean');
-  if (!Array.isArray(state.decisions)) throw new Error('decisions must be an array');
   if (state.e2e !== null && (typeof state.e2e !== 'object' || Array.isArray(state.e2e))) {
     throw new Error('e2e must be an object or null');
   }
@@ -106,19 +104,6 @@ export function parseRunState(raw) {
     return { ok: false, error: e.message };
   }
   return { ok: true, state: parsed };
-}
-
-/** Append ONE decision to the single decisions[] (append-only — never edit/remove a prior
- * entry; a reversal is a NEW entry referencing the superseded index). Each entry is tagged
- * by `member`. (F-12) */
-export function appendDecision(state, decision) {
-  if (decision == null || typeof decision !== 'object' || Array.isArray(decision)) {
-    throw new Error('decision must be an object');
-  }
-  if (typeof decision.member !== 'string' || !decision.member) {
-    throw new Error('decision.member (string) is required so the entry is attributable');
-  }
-  return { ...state, decisions: [...state.decisions, decision] };
 }
 
 /** Pin e2e evidence to the validated HEAD sha (F-14). */
@@ -165,7 +150,7 @@ function readStdin() {
 function main() {
   const [cmd, epicId, ...rest] = process.argv.slice(2);
   if (!cmd || !epicId) {
-    console.error('Usage: runstate.mjs <path|get|init|append-decision|set-e2e|set-e8> <epic-id> [...]');
+    console.error('Usage: runstate.mjs <path|get|init|set-e2e|set-e8|e2e-fresh> <epic-id> [...]');
     process.exit(1);
   }
   const path = runStatePath(epicId);
@@ -194,11 +179,6 @@ function main() {
       });
       save(state);
       console.log(`initialized ${path}`); break;
-    }
-    case 'append-decision': {
-      const decision = JSON.parse(readStdin());
-      save(appendDecision(loadOrExit(), decision));
-      console.log('decision appended'); break;
     }
     case 'set-e2e': {
       const raw = readStdin().trim();

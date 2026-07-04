@@ -18,7 +18,7 @@ test('rejects a procedure step-name in any assertion', () => {
   assert.ok(v.some((m) => /procedure step-name/i.test(m)));
 });
 test('rejects a raw run-state schema seed (must be intent)', () => {
-  const v = lintScenario({ ...base, runstate: { epic: 'x', branch: 'b', worktree: 'w', auto: false, decisions: [], e2e: null } });
+  const v = lintScenario({ ...base, runstate: { epic: 'x', branch: 'b', worktree: 'w', auto: false, e2e: null } });
   assert.ok(v.some((m) => /helper-intent/i.test(m)));
 });
 test('rejects an unknown top-level scenario key (typo guard)', () => {
