@@ -22,7 +22,8 @@ This skill owns the **epic lifecycle**. It does NOT execute member work directly
 | Promote the epic, rule-11 guard, member ordering, the single worktree/branch | **this skill** |
 | Batched expensive e2e (Jest e2e + Playwright) at epic pre-done | **this skill** |
 | Captured audit, epic ship, single PR + cleanup, epic-level postflight | **this skill** |
-| `--auto` decision policy + decision log + hard floor | **this skill** |
+| `--auto` decision policy + hard floor (epic scope) | **this skill** |
+| Decision-log mechanics (append-only helper, committed trail) | `backlog-next` (`decision-log.mjs`) |
 
 Member ordering is the tested helper `epic-members.mjs` (the deterministic pick that used to be inline bash in `/backlog-next` Step 1a).
 
@@ -43,7 +44,7 @@ Branch on the printed `action=`:
 - **`POST_MERGE_TAIL`** → run-state `e8: PR_OPEN_AWAITING_MERGE` and the PR is **merged**. Run **only** the E8.4 post-merge tail (ff `main`, delete the merged branch, epic postflight, drop run-state) and finish; do NOT re-enter the member loop.
 - **`PR_STILL_OPEN`** → `e8` set but the PR is **not** confirmed merged. Re-print the PR link and STOP — the merge remains the user's (never `gh pr merge`).
 
-A resume never re-promotes the epic, never re-creates the branch, and never overwrites the accumulated decision log / e2e evidence in run-state. (The helper consults `gh pr view <branch>` internally only when `e8` is set, so `gh` stays observable in the call-log.)
+A resume never re-promotes the epic, never re-creates the branch, and never overwrites the accumulated e2e evidence in run-state (the decision log is committed in the backlog files — a resume cannot lose it). (The helper consults `gh pr view <branch>` internally only when `e8` is set, so `gh` stays observable in the call-log.)
 
 ### Selecting the epic (no resume + no explicit `<epic-id>`)
 
@@ -111,16 +112,16 @@ Write the run-state via the helper — **never hand-author the raw JSON** _(why:
 node .claude/skills/backlog-next-epic/runstate.mjs init <id> --branch=feat/epic-<id> --worktree=.claude/worktrees/epic-<id> [--auto]
 ```
 
-This writes the **closed 6-key schema** (anything else is rejected on write):
+This writes the **closed 5-key schema** (anything else is rejected on write):
 
 ```json
 { "epic": "<id>", "branch": "feat/epic-<id>", "worktree": ".claude/worktrees/epic-<id>",
-  "auto": false, "decisions": [], "e2e": null }
+  "auto": false, "e2e": null }
 ```
 
-Every later mutation goes through the helper too (`append-decision`, `set-e2e`, `set-e8`) — each does an atomic parse → mutate → `JSON.stringify`, so the file can never go malformed and the schema can never drift _(why the closed schema — no `paused_at`, no per-member arrays: see [LESSONS.md](./LESSONS.md) F-12)_.
+Every later mutation goes through the helper too (`set-e2e`, `set-e8`) — each does an atomic parse → mutate → `JSON.stringify`, so the file can never go malformed and the schema can never drift _(why the closed schema — no `paused_at`, no per-member arrays: see [LESSONS.md](./LESSONS.md) F-12)_.
 
-**Member status is deliberately NOT stored here.** It is derived from each member file's frontmatter via `epic-members.mjs` — **frontmatter is the single source of truth; run-state is an append-only annotation.** Run-state's only jobs: (a) mark a run in flight (the resume gate keys off its existence), (b) carry `auto`, (c) accumulate the `decisions` log and `e2e` evidence across resumes. Keeping member state in exactly one place (frontmatter) avoids a drift-prone second copy.
+**Member status is deliberately NOT stored here.** It is derived from each member file's frontmatter via `epic-members.mjs` — **frontmatter is the single source of truth; run-state is an append-only annotation.** Run-state's only jobs: (a) mark a run in flight (the resume gate keys off its existence), (b) carry `auto`, (c) carry the `e2e` evidence across resumes — the decision log lives in the committed backlog files via `decision-log.mjs` (crash-safe by being committed, not by living in run-state). Keeping member state in exactly one place (frontmatter) avoids a drift-prone second copy.
 
 The run-state also carries an optional `e8: PR_OPEN_AWAITING_MERGE` marker, set by E8.1 when the epic PR is open and awaiting the user's merge — the only sanctioned `e8` value (enforced by the closed schema in `runstate.mjs` — `validateRunState` rejects any other `e8` value or extra key).
 
@@ -132,7 +133,7 @@ Repeat until `epic-members.mjs` reports drainable (exit 10):
 2. **Run** `/backlog-next <member-id>` in **epic-member mode** — invoke it **via the Skill tool** (NOT a detached subagent; the call loads the worker inline into this orchestrator's context — that is the seam, do not expect a refusal) and pass the epic context (active epic `<id>`, branch `feat/epic-<id>`, worktree). The worker applies its § "Epic-member mode" deltas: preflight/postflight `--lane=epic-member`, work inside this worktree, commit on the branch, run **per-member integration tests** only, and **skip** the expensive e2e / finishing / cleanup / push. Critically, the worker drives any `executing-plans`/`subagent-driven-development` only through task-execution and **STOPS before their `finishing-a-development-branch` handoff** (worker Step 5 delta) — that handoff would otherwise merge/PR the epic branch mid-loop and destroy the one-PR invariant. _(Why the Skill-tool seam works this way + why member work accumulates in context: see [LESSONS.md](./LESSONS.md) "The Skill-tool seam".)_
 3. **Per-member gate.** The member's integration tests (and doc-derivation) must be green before advancing — a failure is NOT a decision: route to `superpowers:systematic-debugging`. In `--auto`, attempt the fix within a **bounded budget — at most 3 debug→re-run cycles**; exceeding it is a named floor item (E5) → **pause** and surface to the user (never loop unbounded burning dev deploys + integration runs). _(Why 3 and not more: see [LESSONS.md](./LESSONS.md) F-9.)_
    - **Cumulative branch typecheck on shared-surface touches.** When the member touched a **shared contract / event / shared-lib export** (detect with `node .claude/skills/backlog-next-epic/detect-fork-blast-radius.mjs <symbol>` — exit 1 = shared hit), run a **cheap cumulative typecheck across the whole branch diff** at the member boundary before advancing: `pnpm nx run-many -t typecheck -p "$(node tools/affected-projects.mjs --base=origin/main --with-target=typecheck | paste -sd, -)"`. A break here is a per-member gate failure (debug, don't advance). _(Why per-member tests miss this + the e2e-specs caveat: see [LESSONS.md](./LESSONS.md) F-21.)_
-4. **Record.** The member's own ship (its frontmatter `status: shipped`, committed on the branch) IS the state — the next loop re-derives progress from `epic-members.mjs`, so there is nothing to mirror into run-state. Append to the run-state `decisions` log only if a fork fired (E5).
+4. **Record.** The member's own ship (its frontmatter `status: shipped`, committed on the branch) IS the state — the next loop re-derives progress from `epic-members.mjs`, so there is nothing to mirror into run-state. Append to the decision log (the member's file, via `decision-log.mjs` — see E5) only if a fork fired.
 5. **Context checkpoint (between members) — bounds `--auto` context growth.** After a member ships **and** its `--lane=epic-member` postflight passes (a clean, fully-committed state), emit a fixed **STABLE CHECKPOINT** block:
 
    > ✅ **Checkpoint — epic `<id>`:** member `<member-id>` shipped. `<k>`/`<n>` core members remaining. Worktree tree clean; all work committed on `feat/epic-<id>` (nothing pushed, no PR yet). Resume with `/backlog-next-epic <id> --auto`.
@@ -142,13 +143,15 @@ Repeat until `epic-members.mjs` reports drainable (exit 10):
 
 ### E5. Decision handling (default vs `--auto`)
 
-A **decision** is an architectural/design fork. Test/build failures are NOT decisions (see E4.3). The canonical decision-log entry shape (referenced by E3 and the spec) is:
-`{ member, decision, options, chosen, rationale (the reuse rationale), rejected }`. Append it **via the helper** — pipe the entry as JSON on stdin; it validates and does the atomic parse → mutate → stringify into the single `decisions[]` _(see [LESSONS.md](./LESSONS.md) F-12)_, so the file never goes malformed:
+A **decision** is an architectural/design fork. Test/build failures are NOT decisions (see E4.3). The canonical decision-log entry shape is
+`{ decision, options, chosen, rationale (the reuse rationale), rejected }` — there is no `member` key: the FILE the entry lands in identifies the owner. Append it **via the worker's helper** — pipe the entry as JSON on stdin; it validates the closed shape and appends to the `## Decision log` section of the target `docs/backlog/<id>.md`:
 
 ```bash
-echo '{ "member": "<id>", "decision": "...", "options": ["..."], "chosen": "...", "rationale": "...", "rejected": "..." }' \
-  | node .claude/skills/backlog-next-epic/runstate.mjs append-decision <epic-id>
+echo '{ "decision": "...", "options": ["..."], "chosen": "...", "rationale": "...", "rejected": "..." }' \
+  | node .claude/skills/backlog-next/decision-log.mjs append <member-id-or-epic-id>
 ```
+
+**Routing rule:** **member-scoped forks → the member's file** (the worker in epic-member mode does this itself); **orchestrator-level decisions (epic selection confirm, e2e repeat count, E6 recovery forks, curate outcomes) → the epic's file.**
 
 The log is **append-only**: never edit or delete a prior entry — a later reversal is a NEW entry whose `rationale` references the superseded entry by index. (The helper only ever appends — there is no edit/remove path by construction.) _(Why append-only keeps the PR-review trail honest: see [LESSONS.md](./LESSONS.md) F-6.)_
 
@@ -168,7 +171,7 @@ The log is **append-only**: never edit or delete a prior entry — a later rever
   - **Bounded-effort exceeded** — a member's `--auto` debug budget (E4.3, ≤3 cycles) is spent.
   - **Computed-selection pick (default impact-rank or `--like`)** — an epic chosen by a computed ordering MUST be confirmed by the user via the § "Selecting the epic" `AskUserQuestion`, **even in `--auto`**. `--auto` never auto-launches the top-ranked epic onto a whole branch/deploy/e2e budget. An explicit `<epic-id>` is a user pick and is unaffected.
 
-  When the floor fires, the surface MUST be an **AskUserQuestion** widget with a `(Recommended)` option — a free-text "this is your call" prose pause is a **skill violation** _(why — an ambiguous "go" once collapsed into a self-merge: see [LESSONS.md](./LESSONS.md) F-7/F-33)_. Record the outcome (append-only), resume. The decision log is the **asynchronous-review surface** that replaces synchronous approval — it lands in the PR body (E8).
+  When the floor fires, the surface MUST be an **AskUserQuestion** widget with a `(Recommended)` option — a free-text "this is your call" prose pause is a **skill violation** _(why — an ambiguous "go" once collapsed into a self-merge: see [LESSONS.md](./LESSONS.md) F-7/F-33)_. Record the outcome (append-only), resume. The committed Decision-log sections are the **asynchronous-review surface** that replaces synchronous approval — E8 aggregates them into the PR body.
 
 ### E6. Epic pre-done — batched expensive e2e (the new gate)
 
@@ -221,7 +224,7 @@ pnpm nx run nestfolio-e2e:e2e                                                # s
 
 ### E8. Single PR + cleanup + epic postflight
 
-1. **Open the PR (the close ALWAYS stops here — `--auto` AND interactive).** Route to `superpowers:finishing-a-development-branch` taking the **PR route** (push + create PR). **Compose the PR body yourself:** `finishing`'s push step does not author a body, so render the run-state `decisions[]` to markdown + a per-member commit summary and set it (`gh pr create`/`gh pr edit --body-file`); if the log is empty, state "no decisions auto-resolved". **Expect `docs/backlog/` merge conflicts** — both `main` and the branch write under `docs/backlog/` _(why this is expected, not a surprise: see [LESSONS.md](./LESSONS.md) F-25)_. Resolve them with the helper:
+1. **Open the PR (the close ALWAYS stops here — `--auto` AND interactive).** Route to `superpowers:finishing-a-development-branch` taking the **PR route** (push + create PR). **Compose the PR body yourself:** `finishing`'s push step does not author a body, so render the decision trail via `node .claude/skills/backlog-next/decision-log.mjs render <epic-id> <member-id> [<member-id>…]` (member ids from `epic-members.mjs`) + a per-member commit summary and set it (`gh pr create`/`gh pr edit --body-file`); the helper prints "_no decisions auto-resolved_" per file with an empty/absent section, so the empty-log case needs no special text. **Expect `docs/backlog/` merge conflicts** — both `main` and the branch write under `docs/backlog/` _(why this is expected, not a surprise: see [LESSONS.md](./LESSONS.md) F-25)_. Resolve them with the helper:
 
      ```bash
      node .claude/skills/backlog-next-epic/pr-conflict-resolve.mjs --branch=feat/epic-<id>   # take-branch-side for <id>.md/members, lint-regen for BACKLOG.md; exit 1 = a non-backlog conflict → resolve by hand
