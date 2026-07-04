@@ -6,7 +6,7 @@ import { join } from 'node:path';
 import { spawnSync } from 'node:child_process';
 import { parse, stringify } from 'yaml';
 import { inMemoryJournal } from '../../../engine/lib/journal.mjs';
-import { mintCommand, deriveGeneration, mirrorLesson, parseFlags } from '../run-backward.mjs';
+import { mintCommand, deriveGeneration, mirrorLesson, parseFlags, curateCommand, considerCommand } from '../run-backward.mjs';
 
 function tmpCfg() {
   const root = mkdtempSync(join(tmpdir(), 'nf-bwd-'));
@@ -123,4 +123,63 @@ test('BWD-CLI2 unknown subcommand → exit 2 usage, and does NOT touch the journ
   const r = spawnSync('node', ['runtime/adapters/claude-code/run-backward.mjs', 'frobnicate'], { encoding: 'utf8', cwd: process.cwd() });
   assert.equal(r.status, 2);
   assert.match(r.stderr, /usage: run-backward\.mjs/);
+});
+
+const guardYaml = () => ({ id: 'no-x', property: 'no X', kind: 'drift',
+  evaluator: { type: 'deterministic', run: 'cmd:node tools/check-x.mjs' }, cost_tier: 'cheap',
+  contexts: ['gate', 'invariant'], scope: { paths: ['services/**/*.ts'], dossiers: ['feedback_x.md'] },
+  status: 'active', provenance: { minted_by: 'ws-0', lesson: 'feedback_x.md', ratified: '2026-07-01' } });
+const seedGuard = (cfg) => writeFileSync(join(cfg.checksDir, 'no-x.yaml'), stringify(guardYaml()), 'utf8');
+const seedMintedLesson = (cfg) => writeFileSync(join(cfg.lessonsDir, 'feedback_x.md'),
+  '---\nname: X\ndescription: d\ntype: feedback\nmints:\n  - check: no-x\n    ratified: "2026-07-01"\n    status: active\n---\nbody\n', 'utf8');
+
+test('BWD7 curate parks with the full guard render; fulfil retire lowers the guard on disk', async () => {
+  const { root, cfg } = tmpCfg();
+  try {
+    seedGuard(cfg); seedMintedLesson(cfg);
+    const j = inMemoryJournal();
+    const args = { checkId: 'no-x', trigger: 'ship-gate', reason: 'property abandoned', journal: j, cfg };
+    const r1 = await curateCommand(args);
+    assert.equal(r1.exit, 3);
+    assert.equal(r1.out.pending[0].decision.id, 'curate-no-x-g1');
+    assert.match(r1.out.pending[0].decision.context, /current guard \(full YAML\)/);
+    j.fulfil('backward', 'curate-no-x-g1', { decisionId: 'curate-no-x-g1', value: 'retire' });
+    const r2 = await curateCommand(args);
+    assert.equal(r2.exit, 0);
+    assert.equal(parse(readFileSync(join(cfg.checksDir, 'no-x.yaml'), 'utf8')).status, 'retired');
+  } finally { rmSync(root, { recursive: true, force: true }); }
+});
+
+test('BWD8 curate keep: no disk change, exit 0', async () => {
+  const { root, cfg } = tmpCfg();
+  try {
+    seedGuard(cfg); seedMintedLesson(cfg);
+    const j = inMemoryJournal();
+    const args = { checkId: 'no-x', trigger: 'ship-gate', journal: j, cfg };
+    await curateCommand(args);
+    j.fulfil('backward', 'curate-no-x-g1', { decisionId: 'curate-no-x-g1', value: 'keep' });
+    const r = await curateCommand(args);
+    assert.equal(r.exit, 0);
+    assert.equal(r.out.result.kind, 'kept');
+    assert.equal(parse(readFileSync(join(cfg.checksDir, 'no-x.yaml'), 'utf8')).status, 'active');
+  } finally { rmSync(root, { recursive: true, force: true }); }
+});
+
+test('BWD9 curate unknown check → exit 1', async () => {
+  const { root, cfg } = tmpCfg();
+  try {
+    const r = await curateCommand({ checkId: 'ghost', trigger: 'ship-gate', journal: inMemoryJournal(), cfg });
+    assert.equal(r.exit, 1);
+    assert.match(r.out.error, /no such check/);
+  } finally { rmSync(root, { recursive: true, force: true }); }
+});
+
+test('BWD10 consider records outcome+reason+sha+ts under consider:<item>; usage errors exit 2', () => {
+  const j = inMemoryJournal();
+  const r = considerCommand({ itemId: 'ws-1', none: true, reason: 'nothing mechanizable', journal: j, sha: 'abc', ts: 'T' });
+  assert.equal(r.exit, 0);
+  const rec = j.read('backward').steps.get('consider:ws-1');
+  assert.deepEqual(rec.value, { outcome: 'none', reason: 'nothing mechanizable', sha: 'abc', ts: 'T' });
+  assert.equal(considerCommand({ itemId: 'ws-1', journal: j, sha: 'a', ts: 't' }).exit, 2);              // no outcome/reason
+  assert.equal(considerCommand({ itemId: 'ws-1', minted: 'c', none: true, reason: 'r', journal: j, sha: 'a', ts: 't' }).exit, 2);  // both
 });
