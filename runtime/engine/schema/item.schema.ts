@@ -19,7 +19,10 @@ export const ItemSchema = z.object({
                                                         //   2026-07-05); requiredness is a project rule (lint 4b), not ring-1's
   scope: z.string().optional(),                         // path-glob-shaped (NOT free prose) — feeds findByScope
   out_of_scope: z.array(z.string()).optional(),
-  references: z.array(z.string()).optional(),
+  references: z.array(z.union([
+    z.string(),
+    z.object({ path: z.string().min(1), anchor: z.string().optional() }).passthrough(),
+  ])).optional(),                                       // store carries both citation forms: "path#anchor" strings and {path, anchor}
   provenance: z.object({
     from_finding: z.string().optional(),               // FindingId (§15 delta 2) — which finding
     from_check: z.string().optional(),                 // CheckId (denormalized for query) — which check
