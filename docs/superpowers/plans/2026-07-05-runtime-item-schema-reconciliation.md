@@ -27,7 +27,7 @@
 **Interfaces:**
 - Produces: `ItemSchema` (zod object, `.passthrough()`), `validateItem(obj: unknown): { ok: boolean, value?, error? }` — signature unchanged; field `done_when?: string` replaces `done_criteria: string`; `rank?: number | null`.
 
-- [ ] **Step 1: Rewrite the test file to the reconciled contract**
+- [x] **Step 1: Rewrite the test file to the reconciled contract**
 
 Replace the full contents of `runtime/engine/test/item-schema.test.mjs` with:
 
@@ -75,12 +75,12 @@ test('provenance stays strict — ring-1 owns that sub-object (minted by intake,
 });
 ```
 
-- [ ] **Step 2: Run to verify the new expectations fail against the old schema**
+- [x] **Step 2: Run to verify the new expectations fail against the old schema**
 
 Run: `node --test runtime/engine/test/item-schema.test.mjs`
 Expected: FAIL — minimal item without `done_criteria` rejected; `rank: null` rejected; extension keys rejected by `.strict()`.
 
-- [ ] **Step 3: Implement the reconciled schema**
+- [x] **Step 3: Implement the reconciled schema**
 
 Replace lines 10–26 of `runtime/engine/schema/item.schema.ts` (the `ItemSchema` object and `Item` type) with:
 
@@ -107,12 +107,12 @@ export type Item = z.infer<typeof ItemSchema>;
 
 Also update the file-head comment (line 2) to note the re-freeze: append ` Re-frozen 2026-07-05 (runtime-item-schema-reconciliation): done_when identity binding, passthrough extensions.`
 
-- [ ] **Step 4: Run tests to verify they pass**
+- [x] **Step 4: Run tests to verify they pass**
 
 Run: `node --test runtime/engine/test/item-schema.test.mjs`
 Expected: PASS (6 tests).
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add runtime/engine/schema/item.schema.ts runtime/engine/test/item-schema.test.mjs
@@ -132,7 +132,7 @@ git commit -m "refactor(runtime): reconcile ItemSchema with the real item store 
 - Consumes: `ItemSchema` field `done_when` from Task 1.
 - Produces: `shapeItems()` mints items with `done_when`; worker ship-ask `Decision.context = item.done_when` (schema-legal when undefined — `journal.schema.ts:30` has `context: z.string().optional()`).
 
-- [ ] **Step 1: Rename the minted field in intake**
+- [x] **Step 1: Rename the minted field in intake**
 
 In `runtime/engine/lib/intake.mjs` line 10, change:
 
@@ -146,7 +146,7 @@ to:
   done_when: `resolve: ${finding.detail}`,
 ```
 
-- [ ] **Step 2: Drop the drift fallback in the worker**
+- [x] **Step 2: Drop the drift fallback in the worker**
 
 In `runtime/engine/loop/worker.mjs` line 34, change:
 
@@ -160,12 +160,12 @@ to:
     context: item.done_when };
 ```
 
-- [ ] **Step 3: Run the full engine + adapter suites**
+- [x] **Step 3: Run the full engine + adapter suites**
 
 Run: `node --test runtime/engine/test/*.test.mjs runtime/adapters/*/test/*.test.mjs`
 Expected: PASS. If `intake.test.mjs` asserts `done_criteria` on shaped items, update those assertions to `done_when` (same values otherwise).
 
-- [ ] **Step 4: Commit**
+- [x] **Step 4: Commit**
 
 ```bash
 git add runtime/engine/lib/intake.mjs runtime/engine/loop/worker.mjs runtime/engine/test/intake.test.mjs
@@ -184,7 +184,7 @@ git commit -m "refactor(runtime): intake mints done_when; worker drops the done_
 - Consumes: `validateItem` from Task 1.
 - Produces: `readItems(backlogDir): Item[]` — same signature; now every returned item is schema-validated (extensions preserved); an invalid file throws `Error` whose message lists every offending `file: reason` (fail-closed, like the registry — redteam item 2).
 
-- [ ] **Step 1: Add failing tests for validated reads**
+- [x] **Step 1: Add failing tests for validated reads**
 
 In `runtime/engine/test/scope-gate.test.mjs`, append:
 
@@ -212,12 +212,12 @@ Also fix the pre-existing fixtures that now (correctly) fail validation for miss
 - Line 34: `'---\nid: b\nstatus: queued\n---\nbody'` → `'---\nid: b\nstatus: queued\ntype: bug\n---\nbody'`
 - Line 51 helper: `const md = (id, status, type) => ...` → give it a default: `const md = (id, status, type = 'bug') => ...` (existing epic-type call sites keep passing `'epic'`).
 
-- [ ] **Step 2: Run to verify the new tests fail**
+- [x] **Step 2: Run to verify the new tests fail**
 
 Run: `node --test runtime/engine/test/scope-gate.test.mjs`
 Expected: FAIL — `readItems` doesn't throw on the invalid fixture yet (no validation).
 
-- [ ] **Step 3: Implement validated reads**
+- [x] **Step 3: Implement validated reads**
 
 In `runtime/engine/lib/scope-gate.mjs`: add to the imports:
 
@@ -244,12 +244,12 @@ export function readItems(backlogDir) {
 }
 ```
 
-- [ ] **Step 4: Run the scope-gate suite, then everything**
+- [x] **Step 4: Run the scope-gate suite, then everything**
 
 Run: `node --test runtime/engine/test/scope-gate.test.mjs` → PASS.
 Run: `node --test runtime/engine/test/*.test.mjs runtime/adapters/*/test/*.test.mjs` → PASS (catches any other fixture minting invalid items).
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add runtime/engine/lib/scope-gate.mjs runtime/engine/test/scope-gate.test.mjs
@@ -266,7 +266,7 @@ git commit -m "feat(runtime): validate items on read — readItems fails closed 
 **Interfaces:**
 - Consumes: `readItems` from Task 3.
 
-- [ ] **Step 1: Write the binding sweep test**
+- [x] **Step 1: Write the binding sweep test**
 
 Create `runtime/engine/test/item-store-binding.test.mjs` (project-binding test, same precedent as `content-ring.test.mjs` — it reads the repo's own content ring):
 
@@ -284,12 +284,12 @@ test('the real docs/backlog store validates through readItems — docs/backlog I
 });
 ```
 
-- [ ] **Step 2: Run it**
+- [x] **Step 2: Run it**
 
 Run: `node --test runtime/engine/test/item-store-binding.test.mjs`
 Expected: PASS with 419 items. If ANY real file fails: the schema is still wrong — fix the schema (never the data), re-run Task 1/3.
 
-- [ ] **Step 3: Commit**
+- [x] **Step 3: Commit**
 
 ```bash
 git add runtime/engine/test/item-store-binding.test.mjs
@@ -304,7 +304,7 @@ git commit -m "test(runtime): real-store binding sweep — all docs/backlog item
 - Modify: `docs/superpowers/specs/2026-07-01-runtime-spec-1-check-registry-and-atom.md` (§10: interface block ~line 377, binding table ~line 400, frozen-names line ~409)
 - Modify: `docs/superpowers/specs/2026-07-01-runtime-spec-3-forward-edge-and-capability-seams.md:491`
 
-- [ ] **Step 1: Update SPEC 1 §10**
+- [x] **Step 1: Update SPEC 1 §10**
 
 Three edits:
 
@@ -336,16 +336,16 @@ Frozen item-schema field names: `id, type, status, rank, epic, epic_role, done_w
 > wired into `readItems()` (fail-closed) — `docs/backlog` is now a validated runtime item store.
 ```
 
-- [ ] **Step 2: Update SPEC 3 line 491**
+- [x] **Step 2: Update SPEC 3 line 491**
 
 `the item's \`done_criteria\`-derived gates` → `the item's \`done_when\`-derived gates`.
 
-- [ ] **Step 3: Verify no live straggler references remain**
+- [x] **Step 3: Verify no live straggler references remain**
 
 Run: `grep -rn "done_criteria" runtime/ docs/superpowers/specs/`
 Expected: zero hits in `runtime/`; zero in `specs/`. (Historical plan docs under `docs/superpowers/plans/2026-07-01-*` and `2026-07-03-runtime-seam-probe.md` keep their mentions — they are shipped-workstream artifacts, not living contracts.)
 
-- [ ] **Step 4: Commit**
+- [x] **Step 4: Commit**
 
 ```bash
 git add docs/superpowers/specs/2026-07-01-runtime-spec-1-check-registry-and-atom.md docs/superpowers/specs/2026-07-01-runtime-spec-3-forward-edge-and-capability-seams.md
