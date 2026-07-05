@@ -51,3 +51,14 @@ to such a scenario.
 Surfaced during `bef-finishing-stub-drive-to-ship` live verification (2026-06-27). Topic:
 [[project_backlog_eval_framework]]. Captured under [[backlog-eval-corpus-hardening]] — re-tested at the
 epic's captured audit.
+
+## Decision log
+
+<!-- append-only (F-6): entries are never edited or removed; a reversal is a NEW entry referencing the superseded one. Written by decision-log.mjs — do not hand-edit. -->
+
+### D1 — 2026-07-05
+- **Decision:** Fix approach for judge blindness to sub-worktree branch diffs
+- **Options:** (a) outcomeDiff detects worker-created branches (git for-each-ref) and diffs origin/main...<branch> | (b) document/assert the limitation so rubricGate is never added to sub-worktree scenarios
+- **Chosen:** (a) branch-aware outcomeDiff
+- **Rationale:** Most reusable/cleanly-abstracted: fixes the judge for ANY current or future sub-worktree scenario instead of constraining scenario authoring; blast-radius gate exit 0 (outcomeDiff is bef-internal, no shared surface).
+- **Rejected:** (b) is a documentation band-aid that leaves the latent gap and adds an authoring rule someone must remember.

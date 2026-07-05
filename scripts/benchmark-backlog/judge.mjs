@@ -29,9 +29,22 @@ export function parseJudgeResult(text) {
 // resolution 1/5 once for an outcome that was actually correct. Prefer the full delta the run
 // introduced since it diverged from the pristine origin/main baseline; fall back for single-commit /
 // uncommitted cases.
-function outcomeDiff(sandboxDir) {
-  const g = (args) => { try { return execFileSync('git', ['-C', sandboxDir, ...args], { cwd: sandboxDir, encoding: 'utf8' }); } catch { return ''; } };
+export function outcomeDiff(sandboxDir) {
+  // stdio pipes stderr so expected-fallback fatals (e.g. HEAD~1 on a single-commit base) don't leak.
+  const g = (args) => { try { return execFileSync('git', ['-C', sandboxDir, ...args], { cwd: sandboxDir, encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'] }); } catch { return ''; } };
   let diff = g(['diff', 'origin/main...HEAD']);      // full branch delta (multi-commit epic work)
+  if (!diff.trim()) {
+    // The worker may have shipped on its own sub-worktree branch (root HEAD stays on main). Worktree
+    // refs share the root ref store, so scan the other local branches, freshest first, and take the
+    // first with a real delta vs the pristine baseline.
+    const current = g(['branch', '--show-current']).trim();
+    const branches = g(['for-each-ref', 'refs/heads', '--sort=-committerdate', '--format=%(refname:short)'])
+      .split('\n').map((b) => b.trim()).filter((b) => b && b !== current);
+    for (const b of branches) {
+      diff = g(['diff', `origin/main...${b}`]);
+      if (diff.trim()) break;
+    }
+  }
   if (!diff.trim()) diff = g(['diff', 'HEAD~1', 'HEAD']); // single extra commit
   if (!diff.trim()) diff = g(['diff', 'HEAD']);           // uncommitted working-tree changes
   return diff;
