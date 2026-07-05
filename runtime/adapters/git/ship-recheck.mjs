@@ -6,7 +6,7 @@
 import { fileURLToPath } from 'node:url';
 import { readFileSync } from 'node:fs';
 import { execSync } from 'node:child_process';
-import { loadRegistry } from '../../engine/lib/load-registry.mjs';
+import { loadRegistry, registryErrorLines } from '../../engine/lib/load-registry.mjs';
 import { runWatch, loadTriggers } from '../../engine/lib/run-watch.mjs';
 import { makeJournal, gitHeadSha } from '../../engine/lib/journal.mjs';
 import { CURATE_CMD } from './pre-commit-gate.mjs';
@@ -34,6 +34,12 @@ async function main() {
     if (!item || item.startsWith('--')) { console.error('usage: ship-recheck.mjs --item <id> [--base <ref>]'); process.exit(2); }
     const cfg = JSON.parse(readFileSync('runtime/runtime.config.json', 'utf8'));
     const registry = loadRegistry({ checksDir: cfg.checksDir });
+    const errLines = registryErrorLines(registry);
+    if (errLines) {
+      console.error('ship-recheck: check registry corrupt (fail-closed):');
+      for (const line of errLines) console.error(line);
+      process.exit(2);
+    }
     const trigger = loadTriggers(cfg.triggersFile).find((t) => t.on === 'commit');
     if (!trigger) { console.error('ship-recheck: no "commit" trigger in triggers.yaml'); process.exit(2); }
     const { exitCode, findings } = await runShipRecheck({ changedFiles: readBranchDelta(base), registry, trigger });

@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { loadRegistry } from '../lib/load-registry.mjs';
+import { loadRegistry, registryErrorLines } from '../lib/load-registry.mjs';
 import { validCheck, withTmpDir, writeYaml } from './_fixtures.mjs';
 import { writeFileSync, mkdirSync } from 'node:fs';
 import { join } from 'node:path';
@@ -64,3 +64,10 @@ test('an empty/absent checksDir yields an empty registry, no throw', () => withT
   const reg = loadRegistry({ checksDir: join(root, 'does-not-exist') });
   assert.deepEqual(reg.checks, []); assert.deepEqual(reg.errors, []);
 }));
+
+test('registryErrorLines: null when clean, located lines when corrupt', () => {
+  assert.equal(registryErrorLines({ errors: [] }), null);
+  const lines = registryErrorLines({ errors: [{ file: 'checks/bad.yaml', error: 'malformed YAML: x' }] });
+  assert.equal(lines.length, 1);
+  assert.match(lines[0], /checks\/bad\.yaml.*malformed YAML/);
+});
