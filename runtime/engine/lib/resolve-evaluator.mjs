@@ -21,7 +21,7 @@ function toFindings(result, check) {
 }
 
 /** staged files (if provided) that match this check's scope globs; else the check's whole scope (audit path). */
-export function eslintFiles(check, stagedFiles) {
+export function scopedStagedFiles(check, stagedFiles) {
   if (stagedFiles == null) return check.scope.paths;
   return stagedFiles.filter((f) => check.scope.paths.some((p) => globsOverlap(f, p)));
 }
@@ -40,10 +40,12 @@ export function resolveEvaluator({ check, judge, stagedFiles }) {
   }
   if (scheme === 'cmd') {
     return { kind: 'deterministic', invoke: () => {
-      const env = stagedFiles == null ? process.env : { ...process.env, RUNTIME_STAGED_PATHS: stagedFiles.join('\n') };
+      const scoped = stagedFiles == null ? null : scopedStagedFiles(check, stagedFiles);   // staged ∩ scope
+      const env = scoped == null ? process.env : { ...process.env, RUNTIME_STAGED_PATHS: scoped.join('\n') };
       const r = spawnSync(target, { shell: true, encoding: 'utf8', env });
       if (r.status === 0) return [];
-      return toFindings([{ detail: check.property, evidence: `${r.stdout ?? ''}${r.stderr ?? ''}`.trim(), scope: check.scope.paths }], check);
+      return toFindings([{ detail: check.property, evidence: `${r.stdout ?? ''}${r.stderr ?? ''}`.trim(),
+        scope: scoped ?? check.scope.paths }], check);
     } };
   }
   if (scheme === 'module') {
@@ -61,7 +63,7 @@ export function resolveEvaluator({ check, judge, stagedFiles }) {
   // eslint:
   if (!target.length) throw new EvaluatorUnresolved(check.evaluator.run, 'empty eslint rule id');
   return { kind: 'deterministic', invoke: () => {
-    const files = eslintFiles(check, stagedFiles);
+    const files = scopedStagedFiles(check, stagedFiles);
     if (!files.length) return [];
     const r = spawnSync('npx', ['eslint', '--rule', `{"${target}":"error"}`, ...files], { encoding: 'utf8' });
     return r.status === 0 ? [] : toFindings([{ detail: check.property, evidence: (r.stdout ?? '').trim(), scope: check.scope.paths }], check);
