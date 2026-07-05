@@ -7,7 +7,7 @@ const baseItem = (finding, over) => ({
   id: over.id ?? slug(finding),
   type: 'bug',
   status: 'parking',
-  done_criteria: `resolve: ${finding.detail}`,
+  done_when: `resolve: ${finding.detail}`,
   provenance: { from_finding: finding.id, from_check: finding.check },
   ...over,
 });

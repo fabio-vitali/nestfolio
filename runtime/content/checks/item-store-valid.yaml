@@ -1,0 +1,25 @@
+id: item-store-valid
+property: "Every docs/backlog item file parses and validates against the ring-1
+  ItemSchema (the identity store binding, re-freeze 2026-07-05). Corrupt or
+  schema-invalid frontmatter must never land: backlog-lint is blind to
+  element-shape corruption (an unquoted scalar with an embedded colon parses as
+  a one-key mapping) and the fail-closed read path only fires when readItems()
+  actually runs."
+kind: inconsistency
+evaluator:
+  type: deterministic
+  run: module:runtime/content/lib/item-store-core.mjs#itemStoreViolations
+cost_tier: cheap
+contexts:
+  - invariant
+  - gate
+scope:
+  paths:
+    - docs/backlog/*.md
+  dossiers:
+    - backlog-lint-no-element-shape-validation.md
+status: active
+provenance:
+  minted_by: runtime-item-schema-reconciliation
+  lesson: backlog-lint-no-element-shape-validation.md
+  ratified: 2026-07-05T13:37:16.820Z
