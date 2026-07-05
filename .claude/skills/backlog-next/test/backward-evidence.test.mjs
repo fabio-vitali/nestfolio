@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { backwardEvidenceFailures } from '../postflight.mjs';
+import { backwardEvidenceFailures, gateCleanFreshness } from '../postflight.mjs';
 
 const SNAP = '2026-07-04T10:00:00.000Z';
 const ledger = (recs) => ({ meta: { runId: 'backward', auto: false }, steps: new Map(recs.map((r) => [r.key, r])) });
@@ -49,4 +49,29 @@ test('PF7 no snapshot (resumed workstream) → existence-only + warning', () => 
   assert.equal(r.warnings.length, 1);
   const r2 = backwardEvidenceFailures({ backwardLedger: null, skipsLedger: null, id: 'ws-1', snapshotTimestamp: null });
   assert.equal(r2.failures.length, 2);                                           // records must still EXIST
+});
+
+// Item-9 sha teeth (redteam 2026-07-04): the only sanctioned commits AFTER a green ship-recheck are
+// the 6.5/6.6 docs tail — a non-docs path in <gate-clean.sha>..HEAD is an unadjudicated code commit.
+test('sha teeth: docs-only tail after gate-clean is sanctioned', () => {
+  const r = gateCleanFreshness({ cleanValue: { sha: 'abc' },
+    filesSinceClean: ['docs/backlog/x.md', 'docs/BACKLOG.md'] });
+  assert.deepEqual(r.failures, []);
+  assert.deepEqual(r.warnings, []);
+});
+
+test('sha teeth: a non-docs path after gate-clean FAILS ship-gate-evidence (the --no-verify escape)', () => {
+  const r = gateCleanFreshness({ cleanValue: { sha: 'abc' },
+    filesSinceClean: ['docs/backlog/x.md', 'services/x/src/handler.ts'] });
+  assert.equal(r.failures.length, 1);
+  assert.equal(r.failures[0].rule, 'ship-gate-evidence');
+  assert.match(r.failures[0].message, /after the last gate-clean/);
+  assert.match(r.failures[0].detail, /services\/x\/src\/handler\.ts/);
+});
+
+test('sha teeth: unresolvable sha (squash-merge) degrades to a warning, never a false failure', () => {
+  const r = gateCleanFreshness({ cleanValue: { sha: 'abc' }, filesSinceClean: null });
+  assert.deepEqual(r.failures, []);
+  assert.equal(r.warnings.length, 1);
+  assert.match(r.warnings[0], /not an ancestor of HEAD/);
 });
