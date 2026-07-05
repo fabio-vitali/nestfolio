@@ -17,7 +17,7 @@ out_of_scope:
   - The benchmark skill itself (filed separately as `agent-benchmark-skill`, currently parking — promotes to active after this ships).
   - The `looksDegraded` / `REINFORCE_SUFFIX` schema-degraded retry path in agent-factory (independent of escalation; stays as-is).
   - The `withValidation` validation-rule retry path (`__retryFeedback` prompt augmentation; independent of escalation; stays as-is).
-  - Replacing the haiku/sonnet/opus tier vocabulary with a different vocabulary — there is no replacement vocabulary, the unit is now the raw `modelId: string` everywhere.
+  - "Replacing the haiku/sonnet/opus tier vocabulary with a different vocabulary — there is no replacement vocabulary, the unit is now the raw `modelId: string` everywhere."
   - Changing which model each AgentConfig uses today. This refactor is behavior-preserving — every `*.config.ts` keeps its current `modelId`. Model-choice decisions land in the follow-on benchmark workstream.
   - Adding a per-deploy override mechanism (env var, SSM, etc.) for cost-cap or canary purposes. AGENT_MODEL_OVERRIDE was never used and is being removed precisely to avoid carrying a feature that's never exercised. If a future need arises, design it then.
   - Onboarding-bff agent's own model wiring (separate from advisory; comment reference only).

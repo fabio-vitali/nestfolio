@@ -73,3 +73,10 @@ store. This is what lets the forward edge (intake/planner) trust its inputs.
 - **Chosen:** Inline via superpowers:executing-plans
 - **Rationale:** Standing user feedback (no-worker-isolating-subagents): do not strip AskUserQuestion/visibility via isolated workers — the epic Tier-2 isolation was explicitly reverted to inline. 5 small sequential tasks over shared files gain nothing from per-task subagents.
 - **Rejected:** Subagent-driven adds per-task context re-derivation and hides floor surfaces from the user.
+
+### D6 — 2026-07-05
+- **Decision:** Task-4 sweep surfaced 1 file whose out_of_scope entry is a YAML authoring bug (unquoted scalar with embedded colon parsed as a one-key mapping) — repair the data or tolerate objects in the schema, given the workstream out_of_scope forbids changing store data to fit the schema
+- **Options:** Repair the corrupt scalar (quote it) — data BUG fix, not reshaping | Extend the schema to tolerate object out_of_scope entries | Park the file and exclude it from the sweep
+- **Chosen:** Repair the corrupt scalar (quote it)
+- **Rationale:** The out_of_scope guard forbids reshaping store conventions to fit the schema; it does not protect a YAML typo that corrupts a value against its own intended type (prose string). Intent is unambiguous. Tolerating accidental one-key mappings would enshrine corruption as contract. Blocking evidence of the feature working: the corruption ALSO silently dropped this shipped item from BACKLOG.md Recently Shipped — repaired index regenerates correctly.
+- **Rejected:** Schema tolerance makes every future typo schema-legal; excluding the file breaks the docs-backlog-IS-the-store acceptance criterion.
