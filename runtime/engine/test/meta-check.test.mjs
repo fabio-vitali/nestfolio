@@ -2,8 +2,11 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { metaCheck } from '../lib/meta-check.mjs';
 import { validCheck, withTmpDir } from './_fixtures.mjs';
-import { writeFileSync } from 'node:fs';
+import { writeFileSync, mkdtempSync, mkdirSync } from 'node:fs';
 import { join } from 'node:path';
+import { tmpdir } from 'node:os';
+import { spawnSync } from 'node:child_process';
+import { fileURLToPath } from 'node:url';
 
 const reg = (checks) => ({ checks, byId: new Map(checks.map((c) => [c.id, c])), errors: [] });
 const emptyEnv = { enforcedSurfaces: [], resolveGlobs: () => ['some/file.ts'], storedKnobs: [] };
@@ -58,4 +61,50 @@ test('B6 contexts:[invariant] with cost_tier:expensive → inconsistency', () =>
   const env = { ...emptyEnv, resolveGlobs: () => ['x/a'] };
   const findings = metaCheck({ registry: reg([c]), env });
   assert.ok(findings.some((x) => x.kind === 'inconsistency' && /cheap|invariant/.test(x.detail)));
+});
+
+// CLI tests (redteam item 5): the registry-integrity self-check must actually RUN from cmd:.
+const CLI = fileURLToPath(new URL('../lib/meta-check.mjs', import.meta.url));
+const VALID = `id: ok-check
+property: "p"
+kind: drift
+evaluator: { type: deterministic, run: "cmd:true" }
+cost_tier: cheap
+contexts: [gate]
+scope: { paths: ["**/*"] }
+status: active
+provenance: { minted_by: "t", ratified: "2026-01-01" }
+`;
+
+test('CLI: clean registry → exit 0', () => {
+  const dir = mkdtempSync(join(tmpdir(), 'mc-'));
+  mkdirSync(join(dir, 'checks'));
+  writeFileSync(join(dir, 'checks', 'ok.yaml'), VALID);
+  const r = spawnSync('node', [CLI, '--checks-dir', join(dir, 'checks')], { cwd: dir, encoding: 'utf8' });
+  assert.equal(r.status, 0);
+});
+
+test('CLI: unresolvable module evaluator → exit 1 with a finding (assertion 2 runs)', () => {
+  const dir = mkdtempSync(join(tmpdir(), 'mc-'));
+  mkdirSync(join(dir, 'checks'));
+  writeFileSync(join(dir, 'checks', 'dangling.yaml'),
+    VALID.replace('id: ok-check', 'id: dangling').replace('run: "cmd:true"', 'run: "module:./nope.mjs#f"'));
+  const r = spawnSync('node', [CLI, '--checks-dir', join(dir, 'checks')], { cwd: dir, encoding: 'utf8' });
+  assert.equal(r.status, 1);
+  assert.match(r.stdout, /does not resolve/);
+});
+
+test('CLI: corrupt YAML in the registry → exit 1, located (fail-closed self-check)', () => {
+  const dir = mkdtempSync(join(tmpdir(), 'mc-'));
+  mkdirSync(join(dir, 'checks'));
+  writeFileSync(join(dir, 'checks', 'bad.yaml'), 'id: [unclosed\n');
+  const r = spawnSync('node', [CLI, '--checks-dir', join(dir, 'checks')], { cwd: dir, encoding: 'utf8' });
+  assert.equal(r.status, 1);
+  assert.match(r.stderr, /bad\.yaml/);
+});
+
+test('CLI: no dir and no config → exit 2 usage', () => {
+  const dir = mkdtempSync(join(tmpdir(), 'mc-'));
+  const r = spawnSync('node', [CLI], { cwd: dir, encoding: 'utf8' });
+  assert.equal(r.status, 2);
 });

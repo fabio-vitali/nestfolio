@@ -2,10 +2,12 @@
 // meta-check.mjs — metaCheck(): the registry self-check (§8). Three integrity assertions + two
 // rot-detectors + cheap-by-construction, over `registry` and an INJECTED `env` (pure, agnostic core).
 // It only FILES findings; it NEVER advances a check's state. CLI: 0 clean, 1 any finding, 2 usage.
-import { existsSync } from 'node:fs';
+import { existsSync, readFileSync } from 'node:fs';
+import { execSync } from 'node:child_process';
 import { isAbsolute, resolve as resolvePath } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { resolveEvaluator } from './resolve-evaluator.mjs';
+import { loadRegistry, registryErrorLines } from './load-registry.mjs';
 
 let SEQ = 0;
 const finding = (kind, detail, scope = []) =>
@@ -56,5 +58,33 @@ export function metaCheck({ registry, env }) {
 }
 
 function nowIso() { return new Date().toISOString(); }
-function main() { console.error('meta-check.mjs CLI needs a loaded registry + env (SPEC 3 wiring)'); process.exit(2); }
+
+// The registry-integrity CLI (redteam item 5): both rings register `cmd:node …/meta-check.mjs`, so the
+// self-check must actually run from cmd:. Exit 0 clean / 1 findings-or-registry-errors / 2 usage.
+// enforcedSurfaces/storedKnobs stay [] (they need SPEC-3-level wiring); assertions 2/3 +
+// cheap-by-construction + rot-i are the CLI's teeth.
+function main() {
+  const argv = process.argv.slice(2);
+  const flag = (f) => { const i = argv.indexOf(f); return i >= 0 ? argv[i + 1] : undefined; };
+  let checksDir = flag('--checks-dir');
+  if (!checksDir) {
+    try { checksDir = JSON.parse(readFileSync('runtime/runtime.config.json', 'utf8')).checksDir; }
+    catch { /* fall through to usage */ }
+  }
+  if (!checksDir) { console.error('usage: meta-check.mjs [--checks-dir <dir>] (default: runtime/runtime.config.json)'); process.exit(2); }
+  const registry = loadRegistry({ checksDir });
+  const errLines = registryErrorLines(registry);
+  if (errLines) { for (const l of errLines) console.error(l); process.exit(1); }   // self-check is fail-closed too
+  // :(glob) pathspec magic: git's default fnmatch resolves `a/**/b/**/*.ts` to ZERO files; wildmatch
+  // matches the minimatch semantics the scope globs assume everywhere else (empirical, redteam item 5).
+  const resolveGlobs = (globs) => {
+    try {
+      return execSync(`git ls-files -- ${globs.map((g) => `':(glob)${g}'`).join(' ')}`, { encoding: 'utf8' })
+        .split('\n').filter(Boolean);
+    } catch { return ['x']; }   // not a git repo → skip rot-detection rather than false-flag
+  };
+  const findings = metaCheck({ registry, env: { resolveGlobs, enforcedSurfaces: [], storedKnobs: [] } });
+  for (const f of findings) console.log(`${f.check}\t${f.kind}\t${f.detail}`);
+  process.exit(findings.length ? 1 : 0);
+}
 if (process.argv[1] === fileURLToPath(import.meta.url)) main();
