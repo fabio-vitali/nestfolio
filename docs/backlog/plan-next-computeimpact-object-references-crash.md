@@ -1,7 +1,7 @@
 ---
 id: plan-next-computeimpact-object-references-crash
-status: queued
-rank: 0
+status: shipped
+closed: 2026-07-05
 type: bug
 epic: runtime-operationalization
 epic_role: core
@@ -11,7 +11,7 @@ out_of_scope: []
 spec: null
 plan: null
 topic_memory: [project_runtime_realization.md]
-validation_gate: null
+validation_gate: "Fix 31d9a879 (refPath normalizer + regression test mirroring the object-form store fixture); runtime suite 151/151 via node --test + pnpm nx run-many -t test -p runtime; live sanity: computeImpact clean over the REAL store (423 items, 47 object-form refs). Mint b9cea0e6: check plan-views-total ratified (mint-plan-views-total-g1), golden-gate smoke real=0/good=0/bad=1. ship-recheck gate-clean journaled on origin/main..HEAD; consider recorded (minted plan-views-total). Tier-0, no deploy."
 ---
 
 # computeImpact crashes on object-form references
