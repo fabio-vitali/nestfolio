@@ -1,13 +1,17 @@
 ---
 id: runtime-item-schema-reconciliation
-status: queued
-rank: 4
+status: active
 type: refactor
 epic: runtime-operationalization
 epic_role: core
 notes: "Reconcile runtime/engine/schema/item.schema.ts with the real docs/backlog frontmatter (done_criteria→done_when, relax .strict/migrate legacy keys) and wire validateItem into the read path — today ItemSchema has no production importer."
 references: []
-out_of_scope: []
+out_of_scope:
+  - "Migrating backlog-lint's 11 invariants into content-ring checks — that is the P4 check-migration member; this workstream reconciles only the schema + read path."
+  - "The parity-oracle regression harness — separate P3 member."
+  - "Re-designing ring-1 contracts beyond the reconciliation delta; the delta re-freezes into SPEC 1 §10 within this workstream, per the epic's out_of_scope."
+  - "Changing docs/backlog frontmatter data to fit the schema — the schema moves to the data, never the data to the schema (docs/backlog stays the one item store)."
+  - "Forward-edge intake/planner behavior changes beyond field-name alignment."
 spec: null
 plan: null
 topic_memory: [project_runtime_realization.md]
