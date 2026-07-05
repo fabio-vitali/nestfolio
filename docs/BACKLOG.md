@@ -156,7 +156,8 @@ rollup: core 0/2 done · captured 0/0 done
 
 ### [runtime-operationalization](backlog/runtime-operationalization.md) `[epic · parking]` — Adopt/operationalize the Long-Horizon Engineering Runtime via the probes-first roadmap (re-scoped 2026-07-03): P1 probe the two unproven bets (execute seam, backward edge) → P2 moat live (mint/curate in anger, before enforcement triples) → P3 parity oracle + item schema → P4 check migration with cadence + CI golden gates → P5 work-driver strangler re-platform with soak gate → P6 user-triggered legacy retirement + operator surface. runtime-realization shipped the 3 library slices; THIS epic makes the runtime the project's live enforcement + work-driver, reversibly (docs/backlog stays the one item store — procedures migrate, never data).
 done_when: The runtime is the project's LIVE enforcement + work-driver, demonstrated not asserted: (1) enforcement — the gate fires diff-scoped on commit (shipped) AND every migrated check runs on a real cadence (commit gate / CI / schedule / epic-batch; judgment checks via a live judge binding), the ~34-surface migration into runtime/content/checks is complete, and the check golden gates run in CI; (2) the backward edge is live-in-anger — at least one real lesson minted through a real floor into a registered check, and curate-at-the-floor is the only sanctioned path past a failing guard (skip-hatch instrumented); (3) item.schema is reconciled with docs/backlog and validated on read; (4) the parity oracle is green — the regression harness grades the runtime loop against the legacy backlog skills on the same scenarios, plus a greenfield adoption e2e; (5) the work-driver is re-platformed — the backlog skills run on the engine loop with legacy fallback, soaked over ≥5 real workstreams with zero fallbacks; (6) the operator surface (view+executor) is shipped. Every core member shipped or dropped.
-rollup: core 4/10 done · captured 2/5 done
+rollup: core 4/11 done · captured 2/9 done
+- core · parking · [bef-judge-blind-to-subworktree-diff](backlog/bef-judge-blind-to-subworktree-diff.md)
 - core · parking · [runtime-check-goldengates-ci](backlog/runtime-check-goldengates-ci.md)
 - core · parking · [runtime-check-migration-completion](backlog/runtime-check-migration-completion.md)
 - core · parking · [runtime-item-schema-reconciliation](backlog/runtime-item-schema-reconciliation.md)
@@ -167,9 +168,13 @@ rollup: core 4/10 done · captured 2/5 done
 - core · shipped · [runtime-make-it-fire](backlog/runtime-make-it-fire.md)
 - core · shipped · [runtime-redteam-hardening](backlog/runtime-redteam-hardening.md)
 - core · shipped · [runtime-seam-probe](backlog/runtime-seam-probe.md)
+- captured · parking · [bef-scenario-tags-reusable-suite](backlog/bef-scenario-tags-reusable-suite.md)
+- captured · parking · [benchmark-backlog-skill-cost-figures-stale](backlog/benchmark-backlog-skill-cost-figures-stale.md)
+- captured · parking · [decision-log-utc-date-stamp](backlog/decision-log-utc-date-stamp.md)
 - captured · parking · [gate-surfaced-source-debt](backlog/gate-surfaced-source-debt.md)
 - captured · parking · [runtime-gate-baseline-semantics](backlog/runtime-gate-baseline-semantics.md)
 - captured · parking · [runtime-typescript-port](backlog/runtime-typescript-port.md)
+- captured · parking · [worktree-missing-per-package-node-modules-symlink](backlog/worktree-missing-per-package-node-modules-symlink.md)
 - captured · shipped · [no-agent-result-fallback-check-overbroad](backlog/no-agent-result-fallback-check-overbroad.md)
 - captured · shipped · [runtime-design-redteam](backlog/runtime-design-redteam.md)
 
@@ -214,7 +219,7 @@ rollup: core 0/3 done · captured 0/0 done
 - core · parking · [portfolio-drift-detected-registry-collision](backlog/portfolio-drift-detected-registry-collision.md)
 - core · parking · [weight-drift-detector](backlog/weight-drift-detector.md)
 
-**Parking health:** 30 theme epic(s), 12 orphan(s) — drive orphans → 0 with `/backlog-themes`
+**Parking health:** 30 theme epic(s), 7 orphan(s) — drive orphans → 0 with `/backlog-themes`
 
 ## ACTIVE
 
@@ -229,18 +234,13 @@ _(none)_
 
 ## LATER
 
-- [bef-judge-blind-to-subworktree-diff](backlog/bef-judge-blind-to-subworktree-diff.md) [bug] — bef judge.mjs reads the outcome diff from the sandbox ROOT, so it sees an EMPTY diff for fresh-sub-worktree scenarios (worker commits the ship on a worktree branch, sandbox-root HEAD stays on main). Harmless today (no rubricGate on such a scenario); latent if one is added. Captured under bef-deterministic-coverage-gaps for unified PR context; un-pointed back to a standalone parking orphan at that epic's close (2026-06-30) — confirmed orthogonal by the captured audit, matching the 2026-06-29 backlog-themes adjudication (no shared root cause with the other 2 riders).
-- [bef-scenario-tags-reusable-suite](backlog/bef-scenario-tags-reusable-suite.md) [tooling] — Add self-declaring `tags: [...]` to scenarios + a runner `--tag=` filter, so a reusable named subset (e.g. core) can be re-run identically before/after backlog-skills-simplification. Build when that epic starts; pin membership only after the corpus is green. Captured under bef-deterministic-coverage-gaps for unified PR context; un-pointed back to a standalone parking orphan at that epic's close (2026-06-30) — confirmed orthogonal ergonomics work by the captured audit (matches the 2026-06-29 backlog-themes adjudication).
 - [benchmark-agents-skill-simplification](backlog/benchmark-agents-skill-simplification.md) [refactor] — benchmark-agents SKILL.md (§5/§6) prescribes report templates inline; relocate to run.ts+templates.
-- [benchmark-backlog-skill-cost-figures-stale](backlog/benchmark-backlog-skill-cost-figures-stale.md) [tooling] — benchmark-backlog/SKILL.md cost gate hardcodes '6 bne scenarios' but the live corpus has 35 bne / 53 total — understates the spend ~6× (real 1×≈90M, 3×≈270M tokens). Derive the count dynamically. Captured under bef-deterministic-coverage-gaps for unified PR context; un-pointed back to a standalone parking orphan at that epic's close (2026-06-30) — confirmed orthogonal doc-drift nit by the captured audit (matches the 2026-06-29 backlog-themes adjudication).
 - [bump-tsconfig-es2022-to-es2023](backlog/bump-tsconfig-es2022-to-es2023.md) [tooling] — Enable .toSpliced/.toReversed/.with workspace-wide; promote on second use case.
-- [decision-log-utc-date-stamp](backlog/decision-log-utc-date-stamp.md) [bug] — decision-log.mjs stamps the UTC date — evening-CET appends land under yesterday's date in an append-only audit log
 - [integration-suite-lever-5-cdk-bundling](backlog/integration-suite-lever-5-cdk-bundling.md) [refactor] — cdk-constructs:test bundles 57 assets in 32s as it synthesizes per-construct stacks in tests. This sits in the unit suite, not integration. Dossier called out as out-of-scope for integration slowness but worth tracking if unit wall-clock becomes a concern.
 - [rebalance-planner-mode-awareness](backlog/rebalance-planner-mode-awareness.md) [refactor] — rebalance-planner stays mode-blind; promote on mode-correlated gap.
 - [rename-nestfolio-integ-prefix-to-prefix](backlog/rename-nestfolio-integ-prefix-to-prefix.md) [refactor] — Verbose NESTFOLIO_INTEG_ namespace is friction; rename atomically + sweep docs.
 - [test-support-typecheck-put-event-type-test-drift](backlog/test-support-typecheck-put-event-type-test-drift.md) [tooling] — test-support:typecheck red on main — put-event.type-test @ts-expect-error drifted off the now-relocated overload error (false-red, not a masked real error)
 - [unified-ingress-refactoring](backlog/unified-ingress-refactoring.md) [refactor] — Single event-listener with ResumeIntent + PublishIntent (planned, not started).
-- [worktree-missing-per-package-node-modules-symlink](backlog/worktree-missing-per-package-node-modules-symlink.md) [tooling] — backlog-next(-epic) worktree setup symlinks only ROOT node_modules, not per-package libs/*/node_modules. pnpm puts a package's DIRECT deps under its own node_modules, so affected test+lint for event-processor/agent-orchestrator/cdk-constructs FALSE-REDs in a worktree (resolves on main). Surfaced + worked around in the deploy-tooling-integrity epic.
 
 ## Recently Shipped (last 10)
 

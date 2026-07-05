@@ -2,6 +2,8 @@
 id: bef-scenario-tags-reusable-suite
 status: parking
 type: tooling
+epic: runtime-operationalization
+epic_role: captured
 notes: "Add self-declaring `tags: [...]` to scenarios + a runner `--tag=` filter, so a reusable named subset (e.g. core) can be re-run identically before/after backlog-skills-simplification. Build when that epic starts; pin membership only after the corpus is green. Captured under bef-deterministic-coverage-gaps for unified PR context; un-pointed back to a standalone parking orphan at that epic's close (2026-06-30) — confirmed orthogonal ergonomics work by the captured audit (matches the 2026-06-29 backlog-themes adjudication)."
 references: []
 out_of_scope:

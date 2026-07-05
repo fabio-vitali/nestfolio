@@ -2,6 +2,8 @@
 id: benchmark-backlog-skill-cost-figures-stale
 status: parking
 type: tooling
+epic: runtime-operationalization
+epic_role: captured
 notes: "benchmark-backlog/SKILL.md cost gate hardcodes '6 bne scenarios' but the live corpus has 35 bne / 53 total — understates the spend ~6× (real 1×≈90M, 3×≈270M tokens). Derive the count dynamically. Captured under bef-deterministic-coverage-gaps for unified PR context; un-pointed back to a standalone parking orphan at that epic's close (2026-06-30) — confirmed orthogonal doc-drift nit by the captured audit (matches the 2026-06-29 backlog-themes adjudication)."
 references: []
 out_of_scope: []

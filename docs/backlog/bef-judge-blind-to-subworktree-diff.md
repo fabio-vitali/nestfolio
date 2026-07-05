@@ -2,6 +2,8 @@
 id: bef-judge-blind-to-subworktree-diff
 status: parking
 type: bug
+epic: runtime-operationalization
+epic_role: core
 notes: "bef judge.mjs reads the outcome diff from the sandbox ROOT, so it sees an EMPTY diff for fresh-sub-worktree scenarios (worker commits the ship on a worktree branch, sandbox-root HEAD stays on main). Harmless today (no rubricGate on such a scenario); latent if one is added. Captured under bef-deterministic-coverage-gaps for unified PR context; un-pointed back to a standalone parking orphan at that epic's close (2026-06-30) — confirmed orthogonal by the captured audit, matching the 2026-06-29 backlog-themes adjudication (no shared root cause with the other 2 riders)."
 references: []
 out_of_scope: []
