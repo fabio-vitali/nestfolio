@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { mkdtempSync, writeFileSync, readFileSync, mkdirSync } from 'node:fs';
+import { mkdtempSync, writeFileSync, readFileSync, mkdirSync, existsSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { makeJournal, inMemoryJournal, e2eIsFresh, isPaused, pendingDecisions, fulfilledChoices, askStep, PAUSE } from '../lib/journal.mjs';
@@ -142,6 +142,27 @@ test('JP7 askStep recordWhen: a non-terminal answer (hold) is NOT recorded compl
   const c2 = await askStep({ journal: j, runId: 'item-x', decision: DEC, ask: holdAsk, recordWhen: rw });
   assert.equal(c2.value, 'hold'); assert.equal(asks, 2);
 });
+test('H1: a torn meta.json reads as FRESH and begin() heals it, preserving the steps ledger', async () => {
+  const root = freshRoot();
+  const j1 = makeJournal({ root }); j1.begin('item-t', meta('item-t'));
+  await j1.step('item-t', 'E1', async () => 'v1');
+  writeFileSync(join(root, 'journal', 'item-t', 'meta.json'), '{"runId": "item-t", TORN');  // torn write
+  const j2 = makeJournal({ root });
+  assert.equal(j2.read('item-t'), null);                       // torn meta → FRESH, not a crash
+  j2.begin('item-t', meta('item-t'));                          // heal
+  const ledger = j2.read('item-t');
+  assert.equal(ledger.meta.runId, 'item-t');
+  assert.equal(ledger.steps.get('E1').value, 'v1');            // ledger survived the heal
+});
+
+test('H2: writeMeta is atomic — no .tmp residue and valid JSON after begin()', () => {
+  const root = freshRoot();
+  makeJournal({ root }).begin('item-a', meta('item-a'));
+  const dir = join(root, 'journal', 'item-a');
+  assert.ok(!existsSync(join(dir, 'meta.json.tmp')));
+  assert.equal(JSON.parse(readFileSync(join(dir, 'meta.json'), 'utf8')).runId, 'item-a');
+});
+
 test('JP8 isPaused guards shape', () => {
   assert.equal(isPaused(PAUSED_RESULT), true);
   assert.equal(isPaused({ status: 'paused' }), false);

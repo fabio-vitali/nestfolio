@@ -3,7 +3,7 @@
 // makeJournal({root}) (persistent) + inMemoryJournal() (tests/headless). Resume = replay: a 'complete'
 // step short-circuits (fn NOT re-invoked); a torn tail line is dropped (crash-safe, generalizes F-11).
 import { execSync } from 'node:child_process';
-import { existsSync, mkdirSync, readFileSync, appendFileSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdirSync, readFileSync, appendFileSync, writeFileSync, renameSync } from 'node:fs';
 import { join } from 'node:path';
 import { validateStepRecord, validateRunMeta } from '../schema/journal.schema.ts';
 
@@ -70,8 +70,16 @@ export function makeJournal({ root = gitCommonDir() } = {}) {
   const metaPath = (runId) => join(runDir(runId), 'meta.json');
   const stepsPath = (runId) => join(runDir(runId), 'steps.ndjson');
   return makeBacking({
-    readMeta: (runId) => (existsSync(metaPath(runId)) ? JSON.parse(readFileSync(metaPath(runId), 'utf8')) : null),
-    writeMeta: (runId, meta) => { mkdirSync(runDir(runId), { recursive: true }); writeFileSync(metaPath(runId), JSON.stringify(meta, null, 2) + '\n'); },
+    readMeta: (runId) => {
+      if (!existsSync(metaPath(runId))) return null;
+      try { return JSON.parse(readFileSync(metaPath(runId), 'utf8')); }
+      catch { return null; }   // torn meta heals like the steps tail: treated as absent, begin() rewrites
+    },
+    writeMeta: (runId, meta) => {
+      mkdirSync(runDir(runId), { recursive: true });
+      writeFileSync(metaPath(runId) + '.tmp', JSON.stringify(meta, null, 2) + '\n');
+      renameSync(metaPath(runId) + '.tmp', metaPath(runId));   // atomic on POSIX
+    },
     readSteps: (runId) => (existsSync(stepsPath(runId)) ? parseSteps(readFileSync(stepsPath(runId), 'utf8')) : new Map()),
     appendStep: (runId, rec) => { mkdirSync(runDir(runId), { recursive: true }); appendFileSync(stepsPath(runId), JSON.stringify(rec) + '\n'); },
   });
