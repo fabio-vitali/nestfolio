@@ -1,16 +1,19 @@
 ---
 id: bef-judge-blind-to-subworktree-diff
-status: parking
+status: shipped
+closed: 2026-07-05
 type: bug
 epic: runtime-operationalization
 epic_role: core
+out_of_scope:
+  - "Authoring or modifying bef scenarios (incl. adding rubricGate to sub-worktree scenarios) — this fixes the judge's diff resolution only."
+  - "Broader judge scoring/prompt/rubric changes — only outcomeDiff and its stderr leak are in scope."
 notes: "bef judge.mjs reads the outcome diff from the sandbox ROOT, so it sees an EMPTY diff for fresh-sub-worktree scenarios (worker commits the ship on a worktree branch, sandbox-root HEAD stays on main). Harmless today (no rubricGate on such a scenario); latent if one is added. Captured under bef-deterministic-coverage-gaps for unified PR context; un-pointed back to a standalone parking orphan at that epic's close (2026-06-30) — confirmed orthogonal by the captured audit, matching the 2026-06-29 backlog-themes adjudication (no shared root cause with the other 2 riders)."
 references: []
-out_of_scope: []
 spec: null
 plan: null
 topic_memory: [project_backlog_eval_framework.md]
-validation_gate: null
+validation_gate: "Commit 5f009ebb on feat/epic-runtime-operationalization: outcomeDiff scans other local branches (freshest-first for-each-ref) for a delta vs origin/main before the HEAD~1/HEAD fallbacks; stderr piped so the HEAD~1 fatal no longer leaks. TDD: new test 'outcomeDiff sees a ship committed on a worker-created sub-worktree branch' observed RED (empty-diff assertion failure) then GREEN; root-checkout preference + pristine-sandbox-empty regression tests added. node --test scripts/benchmark-backlog/test/judge.test.mjs → 7/7; full bef suite → 70/70 pass."
 ---
 
 # bef LLM judge is blind to sub-worktree branch diffs
@@ -49,3 +52,21 @@ to such a scenario.
 Surfaced during `bef-finishing-stub-drive-to-ship` live verification (2026-06-27). Topic:
 [[project_backlog_eval_framework]]. Captured under [[backlog-eval-corpus-hardening]] — re-tested at the
 epic's captured audit.
+
+**Resolved 2026-07-05 (option a):** `outcomeDiff` now falls back to scanning the other local branches
+(worktree refs share the root ref store; freshest first via `for-each-ref --sort=-committerdate`) and
+diffs `origin/main...<branch>` before the `HEAD~1`/`HEAD` fallbacks — the judge sees a worker-created
+sub-worktree ship without any scenario-authoring rule. The pre-checked-out-branch path
+(`bne-e8-conflict-resolution`) is unchanged: the primary root diff still wins. `stdio` now pipes stderr,
+so the expected `HEAD~1` fatal on single-commit sandboxes no longer leaks into bef output.
+
+## Decision log
+
+<!-- append-only (F-6): entries are never edited or removed; a reversal is a NEW entry referencing the superseded one. Written by decision-log.mjs — do not hand-edit. -->
+
+### D1 — 2026-07-05
+- **Decision:** Fix approach for judge blindness to sub-worktree branch diffs
+- **Options:** (a) outcomeDiff detects worker-created branches (git for-each-ref) and diffs origin/main...<branch> | (b) document/assert the limitation so rubricGate is never added to sub-worktree scenarios
+- **Chosen:** (a) branch-aware outcomeDiff
+- **Rationale:** Most reusable/cleanly-abstracted: fixes the judge for ANY current or future sub-worktree scenario instead of constraining scenario authoring; blast-radius gate exit 0 (outcomeDiff is bef-internal, no shared surface).
+- **Rejected:** (b) is a documentation band-aid that leaves the latent gap and adds an authoring rule someone must remember.
