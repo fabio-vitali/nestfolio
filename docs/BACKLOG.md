@@ -6,32 +6,6 @@
 
 ## EPICS
 
-### [runtime-operationalization](backlog/runtime-operationalization.md) `[epic · active]` — Adopt/operationalize the Long-Horizon Engineering Runtime via the probes-first roadmap (re-scoped 2026-07-03): P1 probe the two unproven bets (execute seam, backward edge) → P2 moat live (mint/curate in anger, before enforcement triples) → P3 parity oracle + item schema → P4 check migration with cadence + CI golden gates → P5 work-driver strangler re-platform with soak gate → P6 user-triggered legacy retirement + operator surface. runtime-realization shipped the 3 library slices; THIS epic makes the runtime the project's live enforcement + work-driver, reversibly (docs/backlog stays the one item store — procedures migrate, never data).
-done_when: The runtime is the project's LIVE enforcement + work-driver, demonstrated not asserted: (1) enforcement — the gate fires diff-scoped on commit (shipped) AND every migrated check runs on a real cadence (commit gate / CI / schedule / epic-batch; judgment checks via a live judge binding), the ~34-surface migration into runtime/content/checks is complete, and the check golden gates run in CI; (2) the backward edge is live-in-anger — at least one real lesson minted through a real floor into a registered check, and curate-at-the-floor is the only sanctioned path past a failing guard (skip-hatch instrumented); (3) item.schema is reconciled with docs/backlog and validated on read; (4) the parity oracle is green — the regression harness grades the runtime loop against the legacy backlog skills on the same scenarios, plus a greenfield adoption e2e; (5) the work-driver is re-platformed — the backlog skills run on the engine loop with legacy fallback, soaked over ≥5 real workstreams with zero fallbacks; (6) the operator surface (view+executor) is shipped. Every core member shipped or dropped.
-rollup: core 6/12 done · captured 2/10 done
-- core · parking · [plan-next-computeimpact-object-references-crash](backlog/plan-next-computeimpact-object-references-crash.md)
-- core · parking · [runtime-check-goldengates-ci](backlog/runtime-check-goldengates-ci.md)
-- core · parking · [runtime-check-migration-completion](backlog/runtime-check-migration-completion.md)
-- core · parking · [runtime-operational-surface](backlog/runtime-operational-surface.md)
-- core · parking · [runtime-regression-harness](backlog/runtime-regression-harness.md)
-- core · parking · [runtime-work-driver-replatform](backlog/runtime-work-driver-replatform.md)
-- core · shipped · [bef-judge-blind-to-subworktree-diff](backlog/bef-judge-blind-to-subworktree-diff.md)
-- core · shipped · [runtime-backward-edge-live](backlog/runtime-backward-edge-live.md)
-- core · shipped · [runtime-item-schema-reconciliation](backlog/runtime-item-schema-reconciliation.md)
-- core · shipped · [runtime-make-it-fire](backlog/runtime-make-it-fire.md)
-- core · shipped · [runtime-redteam-hardening](backlog/runtime-redteam-hardening.md)
-- core · shipped · [runtime-seam-probe](backlog/runtime-seam-probe.md)
-- captured · parking · [bef-scenario-tags-reusable-suite](backlog/bef-scenario-tags-reusable-suite.md)
-- captured · parking · [benchmark-backlog-skill-cost-figures-stale](backlog/benchmark-backlog-skill-cost-figures-stale.md)
-- captured · parking · [decision-log-utc-date-stamp](backlog/decision-log-utc-date-stamp.md)
-- captured · parking · [gate-surfaced-source-debt](backlog/gate-surfaced-source-debt.md)
-- captured · parking · [runtime-gate-baseline-semantics](backlog/runtime-gate-baseline-semantics.md)
-- captured · parking · [runtime-guide-path-to-live-section-stale](backlog/runtime-guide-path-to-live-section-stale.md)
-- captured · parking · [runtime-typescript-port](backlog/runtime-typescript-port.md)
-- captured · parking · [worktree-missing-per-package-node-modules-symlink](backlog/worktree-missing-per-package-node-modules-symlink.md)
-- captured · shipped · [no-agent-result-fallback-check-overbroad](backlog/no-agent-result-fallback-check-overbroad.md)
-- captured · shipped · [runtime-design-redteam](backlog/runtime-design-redteam.md)
-
 ### [advisory-narrative-memory-read-latency](backlog/advisory-narrative-memory-read-latency.md) `[epic · parking]` — advisory-narrative-ctrl blocks on AgentCore Memory reads before writing its observable HEAD row → 30-40s integration tests. Theme epic, 2 members.
 done_when: advisory-narrative-ctrl's observable HEAD row is visible to tests in ~5-10s (eager write and/or tightened Memory-retry delays) with no dev/prod consistency skew; both members shipped or dropped.
 rollup: core 0/2 done · captured 0/0 done
@@ -180,6 +154,32 @@ rollup: core 0/2 done · captured 0/0 done
 - core · parking · [e2e-contract-emission-bytypename-helper-extract](backlog/e2e-contract-emission-bytypename-helper-extract.md)
 - core · parking · [generalise-appsync-iam-publisher-lib](backlog/generalise-appsync-iam-publisher-lib.md)
 
+### [runtime-operationalization](backlog/runtime-operationalization.md) `[epic · parking]` — Adopt/operationalize the Long-Horizon Engineering Runtime via the probes-first roadmap (re-scoped 2026-07-03): P1 probe the two unproven bets (execute seam, backward edge) → P2 moat live (mint/curate in anger, before enforcement triples) → P3 parity oracle + item schema → P4 check migration with cadence + CI golden gates → P5 work-driver strangler re-platform with soak gate → P6 user-triggered legacy retirement + operator surface. runtime-realization shipped the 3 library slices; THIS epic makes the runtime the project's live enforcement + work-driver, reversibly (docs/backlog stays the one item store — procedures migrate, never data).
+done_when: The runtime is the project's LIVE enforcement + work-driver, demonstrated not asserted: (1) enforcement — the gate fires diff-scoped on commit (shipped) AND every migrated check runs on a real cadence (commit gate / CI / schedule / epic-batch; judgment checks via a live judge binding), the ~34-surface migration into runtime/content/checks is complete, and the check golden gates run in CI; (2) the backward edge is live-in-anger — at least one real lesson minted through a real floor into a registered check, and curate-at-the-floor is the only sanctioned path past a failing guard (skip-hatch instrumented); (3) item.schema is reconciled with docs/backlog and validated on read; (4) the parity oracle is green — the regression harness grades the runtime loop against the legacy backlog skills on the same scenarios, plus a greenfield adoption e2e; (5) the work-driver is re-platformed — the backlog skills run on the engine loop with legacy fallback, soaked over ≥5 real workstreams with zero fallbacks; (6) the operator surface (view+executor) is shipped. Every core member shipped or dropped.
+rollup: core 6/12 done · captured 2/10 done
+- core · parking · [plan-next-computeimpact-object-references-crash](backlog/plan-next-computeimpact-object-references-crash.md)
+- core · parking · [runtime-check-goldengates-ci](backlog/runtime-check-goldengates-ci.md)
+- core · parking · [runtime-check-migration-completion](backlog/runtime-check-migration-completion.md)
+- core · parking · [runtime-operational-surface](backlog/runtime-operational-surface.md)
+- core · parking · [runtime-regression-harness](backlog/runtime-regression-harness.md)
+- core · parking · [runtime-work-driver-replatform](backlog/runtime-work-driver-replatform.md)
+- core · shipped · [bef-judge-blind-to-subworktree-diff](backlog/bef-judge-blind-to-subworktree-diff.md)
+- core · shipped · [runtime-backward-edge-live](backlog/runtime-backward-edge-live.md)
+- core · shipped · [runtime-item-schema-reconciliation](backlog/runtime-item-schema-reconciliation.md)
+- core · shipped · [runtime-make-it-fire](backlog/runtime-make-it-fire.md)
+- core · shipped · [runtime-redteam-hardening](backlog/runtime-redteam-hardening.md)
+- core · shipped · [runtime-seam-probe](backlog/runtime-seam-probe.md)
+- captured · parking · [bef-scenario-tags-reusable-suite](backlog/bef-scenario-tags-reusable-suite.md)
+- captured · parking · [benchmark-backlog-skill-cost-figures-stale](backlog/benchmark-backlog-skill-cost-figures-stale.md)
+- captured · parking · [decision-log-utc-date-stamp](backlog/decision-log-utc-date-stamp.md)
+- captured · parking · [gate-surfaced-source-debt](backlog/gate-surfaced-source-debt.md)
+- captured · parking · [runtime-gate-baseline-semantics](backlog/runtime-gate-baseline-semantics.md)
+- captured · parking · [runtime-guide-path-to-live-section-stale](backlog/runtime-guide-path-to-live-section-stale.md)
+- captured · parking · [runtime-typescript-port](backlog/runtime-typescript-port.md)
+- captured · parking · [worktree-missing-per-package-node-modules-symlink](backlog/worktree-missing-per-package-node-modules-symlink.md)
+- captured · shipped · [no-agent-result-fallback-check-overbroad](backlog/no-agent-result-fallback-check-overbroad.md)
+- captured · shipped · [runtime-design-redteam](backlog/runtime-design-redteam.md)
+
 ### [ssm-override-warm-cache-test-isolation](backlog/ssm-override-warm-cache-test-isolation.md) `[epic · parking]` — Warm-Lambda Parameters-and-Secrets SSM cache (+ override/restore state) defeats SsmOverrideFixture → real-API leak + resilience-trap misses. Theme epic, 2 members.
 done_when: A warm Lambda can no longer serve restored/real SSM param values mid-test (cache-bust or fixture-aware invalidation), so SsmOverrideFixture isolation holds; both members shipped or dropped.
 rollup: core 0/2 done · captured 0/0 done
@@ -221,7 +221,7 @@ rollup: core 0/3 done · captured 0/0 done
 - core · parking · [portfolio-drift-detected-registry-collision](backlog/portfolio-drift-detected-registry-collision.md)
 - core · parking · [weight-drift-detector](backlog/weight-drift-detector.md)
 
-**Parking health:** 29 theme epic(s), 8 orphan(s) — drive orphans → 0 with `/backlog-themes`
+**Parking health:** 30 theme epic(s), 8 orphan(s) — drive orphans → 0 with `/backlog-themes`
 
 ## ACTIVE
 
