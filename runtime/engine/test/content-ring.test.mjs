@@ -25,3 +25,10 @@ test('the content ring is fully clean under a real env (no meta-check findings a
   const findings = metaCheck({ registry: reg, env });
   assert.deepEqual(findings, [], `unexpected meta-check findings: ${JSON.stringify(findings, null, 2)}`);
 });
+
+test('no-states-runtime-catch scope matches its tool filters (services+libs+infrastructure .ts)', () => {
+  const reg = loadRegistry({ checksDir: CHECKS_DIR });
+  const c = reg.byId.get('no-states-runtime-catch');
+  assert.deepEqual(c.scope.paths.slice().sort(),
+    ['infrastructure/**/*.ts', 'libs/**/*.ts', 'services/**/*.ts']);
+});
