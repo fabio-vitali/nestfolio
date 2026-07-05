@@ -31,7 +31,7 @@ export async function runWorker({ item, capabilities, registry, locus = {}, auto
 
   const decision = { id: `ship-${item.id}`, question: `Ship item ${item.id}?`,
     options: [{ label: 'Ship', value: 'ship', recommended: true }, { label: 'Hold', value: 'hold' }],
-    context: item.done_when ?? item.done_criteria };
+    context: item.done_when };
   const choice = await askStep({ journal, runId, decision, ask, recordWhen: (c) => c.value === 'ship' });
   if (!choice) return { taskId: item.id, status: 'paused', summary: `awaiting floor: ${decision.id}`, decision };
   if (choice.value !== 'ship') return { taskId: item.id, status: 'paused', summary: `held: ${item.id} (re-asked next wake)`, decision };
