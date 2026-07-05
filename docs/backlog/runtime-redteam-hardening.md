@@ -1,17 +1,22 @@
 ---
 id: runtime-redteam-hardening
-status: queued
+status: shipped
+closed: 2026-07-05
 type: bug
-rank: 4
 epic: runtime-operationalization
 epic_role: core
 notes: "P2 mechanical hardening from the red-team's confirmed findings (see runtime-design-redteam): fail-closed registry errors in the gate, --diff-filter=ACMR, atomic+guarded meta.json, journal locking/single-writer, runnable registry-integrity CLI, single-active at-most-one + epic-aware semantics, starter-pack self-containment, cmd-attribution scope drift. All deterministic, no design ambiguity — each fix ships with a regression test."
 references: []
-out_of_scope: []
+out_of_scope:
+  - "Contract/design changes — the seam v1 re-freeze and journal keying redesign routed to runtime-seam-probe; ring-1 engine schemas stay frozen. This item is mechanical fixes + regression tests only."
+  - "The bulk check migration (P4), cadence wiring, and CI golden gates — sequenced AFTER this hardening; no new checks are migrated or authored here."
+  - "Net-new checks or lessons — those flow through the backward edge (mint) / backlog-add, not this workstream."
+  - "Backward-edge procedural mechanics beyond items 9-10's evidence teeth (mint/curate flows themselves shipped in runtime-backward-edge-live)."
+  - "Nestfolio-side tools referenced by starter checks (tools/*, .claude/skills/*) — item 7 makes the STARTER PACK self-contained; it does not rewrite those tools."
 spec: null
-plan: null
+plan: docs/superpowers/plans/2026-07-05-runtime-redteam-hardening.md
 topic_memory: [project_runtime_realization.md]
-validation_gate: null
+validation_gate: "11 TDD commits on feat/runtime-redteam-hardening (4c3636bf..f0cc00e7): all 10 redteam items fixed, each with regression tests. Suites green: runtime 279/279 (was 243), backlog-next 64/64, backlog-lint 69/69; nx run-many -t test,lint -p runtime green. Empirical CLI sweep on real repo all exit 0: meta-check (content + starter — was stub exit 2), scope-gate --single-active (law now ≤1 non-epic + ≤1 epic), references-valid + index-fresh starter evaluators. Fault-injection teeth proven: swapping curate-guard writes fails F-order/F-torn (was: passed all 369). Two real drifts caught by empirical gates and fixed in-task: git-pathspec :(glob) zero-match in resolveGlobs; references-valid over-enforcement on non-design/spec types. ship-recheck clean + gate-clean journaled @ f0cc00e7; mint consideration recorded (none, D5)."
 ---
 
 # Red-team hardening — the mechanical fixes
@@ -66,3 +71,31 @@ via AskUserQuestion (promote & run `--auto`).
 - **Chosen:** Promote & run --auto (USER decision via AskUserQuestion — parking refusal is a floor stop, not auto-resolvable)
 - **Rationale:** Trigger fired: sequenced with-or-right-after runtime-backward-edge-live, which shipped 2026-07-04 (5f46843e), before the bulk check migration triples enforcement. Epic runtime-operationalization is parked and drained via individual member PRs (precedent: make-it-fire, seam-probe, backward-edge-live), so standalone /backlog-next is the intended path.
 - **Rejected:** Promote only / leave parked — user explicitly chose to run now; deferring adds no information and the migration is sequenced behind this hardening.
+
+### D2 — 2026-07-04
+- **Decision:** Item 4 mechanism: journal concurrency control
+- **Options:** Per-step cross-process lock held across fn() | Per-runId writer lease (enforced single-writer rule)
+- **Chosen:** Per-runId writer lease: writer.json {pid,host,acquired_at} sidecar next to meta.json; writeMeta/appendStep assert ownership; dead-pid (same host) is taken over; live foreign pid or foreign host throws JournalWriterConflict. Read path takes no lease.
+- **Rationale:** The backlog enumerates both options. A lock held across fn() risks stale locks on crash and would deadlock same-runId nesting; the lease is deadlock-free, re-entrant by construction (pid-scoped), matches the enforced-single-writer wording literally, and short-lived CLI writers (gate, ship-recheck, run-backward) chain naturally via dead-pid takeover. blast-radius gate: exit 0 on makeJournal.
+- **Rejected:** Step-scoped locking — serializes long evaluator runs, stale-lock recovery needs the same pid-liveness machinery anyway, and adds a wait/retry loop for a race that single-writer semantics forbid outright.
+
+### D3 — 2026-07-04
+- **Decision:** Item 9 semantics: gate-clean sha-freshness teeth in postflight
+- **Options:** Warn when gate-clean.sha != merged branch tip (backlog example) | Fail when non-docs paths changed since gate-clean.sha (docs-allowlist diff); warn-only when sha is not an ancestor of HEAD
+- **Chosen:** Docs-allowlist diff teeth: git diff --name-only <gate-clean.sha>..HEAD must be within docs/backlog/** + docs/BACKLOG.md, else ship-gate-evidence FAILS; sha not an ancestor (squash-merge) degrades to a warning.
+- **Rationale:** The branch tip ALWAYS postdates gate-clean in the normal flow (6.5/6.6 ship+index docs commits land after the recheck), so naive tip-equality would false-fail every single run; the real property is no unadjudicated NON-DOCS commit after the recheck, which the allowlist diff captures precisely and deterministically. blast-radius gate: exit 0 on backwardEvidenceFailures.
+- **Rejected:** Naive tip equality (false positive by construction); hard-fail on unresolvable sha (squash-merge rewrites history — cannot adjudicate mechanically, so it degrades to a warning instead).
+
+### D4 — 2026-07-04
+- **Decision:** Item 7 approach: starter-pack self-containment
+- **Options:** Ship generic evaluators inside runtime/starter/evaluators/ | Have runtime init generate project-specific bindings
+- **Chosen:** Ship generic evaluators inside runtime/: 3 new self-contained CLIs (no-unsafe-casts scanner, references-valid, index-fresh) under runtime/starter/evaluators/, starter YAMLs re-pointed; the content ring keeps Nestfolio-specific bindings (tools/, .claude/skills/) legally.
+- **Rationale:** The backlog allows either. Shipping evaluators keeps runtime init a pure copy (no templating machinery), works day-0 on a greenfield repo, and preserves the starter/content ring split: starter = generic seed, content = project bindings. Generic index-fresh/references-valid properties are honest weaker forms of lint rules 7/3, stated as such in the YAML property text.
+- **Rejected:** init-generated bindings — needs templating plus per-project wiring before the checks are live, i.e. still dead on arrival at day 0, which is exactly the finding.
+
+### D5 — 2026-07-05
+- **Decision:** Backward-edge mint consideration at ship (6.4b)
+- **Options:** Record none | Mint git-pathspec-glob check | Mint a different lesson
+- **Chosen:** Record none (USER decision via AskUserQuestion — mint consideration is a floor stop)
+- **Rationale:** Every empirically-found drift got an in-tree regression/drift-pin test this session (self-containment, scope drift-pin, F-order/F-torn, sha teeth); the :(glob) pathspec trap is pinned where it bit (meta-check resolveGlobs) and is a coding-pattern trap, not a repo-state property — tests guard code behavior, checks guard repo state.
+- **Rejected:** Minting a git-pathspec-glob text-scan check — narrow heuristic that would false-flag legal single-* pathspecs; duplicates what the in-tree tests already pin.

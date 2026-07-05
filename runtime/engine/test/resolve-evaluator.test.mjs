@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { resolveEvaluator, eslintFiles } from '../lib/resolve-evaluator.mjs';
+import { resolveEvaluator, scopedStagedFiles } from '../lib/resolve-evaluator.mjs';
 import { EvaluatorUnresolved, JudgmentContractMissing } from '../lib/errors.mjs';
 import { validCheck, withTmpDir } from './_fixtures.mjs';
 import { writeFileSync } from 'node:fs';
@@ -62,22 +62,38 @@ test('a skill: check with an injected judge invokes it instead of throwing', asy
 });
 
 // SF1 — cmd: check receives RUNTIME_STAGED_PATHS from stagedFiles; undefined → env unset; [] → ''
+// (in-scope paths: since redteam item 8a the env carries staged∩scope — the narrowing test below pins that)
 test('a cmd: check receives RUNTIME_STAGED_PATHS from stagedFiles', () => withTmpDir((root) => {
   const script = join(root, 's.mjs');
   writeFileSync(script, 'process.stdout.write(process.env.RUNTIME_STAGED_PATHS ?? "<unset>"); process.exit(1);', 'utf8');
   const check = validCheck({ evaluator: { type: 'deterministic', run: `cmd:node ${script}` } });
-  const scoped = resolveEvaluator({ check, stagedFiles: ['libs/a/src/x.ts', 'libs/a/src/y.ts'] }).invoke();
-  assert.equal(scoped[0].evidence, 'libs/a/src/x.ts\nlibs/a/src/y.ts');
+  const scoped = resolveEvaluator({ check, stagedFiles: ['services/a/x.ts', 'services/a/y.ts'] }).invoke();
+  assert.equal(scoped[0].evidence, 'services/a/x.ts\nservices/a/y.ts');
   const audit = resolveEvaluator({ check }).invoke();
   assert.equal(audit[0].evidence, '<unset>');
   const empty = resolveEvaluator({ check, stagedFiles: [] }).invoke();
   assert.equal(empty[0].evidence, '');   // set-but-empty → '' (nothing staged), NOT <unset>
 }));
 
-// SF2 — eslintFiles: undefined → whole scope; list → staged∩scope; empty intersection → []
-test('eslintFiles narrows staged files to the check scope', () => {
+// SF2 — scopedStagedFiles: undefined → whole scope; list → staged∩scope; empty intersection → []
+test('scopedStagedFiles narrows staged files to the check scope', () => {
   const check = validCheck({ scope: { paths: ['libs/**/src/**/*.ts'] }, evaluator: { type: 'deterministic', run: 'eslint:@nx/enforce-module-boundaries' } });
-  assert.deepEqual(eslintFiles(check, undefined), ['libs/**/src/**/*.ts']);
-  assert.deepEqual(eslintFiles(check, ['libs/a/src/x.ts', 'services/b/src/y.ts']), ['libs/a/src/x.ts']);
-  assert.deepEqual(eslintFiles(check, []), []);
+  assert.deepEqual(scopedStagedFiles(check, undefined), ['libs/**/src/**/*.ts']);
+  assert.deepEqual(scopedStagedFiles(check, ['libs/a/src/x.ts', 'services/b/src/y.ts']), ['libs/a/src/x.ts']);
+  assert.deepEqual(scopedStagedFiles(check, []), []);
+});
+
+test('cmd: RUNTIME_STAGED_PATHS and attribution are staged ∩ scope, not the raw staged set', async () => {
+  const check = {
+    id: 'c1', property: 'p', kind: 'drift', cost_tier: 'cheap', contexts: ['gate'], status: 'active',
+    scope: { paths: ['services/**/*.ts'] },
+    evaluator: { type: 'deterministic',
+      run: 'cmd:node -e "console.error(process.env.RUNTIME_STAGED_PATHS); process.exit(1)"' },
+    provenance: { minted_by: 't', ratified: '2026-01-01' },
+  };
+  const { invoke } = resolveEvaluator({ check, stagedFiles: ['services/x/a.ts', 'docs/unrelated.md'] });
+  const [f] = await invoke();
+  assert.deepEqual(f.scope, ['services/x/a.ts']);            // attribution = intersection
+  assert.match(f.evidence, /services\/x\/a\.ts/);            // env carried the narrowed list
+  assert.ok(!f.evidence.includes('docs/unrelated.md'));      // out-of-scope path NOT passed
 });

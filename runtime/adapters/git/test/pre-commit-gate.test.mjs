@@ -1,5 +1,10 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
+import { spawnSync, execSync } from 'node:child_process';
+import { mkdtempSync, mkdirSync, writeFileSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
+import { fileURLToPath } from 'node:url';
 import { runPreCommitGate, shouldSkip, readStaged, formatBlockLines, journalSkip, CURATE_CMD } from '../pre-commit-gate.mjs';
 import { inMemoryJournal } from '../../../engine/lib/journal.mjs';
 
@@ -38,6 +43,13 @@ test('readStaged parses the name list, dropping blank lines', () => {
   assert.deepEqual(out, ['a.ts', 'services/x/b.ts']);
 });
 
+test('readStaged includes renames: --diff-filter=ACMR', () => {
+  let cmd;
+  const files = readStaged((c) => { cmd = c; return 'a.ts\nrenamed.ts\n'; });
+  assert.match(cmd, /--diff-filter=ACMR\b/);
+  assert.deepEqual(files, ['a.ts', 'renamed.ts']);
+});
+
 // SF — the gate passes stagedFiles into watch (for attribution), alongside changedScope (for selection)
 test('runPreCommitGate passes stagedFiles into watch', async () => {
   let seen;
@@ -57,6 +69,25 @@ test('SKIP1 journalSkip appends a skip record with sha+staged under gate-skips',
 test('SKIP2 a failing ledger append propagates (fail-closed: caller must NOT honor the skip)', () => {
   const broken = { begin() {}, record() { throw new Error('disk full'); } };
   assert.throws(() => journalSkip({ journal: broken, sha: 's', staged: [], ts: 't' }), /disk full/);
+});
+
+test('a corrupt check YAML blocks the commit fail-closed (exit 2, located error)', () => {
+  const dir = mkdtempSync(join(tmpdir(), 'gate-'));
+  execSync('git init -q . && git config user.email t@t && git config user.name t', { cwd: dir });
+  mkdirSync(join(dir, 'runtime'), { recursive: true });
+  mkdirSync(join(dir, 'checks'));
+  writeFileSync(join(dir, 'checks', 'bad.yaml'), 'id: [unclosed\n');
+  writeFileSync(join(dir, 'runtime', 'runtime.config.json'),
+    JSON.stringify({ checksDir: 'checks', triggersFile: 'triggers.yaml' }));
+  writeFileSync(join(dir, 'triggers.yaml'),
+    'triggers:\n  - on: commit\n    contexts: [invariant, gate]\n    cost_ceiling: cheap\n');
+  writeFileSync(join(dir, 'a.txt'), 'x');
+  execSync('git add a.txt', { cwd: dir });
+  const gate = fileURLToPath(new URL('../pre-commit-gate.mjs', import.meta.url));
+  const r = spawnSync('node', [gate], { cwd: dir, encoding: 'utf8' });
+  assert.equal(r.status, 2);
+  assert.match(r.stderr, /registry corrupt/i);
+  assert.match(r.stderr, /bad\.yaml/);
 });
 
 test('MSG1 block message names curate as the sanctioned path and demotes the skip hatch', () => {

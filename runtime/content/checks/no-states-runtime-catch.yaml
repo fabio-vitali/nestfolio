@@ -10,7 +10,9 @@ contexts:
   - gate
 scope:
   paths:
-    - services/**/src/**/*.ts
+    - services/**/*.ts
+    - libs/**/*.ts
+    - infrastructure/**/*.ts
   dossiers:
     - feedback_states_runtime_uncatchable.md
 status: active

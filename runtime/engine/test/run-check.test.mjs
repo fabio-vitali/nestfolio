@@ -20,9 +20,9 @@ test('runCheck forwards stagedFiles to the evaluator', async () => {
     const script = join(root, 's.mjs');
     writeFileSync(script, 'process.stdout.write(process.env.RUNTIME_STAGED_PATHS ?? "<unset>"); process.exit(1);', 'utf8');
     const check = validCheck({ contexts: ['invariant'], evaluator: { type: 'deterministic', run: `cmd:node ${script}` } });
-    const r = await runCheck({ check, context: 'invariant', stagedFiles: ['libs/a/src/x.ts'] });
+    const r = await runCheck({ check, context: 'invariant', stagedFiles: ['services/a/x.ts'] });   // in-scope (8a: env = staged∩scope)
     assert.equal(r.ran, true);
-    assert.equal(r.findings[0].evidence, 'libs/a/src/x.ts');
+    assert.equal(r.findings[0].evidence, 'services/a/x.ts');
   } finally { rmSync(root, { recursive: true, force: true }); }
 });
 

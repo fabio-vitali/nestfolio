@@ -75,6 +75,20 @@ export function backwardEvidenceFailures({ backwardLedger, skipsLedger, id, snap
   return { failures, warnings };
 }
 
+/** Item-9 teeth (redteam 2026-07-04): the only sanctioned commits AFTER a green ship-recheck are the
+ * 6.5/6.6 docs tail. A non-docs path in <gate-clean.sha>..HEAD is an unadjudicated code commit.
+ * filesSinceClean == null ⇒ the sha is not an ancestor of HEAD (squash-merge) — warn, cannot adjudicate. */
+const SANCTIONED_POST_RECHECK = [/^docs\/backlog\//, /^docs\/BACKLOG\.md$/];
+export function gateCleanFreshness({ cleanValue, filesSinceClean }) {
+  if (filesSinceClean == null) return { failures: [], warnings: [
+    `gate-clean sha ${cleanValue?.sha ?? '(missing)'} is not an ancestor of HEAD — cannot adjudicate post-recheck commits (squash-merge?); verify the branch delta manually.`] };
+  const code = filesSinceClean.filter((f) => !SANCTIONED_POST_RECHECK.some((rx) => rx.test(f)));
+  if (!code.length) return { failures: [], warnings: [] };
+  return { failures: [{ rule: 'ship-gate-evidence',
+    message: `${code.length} non-docs path(s) changed after the last gate-clean (${cleanValue.sha}) — unadjudicated code commits; re-run ship-recheck.`,
+    detail: code.join('\n') }], warnings: [] };
+}
+
 /** Resolve REPO_ROOT for the CURRENT working tree, robust to a DEAD cwd. `--show-toplevel`
  * is the right answer per-context — the WORKTREE root for an epic-member run (whose shipped
  * frontmatter + tree live on the branch) and MAIN for the complex close (run from $MAIN after
@@ -226,10 +240,24 @@ function main() {
   if (args.id && (lane === 'simple' || lane === 'complex')) {
     try {
       const journal = makeJournal({ root: gitCommonDirAbs });
-      const r = backwardEvidenceFailures({ backwardLedger: journal.read('backward'),
+      const backwardLedger = journal.read('backward');
+      const r = backwardEvidenceFailures({ backwardLedger,
         skipsLedger: journal.read('gate-skips'), id: args.id, snapshotTimestamp: snapshot.timestamp });
       failures.push(...r.failures);
       warnings.push(...r.warnings);
+
+      // Item-9 sha teeth: a fresh gate-clean must also be the LAST adjudicated code state — only the
+      // sanctioned docs tail may follow it (catches --no-verify code commits made after the recheck).
+      const clean = backwardLedger?.steps?.get(`ship:${args.id}:gate-clean`);
+      if (clean?.status === 'complete' && clean.value?.sha) {
+        const ancestor = shSafe(`git merge-base --is-ancestor ${clean.value.sha} HEAD`);
+        const filesSinceClean = ancestor.ok
+          ? shSafe(`git diff --name-only ${clean.value.sha}..HEAD`).out.split('\n').filter(Boolean)
+          : null;
+        const fr = gateCleanFreshness({ cleanValue: clean.value, filesSinceClean });
+        failures.push(...fr.failures);
+        warnings.push(...fr.warnings);
+      }
     } catch (e) {
       failures.push({ rule: 'ship-gate-evidence', message: `could not read the backward journal: ${e.message}` });
     }

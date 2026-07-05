@@ -5,7 +5,7 @@
 import { fileURLToPath } from 'node:url';
 import { readFileSync } from 'node:fs';
 import { execSync } from 'node:child_process';
-import { loadRegistry } from '../../engine/lib/load-registry.mjs';
+import { loadRegistry, registryErrorLines } from '../../engine/lib/load-registry.mjs';
 import { runWatch, loadTriggers } from '../../engine/lib/run-watch.mjs';
 import { makeJournal, gitHeadSha } from '../../engine/lib/journal.mjs';
 
@@ -19,7 +19,7 @@ export async function runPreCommitGate({ stagedFiles, registry, trigger, watch =
 export function shouldSkip(env) { return Boolean(env.RUNTIME_GATE_SKIP); }
 
 export function readStaged(exec = (c) => execSync(c, { encoding: 'utf8' })) {
-  return exec('git diff --cached --name-only --diff-filter=ACM').split('\n').filter(Boolean);
+  return exec('git diff --cached --name-only --diff-filter=ACMR').split('\n').filter(Boolean);
 }
 
 export const CURATE_CMD = (check) =>
@@ -57,6 +57,12 @@ async function main() {
     }
     const cfg = JSON.parse(readFileSync('runtime/runtime.config.json', 'utf8'));
     const registry = loadRegistry({ checksDir: cfg.checksDir });
+    const errLines = registryErrorLines(registry);
+    if (errLines) {
+      console.error('runtime gate: check registry corrupt — blocking commit (fail-closed):');
+      for (const line of errLines) console.error(line);
+      process.exit(2);
+    }
     const trigger = loadTriggers(cfg.triggersFile).find((t) => t.on === 'commit');
     if (!trigger) { console.error('runtime gate: no "commit" trigger in triggers.yaml'); process.exit(2); }
     const { exitCode, findings } = await runPreCommitGate({ stagedFiles: readStaged(), registry, trigger });

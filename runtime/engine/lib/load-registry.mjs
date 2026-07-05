@@ -26,6 +26,12 @@ export function loadRegistry({ checksDir }) {
   return { checks, byId, errors };
 }
 
+/** Fail-closed helper for enforcement mains: located error lines, or null when the registry is clean. */
+export function registryErrorLines(registry) {
+  if (!registry.errors.length) return null;
+  return registry.errors.map((e) => `  ✖ registry: ${e.file}: ${e.error}`);
+}
+
 function main() {
   const dirArg = process.argv.indexOf('--checks-dir');
   const checksDir = dirArg >= 0 ? process.argv[dirArg + 1] : undefined;

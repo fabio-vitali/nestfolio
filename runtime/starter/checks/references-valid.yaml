@@ -1,7 +1,7 @@
 id: references-valid
-property: "every item's references path and #anchor resolves (lint rule 3)"
+property: "every design/spec item's references entry (path#anchor string) resolves to an existing path and heading"
 kind: staleness
-evaluator: { type: deterministic, run: "cmd:node .claude/skills/backlog-lint/lint.mjs" }
+evaluator: { type: deterministic, run: "cmd:node runtime/starter/evaluators/references-valid.mjs" }
 cost_tier: cheap
 contexts: [gate]
 scope: { paths: ["docs/backlog/*.md"] }

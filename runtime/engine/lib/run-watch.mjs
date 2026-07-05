@@ -5,7 +5,7 @@
 import { fileURLToPath } from 'node:url';
 import { readFileSync } from 'node:fs';
 import yaml from 'yaml';
-import { loadRegistry } from './load-registry.mjs';
+import { loadRegistry, registryErrorLines } from './load-registry.mjs';
 import { findByScope } from './find-by-scope.mjs';
 import { runCheck } from './run-check.mjs';
 
@@ -48,6 +48,12 @@ async function main() {
   if (!args.on) { console.error('usage: run-watch.mjs --on=<trigger> [--changed=glob,glob]'); process.exit(2); }
   const cfg = JSON.parse(readFileSync('runtime/runtime.config.json', 'utf8'));
   const registry = loadRegistry({ checksDir: cfg.checksDir });
+  const errLines = registryErrorLines(registry);
+  if (errLines) {
+    console.error('run-watch: check registry corrupt (fail-closed):');
+    for (const line of errLines) console.error(line);
+    process.exit(2);
+  }
   const trigger = loadTriggers(cfg.triggersFile).find((t) => t.on === args.on);
   if (!trigger) { console.error(`unknown trigger: ${args.on}`); process.exit(2); }
   const findings = await runWatch({ registry, trigger, changedScope: args.changed ? args.changed.split(',') : ['**/*'] });

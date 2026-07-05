@@ -1,8 +1,8 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { existsSync, readFileSync } from 'node:fs';
+import { existsSync, readFileSync, writeFileSync, mkdirSync } from 'node:fs';
 import { join } from 'node:path';
-import { parse } from 'yaml';
+import { parse, stringify } from 'yaml';
 import { curateGuard } from '../lib/curate-guard.mjs';
 import { inMemoryJournal } from '../lib/capabilities.mjs';
 import { withTmpContent, writeDossier, validCheck } from './_fixtures.mjs';
@@ -122,4 +122,43 @@ test('SUCC3 missing eval_scenario → refused (a successor without a scenario is
     const r = await curateGuard({ guard: activeGuard(), trigger: 'ship-gate', transition: 'supersede',
       successor: noScenario, floorApproval: true, rationale: 'narrow', checksDir, dossierRoot: lessonsDir, scenariosDir });
     assert.equal(r.event, 'REFUSED_INVALID_SUCCESSOR');
+  }));
+
+// Item-10 fault-injection teeth (redteam 2026-07-04): the floor-decided write ORDER (successor first,
+// guard LAST as commit point) had zero coverage — swapping the two writes passed every test.
+test('F-order: the guard YAML is the LAST write (commit point) — successor lands first', () =>
+  withTmpContent(async ({ checksDir, lessonsDir, scenariosDir }) => {
+    seed(lessonsDir);
+    const seq = [];
+    const persist = { mkdir: () => {}, write: (path) => seq.push(path) };
+    await curateGuard({ guard: activeGuard(), trigger: 'ship-gate', transition: 'supersede',
+      successor: successorDraft(), floorApproval: true, rationale: 'narrow',
+      checksDir, dossierRoot: lessonsDir, scenariosDir, persist });
+    assert.equal(seq.length, 2);
+    assert.match(seq[0], /no-ddb-scan-v2\.yaml$/);      // successor FIRST
+    assert.match(seq[1], /(?<!-v2)no-ddb-scan\.yaml$/); // guard write LAST — swapping the lines fails here
+  }));
+
+test('F-torn: a crash on the guard write leaves the guard ACTIVE on disk; the retry converges', () =>
+  withTmpContent(async ({ checksDir, lessonsDir, scenariosDir }) => {
+    seed(lessonsDir);
+    writeFileSync(join(checksDir, 'no-ddb-scan.yaml'), stringify(activeGuard()), 'utf8');   // pre-existing ACTIVE guard
+    const journal = inMemoryJournal();
+    const guard = activeGuard();
+    let calls = 0;
+    const torn = { mkdir: mkdirSync, write: (p, body) => {
+      if (++calls === 2) throw new Error('disk full');   // successor landed, guard write crashes
+      writeFileSync(p, body);
+    } };
+    await assert.rejects(() => curateGuard({ guard, trigger: 'ship-gate', transition: 'supersede',
+      successor: successorDraft(), floorApproval: true, rationale: 'narrow',
+      journal, checksDir, dossierRoot: lessonsDir, scenariosDir, persist: torn }));
+    const onDisk = parse(readFileSync(join(checksDir, 'no-ddb-scan.yaml'), 'utf8'));
+    assert.equal(onDisk.status, 'active');                                   // guard NOT superseded on disk
+    assert.equal(journal.read('backward'), null);                            // nothing journaled (step fn threw)
+    const r = await curateGuard({ guard, trigger: 'ship-gate', transition: 'supersede',   // retry, default persist
+      successor: successorDraft(), floorApproval: true, rationale: 'narrow',
+      journal, checksDir, dossierRoot: lessonsDir, scenariosDir });
+    assert.equal(r.decision.transition, 'supersede');
+    assert.equal(parse(readFileSync(join(checksDir, 'no-ddb-scan.yaml'), 'utf8')).status, 'superseded');
   }));

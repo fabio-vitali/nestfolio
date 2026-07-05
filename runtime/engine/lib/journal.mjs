@@ -3,9 +3,11 @@
 // makeJournal({root}) (persistent) + inMemoryJournal() (tests/headless). Resume = replay: a 'complete'
 // step short-circuits (fn NOT re-invoked); a torn tail line is dropped (crash-safe, generalizes F-11).
 import { execSync } from 'node:child_process';
-import { existsSync, mkdirSync, readFileSync, appendFileSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdirSync, readFileSync, appendFileSync, writeFileSync, renameSync } from 'node:fs';
+import { hostname } from 'node:os';
 import { join } from 'node:path';
 import { validateStepRecord, validateRunMeta } from '../schema/journal.schema.ts';
+import { JournalWriterConflict } from './errors.mjs';
 
 const isoNow = () => new Date().toISOString();
 
@@ -65,15 +67,39 @@ function makeBacking({ readMeta, writeMeta, readSteps, appendStep }) {
 }
 
 /** Git-native persistent journal. root defaults to <git-common-dir>; tests pass a temp root. */
-export function makeJournal({ root = gitCommonDir() } = {}) {
+export function makeJournal({ root = gitCommonDir(), lease } = {}) {
+  const me = { pid: process.pid, host: hostname(),
+    alive: (pid) => { try { process.kill(pid, 0); return true; } catch { return false; } }, ...lease };
   const runDir = (runId) => join(root, 'journal', runId);
   const metaPath = (runId) => join(runDir(runId), 'meta.json');
   const stepsPath = (runId) => join(runDir(runId), 'steps.ndjson');
+  const leasePath = (runId) => join(runDir(runId), 'writer.json');
+  // §5 single-writer per runId: the root is shared across worktrees, so every MUTATION asserts the
+  // lease. Dead same-host holders are taken over (short-lived CLI writers chain); a live foreign pid
+  // or any foreign host (liveness unverifiable) throws. Reads are lease-free.
+  const acquireLease = (runId) => {
+    mkdirSync(runDir(runId), { recursive: true });
+    if (existsSync(leasePath(runId))) {
+      let holder = null;
+      try { holder = JSON.parse(readFileSync(leasePath(runId), 'utf8')); } catch { holder = null; } // torn → reclaim
+      if (holder && holder.pid === me.pid && holder.host === me.host) return;
+      if (holder && (holder.host !== me.host || me.alive(holder.pid))) throw new JournalWriterConflict(runId, holder);
+    }
+    writeFileSync(leasePath(runId), JSON.stringify({ pid: me.pid, host: me.host, acquired_at: isoNow() }, null, 2) + '\n');
+  };
   return makeBacking({
-    readMeta: (runId) => (existsSync(metaPath(runId)) ? JSON.parse(readFileSync(metaPath(runId), 'utf8')) : null),
-    writeMeta: (runId, meta) => { mkdirSync(runDir(runId), { recursive: true }); writeFileSync(metaPath(runId), JSON.stringify(meta, null, 2) + '\n'); },
+    readMeta: (runId) => {
+      if (!existsSync(metaPath(runId))) return null;
+      try { return JSON.parse(readFileSync(metaPath(runId), 'utf8')); }
+      catch { return null; }   // torn meta heals like the steps tail: treated as absent, begin() rewrites
+    },
+    writeMeta: (runId, meta) => {
+      acquireLease(runId);
+      writeFileSync(metaPath(runId) + '.tmp', JSON.stringify(meta, null, 2) + '\n');
+      renameSync(metaPath(runId) + '.tmp', metaPath(runId));   // atomic on POSIX
+    },
     readSteps: (runId) => (existsSync(stepsPath(runId)) ? parseSteps(readFileSync(stepsPath(runId), 'utf8')) : new Map()),
-    appendStep: (runId, rec) => { mkdirSync(runDir(runId), { recursive: true }); appendFileSync(stepsPath(runId), JSON.stringify(rec) + '\n'); },
+    appendStep: (runId, rec) => { acquireLease(runId); appendFileSync(stepsPath(runId), JSON.stringify(rec) + '\n'); },
   });
 }
 

@@ -1,7 +1,7 @@
 id: no-unsafe-casts
 property: "no `as any` / `as unknown as` / eslint-disable in production source"
 kind: drift
-evaluator: { type: deterministic, run: "cmd:node tools/check-no-unsafe-casts.mjs" }
+evaluator: { type: deterministic, run: "cmd:node runtime/starter/evaluators/no-unsafe-casts.mjs" }
 cost_tier: cheap
 contexts: [invariant, gate]
 scope: { paths: ["services/**/*.ts", "libs/**/*.ts"] }
