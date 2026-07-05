@@ -1,6 +1,7 @@
 ---
 id: bef-judge-blind-to-subworktree-diff
-status: active
+status: shipped
+closed: 2026-07-05
 type: bug
 epic: runtime-operationalization
 epic_role: core
@@ -12,7 +13,7 @@ references: []
 spec: null
 plan: null
 topic_memory: [project_backlog_eval_framework.md]
-validation_gate: null
+validation_gate: "Commit 5f009ebb on feat/epic-runtime-operationalization: outcomeDiff scans other local branches (freshest-first for-each-ref) for a delta vs origin/main before the HEAD~1/HEAD fallbacks; stderr piped so the HEAD~1 fatal no longer leaks. TDD: new test 'outcomeDiff sees a ship committed on a worker-created sub-worktree branch' observed RED (empty-diff assertion failure) then GREEN; root-checkout preference + pristine-sandbox-empty regression tests added. node --test scripts/benchmark-backlog/test/judge.test.mjs → 7/7; full bef suite → 70/70 pass."
 ---
 
 # bef LLM judge is blind to sub-worktree branch diffs
@@ -51,6 +52,13 @@ to such a scenario.
 Surfaced during `bef-finishing-stub-drive-to-ship` live verification (2026-06-27). Topic:
 [[project_backlog_eval_framework]]. Captured under [[backlog-eval-corpus-hardening]] — re-tested at the
 epic's captured audit.
+
+**Resolved 2026-07-05 (option a):** `outcomeDiff` now falls back to scanning the other local branches
+(worktree refs share the root ref store; freshest first via `for-each-ref --sort=-committerdate`) and
+diffs `origin/main...<branch>` before the `HEAD~1`/`HEAD` fallbacks — the judge sees a worker-created
+sub-worktree ship without any scenario-authoring rule. The pre-checked-out-branch path
+(`bne-e8-conflict-resolution`) is unchanged: the primary root diff still wins. `stdio` now pipes stderr,
+so the expected `HEAD~1` fatal on single-commit sandboxes no longer leaks into bef output.
 
 ## Decision log
 
