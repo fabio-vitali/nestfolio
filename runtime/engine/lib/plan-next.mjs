@@ -21,10 +21,14 @@ function rankedQueued(backlog) {
     .sort((a, b) => (a.rank ?? Infinity) - (b.rank ?? Infinity) || a.id.localeCompare(b.id));
 }
 
+// The store carries two citation forms (item.schema.ts references union): "path#anchor" strings and
+// {path, anchor?} objects. Object anchors are line anchors, not headings, so only the path is comparable.
+const refPath = (r) => (typeof r === 'string' ? r : r.path);
+
 export function computeImpact({ item, backlog, blastOf, refResolves = () => true }) {
-  const blocks = backlog.filter((i) => (i.references ?? []).some((r) => r.includes(item.id))).length;
+  const blocks = backlog.filter((i) => (i.references ?? []).some((r) => refPath(r).includes(item.id))).length;
   const blast = blastOf ? blastOf(toGlobs(item.scope)) : 0;
-  const freshness = (item.references ?? []).every((r) => refResolves(r)) ? 'fresh' : 'stale';
+  const freshness = (item.references ?? []).every((r) => refResolves(refPath(r))) ? 'fresh' : 'stale';
   const epicPull = item.epic ? backlog.filter((i) => i.epic === item.epic && (i.epic_role ?? 'core') === 'core' && i.id !== item.id && OPEN.has(i.status)).length : 0;
   return { blocks, blast, freshness, epicPull };
 }
