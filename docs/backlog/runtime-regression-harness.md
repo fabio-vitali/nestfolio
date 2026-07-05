@@ -1,6 +1,7 @@
 ---
 id: runtime-regression-harness
-status: parking
+status: queued
+rank: 0
 type: tooling
 epic: runtime-operationalization
 epic_role: core
@@ -31,6 +32,19 @@ more**. Re-scoped as the migration's parity oracle, with four deliverables:
   one scenario. Doubles as the portability/cold-start proof.
 
 Build these reusing the now-live `defineSuite` seam (`scripts/benchmark-backlog/suite.mjs`) — the whole point
-of the SPEC 3 H1 rewire — and the `sandbox.mjs`/`grade.mjs`/`judge.mjs` patterns. Depends on
-`runtime-seam-probe` (a real loop to eval) and `runtime-backward-edge-live` (mint/curate for scenario (d)).
+of the SPEC 3 H1 rewire — and the `sandbox.mjs`/`grade.mjs`/`judge.mjs` patterns. Both former dependencies
+have shipped, so the parking trigger fired and the item was promoted 2026-07-05: `runtime-seam-probe`
+(shipped — provides the real loop to eval) and `runtime-backward-edge-live` (shipped 2026-07-04 — provides
+mint/curate for scenario (d)).
 Headless real-LLM runs cost quota — front-load heavy calibration runs where quota allows.
+
+## Decision log
+
+<!-- append-only (F-6): entries are never edited or removed; a reversal is a NEW entry referencing the superseded one. Written by decision-log.mjs — do not hand-edit. -->
+
+### D1 — 2026-07-05
+- **Decision:** Named item runtime-regression-harness was status: parking — promote and proceed, or stop?
+- **Options:** Promote to queued rank 0 and proceed in this run | Promote but stop | Leave parked
+- **Chosen:** Promote to queued rank 0 and proceed in this run
+- **Rationale:** User-approved via AskUserQuestion (parking refusal is never auto-resolved). Both dependencies (runtime-seam-probe, runtime-backward-edge-live) are shipped, so the parking trigger fired; the runtime-realization dossier marks the parity oracle as the next P3 item.
+- **Rejected:** Stopping or leaving parked would idle the epic drain despite satisfied dependencies.
