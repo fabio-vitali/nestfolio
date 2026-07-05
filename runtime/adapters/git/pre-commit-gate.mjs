@@ -19,7 +19,7 @@ export async function runPreCommitGate({ stagedFiles, registry, trigger, watch =
 export function shouldSkip(env) { return Boolean(env.RUNTIME_GATE_SKIP); }
 
 export function readStaged(exec = (c) => execSync(c, { encoding: 'utf8' })) {
-  return exec('git diff --cached --name-only --diff-filter=ACM').split('\n').filter(Boolean);
+  return exec('git diff --cached --name-only --diff-filter=ACMR').split('\n').filter(Boolean);
 }
 
 export const CURATE_CMD = (check) =>

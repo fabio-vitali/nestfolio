@@ -43,6 +43,13 @@ test('readStaged parses the name list, dropping blank lines', () => {
   assert.deepEqual(out, ['a.ts', 'services/x/b.ts']);
 });
 
+test('readStaged includes renames: --diff-filter=ACMR', () => {
+  let cmd;
+  const files = readStaged((c) => { cmd = c; return 'a.ts\nrenamed.ts\n'; });
+  assert.match(cmd, /--diff-filter=ACMR\b/);
+  assert.deepEqual(files, ['a.ts', 'renamed.ts']);
+});
+
 // SF — the gate passes stagedFiles into watch (for attribution), alongside changedScope (for selection)
 test('runPreCommitGate passes stagedFiles into watch', async () => {
   let seen;
