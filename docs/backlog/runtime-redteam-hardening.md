@@ -1,6 +1,7 @@
 ---
 id: runtime-redteam-hardening
-status: active
+status: shipped
+closed: 2026-07-05
 type: bug
 epic: runtime-operationalization
 epic_role: core
@@ -15,7 +16,7 @@ out_of_scope:
 spec: null
 plan: docs/superpowers/plans/2026-07-05-runtime-redteam-hardening.md
 topic_memory: [project_runtime_realization.md]
-validation_gate: null
+validation_gate: "11 TDD commits on feat/runtime-redteam-hardening (4c3636bf..f0cc00e7): all 10 redteam items fixed, each with regression tests. Suites green: runtime 279/279 (was 243), backlog-next 64/64, backlog-lint 69/69; nx run-many -t test,lint -p runtime green. Empirical CLI sweep on real repo all exit 0: meta-check (content + starter — was stub exit 2), scope-gate --single-active (law now ≤1 non-epic + ≤1 epic), references-valid + index-fresh starter evaluators. Fault-injection teeth proven: swapping curate-guard writes fails F-order/F-torn (was: passed all 369). Two real drifts caught by empirical gates and fixed in-task: git-pathspec :(glob) zero-match in resolveGlobs; references-valid over-enforcement on non-design/spec types. ship-recheck clean + gate-clean journaled @ f0cc00e7; mint consideration recorded (none, D5)."
 ---
 
 # Red-team hardening — the mechanical fixes
@@ -91,3 +92,10 @@ via AskUserQuestion (promote & run `--auto`).
 - **Chosen:** Ship generic evaluators inside runtime/: 3 new self-contained CLIs (no-unsafe-casts scanner, references-valid, index-fresh) under runtime/starter/evaluators/, starter YAMLs re-pointed; the content ring keeps Nestfolio-specific bindings (tools/, .claude/skills/) legally.
 - **Rationale:** The backlog allows either. Shipping evaluators keeps runtime init a pure copy (no templating machinery), works day-0 on a greenfield repo, and preserves the starter/content ring split: starter = generic seed, content = project bindings. Generic index-fresh/references-valid properties are honest weaker forms of lint rules 7/3, stated as such in the YAML property text.
 - **Rejected:** init-generated bindings — needs templating plus per-project wiring before the checks are live, i.e. still dead on arrival at day 0, which is exactly the finding.
+
+### D5 — 2026-07-05
+- **Decision:** Backward-edge mint consideration at ship (6.4b)
+- **Options:** Record none | Mint git-pathspec-glob check | Mint a different lesson
+- **Chosen:** Record none (USER decision via AskUserQuestion — mint consideration is a floor stop)
+- **Rationale:** Every empirically-found drift got an in-tree regression/drift-pin test this session (self-containment, scope drift-pin, F-order/F-torn, sha teeth); the :(glob) pathspec trap is pinned where it bit (meta-check resolveGlobs) and is a coding-pattern trap, not a repo-state property — tests guard code behavior, checks guard repo state.
+- **Rejected:** Minting a git-pathspec-glob text-scan check — narrow heuristic that would false-flag legal single-* pathspecs; duplicates what the in-tree tests already pin.
