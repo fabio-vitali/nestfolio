@@ -8,3 +8,9 @@ export class JudgmentContractMissing extends Error {
 export class JudgeCapabilityUnavailable extends Error {
   constructor(run) { super(`skill judge capability is not wired in ring-1 (SPEC 3 seam #1): ${run}`); this.name = 'JudgeCapabilityUnavailable'; }
 }
+export class JournalWriterConflict extends Error {
+  constructor(runId, holder) {
+    super(`journal runId "${runId}" is held by a live writer (pid ${holder?.pid}@${holder?.host}) — single-writer rule (§5)`);
+    this.name = 'JournalWriterConflict'; this.holder = holder;
+  }
+}

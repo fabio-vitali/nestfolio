@@ -4,6 +4,7 @@ import { mkdtempSync, writeFileSync, readFileSync, mkdirSync, existsSync } from 
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { makeJournal, inMemoryJournal, e2eIsFresh, isPaused, pendingDecisions, fulfilledChoices, askStep, PAUSE } from '../lib/journal.mjs';
+import { JournalWriterConflict } from '../lib/errors.mjs';
 
 const freshRoot = () => mkdtempSync(join(tmpdir(), 'jrnl-'));
 const meta = (runId) => ({ runId, branch: 'feat/x', worktree: '.wt/x', auto: false });
@@ -167,4 +168,53 @@ test('JP8 isPaused guards shape', () => {
   assert.equal(isPaused(PAUSED_RESULT), true);
   assert.equal(isPaused({ status: 'paused' }), false);
   assert.equal(isPaused({ status: 'done', summary: 'x' }), false);
+});
+
+test('W1: a live foreign same-host writer → JournalWriterConflict on append (single-writer per runId)', async () => {
+  const root = freshRoot();
+  mkdirSync(join(root, 'journal', 'item-w'), { recursive: true });
+  writeFileSync(join(root, 'journal', 'item-w', 'writer.json'),
+    JSON.stringify({ pid: 4242, host: 'h1', acquired_at: 't' }));
+  const j = makeJournal({ root, lease: { pid: 1, host: 'h1', alive: () => true } });
+  await assert.rejects(
+    () => j.step('item-w', 'E1', async () => 'x'),
+    (e) => e instanceof JournalWriterConflict && e.holder.pid === 4242);
+});
+
+test('W2: a DEAD same-host holder is taken over; lease now records the new writer', async () => {
+  const root = freshRoot();
+  mkdirSync(join(root, 'journal', 'item-w'), { recursive: true });
+  writeFileSync(join(root, 'journal', 'item-w', 'writer.json'),
+    JSON.stringify({ pid: 4242, host: 'h1', acquired_at: 't' }));
+  const j = makeJournal({ root, lease: { pid: 7, host: 'h1', alive: () => false } });
+  j.begin('item-w', meta('item-w'));
+  assert.equal(await j.step('item-w', 'E1', async () => 'x'), 'x');
+  assert.equal(JSON.parse(readFileSync(join(root, 'journal', 'item-w', 'writer.json'), 'utf8')).pid, 7);
+});
+
+test('W3: a FOREIGN-host holder is never taken over (liveness unverifiable — fail closed)', () => {
+  const root = freshRoot();
+  mkdirSync(join(root, 'journal', 'item-w'), { recursive: true });
+  writeFileSync(join(root, 'journal', 'item-w', 'writer.json'),
+    JSON.stringify({ pid: 4242, host: 'other-host', acquired_at: 't' }));
+  const j = makeJournal({ root, lease: { pid: 7, host: 'h1', alive: () => false } });
+  assert.throws(() => j.begin('item-w', meta('item-w')), JournalWriterConflict);
+});
+
+test('W4: same-pid re-acquire is a no-op; the READ path never takes the lease', () => {
+  const root = freshRoot();
+  const j = makeJournal({ root, lease: { pid: 7, host: 'h1', alive: () => true } });
+  j.begin('item-r', meta('item-r'));
+  j.record('item-r', 'k', { ok: true });                        // same writer, twice — fine
+  const reader = makeJournal({ root, lease: { pid: 999, host: 'h1', alive: () => true } });
+  assert.equal(reader.read('item-r').steps.get('k').value.ok, true);  // foreign reader: no throw
+});
+
+test('W5: a torn writer.json is reclaimed, not a crash', () => {
+  const root = freshRoot();
+  mkdirSync(join(root, 'journal', 'item-w'), { recursive: true });
+  writeFileSync(join(root, 'journal', 'item-w', 'writer.json'), '{TORN');
+  const j = makeJournal({ root, lease: { pid: 7, host: 'h1', alive: () => true } });
+  j.begin('item-w', meta('item-w'));                            // no throw
+  assert.equal(JSON.parse(readFileSync(join(root, 'journal', 'item-w', 'writer.json'), 'utf8')).pid, 7);
 });
