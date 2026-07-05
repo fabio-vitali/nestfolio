@@ -97,3 +97,10 @@ store. This is what lets the forward edge (intake/planner) trust its inputs.
 - **Chosen:** Mint item-store-valid — USER-APPROVED via AskUserQuestion, then candidate RATIFIED by human at the mint floor (journal key mint:item-store-valid:g1:ratify)
 - **Rationale:** Real gap proven in-workstream: element-shape store corruption passes backlog-lint and the sweep test only runs when the runtime project is nx-affected — nothing validated the store at commit time. The minted check (deterministic zero-arg core, gate+invariant contexts, docs/backlog/*.md scope) closes it; golden-gate scenario landed with the real corruption class as the bad fixture. Verified: real store 0 violations, good 0, bad 1; the registration commit itself passed the live gate running the new check.
 - **Rejected:** consider --none would leave the commit-time gap open until the P4 check-migration member.
+
+### D8 — 2026-07-05
+- **Decision:** Step 6.7 finishing menu: merge locally vs push+PR vs keep vs discard
+- **Options:** Merge back to main locally | Push and create a Pull Request | Keep the branch as-is | Discard
+- **Chosen:** Push and create a Pull Request (--auto policy 2: PR route, then STOP at the open PR)
+- **Rationale:** --auto NEVER merges (merge ownership is the user's — epic E8 / LESSONS F-7/F-33). PR route matches the epic's established one-member-one-PR drain pattern (PR #30, #31).
+- **Rejected:** Local merge is forbidden in --auto; keep/discard would abandon a shipped workstream.
