@@ -1,0 +1,25 @@
+id: plan-views-total
+property: "The read-time planner views (planNext, computeImpact, renderIndex)
+  are total over the real item store — they run without throwing on every item
+  docs/backlog actually carries, both citation arms of the ItemSchema references
+  union included. Guards the class item-store-valid cannot see: view code
+  assuming one schema arm while the store legally carries the other."
+kind: drift
+evaluator:
+  type: deterministic
+  run: module:runtime/content/lib/plan-views-core.mjs#planViewsViolations
+cost_tier: cheap
+contexts:
+  - invariant
+  - gate
+scope:
+  paths:
+    - docs/backlog/*.md
+    - runtime/engine/lib/plan-next.mjs
+  dossiers:
+    - read-time-views-assume-schema-arm.md
+status: active
+provenance:
+  minted_by: plan-next-computeimpact-object-references-crash
+  lesson: read-time-views-assume-schema-arm.md
+  ratified: 2026-07-05T15:46:04.173Z

@@ -42,3 +42,10 @@ real store, which carries 9+ object-form references legalized by the reconciled 
 - **Chosen:** Promote to queued (rank 0) and proceed
 - **Rationale:** Floor pause (parking dispatch refuses even in --auto); user chose Promote & proceed via AskUserQuestion. Load-bearing for runtime-operationalization done_when clause 5 — computeImpact must survive the real store, which carries 9+ object-form references.
 - **Rejected:** Stop: would leave the P5 soak blocked on a known TypeError crash.
+
+### D2 — 2026-07-05
+- **Decision:** 6.4b mint consideration + ratification for this ship
+- **Options:** Mint plan-views-total store-smoke check | Nothing mechanizable
+- **Chosen:** Mint plan-views-total store-smoke check; ratified at the mint floor (mint-plan-views-total-g1)
+- **Rationale:** User chose mint via AskUserQuestion, then ratify at the floor. Generalizes the fix: views must be total over the REAL store, guarding consumer-vs-store schema-union drift for every future view. Deterministic, cheap, invariant+gate contexts; golden-gate scenario landed with good/bad fixtures.
+- **Rejected:** Nothing mechanizable: would leave future views unguarded against the same union-arm assumption.
