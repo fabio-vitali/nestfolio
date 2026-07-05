@@ -8,6 +8,7 @@ import { readFileSync, readdirSync, existsSync } from 'node:fs';
 import { join } from 'node:path';
 import yaml from 'yaml';
 import { globsOverlap } from './glob-overlap.mjs';
+import { validateItem } from '../schema/item.schema.ts';
 
 const isoNow = () => new Date().toISOString();
 const toGlobs = (scope) => (scope ?? '').split(/[\s,]+/).filter(Boolean);
@@ -30,14 +31,19 @@ export function activePartition(items) {
   return { executables: actives.filter((i) => i.type !== 'epic'), epics: actives.filter((i) => i.type === 'epic') };
 }
 
-/** Minimal frontmatter reader — ring-1 MUST NOT import .claude/skills (seam #1). Returns [{id, ...fm}]. */
+/** The production item-store read (seam #1: dir injected, ring-1 imports no project files). Every item is
+ *  schema-validated on read; an invalid file fails CLOSED with an aggregate error (registry precedent). */
 export function readItems(backlogDir) {
   if (!existsSync(backlogDir)) return [];
-  return readdirSync(backlogDir).filter((f) => f.endsWith('.md')).map((f) => {
+  const items = []; const errors = [];
+  for (const f of readdirSync(backlogDir).filter((n) => n.endsWith('.md'))) {
     const m = readFileSync(join(backlogDir, f), 'utf8').match(/^---\n([\s\S]*?)\n---/);
     const fm = m ? yaml.parse(m[1]) : {};
-    return { id: fm?.id ?? f.replace(/\.md$/, ''), ...fm };
-  });
+    const r = validateItem({ id: fm?.id ?? f.replace(/\.md$/, ''), ...fm });
+    if (r.ok) items.push(r.value); else errors.push(`${f}: ${r.error}`);
+  }
+  if (errors.length) throw new Error(`item store ${backlogDir} failed validation (${errors.length} invalid):\n${errors.join('\n')}`);
+  return items;
 }
 
 function main() {
