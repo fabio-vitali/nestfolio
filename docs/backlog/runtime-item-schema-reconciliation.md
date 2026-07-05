@@ -1,6 +1,7 @@
 ---
 id: runtime-item-schema-reconciliation
-status: active
+status: shipped
+closed: 2026-07-05
 type: refactor
 epic: runtime-operationalization
 epic_role: core
@@ -15,7 +16,16 @@ out_of_scope:
 spec: null
 plan: docs/superpowers/plans/2026-07-05-runtime-item-schema-reconciliation.md
 topic_memory: [project_runtime_realization.md]
-validation_gate: null
+validation_gate: |
+  Code: ac733952 (ItemSchema reconciled: done_when identity, nullable rank, passthrough), aed765d1
+  (intake/worker aligned), 45e6d693 (readItems validates fail-closed), 1b70c9ac (references union),
+  1de7a6d5 (real-store sweep test), 5d325055 (SPEC 1 §10 re-freeze), 8aaf9257 (mint item-store-valid).
+  Tests: node --test runtime/{engine,adapters/*,eval}/test → 187/187 pass; pnpm nx run-many -t test,lint
+  -p runtime → true exit 0 (set -o pipefail, 285 assertions). Sweep: item-store-binding.test.mjs — all
+  421 real docs/backlog files validate through readItems (surfaced + repaired 1 real YAML corruption,
+  13ca4b2b). No deploy: detect-deploy-needed exit 10 (all Tier 0). Backward edge: ship-recheck
+  gate-clean journaled; mint item-store-valid RATIFIED (journal mint:item-store-valid:g1:ratify);
+  consider recorded (sha 297895b0); registration commit passed the live gate running the new check.
 ---
 
 # Reconcile the runtime item schema with docs/backlog
@@ -80,3 +90,10 @@ store. This is what lets the forward edge (intake/planner) trust its inputs.
 - **Chosen:** Repair the corrupt scalar (quote it)
 - **Rationale:** The out_of_scope guard forbids reshaping store conventions to fit the schema; it does not protect a YAML typo that corrupts a value against its own intended type (prose string). Intent is unambiguous. Tolerating accidental one-key mappings would enshrine corruption as contract. Blocking evidence of the feature working: the corruption ALSO silently dropped this shipped item from BACKLOG.md Recently Shipped — repaired index regenerates correctly.
 - **Rejected:** Schema tolerance makes every future typo schema-legal; excluding the file breaks the docs-backlog-IS-the-store acceptance criterion.
+
+### D7 — 2026-07-05
+- **Decision:** 6.4b mint consideration: did this ship surface a mechanizable, recurring, still-intended lesson?
+- **Options:** Mint item-store-valid commit-gate check | Nothing mechanizable (consider --none)
+- **Chosen:** Mint item-store-valid — USER-APPROVED via AskUserQuestion, then candidate RATIFIED by human at the mint floor (journal key mint:item-store-valid:g1:ratify)
+- **Rationale:** Real gap proven in-workstream: element-shape store corruption passes backlog-lint and the sweep test only runs when the runtime project is nx-affected — nothing validated the store at commit time. The minted check (deterministic zero-arg core, gate+invariant contexts, docs/backlog/*.md scope) closes it; golden-gate scenario landed with the real corruption class as the bad fixture. Verified: real store 0 violations, good 0, bad 1; the registration commit itself passed the live gate running the new check.
+- **Rejected:** consider --none would leave the commit-time gap open until the P4 check-migration member.
