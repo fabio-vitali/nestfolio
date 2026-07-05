@@ -24,7 +24,11 @@ export function scopeGate({ activeItem, diffPaths }) {
   return { withinScope, escapes, findings };
 }
 
-export function singleActive(items) { return items.filter((i) => i.status === 'active'); }
+/** The real single-active law: ≤1 active non-epic (the executable), ≤1 active epic; zero legal. */
+export function activePartition(items) {
+  const actives = items.filter((i) => i.status === 'active');
+  return { executables: actives.filter((i) => i.type !== 'epic'), epics: actives.filter((i) => i.type === 'epic') };
+}
 
 /** Minimal frontmatter reader — ring-1 MUST NOT import .claude/skills (seam #1). Returns [{id, ...fm}]. */
 export function readItems(backlogDir) {
@@ -44,17 +48,19 @@ function main() {
   const backlogDir = args['backlog-dir'] ?? 'docs/backlog';
 
   if ('single-active' in args) {                                        // the `single-active` starter check
-    const actives = singleActive(readItems(backlogDir));
-    if (actives.length !== 1) console.log(`single-active broken: ${actives.length} active items (${actives.map((i) => i.id).join(', ')})`);
-    process.exit(actives.length === 1 ? 0 : 1);
+    const { executables, epics } = activePartition(readItems(backlogDir));
+    const broken = executables.length > 1 || epics.length > 1;
+    if (broken) console.log(`single-active broken: ${executables.length} active non-epic (${executables.map((i) => i.id).join(', ')}); ${epics.length} active epic(s) (${epics.map((i) => i.id).join(', ')})`);
+    process.exit(broken ? 1 : 0);
   }
 
   let activeItem;                                                       // the `active-item-scope-gate` check
   if (args['item-scope']) activeItem = { id: args['item-id'], scope: args['item-scope'] };
   else {
-    const actives = singleActive(readItems(backlogDir));
-    if (actives.length !== 1) { console.log(`scope-gate: expected exactly one active item, found ${actives.length}`); process.exit(actives.length === 0 ? 0 : 1); }
-    activeItem = actives[0];
+    // gates on the active EXECUTABLE — an active epic alongside is legal and ignored
+    const { executables } = activePartition(readItems(backlogDir));
+    if (executables.length !== 1) { console.log(`scope-gate: expected exactly one active non-epic item, found ${executables.length}`); process.exit(executables.length === 0 ? 0 : 1); }
+    activeItem = executables[0];
   }
   const diffPaths = execSync('git diff --name-only', { encoding: 'utf8' }).split('\n').filter(Boolean);
   const r = scopeGate({ activeItem, diffPaths });
