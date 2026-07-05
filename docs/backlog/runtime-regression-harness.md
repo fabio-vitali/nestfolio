@@ -1,13 +1,18 @@
 ---
 id: runtime-regression-harness
-status: queued
-rank: 0
+status: active
 type: tooling
 epic: runtime-operationalization
 epic_role: core
 notes: "The PARITY ORACLE (re-scoped 2026-07-03): a benchmark-backlog-style harness that grades the runtime loop against the LEGACY backlog skills on the SAME scenarios (the objective 'value ≥ legacy' instrument + the P5 migration go/no-go), plus baseline.json release comparison, a real-LLM behavioral eval of the loop, and a greenfield adoption e2e sandbox — reusing the live defineSuite seam."
 references: []
-out_of_scope: []
+out_of_scope:
+  - "P5 itself — runtime-work-driver-replatform (re-platforming the backlog skills onto the engine loop). This workstream only produces the go/no-go instrument and its evidence."
+  - "P6 legacy retirement — deleting/deprecating the legacy backlog skills; the harness only grades them."
+  - "The ~34-surface check migration and CI-wiring the check golden gates — separate epic members (P4)."
+  - "Re-designing ring-1 engine contracts (schemas/helpers) — frozen by runtime-realization; deltas re-freeze into SPEC 1, not here."
+  - "Heavy real-LLM calibration sweeps beyond what proves the eval works — quota-gated, front-loaded only where the user approves the token spend."
+  - "Operator surface (view+executor) — separate epic member."
 spec: null
 plan: null
 topic_memory: [project_runtime_realization.md]
