@@ -371,15 +371,18 @@ interface Item {
   id: ItemId;
   type: ItemType;
   status: ItemStatus;
-  rank?: number;              // the ONLY stored priority input (law 2); everything else is read-time derived
+  rank?: number | null;       // the ONLY stored priority input (law 2); everything else is read-time derived;
+                              //   nullable in the store binding (re-freeze 2026-07-05)
   epic?: ItemId;              // single-parent pointer (1-level tree)
   epic_role?: 'core' | 'captured';
-  done_criteria: string;      // the closure predicate ("done_when" in the backlog binding)
+  done_when?: string;         // the closure predicate — identity with the backlog binding key (re-frozen
+                              //   2026-07-05); requiredness is a project rule (lint 4b), not ring-1's
   scope?: string;             // path-glob-shaped: what the item's diff may touch (a glob, or a newline/space-
                               //   separated glob set) — feeds the scope-gate check (SPEC 3, tension (d)) AND
                               //   findByScope's overlap predicate (§11). NOT free prose.
   out_of_scope?: string[];    // the explicit non-goals surface (required when status is active)
-  references?: string[];      // reference paths/anchors this item's spec/design cites
+  references?: Array<string   // reference paths/anchors this item's spec/design cites — both store citation
+    | { path: string; anchor?: string }>;  //   forms (re-freeze 2026-07-05): "path#anchor" strings and {path, anchor}
   provenance?: {              // the forward-edge link: which finding/check spawned this item
     from_finding?: FindingId; // the Finding.id (§3) that intake turned into this item — NOT a CheckId
     from_check?: CheckId;     // the registered check that ultimately raised it (denormalized for query)
@@ -397,16 +400,22 @@ interface Item {
 | `rank` | `rank` | only for `status: queued` (rule 6: set + unique) |
 | `epic` | `epic` | member pointer (rule 10) |
 | `epic_role` | `epic_role` | `∈ {core, captured}` |
-| `done_criteria` | `done_when` | required for active epics (rule 4b) |
+| `done_when` | `done_when` | identity (re-freeze 2026-07-05); required for active epics (rule 4b) |
 | `scope` | `scope` | required for active epics |
 | `out_of_scope` | `out_of_scope` | required when active (rule 4a) |
 | `references` | `references` | rule 3: paths + anchors resolve (structural) |
-| — | `spec`, `plan`, `topic_memory`, `validation_gate`, `notes`, `closed`, `requires_deploy` | project-local extensions; ring-1 ignores them |
+| — | `spec`, `plan`, `topic_memory`, `validation_gate`, `notes`, `closed`, `requires_deploy` | project-local extensions; ring-1 passes them through PRESERVED (`.passthrough()`, re-freeze 2026-07-05) |
 | `provenance.from_finding` | *(new)* | the backward→forward link the registry adds |
 
 The 11 backlog invariants become **11 content-ring `CheckEntry` files** in the `invariant`/`gate` contexts (§12) — so the item schema and its lint are *just more checks in the registry*. This is exactly the equivalence-map "generalized" row (TARGET-ARCH §11: "`backlog-lint` 11 invariants → 11 entries in the check registry").
 
-Frozen item-schema field names: `id, type, status, rank, epic, epic_role, done_criteria, scope, out_of_scope, references, provenance`.
+Frozen item-schema field names: `id, type, status, rank, epic, epic_role, done_when, scope, out_of_scope, references, provenance`.
+
+> **Re-freeze delta 2026-07-05 (`runtime-item-schema-reconciliation`):** `done_criteria` → `done_when` (identity
+> with the store key — the worker's `done_when ?? done_criteria` drift fallback was the smell), `done_when` and
+> `rank` relaxed to match the real store (optional / nullable), `references` accepts both store citation forms
+> (strings and `{path, anchor}` objects), `.strict()` → `.passthrough()`, and `validateItem` wired into
+> `readItems()` (fail-closed, registry precedent) — `docs/backlog` is now a validated runtime item store.
 
 ---
 

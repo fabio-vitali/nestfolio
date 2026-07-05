@@ -189,9 +189,10 @@ recommended as follow-on work, deliberately deferred so the seam gets shaped by 
 2. **Finish the check migration.** ~11 of ~34–39 enforced surfaces are in the content ring. Still bundled or
    unmigrated: backlog-lint rules 4/5/6/8/9/10/11, `check-no-appsync-literals`/`check-typed-fixtures`/
    `check-typed-subjects`, the pre-commit structural checks, and 4 `audit-*` skills.
-3. **Reconcile the item schema.** `engine/schema/item.schema.ts` requires `done_criteria` (the backlog uses
-   `done_when`), is `.strict()` (rejects `spec`/`plan`/`topic_memory`/…), and has no production importer —
-   the engine reads `docs/backlog` frontmatter raw. Align the names/keys and validate on read.
+3. **Reconcile the item schema.** ✅ **Done 2026-07-05** (`runtime-item-schema-reconciliation`): the schema
+   binds the store's real keys (`done_when` identity, nullable `rank`, both `references` citation forms),
+   passes project-local extensions through preserved, and `readItems()` validates every item on read
+   (fail-closed, registry precedent) — `docs/backlog` IS a validated runtime item store.
 
 Until then: keep using the old backlog skills (`/backlog-next`, `/backlog-add`, `/backlog-lint`, …) and the
 old `pre-commit` gate. The runtime augments them; it does not replace them yet.
