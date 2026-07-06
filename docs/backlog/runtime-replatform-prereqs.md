@@ -1,6 +1,6 @@
 ---
 id: runtime-replatform-prereqs
-status: queued
+status: active
 rank: 4
 type: tooling
 epic: runtime-operationalization
