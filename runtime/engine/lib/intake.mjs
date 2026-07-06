@@ -2,15 +2,22 @@
 // selectRoute = JUDGMENT (seamed via capabilities.execute — the same judgment the eval corpus grades);
 // shapeItems = a PURE deterministic core. Ring-1 produces abstract Item[]; the frontmatter write is the
 // project binding. Every item carries provenance.from_finding — the forward-edge trace link (§10).
-const slug = (finding, suffix) => `from-${finding.check}${suffix ? `-${suffix}` : ''}`;
-const baseItem = (finding, over) => ({
-  id: over.id ?? slug(finding),
-  type: 'bug',
-  status: 'parking',
-  done_when: `resolve: ${finding.detail}`,
-  provenance: { from_finding: finding.id, from_check: finding.check },
-  ...over,
-});
+import { AGENT_OBSERVED } from '../schema/finding.schema.ts';
+// A finding with no real originating check (omitted, or the reserved AGENT_OBSERVED sentinel) is an
+// agent-observed side-finding: slug from its unique finding.id, and omit from_check from provenance.
+const originatingCheck = (finding) => (finding.check && finding.check !== AGENT_OBSERVED ? finding.check : null);
+const slug = (finding, suffix) => `from-${originatingCheck(finding) ?? finding.id}${suffix ? `-${suffix}` : ''}`;
+const baseItem = (finding, over) => {
+  const check = originatingCheck(finding);
+  return {
+    id: over.id ?? slug(finding),
+    type: 'bug',
+    status: 'parking',
+    done_when: `resolve: ${finding.detail}`,
+    provenance: { from_finding: finding.id, ...(check ? { from_check: check } : {}) },
+    ...over,
+  };
+};
 
 export function shapeItems({ finding, route, epic, epicRole, splitInto }) {
   switch (route) {

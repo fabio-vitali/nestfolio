@@ -25,3 +25,11 @@ test('a finding missing detail is rejected', () => {
   const r = validateFinding({ id: 'f-3', check: 'c', kind: 'drift', scope: [], raised_at: 'x' });
   assert.equal(r.ok, false);
 });
+
+test('a check-less (agent-observed) finding validates; AGENT_OBSERVED is exported', async () => {
+  const { AGENT_OBSERVED } = await import('../schema/finding.schema.ts');
+  assert.equal(AGENT_OBSERVED, 'agent-observed');
+  const r = validateFinding({ id: 'f-obs', kind: 'gap', scope: ['docs/x.md'], detail: 'observed side-finding', raised_at: 't' });
+  assert.equal(r.ok, true);
+  assert.equal(r.value.check, undefined);
+});

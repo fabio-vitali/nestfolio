@@ -33,3 +33,19 @@ test('D4: an already-covered false positive → discard, zero items', async () =
   assert.equal(d.route, 'discard');
   assert.deepEqual(d.items, []);
 });
+
+test('D5: a check-less finding slugs from finding.id and omits from_check', async () => {
+  const observed = { id: 'obs-1', kind: 'gap', scope: ['docs/x.md'], detail: 'agent saw drift', raised_at: 't' };
+  const d = await intake({ finding: observed, registry: {}, backlog: [], capabilities: fakeCaps({ route: 'orphan' }) });
+  assert.equal(d.items.length, 1);
+  assert.equal(d.items[0].id, 'from-obs-1');
+  assert.equal(d.items[0].provenance.from_finding, 'obs-1');
+  assert.equal('from_check' in d.items[0].provenance, false);
+});
+
+test('D6: an explicit agent-observed check behaves identically to a check-less finding', async () => {
+  const observed = { id: 'obs-2', check: 'agent-observed', kind: 'gap', scope: ['docs/x.md'], detail: 'y', raised_at: 't' };
+  const d = await intake({ finding: observed, registry: {}, backlog: [], capabilities: fakeCaps({ route: 'orphan' }) });
+  assert.equal(d.items[0].id, 'from-obs-2');
+  assert.equal('from_check' in d.items[0].provenance, false);
+});

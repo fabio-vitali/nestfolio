@@ -8,9 +8,14 @@ export type FindingKind = z.infer<typeof FindingKindSchema>;
 // FindingId / CheckId are opaque strings at ring-1; branding is a downstream concern.
 export type FindingId = string;
 
+// Reserved provenance sentinel: an agent-*observed* side-finding with no originating check (§7 Hole #1 /
+// D-D1). Mirrors the "starter-pack" minted_by sentinel (check.schema.ts:61) — a magic literal, not a new
+// schema branch. A finding with check omitted, or check === AGENT_OBSERVED, is treated as check-less.
+export const AGENT_OBSERVED = 'agent-observed';
+
 export const FindingSchema = z.object({
   id: z.string().min(1),           // stable within a watch pass; carried into item provenance (§10)
-  check: z.string().min(1),        // the CheckId that raised it
+  check: z.string().min(1).optional(), // the CheckId that raised it — omitted (or AGENT_OBSERVED) for agent-observed side-findings
   kind: FindingKindSchema,         // inherited from check.kind
   scope: z.array(z.string()),      // resolved paths/dossiers implicated
   detail: z.string().min(1),       // human-readable statement of the broken property
