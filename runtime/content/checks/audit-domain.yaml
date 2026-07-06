@@ -1,0 +1,21 @@
+id: audit-domain
+property: >
+  Each domain is internally consistent — service completeness, adapter forwarding, event contracts,
+  and flow specs all validate against the code.
+kind: inconsistency
+evaluator:
+  type: judgment
+  run: "skill:audit-domain"
+cost_tier: expensive
+contexts: [audit]
+scope:
+  paths: ["services/**", "libs/**"]
+status: active
+flake_contract:
+  eval_scenario: "runtime/eval/scenarios/audit-domain.scenario.mjs"
+  allowed_flake_rate: 0.05
+  calibration: "n=20 runs on a known-consistent + known-broken domain pair; gatePassRate >= 0.95 (real mechanics deferred to SPEC 2 §eval)"
+  min_confidence: 0.7
+provenance:
+  minted_by: "runtime-check-migration-judgment-tier"
+  ratified: "2026-07-06"

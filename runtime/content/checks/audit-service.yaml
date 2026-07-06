@@ -1,0 +1,22 @@
+id: audit-service
+property: >
+  Every service's CLAUDE.md card matches its code — event subscriptions, handlers, CDK constructs,
+  and stated responsibilities are accurate and not stale.
+kind: staleness
+evaluator:
+  type: judgment
+  run: "skill:audit-service"
+cost_tier: expensive
+contexts: [audit]
+scope:
+  paths: ["services/**"]
+status: active
+flake_contract:
+  eval_scenario: "runtime/eval/scenarios/audit-service.scenario.mjs"
+  allowed_flake_rate: 0.05
+  calibration: "n=20 runs on a known-fresh + known-stale service-card pair; gatePassRate >= 0.95 (real mechanics deferred to SPEC 2 §eval)"
+  min_confidence: 0.7
+provenance:
+  minted_by: "runtime-check-migration-judgment-tier"
+  lesson: "MEMORY/feedback_verify_before_documenting.md"
+  ratified: "2026-07-06"

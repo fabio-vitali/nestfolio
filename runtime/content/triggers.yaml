@@ -8,9 +8,9 @@ triggers:
     contexts: [invariant, gate]
     cost_ceiling: cheap
   - on: schedule
-    cron: "0 6 * * *"
+    cron: "0 6 * * 1"          # weekly (Mon 06:00 UTC) — matches .github/workflows/runtime-audit.yml
     contexts: [audit]
-    cost_ceiling: moderate
+    cost_ceiling: expensive     # was moderate — audit judgment checks are expensive, so moderate ran zero
   - on: epic-pre-done
     contexts: [audit, gate]
     cost_ceiling: expensive

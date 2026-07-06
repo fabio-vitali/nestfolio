@@ -1,0 +1,21 @@
+id: audit-e2e-test
+property: >
+  The E2E feature test suite is complete and convention-compliant — coverage gaps, anti-patterns,
+  and configuration issues in apps/e2e-feature-tests are absent.
+kind: gap
+evaluator:
+  type: judgment
+  run: "skill:audit-e2e-test"
+cost_tier: expensive
+contexts: [audit]
+scope:
+  paths: ["apps/e2e-feature-tests/**"]
+status: active
+flake_contract:
+  eval_scenario: "runtime/eval/scenarios/audit-e2e-test.scenario.mjs"
+  allowed_flake_rate: 0.05
+  calibration: "n=20 runs on a known-complete + known-gappy e2e suite pair; gatePassRate >= 0.95 (real mechanics deferred to SPEC 2 §eval)"
+  min_confidence: 0.7
+provenance:
+  minted_by: "runtime-check-migration-judgment-tier"
+  ratified: "2026-07-06"
