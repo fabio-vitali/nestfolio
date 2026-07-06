@@ -1,12 +1,17 @@
 ---
 id: runtime-check-migration-completion
-status: parking
+status: active
 type: refactor
 epic: runtime-operationalization
 epic_role: core
-notes: "Migrate the remaining ~23 enforced surfaces (backlog-lint rules 4-11, 3 typed/appsync check-*.mjs, pre-commit structural checks, 4 audit-* skills) into runtime/content/checks CheckEntry YAML — the no-lost-value §12 map, finished. ACCEPTANCE (2026-07-03): 'migrated' = the check RUNS on a real cadence (commit gate / CI / schedule / epic-batch), not 'has YAML'; the judgment tier requires a live judge binding + at least one real audit-context execution. Sequenced AFTER runtime-backward-edge-live (curate must exist before enforcement triples)."
+notes: "Migrate the remaining ~23 enforced surfaces (backlog-lint rules 4-11, 3 typed/appsync check-*.mjs, pre-commit structural checks, 4 audit-* skills) into runtime/content/checks CheckEntry YAML — the no-lost-value §12 map, finished. ACCEPTANCE (2026-07-03): 'migrated' = the check RUNS on a real cadence (commit gate / CI / schedule / epic-batch), not 'has YAML'; the judgment tier requires a live judge binding + at least one real audit-context execution. Sequencing prerequisite runtime-backward-edge-live is shipped (2026-07-04, curate-at-the-floor exists); P3 parity oracle runtime-regression-harness is shipped (2026-07-06). Promoted 2026-07-06."
 references: []
-out_of_scope: []
+out_of_scope:
+  - "CI wiring of the check golden gates (tools/check-*.test.mjs fixtures) — owned by the sibling epic member runtime-check-goldengates-ci, not this workstream."
+  - "The 2 detect-*.mjs frontmatter parsers (detect-deploy-needed / detect-doc-derivation) — homed in the deploy-tooling-integrity epic per lint-library-total-and-located's out_of_scope; not migrated here."
+  - "Authoring NET-NEW checks beyond migrating existing enforcement (epic out_of_scope) — new lessons flow through the backward edge / backlog-add."
+  - "The work-driver strangler re-platform (runtime-work-driver-replatform) and the operator surface (runtime-operational-surface) — later epic members (P5/P6)."
+  - "Re-designing ring-1 engine contracts (CheckEntry schema/helpers) — frozen by runtime-realization; a build-reconciliation delta re-freezes into SPEC 1, not here."
 spec: null
 plan: null
 topic_memory: [project_runtime_realization.md]
@@ -36,6 +41,8 @@ commit gate, CI, schedule, or epic-batch — not merely "has a YAML entry." For 
 (`audit-*` skills) that requires wiring a **live judge binding** (`skill:` scheme → a real Skill/headless
 invocation) and at least one real `audit`-context execution with findings routed through intake.
 
-**Sequencing (binding):** starts only after `runtime-backward-edge-live` ships — curate-at-the-floor must
-exist as the sanctioned bypass before enforcement scale triples, or `RUNTIME_GATE_SKIP` becomes de-facto
-curation (the drift design law 5 forbids).
+**Sequencing (satisfied 2026-07-06):** the binding prerequisite `runtime-backward-edge-live` shipped
+2026-07-04 — curate-at-the-floor exists as the sanctioned bypass, so enforcement scale can triple without
+`RUNTIME_GATE_SKIP` becoming de-facto curation (the drift design law 5 forbids that). The P3 parity oracle
+`runtime-regression-harness` shipped 2026-07-06 (go/no-go GREEN for P4). Both triggers have fired; the item
+was promoted from parking on 2026-07-06.
