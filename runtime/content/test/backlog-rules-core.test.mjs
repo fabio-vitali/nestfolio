@@ -47,3 +47,62 @@ test('precondition: malformed frontmatter → located finding', () => {
   assert.equal(f.length, 1);
   assert.match(f[0].evidence, /bad\.md/);
 });
+
+import {
+  singleActiveViolations, queuedRanksViolations, singleActiveEpicViolations,
+  epicClosureViolations, epicPointerIntegrityViolations, indexMatchesViolations,
+} from '../lib/backlog-rules-core.mjs';
+
+test('rule 2: two non-epic active items → one finding', () => {
+  const dir = fixture({
+    'a.md': fm({ id: 'a', status: 'active', type: 'refactor', out_of_scope: '["x"]' }),
+    'b.md': fm({ id: 'b', status: 'active', type: 'refactor', out_of_scope: '["x"]' }),
+  });
+  assert.equal(singleActiveViolations(dir).length, 1);
+});
+
+test('rule 6: two queued items with the same rank → one finding', () => {
+  const dir = fixture({
+    'a.md': fm({ id: 'a', status: 'queued', type: 'refactor', rank: 1 }),
+    'b.md': fm({ id: 'b', status: 'queued', type: 'refactor', rank: 1 }),
+  });
+  assert.equal(queuedRanksViolations(dir).length, 1);
+});
+
+test('rule 11: two active epics → one finding', () => {
+  const dir = fixture({
+    'e1.md': fm({ id: 'e1', status: 'active', type: 'epic', done_when: 'x', scope: 'x', out_of_scope: '["x"]' }),
+    'e2.md': fm({ id: 'e2', status: 'active', type: 'epic', done_when: 'x', scope: 'x', out_of_scope: '["x"]' }),
+  });
+  assert.equal(singleActiveEpicViolations(dir).length, 1);
+});
+
+test('rule 10: member pointing at a non-existent epic → one finding', () => {
+  const dir = fixture({ 'm.md': fm({ id: 'm', status: 'parking', type: 'refactor', epic: 'ghost' }) });
+  assert.equal(epicPointerIntegrityViolations(dir).length, 1);
+});
+
+test('rule 9: shipped epic with a non-terminal member → one finding', () => {
+  const dir = fixture({
+    'e.md': fm({ id: 'e', status: 'shipped', type: 'epic', validation_gate: 'done' }),
+    'm.md': fm({ id: 'm', status: 'active', type: 'refactor', epic: 'e', out_of_scope: '["x"]' }),
+  });
+  assert.equal(epicClosureViolations(dir).length, 1);
+});
+
+test('rule 7: index-matches returns findings array (no throw) for a fixture dir', () => {
+  const dir = fixture({ 'a.md': fm({ id: 'a', status: 'parking', type: 'refactor' }) });
+  const f = indexMatchesViolations(dir, join(dir, 'BACKLOG.md')); // absent index → one finding
+  assert.ok(Array.isArray(f));
+  assert.equal(f.length, 1);
+});
+
+import { referencesValidViolations } from '../lib/backlog-rules-core.mjs';
+
+test('rule 3: design file with a missing reference → one finding', () => {
+  const body = `---\nid: d\nstatus: parking\ntype: design\nreferences:\n  - missing-ref.md\n---\n\nbody\n`;
+  const dir = fixture({ 'd.md': body });
+  const f = referencesValidViolations(dir, dir); // root = fixture dir → "missing-ref.md" is absent → violation
+  assert.equal(f.length, 1);
+  assert.match(f[0].detail, /reference path not found/);
+});

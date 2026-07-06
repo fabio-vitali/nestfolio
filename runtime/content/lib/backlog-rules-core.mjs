@@ -32,3 +32,13 @@ export const activeOutOfScopeViolations      = perFile(ruleActiveOutOfScope);   
 export const activeEpicFieldsViolations      = perFile(ruleActiveEpicFields);       // rule 4a
 export const shippedValidationGateViolations = perFile(ruleShippedValidationGate);  // rule 5
 export const promotionTriggerGatedViolations = perFile(rulePromotionTriggerGated);  // rule 8
+
+// ── whole-set / cross-file / root / index rules (this task) ──
+export const singleActiveViolations         = wholeSet(ruleSingleActive);          // rule 2
+export const referencesValidViolations      = perFileWithRoot(ruleReferencesValid); // rule 3
+export const queuedRanksViolations           = wholeSet(ruleQueuedRanks);           // rule 6
+export const epicClosureViolations           = perFileWithAll(ruleEpicClosure);     // rule 9
+export const epicPointerIntegrityViolations  = perFileWithAll(ruleEpicPointerIntegrity); // rule 10
+export const singleActiveEpicViolations      = wholeSet(ruleSingleActiveEpic);      // rule 11
+export const indexMatchesViolations = (dir = DIR, indexPath = INDEX) =>
+  toFindings(ruleIndexMatches(loadBacklogFiles(dir), indexPath), ['docs/BACKLOG.md']);
