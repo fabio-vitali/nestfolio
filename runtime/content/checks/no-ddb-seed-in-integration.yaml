@@ -14,7 +14,7 @@ scope:
     - services/**/test/integration/**/*.ts
   dossiers:
     - feedback_no_seeder_fixtures.md
-  exclusions: tools/ddb-seed-exclusions.json
+  exclusions: runtime/content/exclusions/ddb-seed-exclusions.json
 status: active
 provenance:
   minted_by: no-ddb-seed-guard

@@ -14,7 +14,7 @@ scope:
     - services/advisory/**/src/**/*.ts
   dossiers:
     - feedback_no_silent_fallback_in_agent_results.md
-  exclusions: tools/agent-result-fallback-exclusions.json
+  exclusions: runtime/content/exclusions/agent-result-fallback-exclusions.json
 status: active
 provenance:
   minted_by: no-agent-result-fallback-guard

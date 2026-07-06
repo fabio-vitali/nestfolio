@@ -58,3 +58,10 @@ out of scope.
 - **Chosen:** relocate-only
 - **Rationale:** Stays within the epic frozen ring-1 boundary; engine-owned would make scope.exclusions engine-read (a ring-1 contract change the epic out_of_scope forbids, needing a SPEC 1 re-freeze). Relocate-only still delivers a clean liftable pattern (content-ring relocation + config-driven base path) and kills the dangling exclusionsRoot pointer. User confirmed via AskUserQuestion (scope-boundary floor pause).
 - **Rejected:** Engine-owned is more abstracted but crosses the epic boundary and re-opens frozen ring-1 contracts.
+
+### D3 — 2026-07-06
+- **Decision:** Doc-reference scope for the sidecar relocation
+- **Options:** update all LIVE doc references (CLAUDE.md, architecture docs, 7 skills, service card) + functional refs | functional refs only + file live-doc repoint as a follow-up
+- **Chosen:** update all LIVE doc references + functional refs
+- **Rationale:** Cleanest / no dangling refs (memory: cleanest-over-blast-radius). Leaving CLAUDE.md + create-*/audit-* skills pointing at tools/ would instruct devs to write to a path the checks no longer read. Historical plans/specs/backlog (25 files) stay as point-in-time records; frozen-model arch docs only get a literal path corrected, not a model change. User confirmed via AskUserQuestion (scope-boundary floor pause).
+- **Rejected:** Functional-only leaves ~18 live-doc refs actively wrong and defers the completeness the item explicitly targets.

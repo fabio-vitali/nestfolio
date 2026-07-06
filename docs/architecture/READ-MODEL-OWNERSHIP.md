@@ -251,7 +251,7 @@ callers and migration authors must be aware.
 
 The producer/`-ctrl`/`-adpt` surface is now registered or explicitly excluded. The
 drift gate is **mandatory**: every typename written via an event-processor intent
-factory must be registered below or listed in `tools/read-model-exclusions.json`.
+factory must be registered below or listed in `runtime/content/exclusions/read-model-exclusions.json`.
 
 | Service | Row(s) | Kind |
 |---|---|---|
@@ -266,7 +266,7 @@ factory must be registered below or listed in `tools/read-model-exclusions.json`
 | decision-workflow-ctrl | `DecisionPacket` | command-owned; mirrors `LedgerSnapshot`/`InvestorProfileSnapshot`/`MarketSnapshot`/`MandateSnapshot` as projection P1 (WS-A/C) |
 
 **Verified non-governed (excluded, not registered)** — outbox/CDC-carrier and
-external-feed-cache rows, enumerated with reasons in `tools/read-model-exclusions.json`:
+external-feed-cache rows, enumerated with reasons in `runtime/content/exclusions/read-model-exclusions.json`:
 agent execution-trace rows (`AgentCompletion`/`AgentFailure`/`AgentInvocation`/`AgentOutput`);
 ledger `snapshot-to-events` carriers (`BalanceEvent`/`LedgerEntryEvent`/`PortfolioEvent`/`SnapshotHistory`);
 funding CDC carriers (`FundingEvent`, `DepositDetected`, `WithdrawalCompleted`);
@@ -320,7 +320,7 @@ feeding dashboard-bff's `InvestorSnapshot`) and the Mandate sibling row in one
    `event-processor:read-model-drift`, repo-wide. Rules: R1 accumulate-on-projection;
    R2 unguarded P1; R3 command+event dual-writer; R4 within-service registry conflict;
    **R5 unclassified-write** (an intent-factory write neither registered nor excluded —
-   hard fail); R6 exclusion-conflict. `tools/read-model-exclusions.json` holds the
+   hard fail); R6 exclusion-conflict. `runtime/content/exclusions/read-model-exclusions.json` holds the
    verified non-governed outbox/carrier/feed-cache rows. (Wiring the gate into the
    GitHub PR workflow stays with `ci-pipeline-bring-up`; WS-D ships it as a
    local-runnable nx target.) `audit-service`/`audit-domain`/`audit-system` invoke it.

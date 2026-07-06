@@ -1,7 +1,7 @@
 id: typed-subjects
 property: >
   Event `subject` strings are built via producer-owned typed subject contracts (parseSubject seam) —
-  no ad-hoc subject literals; drift gated against tools/typed-subject-exclusions.json.
+  no ad-hoc subject literals; drift gated against runtime/content/exclusions/typed-subject-exclusions.json.
 kind: drift
 evaluator:
   type: deterministic
@@ -15,7 +15,7 @@ contexts: [gate]
 scope:
   paths:
     - "services/**/src/**/*.ts"
-  exclusions: "tools/typed-subject-exclusions.json"
+  exclusions: "runtime/content/exclusions/typed-subject-exclusions.json"
 status: active
 provenance:
   minted_by: runtime-check-migration-completion

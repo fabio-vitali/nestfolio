@@ -20,13 +20,13 @@
 //                                     and Projection<'P1'> in a mirror).
 //   R5 unclassified-write         — an intent-factory write whose typename is neither
 //                                    registered in a ReadModelOwnership augmentation NOR
-//                                    listed in tools/read-model-exclusions.json. MANDATORY:
+//                                    listed in runtime/content/exclusions/read-model-exclusions.json. MANDATORY:
 //                                    register it or add it to the exclusion registry.
 //                                    (Command writes — *.fn.js __typename — are NOT gated
 //                                    here; they are surfaced as non-failing INFO.)
 //   R6 exclusion-conflict         — a (service, typename) both registered AND excluded.
 //
-// The exclusion registry (tools/read-model-exclusions.json) lists the verified
+// The exclusion registry (runtime/content/exclusions/read-model-exclusions.json) lists the verified
 // non-governed outbox/carrier and external-feed-cache rows, each with a reason.
 //
 // Usage:
@@ -41,6 +41,7 @@
 import { readdirSync, readFileSync, statSync } from 'node:fs';
 import { join, relative, sep } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { exclusionsFile } from './lib/exclusions-root.mjs';
 
 const EXCLUDE_FRAGMENTS = ['node_modules', 'dist', 'cdk.out', '.worktrees', '.nx', 'coverage', 'test'];
 const EXCLUDED_BASENAME_SUFFIXES = ['.test.ts', '.spec.ts'];
@@ -57,7 +58,7 @@ function parseArgs(argv) {
   return { root };
 }
 
-const EXCLUSIONS_FILE = 'tools/read-model-exclusions.json';
+const EXCLUSIONS_FILE = exclusionsFile('read-model');
 
 // Parse the verified-non-governed exclusion registry. Returns a Set of
 // "service::typename" keys plus the raw entries. Absent file → empty (so a

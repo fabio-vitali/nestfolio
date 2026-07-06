@@ -244,7 +244,7 @@ Every producer aggregate owns one zod contract typing BOTH its persisted row
 **Enforcement:** `tools/check-typed-subjects.mjs` (nx target
 `event-processor:typed-subject-drift`, also pre-commit) enforces conventions 1–4 + the
 `opaqueSubject` guard, with documented-polymorphic readers registered in
-`tools/typed-subject-exclusions.json`. (nx `enforce-module-boundaries` cannot enforce the
+`runtime/content/exclusions/typed-subject-exclusions.json`. (nx `enforce-module-boundaries` cannot enforce the
 import channel — services are Nx apps, so its apps-forbidden rule blocks intra-domain
 imports too.) Source-of-truth detail: project-memory dossier
 `project_event_subject_contracts`.

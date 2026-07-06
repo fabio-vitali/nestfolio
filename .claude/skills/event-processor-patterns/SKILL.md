@@ -634,7 +634,7 @@ Import `Projection` and `CommandOwned` from `@nestfolio/event-processor`. The re
 | `project`, `accumulate`, `update`, `updateOrRetry` | Any `Projection` (P1, P2, P3) | `CommandOwned`, unregistered |
 | `record` | P1, P3 | P2 (append-log) and `CommandOwned` (seed-by-one-event path) |
 
-> **The drift gate is mandatory** (`event-processor:read-model-drift`): "unregistered" is allowed by the *type system* but **fails the gate** for any intent-factory write — register the typename, or, if it is a verified non-governed outbox/carrier/external-feed row, add it to `tools/read-model-exclusions.json`. Command writes (`*.fn.js __typename`) are not gated.
+> **The drift gate is mandatory** (`event-processor:read-model-drift`): "unregistered" is allowed by the *type system* but **fails the gate** for any intent-factory write — register the typename, or, if it is a verified non-governed outbox/carrier/external-feed row, add it to `runtime/content/exclusions/read-model-exclusions.json`. Command writes (`*.fn.js __typename`) are not gated.
 
 ### String-literal enforcement caveat
 

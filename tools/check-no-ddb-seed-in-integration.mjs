@@ -3,11 +3,12 @@
 // integration fixtures populate state via events/mutations, never DdbSeedFixture / direct DDB writes.
 import { fileURLToPath } from 'node:url';
 import { lineOf, parseRootArg, walkFiles, reportAndExit, parseExclusions } from './lib/text-scan.mjs';
+import { exclusionsFile } from './lib/exclusions-root.mjs';
 
 // NOTE: `.put(` intentionally has NO leading lookbehind — we WANT to match `doc.put({` (a method call);
 // a `(?<![.\w])` lookbehind would reject exactly that (the char before `.` is a word char).
 const TOKENS = [/\bDdbSeedFixture\b/g, /\bAccountSeedingFixture\b/g, /\bPutItem\b/g, /\bBatchWrite(Item)?\b/g, /\.put\s*\(\s*\{/g];
-const SIDECAR = 'tools/ddb-seed-exclusions.json';
+const SIDECAR = exclusionsFile('ddb-seed');
 const isIntegration = (rel) => /\/test\/integration\//.test(rel);
 
 export function findViolations(text, relPath, exclusions = new Set()) {

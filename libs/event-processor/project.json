@@ -39,7 +39,7 @@
         "{workspaceRoot}/services/**/src/**/*.ts",
         "{workspaceRoot}/services/**/src/graphql/js-function/**/*.fn.js",
         "{workspaceRoot}/tools/check-read-model-drift.mjs",
-        "{workspaceRoot}/tools/read-model-exclusions.json"
+        "{workspaceRoot}/runtime/content/exclusions/read-model-exclusions.json"
       ],
       "options": {
         "command": "node tools/check-read-model-drift.mjs"
@@ -52,7 +52,7 @@
         "{workspaceRoot}/services/**/src/**/*.ts",
         "{workspaceRoot}/libs/**/src/**/*.ts",
         "{workspaceRoot}/tools/check-typed-subjects.mjs",
-        "{workspaceRoot}/tools/typed-subject-exclusions.json"
+        "{workspaceRoot}/runtime/content/exclusions/typed-subject-exclusions.json"
       ],
       "options": { "command": "node tools/check-typed-subjects.mjs" }
     },
@@ -65,7 +65,7 @@
         "{workspaceRoot}/services/**/src/domain/events.ts",
         "{workspaceRoot}/services/**/src/**/*.ts",
         "{workspaceRoot}/tools/check-service-card-drift.mjs",
-        "{workspaceRoot}/tools/service-card-exclusions.json"
+        "{workspaceRoot}/runtime/content/exclusions/service-card-exclusions.json"
       ],
       "options": { "command": "node tools/check-service-card-drift.mjs" }
     }

@@ -15,11 +15,12 @@
 import { readdirSync, readFileSync, writeFileSync, statSync } from 'node:fs';
 import { join, relative, sep, basename } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { exclusionsFile } from './lib/exclusions-root.mjs';
 import ts from 'typescript';
 
 export const SECTION_IDS = ['event-types', 'ingress', 'egress', 'handlers', 'ddb-entities'];
 
-const EXCLUSIONS_FILE = 'tools/service-card-exclusions.json';
+const EXCLUSIONS_FILE = exclusionsFile('service-card');
 const EXCLUDE_DIR_FRAGMENTS = ['node_modules', 'dist', 'cdk.out', '.nx', '.worktrees', 'coverage', 'test'];
 
 function parseArgs(argv) {

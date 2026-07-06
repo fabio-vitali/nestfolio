@@ -160,7 +160,7 @@ test('evaluate: a registry-excluded file suppresses its rule', () => {
 });
 
 test('parseExclusions rejects an entry missing reason', () => {
-  withTree({ 'tools/typed-subject-exclusions.json':
+  withTree({ 'runtime/content/exclusions/typed-subject-exclusions.json':
     JSON.stringify({ exclusions: [{ rule: 'subject-cast', file: 'a.ts' }] }) }, (root) => {
     assert.throws(() => parseExclusions(root), /needs non-empty/);
   });
