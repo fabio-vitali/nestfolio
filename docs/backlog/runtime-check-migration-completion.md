@@ -16,7 +16,7 @@ out_of_scope:
   - "The work-driver strangler re-platform (runtime-work-driver-replatform) and the operator surface (runtime-operational-surface) — later epic members (P5/P6)."
   - "Re-designing ring-1 engine contracts (CheckEntry schema/helpers) — frozen by runtime-realization; a build-reconciliation delta re-freezes into SPEC 1, not here."
 spec: docs/superpowers/specs/2026-07-06-runtime-check-migration-completion-design.md
-plan: null
+plan: docs/superpowers/plans/2026-07-06-runtime-check-migration-completion.md
 topic_memory: [project_runtime_realization.md]
 validation_gate: null
 ---
@@ -90,3 +90,10 @@ de-facto curation — drift design law 5). The P3 parity oracle `runtime-regress
 - **Chosen:** All remaining deterministic rules (precondition + 2,3,4,4a,5,6,7,8,9,10,11)
 - **Rationale:** The workstream's done-definition is 'complete the section-12 no-lost-value map'. The item body listed 4,5,6,8,9,10,11 + precondition but omitted the still-unmigrated deterministic rules 2 (single-active), 3 (references-valid), and 7 (index-matches); leaving them would make the map incomplete for backlog-lint. All are pure exported rules.mjs functions wrappable as zero-arg module: cores. User approved at design sign-off.
 - **Rejected:** Item's listed subset only: leaves rules 2/3/7 unmigrated, so the section-12 map stays incomplete for backlog-lint.
+
+### D5 — 2026-07-06
+- **Decision:** Execution mode for the implementation plan
+- **Options:** Subagent-driven development | Inline execution (executing-plans)
+- **Chosen:** Subagent-driven development
+- **Rationale:** writing-plans recommends it; keeps main-loop context clean (long session) while preserving review + floor-handling at each task boundary (two-stage review between tasks). The plan is 6 mechanical TDD tasks with no user-facing forks left, so task-subagent isolation is safe and compatible with the no-worker-isolating-subagents feedback (which targets isolating the /backlog-next worker from decisions, not mechanical plan-execution subtasks). --auto auto-resolves this process fork.
+- **Rejected:** Inline execution: fills the main-loop context with test/YAML output; unnecessary given no forks remain in execution.
