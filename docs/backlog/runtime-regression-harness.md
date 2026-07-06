@@ -1,6 +1,7 @@
 ---
 id: runtime-regression-harness
-status: active
+status: shipped
+closed: 2026-07-06
 type: tooling
 epic: runtime-operationalization
 epic_role: core
@@ -16,7 +17,7 @@ out_of_scope:
 spec: docs/superpowers/specs/2026-07-06-runtime-regression-harness-design.md
 plan: docs/superpowers/plans/2026-07-06-runtime-regression-harness.md
 topic_memory: [project_runtime_realization.md]
-validation_gate: null
+validation_gate: "PARITY GREEN 11/11 dominant — committed parity-baseline.json @ e1d1c065 (legacy 12.56M vs runtime 5.21M tokens, 41%); differential green (5 both-catch mapped + r9/r10 transitive + 4 honest gaps + element-shape runtime-only, 0 false positives, exit 0); greenfield e2e green (init→block→mint park/fulfil→teeth→curate→pass, runtime suite 290/290 + tsc clean); parity-oracle units 27/27; bef suite 70/70 untouched; oracle-teeth verdict-flip proven; ship-recheck gate-clean journaled; live bring-up 11/11 pairs (reports benchmarks/parity-oracle/parity-2026-07-06T*.md, rebaseline-2026-07-06T09-28-16-720Z.md)"
 ---
 
 # Runtime regression harness — the parity oracle (re-scoped 2026-07-03)
@@ -81,3 +82,10 @@ Headless real-LLM runs cost quota — front-load heavy calibration runs where qu
 - **Chosen:** Sibling suite composing benchmark-backlog core
 - **Rationale:** User-selected: scripts/parity-oracle/ imports runMode/runner/grade/report; legacy suite + committed baseline byte-untouched. The two-suite dominance-verdict pattern is the liftable artifact; reusability breaks the tie.
 - **Rejected:** runtime/eval placement fragments the harness family and mixes machine-landed check scenarios with loop scenarios; in-place extension mutates the proven suite contract and stales its baseline.
+
+### D6 — 2026-07-06
+- **Decision:** Step 6.7 finishing route (--auto)
+- **Options:** PR route: push branch + open PR, stop at open PR | Local merge + push main
+- **Chosen:** PR route: push branch + open PR, stop at open PR
+- **Rationale:** --auto policy 2: the finishing menu always takes the PR route and STOPS at the open PR — the merge is the user's (merge-ownership rule, LESSONS F-7/F-33).
+- **Rejected:** Local merge is never auto-resolved in --auto.

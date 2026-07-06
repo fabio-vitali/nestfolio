@@ -156,8 +156,7 @@ rollup: core 0/2 done · captured 0/0 done
 
 ### [runtime-operationalization](backlog/runtime-operationalization.md) `[epic · parking]` — Adopt/operationalize the Long-Horizon Engineering Runtime via the probes-first roadmap (re-scoped 2026-07-03): P1 probe the two unproven bets (execute seam, backward edge) → P2 moat live (mint/curate in anger, before enforcement triples) → P3 parity oracle + item schema → P4 check migration with cadence + CI golden gates → P5 work-driver strangler re-platform with soak gate → P6 user-triggered legacy retirement + operator surface. runtime-realization shipped the 3 library slices; THIS epic makes the runtime the project's live enforcement + work-driver, reversibly (docs/backlog stays the one item store — procedures migrate, never data).
 done_when: The runtime is the project's LIVE enforcement + work-driver, demonstrated not asserted: (1) enforcement — the gate fires diff-scoped on commit (shipped) AND every migrated check runs on a real cadence (commit gate / CI / schedule / epic-batch; judgment checks via a live judge binding), the ~34-surface migration into runtime/content/checks is complete, and the check golden gates run in CI; (2) the backward edge is live-in-anger — at least one real lesson minted through a real floor into a registered check, and curate-at-the-floor is the only sanctioned path past a failing guard (skip-hatch instrumented); (3) item.schema is reconciled with docs/backlog and validated on read; (4) the parity oracle is green — the regression harness grades the runtime loop against the legacy backlog skills on the same scenarios, plus a greenfield adoption e2e; (5) the work-driver is re-platformed — the backlog skills run on the engine loop with legacy fallback, soaked over ≥5 real workstreams with zero fallbacks; (6) the operator surface (view+executor) is shipped. Every core member shipped or dropped.
-rollup: core 7/12 done · captured 2/10 done
-- core · active · [runtime-regression-harness](backlog/runtime-regression-harness.md)
+rollup: core 8/12 done · captured 2/10 done
 - core · parking · [runtime-check-goldengates-ci](backlog/runtime-check-goldengates-ci.md)
 - core · parking · [runtime-check-migration-completion](backlog/runtime-check-migration-completion.md)
 - core · parking · [runtime-operational-surface](backlog/runtime-operational-surface.md)
@@ -168,6 +167,7 @@ rollup: core 7/12 done · captured 2/10 done
 - core · shipped · [runtime-item-schema-reconciliation](backlog/runtime-item-schema-reconciliation.md)
 - core · shipped · [runtime-make-it-fire](backlog/runtime-make-it-fire.md)
 - core · shipped · [runtime-redteam-hardening](backlog/runtime-redteam-hardening.md)
+- core · shipped · [runtime-regression-harness](backlog/runtime-regression-harness.md)
 - core · shipped · [runtime-seam-probe](backlog/runtime-seam-probe.md)
 - captured · parking · [bef-scenario-tags-reusable-suite](backlog/bef-scenario-tags-reusable-suite.md)
 - captured · parking · [benchmark-backlog-skill-cost-figures-stale](backlog/benchmark-backlog-skill-cost-figures-stale.md)
@@ -225,7 +225,8 @@ rollup: core 0/3 done · captured 0/0 done
 
 ## ACTIVE
 
-- [runtime-regression-harness](backlog/runtime-regression-harness.md) [tooling] — The PARITY ORACLE (re-scoped 2026-07-03): a benchmark-backlog-style harness that grades the runtime loop against the LEGACY backlog skills on the SAME scenarios (the objective 'value ≥ legacy' instrument + the P5 migration go/no-go), plus baseline.json release comparison, a real-LLM behavioral eval of the loop, and a greenfield adoption e2e sandbox — reusing the live defineSuite seam. `[epic:runtime-operationalization · core]`
+_(none)_
+
 
 ## QUEUED
 
@@ -248,6 +249,7 @@ rollup: core 0/3 done · captured 0/0 done
 
 ## Recently Shipped (last 10)
 
+- 2026-07-06 — [runtime-regression-harness](backlog/runtime-regression-harness.md) [tooling] — The PARITY ORACLE (re-scoped 2026-07-03): a benchmark-backlog-style harness that grades the runtime loop against the LEGACY backlog skills on the SAME scenarios (the objective 'value ≥ legacy' instrument + the P5 migration go/no-go), plus baseline.json release comparison, a real-LLM behavioral eval of the loop, and a greenfield adoption e2e sandbox — reusing the live defineSuite seam. `[epic:runtime-operationalization · core]`
 - 2026-07-05 — [bef-judge-blind-to-subworktree-diff](backlog/bef-judge-blind-to-subworktree-diff.md) [bug] — bef judge.mjs reads the outcome diff from the sandbox ROOT, so it sees an EMPTY diff for fresh-sub-worktree scenarios (worker commits the ship on a worktree branch, sandbox-root HEAD stays on main). Harmless today (no rubricGate on such a scenario); latent if one is added. Captured under bef-deterministic-coverage-gaps for unified PR context; un-pointed back to a standalone parking orphan at that epic's close (2026-06-30) — confirmed orthogonal by the captured audit, matching the 2026-06-29 backlog-themes adjudication (no shared root cause with the other 2 riders). `[epic:runtime-operationalization · core]`
 - 2026-07-05 — [plan-next-computeimpact-object-references-crash](backlog/plan-next-computeimpact-object-references-crash.md) [bug] — computeImpact assumes string references — r.includes()/refResolves(r) crash on the {path, anchor} object form 10 real store files carry. `[epic:runtime-operationalization · core]`
 - 2026-07-05 — [runtime-item-schema-reconciliation](backlog/runtime-item-schema-reconciliation.md) [refactor] — Reconcile runtime/engine/schema/item.schema.ts with the real docs/backlog frontmatter (done_criteria→done_when, relax .strict/migrate legacy keys) and wire validateItem into the read path — today ItemSchema has no production importer. `[epic:runtime-operationalization · core]`
@@ -257,4 +259,3 @@ rollup: core 0/3 done · captured 0/0 done
 - 2026-07-04 — [no-agent-result-fallback-check-overbroad](backlog/no-agent-result-fallback-check-overbroad.md) [refactor] — The no-agent-result-fallback content-ring check flags EVERY ?? {} / ?? [] in advisory src (38), not only AgentCore/orchestrator-result fallbacks — over-broad vs its own stated property. `[epic:runtime-operationalization · captured]`
 - 2026-07-04 — [runtime-backward-edge-live](backlog/runtime-backward-edge-live.md) [feature] — P2: make the moat live — mint-in-anger (one real lesson → real floor → registered check + eval scenario), mint wired into the ship ritual, curate CLI as the ONLY sanctioned path past a failing guard, RUNTIME_GATE_SKIP instrumented. MUST precede the bulk check migration. `[epic:runtime-operationalization · core]`
 - 2026-07-04 — [runtime-seam-probe](backlog/runtime-seam-probe.md) [feature] — P1a probe: drive ONE real simple-lane workstream end-to-end through the engine loop (runWorker + live capabilities, session as runner) and produce the measured Task/TaskResult/ask contract-gap list — the empirical 'solid vs dream' test for the execute seam. `[epic:runtime-operationalization · core]`
-- 2026-07-03 — [runtime-design-redteam](backlog/runtime-design-redteam.md) [design] — P1b SHIPPED 2026-07-03: adversarial multi-agent design review (7 lenses, 64 agents) of vision+specs vs code. VERDICT: solid-with-deltas — architecture holds (rings/registry/backward edge/journal discipline), but the seam v1 contract and journal keying have 7 confirmed criticals. Deltas routed: contract re-freeze → runtime-seam-probe; backward procedural fixes → runtime-backward-edge-live; mechanical hardening → runtime-redteam-hardening (new). `[epic:runtime-operationalization · captured]`
