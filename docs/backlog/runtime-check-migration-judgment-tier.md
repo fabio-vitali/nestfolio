@@ -1,13 +1,19 @@
 ---
 id: runtime-check-migration-judgment-tier
-status: queued
+status: active
 type: feature
 rank: 4
 epic: runtime-operationalization
 epic_role: core
 notes: "P4 tier 2 (split from runtime-check-migration-completion 2026-07-06): the JUDGMENT tier of the check migration. Migrate the 4 audit-* skills (audit-service/-domain/-system/-e2e-test) + backlog-lint captured-audit + the 2 judgment gaps (core-vs-captured epic_role classification, ship-time captured promote/spin-out verdict) into skill:/judgment CheckEntries with flake_contracts. Requires building the live judge binding (the skill: executor is a stub throwing JudgeCapabilityUnavailable; makeRunProcedure({procedures}) is never populated — inject procedures[<audit-skill>] via a real headless claude -p invocation, reusing scripts/benchmark-backlog) AND an expensive-check cadence dispatcher (audit-context / schedule / epic-batch — none wired today; only commit is live). Acceptance: >=1 real audit-context execution with findings routed through intake. Needs its own brainstorming (genuinely novel infra)."
 references: []
-out_of_scope: []
+out_of_scope:
+  - "The deterministic tier (cmd:/module: surfaces) — already SHIPPED in runtime-check-migration-completion (PR#35); not re-migrated here."
+  - "CI golden-gates wiring (tools/check-*.test.mjs fixtures → CI) — sibling member runtime-check-goldengates-ci."
+  - "The exclusions / content-ring migration — sibling member runtime-check-exclusions-content-ring."
+  - "Re-designing ring-1 engine contracts (schemas/helpers/CheckEntry shape) — frozen by runtime-realization; a build-reconciliation delta re-freezes into SPEC 1, not here."
+  - "Authoring NET-NEW judgment checks beyond migrating existing enforcement — new lessons flow through the backward edge / backlog-add."
+  - "The P5 work-driver strangler re-platform and the P6 operator surface."
 spec: null
 plan: null
 topic_memory: [project_runtime_realization.md]
