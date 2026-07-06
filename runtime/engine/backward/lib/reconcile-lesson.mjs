@@ -1,23 +1,10 @@
 // reconcile-lesson.mjs — reconcileLesson(): the ONLY writer of a lesson's mints: pointer (§7.1).
 // derived-and-reconciled, never hand-edited (same contract as topic_memory↔related_workstreams).
 // Mutates the dossier frontmatter under an injected dossierRoot (D1 in-repo mirror).
-import { readFileSync, writeFileSync } from 'node:fs';
 import { join, isAbsolute } from 'node:path';
-import { parse, stringify } from 'yaml';
 import { validateMintsEntry } from '../schema/mints-entry.ts';
 import { fileURLToPath } from 'node:url';
-
-const FM_RE = /^---\n([\s\S]*?)\n---\n?([\s\S]*)$/;
-
-function readDossier(path) {
-  const raw = readFileSync(path, 'utf8');
-  const m = FM_RE.exec(raw);
-  if (!m) throw new Error(`dossier has no YAML frontmatter: ${path}`);
-  return { front: parse(m[1]) ?? {}, body: m[2] };
-}
-function writeDossierFile(path, front, body) {
-  writeFileSync(path, `---\n${stringify(front).trimEnd()}\n---\n${body}`, 'utf8');
-}
+import { readDossier, writeDossierFile } from './dossier-io.mjs';
 
 export function reconcileLesson({ lesson, check, transition, successor, ratified, dossierRoot, generation = 1 }) {
   const path = isAbsolute(lesson) ? lesson : join(dossierRoot, lesson);

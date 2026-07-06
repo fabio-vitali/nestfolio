@@ -79,7 +79,7 @@ The runtime has only the single-finding hot-path `mint-aggregation` suggestion i
 - **Fix:** a **batch clustering procedure** over `readItems(backlogDir)` (parking orphans + `*-leftovers`) that mints/extends theme epics by shared root cause — the runtime home for `backlog-themes` — plus the **epic-close captured-audit** that auto-spins-out genuinely-orthogonal members into `<epic>-leftovers`. Judgment via the same `execute`/procedure seam intake already uses. **Classed as a procedure, not a check** (decision D-D2).
 
 ### Hole #3 — MEMORY↔backlog dossier-sync (`related_workstreams` regen, MISSING)
-Legacy `lint --fix` regenerates dossier `related_workstreams:` from each item's `topic_memory:`. The backward edge already implements the *parallel* `mints:` reciprocal (`runtime/engine/backward/reconcile-lesson.mjs`) — that is the template.
+Legacy `lint --fix` regenerates dossier `related_workstreams:` from each item's `topic_memory:`. The backward edge already implements the *parallel* `mints:` reciprocal (`runtime/engine/backward/lib/reconcile-lesson.mjs`) — that is the template.
 - **Fix:** a reconcile pass keyed off `Item.topic_memory` writing dossier `related_workstreams:`, mirroring `reconcileLesson`'s bidirectional writer. **Classed as a side-car** (like `lint --fix` index regen), **not a check** — it materializes the doc store, which the migration does not move (decision D-D2).
 
 ## 8. Section E — The four per-skill re-platform workstreams (sequenced)
