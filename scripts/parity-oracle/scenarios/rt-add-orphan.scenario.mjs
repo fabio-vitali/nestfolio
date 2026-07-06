@@ -22,6 +22,6 @@ export default {
     frontmatter: { 'from-audit-export-review': { status: 'parking' } },
     absent: [{ file: 'from-audit-export-review', field: 'epic' }],
   },
-  journal: [{ runId: 'intake-f-tz-offset', has: 'intake:f-tz-offset:filed' }],
+  journal: [{ runId: 'intake-f-tz-offset', has: 'intake:f-tz-offset:filed', path: 'runtime' }],
   rubric: ['No epic, theme, or root-cause cluster fits this finding. Did it file a plain parking ORPHAN (status: parking, no epic pointer) rather than force it into an epic?'],
 };

@@ -3,7 +3,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readdirSync } from 'node:fs';
-import { MAPPING, mappedIds, OPERATOR_PROMPT } from '../mapping.mjs';
+import { MAPPING, mappedIds, unmappedIds, OPERATOR_PROMPT } from '../mapping.mjs';
 
 const legacyIds = readdirSync(new URL('../../benchmark-backlog/scenarios/', import.meta.url))
   .filter((f) => f.endsWith('.scenario.mjs')).map((f) => f.replace('.scenario.mjs', ''));
@@ -17,6 +17,12 @@ test('unmapped entries carry a reason; mapped entries name an rt scenario module
     if (m.unmapped) { assert.equal(m.unmapped, 'P5'); assert.ok(m.reason?.length > 10, `${id} needs a reason`); }
     else assert.match(m.runtime.scenario, /^rt-.+\.scenario\.mjs$/);
   }
+});
+
+test('mapped and unmapped partition the full MAPPING (no id is both or neither)', () => {
+  const all = Object.keys(MAPPING).sort();
+  assert.deepEqual([...mappedIds(), ...unmappedIds()].sort(), all);
+  assert.equal(new Set([...mappedIds(), ...unmappedIds()]).size, all.length); // disjoint
 });
 
 test('the mapped set is the engine-expressible subset (D3)', () => {

@@ -23,7 +23,7 @@ export default {
     frontmatter: { 'from-pagination-audit': { status: 'parking' } },
     absent: [{ file: 'from-pagination-audit', field: 'epic' }],
   },
-  journal: [{ runId: 'intake-f-cursor-leak', has: 'intake:f-cursor-leak:filed' }],
+  journal: [{ runId: 'intake-f-cursor-leak', has: 'intake:f-cursor-leak:filed', path: 'runtime' }],
   rubric: ['This residual finding routes to a parking orphan. Did the commit use the route-correct prefix (docs(backlog): file <id>) AND stage ONLY the touched files (the filed backlog item), never a blanket git add of the whole tree?'],
   rubricGate: 4,
 };

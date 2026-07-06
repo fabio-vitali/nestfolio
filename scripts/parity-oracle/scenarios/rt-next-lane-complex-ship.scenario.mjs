@@ -15,6 +15,7 @@ export default {
   callLog: { called: ['deploy.sh'], neverCalled: ['gh pr merge'] },
   state: { fileContains: [{ file: 'infrastructure/config/retention-days.txt', needle: '30' }] },
   journal: [
+    { runId: 'item-infra-retention-bump', path: 'runtime' },
     { runId: 'item-infra-retention-bump', has: 'gate.start' },
     { runId: 'item-infra-retention-bump', has: 'execute:infra-retention-bump' },
     { runId: 'item-infra-retention-bump', has: 'gate.ship' },

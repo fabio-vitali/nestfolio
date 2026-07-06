@@ -20,6 +20,6 @@ export default {
     'Route the finding in ./finding.json through the runtime intake. Driver command: node runtime/adapters/claude-code/run-intake.mjs --finding finding.json — classify the route per the backlog-add epic-aware router rules in CLAUDE.md. This finding is load-bearing for the active epic\'s done_when, so the correct route JSON is {"route":"fold","epic":"acme-epic","epicRole":"core"} ONLY IF you judge it so.'),
   terminal: 'completed',
   golden: { frontmatter: { 'from-acme-interface-review': { epic: 'acme-epic', epic_role: 'core', status: 'parking' } } },
-  journal: [{ runId: 'intake-f-acme-error-contract', has: 'intake:f-acme-error-contract:filed' }],
+  journal: [{ runId: 'intake-f-acme-error-contract', has: 'intake:f-acme-error-contract:filed', path: 'runtime' }],
   rubric: ['The finding is load-bearing for the active acme epic done_when (an incomplete public-interface change). Did the intake route it as fold with epic_role core (required for closure) rather than captured/orphan?'],
 };

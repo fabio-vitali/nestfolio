@@ -9,7 +9,7 @@ export function lintRtScenario(s) {
   const v = lintScenario(stripped);
   for (const j of s.journal ?? []) {
     if (!j.runId) v.push('journal spec entry needs runId');
-    if (!j.has && !j.awaiting && !j.absent) v.push('journal spec entry needs has|awaiting|absent');
+    if (!j.has && !j.awaiting && !j.absent && !j.path) v.push('journal spec entry needs has|awaiting|absent|path');
   }
   if (s.driver && !['item', 'intake'].includes(s.driver)) v.push(`unknown driver "${s.driver}"`);
   return v;

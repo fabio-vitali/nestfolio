@@ -17,6 +17,7 @@ export default {
   // procedure); the engine works the item without a branch — its work-product is the assertion.
   state: { fileContains: [{ file: 'infrastructure/config/retention-days.txt', needle: '30' }] },
   journal: [
+    { runId: 'item-infra-retention-bump', path: 'runtime' },
     { runId: 'item-infra-retention-bump', has: 'execute:infra-retention-bump' },
     { runId: 'item-infra-retention-bump', has: 'gate.ship' },
     { runId: 'item-infra-retention-bump', awaiting: 'ship-infra-retention-bump' },

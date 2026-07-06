@@ -8,6 +8,7 @@ import { join } from 'node:path';
 import { execFileSync } from 'node:child_process';
 import { gradeJournal } from '../runtime-grade.mjs';
 import { makeJournal } from '../../../runtime/engine/lib/journal.mjs';
+import { recordRuntimePath } from '../../../runtime/engine/lib/path-provenance.mjs';
 
 function sandboxWithJournal() {
   const dir = mkdtempSync(join(tmpdir(), 'po-grade-'));
@@ -40,4 +41,15 @@ test('has / awaiting / absent journal assertions', () => {
 
 test('no journal spec → vacuous pass', () => {
   assert.deepEqual(gradeJournal({}, '/nonexistent'), { pass: true, failures: [] });
+});
+
+test('path verb: fails when no path:runtime record, passes once emitted (hollow-green guard)', () => {
+  const dir = mkdtempSync(join(tmpdir(), 'nf-grade-'));
+  execFileSync('git', ['init', '-q'], { cwd: dir });
+  const scenario = { journal: [{ runId: 'item-z', path: 'runtime' }] };
+  assert.equal(gradeJournal(scenario, dir).pass, false);
+  const j = makeJournal({ root: join(dir, '.git') });
+  j.begin('item-z', { runId: 'item-z', auto: false });
+  recordRuntimePath(j, { runId: 'item-z', workstream: 'z', sha: 'deadbee' });
+  assert.equal(gradeJournal(scenario, dir).pass, true);
 });

@@ -19,6 +19,6 @@ export default {
     'Route the finding in ./finding.json through the runtime intake. Driver command: node runtime/adapters/claude-code/run-intake.mjs --finding finding.json — classify the route per the backlog-add epic-aware router rules in CLAUDE.md, choosing epicRole by the closure-predicate test (core if leaving it undone falsifies a done_when clause; captured only if genuinely orthogonal).'),
   terminal: 'completed',
   golden: { frontmatter: { 'from-eventbus-logging-review': { epic: 'acme-epic', epic_role: 'captured' } } },
-  journal: [{ runId: 'intake-f-eventbus-logging', has: 'intake:f-eventbus-logging:filed' }],
+  journal: [{ runId: 'intake-f-eventbus-logging', has: 'intake:f-eventbus-logging:filed', path: 'runtime' }],
   rubric: ['The finding is in the same EventBus surface as the active epic but orthogonal to its done_when. Is folding it as `captured` (near the theme, not load-bearing for done_when) the correct routing?'],
 };

@@ -29,6 +29,14 @@ test('every rt scenario passes structural lint + references a real fixture', asy
   }
 });
 
+test('hollow-green guard: every rt scenario asserts the runtime path drove it', async () => {
+  for (const f of readdirSync(scenDir).filter((x) => x.endsWith('.scenario.mjs'))) {
+    const s = (await import(new URL(f, scenDir))).default;
+    assert.ok((s.journal ?? []).some((j) => j.path === 'runtime'),
+      `${f}: must declare a { path: 'runtime' } journal spec — else a mapped scenario could pass without the runtime path driving it`);
+  }
+});
+
 test('rt fixtures pass ItemSchema (readItems fail-closed would otherwise crash the driver)', async () => {
   const { readItems } = await import('../../../runtime/engine/lib/scope-gate.mjs');
   const rtFixturesDir = fileURLToPath(new URL('../fixtures/rt/', import.meta.url));

@@ -14,6 +14,7 @@ export default {
   terminal: 'pause',
   callLog: { neverCalled: ['gh pr create', 'deploy.sh'] },
   journal: [
+    { runId: 'item-floor-irreversible', path: 'runtime' },
     { runId: 'item-floor-irreversible', has: 'gate.start' },
     { runId: 'item-floor-irreversible', awaiting: 'execute:floor-irreversible' },
     { runId: 'item-floor-irreversible', absent: 'gate.ship' },

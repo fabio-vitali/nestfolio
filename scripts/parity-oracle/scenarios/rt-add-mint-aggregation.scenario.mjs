@@ -21,7 +21,7 @@ export default {
     'Route the finding in ./finding.json through the runtime intake. Driver command: node runtime/adapters/claude-code/run-intake.mjs --finding finding.json — classify the route per the backlog-add epic-aware router rules in CLAUDE.md (read the parking lot in docs/backlog first; a mint-aggregation route carries the NEW aggregation epic id in the route JSON, and your final summary must name the clustered orphans).'),
   terminal: 'completed',
   golden: { present: [{ file: 'from-retention-policy-audit', field: 'epic' }] },
-  journal: [{ runId: 'intake-f-sf-log-retention', has: 'intake:f-sf-log-retention:filed' }],
+  journal: [{ runId: 'intake-f-sf-log-retention', has: 'intake:f-sf-log-retention:filed', path: 'runtime' }],
   rubric: ['Two parking orphans share the missing-retention-policy root cause (log-retention-missing, log-retention-lambda); decoy-idle-nat shares only the cost symptom. Did the route mint a NEW aggregation that clusters this finding with the two retention orphans (naming them, excluding the decoy)?'],
   rubricGate: 4,
 };

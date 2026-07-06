@@ -5,6 +5,7 @@
 import { join } from 'node:path';
 import { gradeScenario } from '../benchmark-backlog/grade.mjs';
 import { makeJournal, pendingDecisions } from '../../runtime/engine/lib/journal.mjs';
+import { RUNTIME_PATH_KEY } from '../../runtime/engine/lib/path-provenance.mjs';
 
 export function gradeJournal(scenario, sandboxDir) {
   const failures = [];
@@ -17,6 +18,8 @@ export function gradeJournal(scenario, sandboxDir) {
     if (spec.has && step(spec.has)?.status !== 'complete') failures.push(`journal ${spec.runId}: expected complete step "${spec.has}"`);
     if (spec.awaiting && !pendingDecisions(ledger).some((r) => r.key === spec.awaiting)) failures.push(`journal ${spec.runId}: expected awaiting "${spec.awaiting}"`);
     if (spec.absent && step(spec.absent)) failures.push(`journal ${spec.runId}: step "${spec.absent}" should be absent`);
+    if (spec.path && step(RUNTIME_PATH_KEY)?.value?.path !== spec.path)
+      failures.push(`journal ${spec.runId}: expected path record "${spec.path}" (runtime path did not drive)`);
   }
   return { pass: failures.length === 0, failures };
 }

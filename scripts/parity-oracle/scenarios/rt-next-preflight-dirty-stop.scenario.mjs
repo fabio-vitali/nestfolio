@@ -21,6 +21,7 @@ export default {
   terminal: 'completed',
   state: { branchCreated: false },
   journal: [
+    { runId: 'item-standalone-complex', path: 'runtime' },
     { runId: 'item-standalone-complex', has: 'gate.start' },
     { runId: 'item-standalone-complex', absent: 'execute:standalone-complex' },
     { runId: 'item-standalone-complex', absent: 'gate.ship' },

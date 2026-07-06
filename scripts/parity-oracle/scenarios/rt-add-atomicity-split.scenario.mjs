@@ -25,6 +25,6 @@ export default {
       { file: 'from-webhook-audit-vendor-rotation', field: 'status' },
     ],
   },
-  journal: [{ runId: 'intake-f-webhook-two-parts', has: 'intake:f-webhook-two-parts:filed' }],
+  journal: [{ runId: 'intake-f-webhook-two-parts', has: 'intake:f-webhook-two-parts:filed', path: 'runtime' }],
   rubric: ['The finding bundles an independently-actionable bug and an orthogonal vendor-blocked part whose closure-relevance differs. Did it SPLIT into two separate atomic items rather than file one mixed item?'],
 };

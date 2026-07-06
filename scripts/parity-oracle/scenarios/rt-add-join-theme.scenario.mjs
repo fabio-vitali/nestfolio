@@ -22,6 +22,6 @@ export default {
     frontmatter: { 'from-contended-write-audit': { epic: 'eps-epic' } },
     absent: [{ file: 'from-contended-write-audit', field: 'epic_role' }],
   },
-  journal: [{ runId: 'intake-f-second-drop', has: 'intake:f-second-drop:filed' }],
+  journal: [{ runId: 'intake-f-second-drop', has: 'intake:f-second-drop:filed', path: 'runtime' }],
   rubric: ['The finding shares the eps theme epic root cause (write-contention data loss); mild-epic (cosmetic casing) is the decoy. Did it JOIN the existing eps theme epic rather than mint a new theme or misroute to the cosmetic one?'],
 };

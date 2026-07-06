@@ -56,6 +56,9 @@ export const MAPPING = {
   'themes-discrimination': P5('parking-lot clustering is backlog-themes prose; no engine procedure exists'),
 };
 
+/** The still-unmapped legacy ids — the P5 migration checklist (drains toward 0 as skills re-platform). */
+export function unmappedIds() { return Object.entries(MAPPING).filter(([, m]) => m.unmapped).map(([id]) => id); }
+
 export function mappedIds() {
   return Object.entries(MAPPING).filter(([, m]) => m.runtime).map(([id]) => id);
 }
