@@ -37,11 +37,12 @@ export function parseStreamJson(lines) {
 // Pure arg builder (unit-tested in test/runner-args.test.mjs) — kept separate from the spawn so the
 // flag list is verifiable without a live `claude`.
 export function buildClaudeArgs(scenario, runnerOpts) {
-  const { model, pauseConvention } = runnerOpts;
+  const { model, pauseConvention,
+    allowedTools = ['Bash', 'Read', 'Write', 'Edit', 'Glob', 'Grep', 'Skill'] } = runnerOpts;
   const args = ['-p', scenario.prompt, '--print', '--verbose', '--output-format', 'stream-json',
     '--setting-sources', 'project', '--strict-mcp-config', '--model', model,
     '--append-system-prompt', pauseConvention,
-    '--allowedTools', ['Bash', 'Read', 'Write', 'Edit', 'Glob', 'Grep', 'Skill'].join(' ')];
+    '--allowedTools', allowedTools.join(' ')];
   // Per-scenario subskill denial → --disallowedTools (deny precedes allow in Claude Code permissions,
   // so a specific Skill(name) deny overrides the general Skill allow above). The entries are already
   // tool-permission patterns (e.g. 'Skill(superpowers:finishing-a-development-branch)'); they BOUND

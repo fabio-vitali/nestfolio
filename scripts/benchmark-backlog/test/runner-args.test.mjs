@@ -22,3 +22,21 @@ test('buildClaudeArgs: empty denySubskills array → no flag (no vacuous --disal
   const args = buildClaudeArgs({ prompt: 'p', denySubskills: [] }, opts);
   assert.ok(!args.includes('--disallowedTools'));
 });
+
+test('buildClaudeArgs honors a custom read-only allowedTools list', () => {
+  const args = buildClaudeArgs(
+    { prompt: 'p' },
+    { model: 'claude-opus-4-8', pauseConvention: 'n/a', allowedTools: ['Bash', 'Read', 'Glob', 'Grep', 'Skill'] },
+  );
+  const i = args.indexOf('--allowedTools');
+  assert.ok(i >= 0, '--allowedTools present');
+  assert.equal(args[i + 1], 'Bash Read Glob Grep Skill');
+  assert.ok(!args[i + 1].includes('Write'), 'Write denied');
+  assert.ok(!args[i + 1].includes('Edit'), 'Edit denied');
+});
+
+test('buildClaudeArgs default allowedTools is unchanged (back-compat)', () => {
+  const args = buildClaudeArgs({ prompt: 'p' }, { model: 'm', pauseConvention: 'n/a' });
+  const i = args.indexOf('--allowedTools');
+  assert.equal(args[i + 1], 'Bash Read Write Edit Glob Grep Skill');
+});
