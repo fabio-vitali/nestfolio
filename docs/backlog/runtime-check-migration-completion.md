@@ -4,9 +4,12 @@ status: active
 type: refactor
 epic: runtime-operationalization
 epic_role: core
-notes: "Migrate the remaining ~23 enforced surfaces (backlog-lint rules 4-11, 3 typed/appsync check-*.mjs, pre-commit structural checks, 4 audit-* skills) into runtime/content/checks CheckEntry YAML — the no-lost-value §12 map, finished. ACCEPTANCE (2026-07-03): 'migrated' = the check RUNS on a real cadence (commit gate / CI / schedule / epic-batch), not 'has YAML'; the judgment tier requires a live judge binding + at least one real audit-context execution. Sequencing prerequisite runtime-backward-edge-live is shipped (2026-07-04, curate-at-the-floor exists); P3 parity oracle runtime-regression-harness is shipped (2026-07-06). Promoted 2026-07-06."
+notes: "DETERMINISTIC TIER (scoped 2026-07-06): migrate the §12 DETERMINISTIC surfaces into runtime/content/checks CheckEntry YAML, all riding the live commit gate: 3 cmd: checks (check-no-appsync-literals/-typed-fixtures/-typed-subjects), a gate-free service-structure cmd: check (verify-structure.sh #1-7 extracted to avoid gate recursion), and ALL remaining deterministic backlog-lint rules as module: core-wrappers delegating to rules.mjs (precondition + 2,3,4,4a,5,6,7,8,9,10,11; rule 1 already done). ACCEPTANCE: 'migrated' = the check RUNS on the commit cadence, demonstrated not asserted. The JUDGMENT tier (audit-* skills, captured-audit, 2 judgment gaps, live judge binding, expensive-cadence dispatcher, >=1 real audit) split to runtime-check-migration-judgment-tier; exclusions relocation split to runtime-check-exclusions-content-ring. Prereqs shipped (runtime-backward-edge-live 2026-07-04, runtime-regression-harness 2026-07-06). Promoted + split 2026-07-06."
 references: []
 out_of_scope:
+  - "The JUDGMENT tier — 4 audit-* skills, backlog-lint captured-audit, the 2 judgment gaps, the live judge binding, the expensive-check cadence dispatcher, and >=1 real audit execution — split to new epic core member runtime-check-migration-judgment-tier (2026-07-06)."
+  - "Exclusions relocation — moving 8 tools/*-exclusions.json under runtime/content/exclusions/ + wiring exclusionsRoot — split to new epic core member runtime-check-exclusions-content-ring (2026-07-06)."
+  - "Legacy retirement — removing migrated checks from .git/hooks/pre-commit or scripts/verify-structure.sh — is P6 (user-triggered); this workstream keeps legacy running alongside (belt-and-suspenders double-coverage)."
   - "CI wiring of the check golden gates (tools/check-*.test.mjs fixtures) — owned by the sibling epic member runtime-check-goldengates-ci, not this workstream."
   - "The 2 detect-*.mjs frontmatter parsers (detect-deploy-needed / detect-doc-derivation) — homed in the deploy-tooling-integrity epic per lint-library-total-and-located's out_of_scope; not migrated here."
   - "Authoring NET-NEW checks beyond migrating existing enforcement (epic out_of_scope) — new lessons flow through the backward edge / backlog-add."
@@ -18,34 +21,42 @@ topic_memory: [project_runtime_realization.md]
 validation_gate: null
 ---
 
-# Finish the check migration (the §12 no-lost-value map)
+# Finish the check migration — deterministic tier (the §12 no-lost-value map)
 
-Only ~11 of ~34-39 enforced surfaces are in `runtime/content/checks/`. Complete the migration mapped in
-SPEC 1 §12 / SPEC 3 §12:
-- **backlog-lint** rules 4, 5, 6, 8, 9, 10, 11 (+ the frontmatter-parseable precondition + captured-audit +
-  the 2 judgment gaps) → individual `module:backlog-lint#rule…` CheckEntries (today they only run bundled via
-  `lint.mjs`; only rule 1 is individualized).
-- **tools/check-*.mjs** not yet migrated: `check-no-appsync-literals`, `check-typed-fixtures`,
-  `check-typed-subjects`.
-- **pre-commit structural checks** #1-#7 (`scripts/verify-structure.sh`) → the intended consolidating
-  `service-structure` gap entry (`cmd:scripts/verify-structure.sh`), which does not yet exist.
-- **audit-*** judgment skills not yet migrated: `audit-domain`, `audit-e2e-test`, `audit-service`,
-  `audit-system` → `skill:` CheckEntries carrying `flake_contract`s.
-- Move the `tools/*-exclusions.json` sidecars under `runtime/content/exclusions/` (config already points there).
+The full P4 migration was split into two tiers on 2026-07-06 (see Decision log). THIS workstream is the
+**deterministic tier**: migrate the §12 deterministic surfaces into `runtime/content/checks/` so each one
+**runs on the live commit gate** (the only wired cadence; `module:`/`cmd:` checks are `cheap`/`gate`/
+`invariant`, so no new dispatcher is needed). Design spec:
+`docs/superpowers/specs/2026-07-06-runtime-check-migration-completion-design.md`.
 
-Do this behind the proven live path from `runtime-make-it-fire` — migrate checks only once something actually
-runs them.
+**In scope — three proven patterns:**
+- **3 `cmd:` checks** → mirror `no-ddb-scan.yaml`: `check-no-appsync-literals`, `check-typed-fixtures`,
+  `check-typed-subjects`. (`check-typed-subjects` carries `scope.exclusions: tools/typed-subject-exclusions.json`
+  for now — the deferred exclusions item relocates it.)
+- **`service-structure` `cmd:` check** — extract `verify-structure.sh` checks **#1-#7** into a gate-free
+  `scripts/check-service-structure.sh` and bind `cmd:` to it. (A raw `cmd:scripts/verify-structure.sh` would
+  recurse: that script itself invokes the runtime gate at line 18.) Legacy `verify-structure.sh` keeps running
+  #1-#10 (belt-and-suspenders until P6 retirement).
+- **Backlog-lint deterministic rules → `module:` core-wrappers** — mirror `backlog-id-core.mjs` (rule 1): a
+  zero-arg export that **imports `rules.mjs` + `loadBacklogFiles`** (delegate, never fork — single-parser
+  discipline per [[lint-library-total-and-located]]), runs the rule over all backlog files, maps to findings.
+  One `runtime/content/lib/backlog-rules-core.mjs` with an arity adapter + one named export per rule, one
+  CheckEntry each. Migrate **all remaining deterministic rules** for a complete map: precondition + 2, 3, 4,
+  4a-epic, 5, 6, 7, 8, 9, 10, 11 (rule 1 already done).
 
-**Acceptance (added 2026-07-03, roadmap P4):** "migrated" means the check **runs on a real cadence** —
-commit gate, CI, schedule, or epic-batch — not merely "has a YAML entry." For the judgment tier
-(`audit-*` skills) that requires wiring a **live judge binding** (`skill:` scheme → a real Skill/headless
-invocation) and at least one real `audit`-context execution with findings routed through intake.
+**Acceptance:** each new check **runs on the commit cadence — demonstrated, not asserted** (stage a violating
+fixture → the pre-commit gate blocks; clean → it passes); `registry-integrity` (`meta-check.mjs`) green;
+`rules.mjs` + tool `*.test.mjs` suites green; nx `test,lint` on affected green.
+
+**Split out (both remain core members of the epic, so `done_when` stays complete):** the **judgment tier**
+(4 audit-* skills, captured-audit, the 2 judgment gaps, the live judge binding, an expensive-cadence
+dispatcher, ≥1 real audit) → `runtime-check-migration-judgment-tier`; the **exclusions relocation** →
+`runtime-check-exclusions-content-ring`.
 
 **Sequencing (satisfied 2026-07-06):** the binding prerequisite `runtime-backward-edge-live` shipped
-2026-07-04 — curate-at-the-floor exists as the sanctioned bypass, so enforcement scale can triple without
-`RUNTIME_GATE_SKIP` becoming de-facto curation (the drift design law 5 forbids that). The P3 parity oracle
-`runtime-regression-harness` shipped 2026-07-06 (go/no-go GREEN for P4). Both triggers have fired; the item
-was promoted from parking on 2026-07-06.
+2026-07-04 (curate-at-the-floor exists, so enforcement scale can grow without `RUNTIME_GATE_SKIP` becoming
+de-facto curation — drift design law 5). The P3 parity oracle `runtime-regression-harness` shipped 2026-07-06
+(go/no-go GREEN). Both triggers fired; the item was promoted from parking on 2026-07-06.
 
 ## Decision log
 
@@ -57,3 +68,24 @@ was promoted from parking on 2026-07-06.
 - **Chosen:** Promote & proceed
 - **Rationale:** Both binding sequencing triggers fired: runtime-backward-edge-live shipped 2026-07-04 (curate-at-the-floor exists, so enforcement scale can grow without RUNTIME_GATE_SKIP becoming de-facto curation) and the P3 parity oracle runtime-regression-harness shipped 2026-07-06 (go/no-go GREEN). User confirmed via AskUserQuestion. Adoption done in-worktree (parking→active) to avoid a transient queued+rank state and a main push.
 - **Rejected:** Hold — keep parked: no reason to defer; P4 is next in the roadmap and all prerequisites are shipped.
+
+### D2 — 2026-07-06
+- **Decision:** Split P4 check migration into a deterministic tier (this workstream) and a judgment tier (new epic member)
+- **Options:** Split: deterministic now, judgment new item | One workstream: full P4 in a single PR
+- **Chosen:** Split: deterministic now, judgment new item
+- **Rationale:** The item bundled proven-pattern cmd:/module: migrations with a net-new judgment subsystem: the skill: judge executor is an unbound stub (throws JudgeCapabilityUnavailable; makeRunProcedure procedures map is never populated) and no expensive-check cadence dispatcher exists (only commit is wired). Atomicity (one closure verdict per tier) + reusability (two cleanly-liftable patterns: legacy-check to CheckEntry, and Skill to judgment-adapter) + epic D1 'split oversized items'. Judgment tier filed as runtime-check-migration-judgment-tier (core member) so the epic done_when stays complete. User chose via AskUserQuestion.
+- **Rejected:** One-workstream full P4: a large mixed-risk PR where trivial cmd: entries cannot close until the novel judge infra (adapter + cadence dispatcher + a real audit execution) works.
+
+### D3 — 2026-07-06
+- **Decision:** Defer the exclusions relocation to its own epic member
+- **Options:** Defer to its own epic item | Include - relocate only | Include - full engine wiring
+- **Chosen:** Defer to its own epic item
+- **Rationale:** Exclusions relocation is an item body-bullet, NOT a SPEC section-12 migration surface, and touches ~15 consumer references (tool hardcoded paths, scope.exclusions fields, lessons.mjs, nx inputs, tests) plus potentially a ring-1 contract change. The migrated checks already run correctly with their tools/ sidecars, so exclusion location is orthogonal to 'runs on a cadence'. Filed as runtime-check-exclusions-content-ring (core member); the relocate-only vs engine-owned mechanism is that item's own design call. User chose via AskUserQuestion.
+- **Rejected:** Include-relocate-only / include-full-wiring: bundles a ~15-reference sweep (and possibly a ring-1 contract change) onto a mechanical-migration PR, diluting the atomic 'checks migrated' verdict.
+
+### D4 — 2026-07-06
+- **Decision:** Migrate ALL remaining deterministic backlog-lint rules (incl. 2, 3, 7), not just the item's listed subset
+- **Options:** All remaining deterministic rules (precondition + 2,3,4,4a,5,6,7,8,9,10,11) | Item's listed subset only (4,5,6,8,9,10,11 + precondition)
+- **Chosen:** All remaining deterministic rules (precondition + 2,3,4,4a,5,6,7,8,9,10,11)
+- **Rationale:** The workstream's done-definition is 'complete the section-12 no-lost-value map'. The item body listed 4,5,6,8,9,10,11 + precondition but omitted the still-unmigrated deterministic rules 2 (single-active), 3 (references-valid), and 7 (index-matches); leaving them would make the map incomplete for backlog-lint. All are pure exported rules.mjs functions wrappable as zero-arg module: cores. User approved at design sign-off.
+- **Rejected:** Item's listed subset only: leaves rules 2/3/7 unmigrated, so the section-12 map stays incomplete for backlog-lint.
