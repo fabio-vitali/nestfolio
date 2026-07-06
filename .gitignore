@@ -56,3 +56,6 @@ apps/nestfolio-host/public/assets/config.json
 # Gitignored end-to-end per docs/superpowers/specs/2026-05-19-agent-benchmark-skill-design.md §4.2.
 benchmarks/
 
+# runtime audit findings (produced by run-audit.mjs on a cadence; uploaded as a CI artifact)
+runtime/.audit-findings/
+
