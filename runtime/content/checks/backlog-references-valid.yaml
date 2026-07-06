@@ -1,0 +1,16 @@
+id: backlog-references-valid
+property: "type in {design, spec} ⇒ references non-empty, and each path/anchor resolves (backlog-lint rule 3)."
+kind: staleness
+evaluator:
+  type: deterministic
+  run: "module:runtime/content/lib/backlog-rules-core.mjs#referencesValidViolations"
+cost_tier: cheap
+contexts: [invariant, gate]
+scope:
+  paths:
+    - "docs/backlog/*.md"
+status: active
+provenance:
+  minted_by: runtime-check-migration-completion
+  lesson: "docs/superpowers/specs/2026-05-07-backlog-redesign-design.md"
+  ratified: "2026-07-06"

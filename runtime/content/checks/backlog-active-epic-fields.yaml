@@ -1,0 +1,16 @@
+id: backlog-active-epic-fields
+property: "active type: epic ⇒ done_when and scope both non-empty (backlog-lint rule 4)."
+kind: gap
+evaluator:
+  type: deterministic
+  run: "module:runtime/content/lib/backlog-rules-core.mjs#activeEpicFieldsViolations"
+cost_tier: cheap
+contexts: [invariant, gate]
+scope:
+  paths:
+    - "docs/backlog/*.md"
+status: active
+provenance:
+  minted_by: runtime-check-migration-completion
+  lesson: "docs/superpowers/specs/2026-05-07-backlog-redesign-design.md"
+  ratified: "2026-07-06"
