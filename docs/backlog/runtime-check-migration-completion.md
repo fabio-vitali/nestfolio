@@ -46,3 +46,14 @@ invocation) and at least one real `audit`-context execution with findings routed
 `RUNTIME_GATE_SKIP` becoming de-facto curation (the drift design law 5 forbids that). The P3 parity oracle
 `runtime-regression-harness` shipped 2026-07-06 (go/no-go GREEN for P4). Both triggers have fired; the item
 was promoted from parking on 2026-07-06.
+
+## Decision log
+
+<!-- append-only (F-6): entries are never edited or removed; a reversal is a NEW entry referencing the superseded one. Written by decision-log.mjs — do not hand-edit. -->
+
+### D1 — 2026-07-06
+- **Decision:** Promote runtime-check-migration-completion from parking and start it as the P4 workstream
+- **Options:** Promote & proceed | Hold — keep parked
+- **Chosen:** Promote & proceed
+- **Rationale:** Both binding sequencing triggers fired: runtime-backward-edge-live shipped 2026-07-04 (curate-at-the-floor exists, so enforcement scale can grow without RUNTIME_GATE_SKIP becoming de-facto curation) and the P3 parity oracle runtime-regression-harness shipped 2026-07-06 (go/no-go GREEN). User confirmed via AskUserQuestion. Adoption done in-worktree (parking→active) to avoid a transient queued+rank state and a main push.
+- **Rejected:** Hold — keep parked: no reason to defer; P4 is next in the roadmap and all prerequisites are shipped.
