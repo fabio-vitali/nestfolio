@@ -15,7 +15,7 @@ out_of_scope:
   - "Authoring NET-NEW checks beyond migrating existing enforcement (epic out_of_scope) — new lessons flow through the backward edge / backlog-add."
   - "The work-driver strangler re-platform (runtime-work-driver-replatform) and the operator surface (runtime-operational-surface) — later epic members (P5/P6)."
   - "Re-designing ring-1 engine contracts (CheckEntry schema/helpers) — frozen by runtime-realization; a build-reconciliation delta re-freezes into SPEC 1, not here."
-spec: null
+spec: docs/superpowers/specs/2026-07-06-runtime-check-migration-completion-design.md
 plan: null
 topic_memory: [project_runtime_realization.md]
 validation_gate: null
@@ -33,10 +33,11 @@ The full P4 migration was split into two tiers on 2026-07-06 (see Decision log).
 - **3 `cmd:` checks** → mirror `no-ddb-scan.yaml`: `check-no-appsync-literals`, `check-typed-fixtures`,
   `check-typed-subjects`. (`check-typed-subjects` carries `scope.exclusions: tools/typed-subject-exclusions.json`
   for now — the deferred exclusions item relocates it.)
-- **`service-structure` `cmd:` check** — extract `verify-structure.sh` checks **#1-#7** into a gate-free
-  `scripts/check-service-structure.sh` and bind `cmd:` to it. (A raw `cmd:scripts/verify-structure.sh` would
-  recurse: that script itself invokes the runtime gate at line 18.) Legacy `verify-structure.sh` keeps running
-  #1-#10 (belt-and-suspenders until P6 retirement).
+- **`service-structure` `cmd:` check** — extract `verify-structure.sh`'s hard-fail structural checks **#1-#5**
+  into a gate-free `scripts/check-service-structure.sh` and bind `cmd:` to it (WARN-only #6/#7 don't map to a
+  blocking finding, so they stay in legacy). (A raw `cmd:scripts/verify-structure.sh` would recurse: that
+  script itself invokes the runtime gate at line 18.) Legacy `verify-structure.sh` keeps running #1-#10
+  (belt-and-suspenders until P6 retirement).
 - **Backlog-lint deterministic rules → `module:` core-wrappers** — mirror `backlog-id-core.mjs` (rule 1): a
   zero-arg export that **imports `rules.mjs` + `loadBacklogFiles`** (delegate, never fork — single-parser
   discipline per [[lint-library-total-and-located]]), runs the rule over all backlog files, maps to findings.
