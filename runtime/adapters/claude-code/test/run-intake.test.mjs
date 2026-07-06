@@ -57,3 +57,14 @@ test('malformed route JSON in the fulfilled summary → exit 1, not a crash', as
   assert.equal(r2.exit, 1);
   assert.ok(String(r2.out.error).length > 0);
 });
+
+test('a driven intake journals a path:runtime provenance record', async () => {
+  const dir = tmpStore();
+  const c = caps();
+  await driveIntake({ finding, backlogDir: join(dir, 'backlog'), checksDir: join(dir, 'checks'), capabilities: c });
+  await driveIntake({ finding, backlogDir: join(dir, 'backlog'), checksDir: join(dir, 'checks'),
+    fulfil: { key: 'execute:intake-f1', value: { taskId: 'intake-f1', status: 'done', summary: JSON.stringify({ route: 'orphan' }) } }, capabilities: c });
+  const step = c.journal.read('intake-f1').steps.get('path:runtime');
+  assert.equal(step?.value?.path, 'runtime');
+  assert.equal(step.value.workstream, 'f1');
+});

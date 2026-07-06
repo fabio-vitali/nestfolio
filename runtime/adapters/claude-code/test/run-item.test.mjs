@@ -53,6 +53,17 @@ test('DRV3 unknown item → exit 2', async () => {
     assert.equal(exit, 2);
   } finally { rmSync(root, { recursive: true, force: true }); }
 });
+test('DRV5 a driven item journals a path:runtime provenance record', async () => {
+  const { root, dir, checks } = tmpBacklog();
+  try {
+    const j = inMemoryJournal();
+    await driveItem({ itemId: 'probe-x', backlogDir: dir, checksDir: checks, capabilities: caps(j) });
+    const step = j.read('item-probe-x').steps.get('path:runtime');
+    assert.equal(step?.status, 'complete');
+    assert.equal(step.value.path, 'runtime');
+    assert.equal(step.value.workstream, 'probe-x');
+  } finally { rmSync(root, { recursive: true, force: true }); }
+});
 test('DRV4 CLI --fulfil with a missing/malformed trailing value prints usage and exits 2 (no crash)', () => {
   const r = spawnSync('node', ['runtime/adapters/claude-code/run-item.mjs', 'x', '--fulfil', 'k'], { encoding: 'utf8', cwd: process.cwd() });
   assert.equal(r.status, 2);

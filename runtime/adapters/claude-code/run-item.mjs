@@ -8,7 +8,8 @@ import { readFileSync } from 'node:fs';
 import { runWorker } from '../../engine/loop/worker.mjs';
 import { loadRegistry } from '../../engine/lib/load-registry.mjs';
 import { readItems } from '../../engine/lib/scope-gate.mjs';
-import { pendingDecisions } from '../../engine/lib/journal.mjs';
+import { pendingDecisions, gitHeadSha } from '../../engine/lib/journal.mjs';
+import { recordRuntimePath } from '../../engine/lib/path-provenance.mjs';
 import { makeClaudeCodeCapabilities } from './index.mjs';
 
 export async function driveItem({ itemId, backlogDir, checksDir, fulfil, capabilities }) {
@@ -18,6 +19,7 @@ export async function driveItem({ itemId, backlogDir, checksDir, fulfil, capabil
   if (fulfil) capabilities.journal.fulfil(runId, fulfil.key, fulfil.value);
   const registry = loadRegistry({ checksDir });
   const result = await runWorker({ item, capabilities, registry });
+  recordRuntimePath(capabilities.journal, { runId, workstream: itemId, sha: gitHeadSha() });
   const pending = pendingDecisions(capabilities.journal.read(runId));
   const exit = result.status === 'done' ? 0 : result.status === 'paused' ? 3 : 1;
   return { exit, out: { result, pending } };

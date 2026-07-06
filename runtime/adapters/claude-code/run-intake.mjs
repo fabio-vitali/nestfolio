@@ -12,7 +12,8 @@ import yaml from 'yaml';
 import { intake } from '../../engine/lib/intake.mjs';
 import { loadRegistry } from '../../engine/lib/load-registry.mjs';
 import { readItems } from '../../engine/lib/scope-gate.mjs';
-import { pendingDecisions } from '../../engine/lib/journal.mjs';
+import { pendingDecisions, gitHeadSha } from '../../engine/lib/journal.mjs';
+import { recordRuntimePath } from '../../engine/lib/path-provenance.mjs';
 import { makeClaudeCodeCapabilities } from './index.mjs';
 
 class IntakeParked extends Error {}
@@ -30,6 +31,7 @@ export async function driveIntake({ finding, backlogDir, checksDir, fulfil, capa
   const runId = `intake-${finding.id}`;
   const { journal } = capabilities;
   journal.begin(runId, { runId, auto: false });
+  recordRuntimePath(journal, { runId, workstream: finding.id, sha: gitHeadSha() });
   if (fulfil) journal.fulfil(runId, fulfil.key, fulfil.value);
   const registry = loadRegistry({ checksDir });
   let parked = null;
