@@ -1,13 +1,17 @@
 ---
 id: runtime-work-driver-replatform
-status: parking
-type: refactor
+status: active
+type: design
 epic: runtime-operationalization
 epic_role: core
-notes: "P5 strangler: re-platform the backlog skills onto the engine one at a time (lint→registry gates, add→intake router, next→worker spine, next-epic→orchestrator) with the legacy body retained behind a flag; soak gate = ≥5 real workstreams driven by the runtime loop, zero legacy fallbacks, parity oracle green. Legacy retirement is user-triggered at the end."
-references: []
-out_of_scope: []
-spec: null
+notes: "Design-umbrella. All 4 deps (seam-probe, backward-edge-live, item-schema-reconciliation, regression-harness) shipped 2026-07-06 — the block trigger fired, promoted to design workstream. This session produces the strategy spec that decomposes the monolithic re-platform into 6 homogeneous-closure members (runtime-replatform-{prereqs,add,lint,next,next-epic,soak-gate}); the buildable work + the ≥5-workstream soak gate move to those members."
+references:
+  - docs/superpowers/specs/2026-07-06-runtime-work-driver-replatform-design.md
+spec: docs/superpowers/specs/2026-07-06-runtime-work-driver-replatform-design.md
+out_of_scope:
+  - "Implementation of any re-platform slice — this workstream ships only the strategy spec (doc-layer); the buildable work lands in the 6 spawned members."
+  - "Legacy-path deletion (P6, user-triggered) and runtime-operational-surface (separate member)."
+  - "Re-designing frozen ring-1 contracts; authoring net-new checks beyond migration."
 plan: null
 topic_memory: [project_runtime_realization.md]
 validation_gate: null
