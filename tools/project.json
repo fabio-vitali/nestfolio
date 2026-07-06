@@ -1,0 +1,16 @@
+{
+  "name": "tools",
+  "$schema": "../node_modules/nx/schemas/project-schema.json",
+  "projectType": "library",
+  "sourceRoot": "tools",
+  "implicitDependencies": ["runtime"],
+  "targets": {
+    "test": {
+      "executor": "nx:run-commands",
+      "cache": true,
+      "inputs": ["{projectRoot}/**/*", "{workspaceRoot}/runtime/eval/scenarios/fixtures/**/*"],
+      "options": { "command": "node --test tools/*.test.mjs", "forwardAllArgs": false }
+    }
+  },
+  "tags": ["scope:tools", "type:tooling"]
+}
