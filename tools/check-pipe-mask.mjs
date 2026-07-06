@@ -5,26 +5,39 @@
 // (diff-scoped gate); falls back to the git-tracked script roots. Exit 0 clean / 1 findings.
 import { readFileSync } from 'node:fs';
 import { execSync } from 'node:child_process';
+import { fileURLToPath } from 'node:url';
 
-const staged = process.env.RUNTIME_STAGED_PATHS?.split('\n').filter(Boolean);
 // Staged input is filtered to the check's declared scope (scripts/**, infrastructure/scripts/**) —
 // cmd evaluators receive the WHOLE staged set (attribution drift, redteam-hardening #8), so the tool
 // must self-scope like the other minted evaluators, or its own eval fixtures would flag at the gate.
 const inScope = (f) => f.endsWith('.sh') && /^(scripts|infrastructure\/scripts)\//.test(f);
-const files = staged
-  ? staged.filter(inScope)
-  : execSync("git ls-files 'scripts/*.sh' 'scripts/**/*.sh' 'infrastructure/scripts/*.sh' 'infrastructure/scripts/**/*.sh'", { encoding: 'utf8' }).split('\n').filter(Boolean);
 
-const violations = [];
-for (const f of files) {
-  let text;
-  try { text = readFileSync(f, 'utf8'); } catch { continue; }
+/** Pure predicate (golden-gate seam, mirrors the sibling text-scan checks): a script that pipes into
+ *  tee/tail without pipefail/PIPESTATUS masks the real command's exit code. Out-of-scope paths → []. */
+export function findViolations(text, relPath) {
+  if (!inScope(relPath)) return [];
   const pipesToMasker = /\|\s*(tee|tail)\b/.test(text);
   const guarded = /pipefail|PIPESTATUS/.test(text);
-  if (pipesToMasker && !guarded) violations.push(f);
+  return pipesToMasker && !guarded ? [{ rule: 'pipe-exit-masking', relPath }] : [];
 }
-if (violations.length) {
-  for (const f of violations) console.error(`pipe-exit-masking: ${f} pipes into tee/tail without pipefail/PIPESTATUS`);
-  process.exit(1);
+
+function main() {
+  const staged = process.env.RUNTIME_STAGED_PATHS?.split('\n').filter(Boolean);
+  const files = staged
+    ? staged.filter(inScope)
+    : execSync("git ls-files 'scripts/*.sh' 'scripts/**/*.sh' 'infrastructure/scripts/*.sh' 'infrastructure/scripts/**/*.sh'", { encoding: 'utf8' }).split('\n').filter(Boolean);
+
+  const violations = [];
+  for (const f of files) {
+    let text;
+    try { text = readFileSync(f, 'utf8'); } catch { continue; }
+    violations.push(...findViolations(text, f));
+  }
+  if (violations.length) {
+    for (const v of violations) console.error(`pipe-exit-masking: ${v.relPath} pipes into tee/tail without pipefail/PIPESTATUS`);
+    process.exit(1);
+  }
+  process.exit(0);
 }
-process.exit(0);
+
+if (process.argv[1] && process.argv[1] === fileURLToPath(import.meta.url)) main();
