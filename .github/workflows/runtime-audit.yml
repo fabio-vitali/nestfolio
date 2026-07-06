@@ -1,0 +1,32 @@
+name: runtime-audit
+on:
+  workflow_dispatch: {}
+  schedule:
+    - cron: "0 6 * * 1"   # weekly, Monday 06:00 UTC — matches runtime/content/triggers.yaml schedule
+jobs:
+  audit:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "24"
+          cache: pnpm
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+      - name: Install Claude Code CLI
+        run: npm install -g @anthropic-ai/claude-code
+      - name: Run runtime audit (produces findings artifact)
+        env:
+          CLAUDE_CODE_OAUTH_TOKEN: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+          RUNTIME_AUDIT_MODEL: claude-opus-4-8
+        run: node runtime/adapters/claude-code/run-audit.mjs --on=schedule
+        continue-on-error: true   # exit 1 = findings surfaced (not a build failure); artifact carries them
+      - name: Upload findings
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: audit-findings
+          path: runtime/.audit-findings/
+          if-no-files-found: ignore
