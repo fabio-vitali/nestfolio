@@ -1,6 +1,7 @@
 ---
 id: runtime-work-driver-replatform
-status: active
+status: shipped
+closed: 2026-07-06
 type: design
 epic: runtime-operationalization
 epic_role: core
@@ -14,7 +15,7 @@ out_of_scope:
   - "Re-designing frozen ring-1 contracts; authoring net-new checks beyond migration."
 plan: null
 topic_memory: [project_runtime_realization.md]
-validation_gate: null
+validation_gate: "Strategy spec committed (docs/superpowers/specs/2026-07-06-runtime-work-driver-replatform-design.md, commit 9462934c) and reviewed/approved. Monolithic item decomposed into 6 homogeneous-closure core members: runtime-replatform-prereqs (queued rank 4), -add, -lint, -next, -next-epic, -soak-gate (parking, sequenced per spec §11). backlog-lint green (11 rules). Buildable work + the ≥5-workstream soak gate now carried by those members; this item's deliverable (the strategy) is complete."
 ---
 
 # Work-driver re-platform — the strangler migration off the backlog skills
