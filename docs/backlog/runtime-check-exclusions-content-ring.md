@@ -1,6 +1,7 @@
 ---
 id: runtime-check-exclusions-content-ring
-status: active
+status: shipped
+closed: 2026-07-06
 type: refactor
 epic: runtime-operationalization
 epic_role: core
@@ -14,7 +15,7 @@ out_of_scope:
 spec: null
 plan: null
 topic_memory: [project_runtime_realization.md]
-validation_gate: null
+validation_gate: "Relocate-only (D2): 8 tools/*-exclusions.json → runtime/content/exclusions/ (git renames, 100%), new tools/lib/exclusions-root.mjs reads exclusionsRoot from runtime.config.json (now a real, cwd-independent config pointer), all 8 checks build their path via exclusionsFile(name). Consumers repointed: 8 checks, 2 lessons.mjs scope.exclusions, 4 content-ring YAML, 3 project.json nx check-target inputs + nx-graph fixture, 3 check test-fixture trees, comments, and all live doc refs (CLAUDE.md, arch docs, 7 skills, broker-ctrl card) — D3. Impl commit 7845160b. Evidence: 98 check tests green (node --test, all 8 suites + text-scan); real runs — all 8 checks read the relocated sidecars (read-model/service-card/ddb-seed/agent-result-fallback/ddb-scan/states-runtime/unsafe-cast clean; check-typed-subjects' 2 subject-suffix reds are pre-existing on origin/main and unrelated, tracked in broker-ctrl-sim-funding-subject-suffix-rename); nx run-many test,lint over 36 affected = 35/36 green in-worktree, sole failure agent-orchestrator:test is a worktree-symlink transitive-dep (@smithy/util-stream) artifact — green on pristine main (19 suites/129 tests), untouched by the diff; ship-recheck clean (ship:runtime-check-exclusions-content-ring:gate-clean); mint considered → none. No deploy: detect-deploy-needed flagged deploy=true only from the project.json check-target-input edit (not build → byte-identical artifact) + broker-ctrl/CLAUDE.md (a doc); sidecars are dev-time gate config never read by a deployed Lambda — user-confirmed skip."
 ---
 
 # Relocate exclusion sidecars into the content ring (make exclusionsRoot real)
