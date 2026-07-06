@@ -53,7 +53,8 @@ rollup: core 0/3 done · captured 0/0 done
 
 ### [detect-deploy-accuracy](backlog/detect-deploy-accuracy.md) `[epic · parking]` — detect-deploy accuracy theme: detect-deploy-needed.mjs produces wrong deploy verdicts — it reverse-reaches THROUGH test-only libs (over-fan-out) and lacks a scripts/ Tier-0 rule (over-deploy default). Theme epic, 2 members. Renamed 2026-06-29 by backlog-themes from the provenance name `deploy-tooling-integrity-leftovers` (a coherent theme that had kept its leftovers shell-name; rename-in-place dissolved the last `*-leftovers` bucket).
 done_when: Each detect-deploy-needed.mjs accuracy gap is resolved or dropped so the resolver's deploy verdicts match reality — the test-lib reverse-reach over-fan-out and the missing scripts/ Tier-0 classification; all members shipped or dropped.
-rollup: core 0/2 done · captured 0/0 done
+rollup: core 0/3 done · captured 0/0 done
+- core · parking · [detect-deploy-nonbuild-inputs-and-service-cards](backlog/detect-deploy-nonbuild-inputs-and-service-cards.md)
 - core · parking · [detect-deploy-scripts-tier0](backlog/detect-deploy-scripts-tier0.md)
 - core · parking · [detect-deploy-test-lib-reverse-reach-fanout](backlog/detect-deploy-test-lib-reverse-reach-fanout.md)
 
