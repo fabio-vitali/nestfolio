@@ -1,0 +1,17 @@
+id: backlog-index-matches
+property: "docs/BACKLOG.md matches the render of docs/backlog/*.md frontmatter (backlog-lint rule 7)."
+kind: staleness
+evaluator:
+  type: deterministic
+  run: "module:runtime/content/lib/backlog-rules-core.mjs#indexMatchesViolations"
+cost_tier: cheap
+contexts: [invariant, gate]
+scope:
+  paths:
+    - "docs/backlog/*.md"
+    - "docs/BACKLOG.md"
+status: active
+provenance:
+  minted_by: runtime-check-migration-completion
+  lesson: "docs/superpowers/specs/2026-05-07-backlog-redesign-design.md"
+  ratified: "2026-07-06"

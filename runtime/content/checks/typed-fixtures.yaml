@@ -1,0 +1,18 @@
+id: typed-fixtures
+property: >
+  Test fixtures use typed event builders registered in tools/typed-fixture-registered-events.json —
+  no untyped/ad-hoc event fixture literals.
+kind: drift
+evaluator:
+  type: deterministic
+  run: cmd:node tools/check-typed-fixtures.mjs
+cost_tier: cheap
+contexts: [invariant, gate]
+scope:
+  paths:
+    - "services/**/test/**/*.ts"
+    - "libs/event-processor/**/*.ts"
+status: active
+provenance:
+  minted_by: runtime-check-migration-completion
+  ratified: "2026-07-06"

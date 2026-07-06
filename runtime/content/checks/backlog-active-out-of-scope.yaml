@@ -1,0 +1,16 @@
+id: backlog-active-out-of-scope
+property: "active item ⇒ out_of_scope non-empty (backlog-lint rule 4)."
+kind: gap
+evaluator:
+  type: deterministic
+  run: "module:runtime/content/lib/backlog-rules-core.mjs#activeOutOfScopeViolations"
+cost_tier: cheap
+contexts: [invariant, gate]
+scope:
+  paths:
+    - "docs/backlog/*.md"
+status: active
+provenance:
+  minted_by: runtime-check-migration-completion
+  lesson: "docs/superpowers/specs/2026-05-07-backlog-redesign-design.md"
+  ratified: "2026-07-06"

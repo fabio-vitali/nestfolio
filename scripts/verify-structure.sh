@@ -28,6 +28,11 @@ fi
 echo "Verifying service structure for staged changes..."
 echo ""
 
+# Hard-fail structural invariants #1-#5 (extracted, shared with the runtime service-structure check)
+if ! RUNTIME_STAGED_PATHS="$(git diff --cached --name-only)" bash scripts/check-service-structure.sh; then
+  ERRORS=$((ERRORS + 1))
+fi
+
 for SERVICE_PATH in $CHANGED_SERVICES; do
   if [ ! -d "$SERVICE_PATH" ]; then
     continue
@@ -35,37 +40,6 @@ for SERVICE_PATH in $CHANGED_SERVICES; do
 
   SERVICE_NAME=$(basename "$SERVICE_PATH")
   DOMAIN=$(basename "$(dirname "$SERVICE_PATH")")
-
-  # Check 1: project.json exists
-  if [ ! -f "$SERVICE_PATH/project.json" ]; then
-    echo -e "${RED}FAIL${NC} [$SERVICE_NAME] Missing project.json"
-    ERRORS=$((ERRORS + 1))
-  fi
-
-  # Check 2: src/service.stack.ts exists
-  if [ ! -f "$SERVICE_PATH/src/service.stack.ts" ]; then
-    echo -e "${RED}FAIL${NC} [$SERVICE_NAME] Missing src/service.stack.ts"
-    ERRORS=$((ERRORS + 1))
-  fi
-
-  # Check 3: test/ directory exists
-  if [ ! -d "$SERVICE_PATH/test" ]; then
-    echo -e "${RED}FAIL${NC} [$SERVICE_NAME] Missing test/ directory"
-    ERRORS=$((ERRORS + 1))
-  fi
-
-  # Check 4: No absolute imports from services/ (relative ../services/ is fine)
-  if grep -rq "from.*['\"]services/" "$SERVICE_PATH/src/" 2>/dev/null; then
-    echo -e "${RED}FAIL${NC} [$SERVICE_NAME] Import boundary violation: imports from services/"
-    grep -rn "from.*['\"]services/" "$SERVICE_PATH/src/" | head -3
-    ERRORS=$((ERRORS + 1))
-  fi
-
-  # Check 5: Service name convention
-  if ! echo "$SERVICE_NAME" | grep -qE -- '-(ctrl|bff|hub|adpt|web)$'; then
-    echo -e "${RED}FAIL${NC} [$SERVICE_NAME] Name must end with -ctrl, -bff, -hub, -adpt, or -web"
-    ERRORS=$((ERRORS + 1))
-  fi
 
   # Check 6: CLAUDE.md service card (warning only)
   if [ ! -f "$SERVICE_PATH/CLAUDE.md" ]; then

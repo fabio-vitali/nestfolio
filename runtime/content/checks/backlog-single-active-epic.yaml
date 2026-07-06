@@ -1,0 +1,16 @@
+id: backlog-single-active-epic
+property: "at most one type: epic has status: active (backlog-lint rule 11)."
+kind: inconsistency
+evaluator:
+  type: deterministic
+  run: "module:runtime/content/lib/backlog-rules-core.mjs#singleActiveEpicViolations"
+cost_tier: cheap
+contexts: [invariant, gate]
+scope:
+  paths:
+    - "docs/backlog/*.md"
+status: active
+provenance:
+  minted_by: runtime-check-migration-completion
+  lesson: "docs/superpowers/specs/2026-05-07-backlog-redesign-design.md"
+  ratified: "2026-07-06"

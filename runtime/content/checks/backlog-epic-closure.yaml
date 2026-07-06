@@ -1,0 +1,16 @@
+id: backlog-epic-closure
+property: "a terminal (shipped or dropped) epic has no member left in a non-terminal status (backlog-lint rule 9)."
+kind: inconsistency
+evaluator:
+  type: deterministic
+  run: "module:runtime/content/lib/backlog-rules-core.mjs#epicClosureViolations"
+cost_tier: cheap
+contexts: [invariant, gate]
+scope:
+  paths:
+    - "docs/backlog/*.md"
+status: active
+provenance:
+  minted_by: runtime-check-migration-completion
+  lesson: "docs/superpowers/specs/2026-05-07-backlog-redesign-design.md"
+  ratified: "2026-07-06"

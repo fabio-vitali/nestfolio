@@ -1,0 +1,17 @@
+id: service-structure
+property: >
+  Each staged service has project.json, src/service.stack.ts, a test/ dir, no absolute services/
+  imports, and a -ctrl/-bff/-hub/-adpt/-web name suffix (verify-structure #1-5).
+kind: inconsistency
+evaluator:
+  type: deterministic
+  run: cmd:bash scripts/check-service-structure.sh
+cost_tier: cheap
+contexts: [gate]
+scope:
+  paths:
+    - "services/**"
+status: active
+provenance:
+  minted_by: runtime-check-migration-completion
+  ratified: "2026-07-06"
