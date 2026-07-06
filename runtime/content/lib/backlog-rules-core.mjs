@@ -2,6 +2,7 @@
 // runtime `module:` seam. DELEGATES to rules.mjs / index-render.mjs (single source of truth) — never forks.
 // Each backlog rule is a whole-repo invariant (a violation is wrong regardless of what is staged).
 import { execSync } from 'node:child_process';
+import { join } from 'node:path';
 import { loadBacklogFiles } from '../../../.claude/skills/backlog-lint/lib/frontmatter.mjs';
 import {
   ruleFrontmatterParseable, ruleSingleActive, rulePromotionTriggerGated,
@@ -11,9 +12,13 @@ import {
 } from '../../../.claude/skills/backlog-lint/lib/rules.mjs';
 import { ruleIndexMatches } from '../../../.claude/skills/backlog-lint/lib/index-render.mjs';
 
-const DIR = 'docs/backlog';
-const INDEX = 'docs/BACKLOG.md';
 const repoRoot = () => execSync('git rev-parse --show-toplevel').toString().trim();
+// Resolve the backlog dir + index to ABSOLUTE paths at module load (mirrors lint.mjs's REPO_ROOT). ruleIndexMatches
+// resolves "Recently Shipped" git dates via an absolute-path-keyed map, so a relative DIR/INDEX yields a
+// false-positive "BACKLOG.md out of date" on the clean backlog when the export is called zero-arg from the gate.
+const ROOT = repoRoot();
+const DIR = join(ROOT, 'docs/backlog');
+const INDEX = join(ROOT, 'docs/BACKLOG.md');
 
 // map backlog-lint violations ({rule,file,message}) → runtime findings ({detail,scope,evidence?})
 const toFindings = (violations, scope = ['docs/backlog/*.md']) =>
@@ -24,7 +29,7 @@ const toFindings = (violations, scope = ['docs/backlog/*.md']) =>
 const perFile        = (rule) => (dir = DIR) => toFindings(loadBacklogFiles(dir).flatMap(rule));
 const wholeSet       = (rule) => (dir = DIR) => toFindings(rule(loadBacklogFiles(dir)));
 const perFileWithAll = (rule) => (dir = DIR) => { const fs = loadBacklogFiles(dir); return toFindings(fs.flatMap((f) => rule(f, fs))); };
-const perFileWithRoot = (rule) => (dir = DIR, root = repoRoot()) => toFindings(loadBacklogFiles(dir).flatMap((f) => rule(f, root)));
+const perFileWithRoot = (rule) => (dir = DIR, root = ROOT) => toFindings(loadBacklogFiles(dir).flatMap((f) => rule(f, root)));
 
 // ── per-file rules (this task) ──
 export const frontmatterParseableViolations = perFile(ruleFrontmatterParseable);

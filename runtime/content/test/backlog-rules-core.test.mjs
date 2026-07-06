@@ -106,3 +106,9 @@ test('rule 3: design file with a missing reference → one finding', () => {
   assert.equal(f.length, 1);
   assert.match(f[0].detail, /reference path not found/);
 });
+
+// Regression: zero-arg must resolve absolute DIR/INDEX so ruleIndexMatches' git-date map (absolute-keyed) lines up.
+// With relative defaults this returned a false-positive "BACKLOG.md out of date" finding on the clean backlog.
+test('rule 7: indexMatchesViolations() zero-arg on the real backlog is clean (absolute-path resolution)', () => {
+  assert.deepEqual(indexMatchesViolations(), []);
+});
