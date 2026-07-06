@@ -1,6 +1,7 @@
 ---
 id: runtime-check-migration-judgment-tier
-status: active
+status: shipped
+closed: 2026-07-06
 type: feature
 rank: 4
 epic: runtime-operationalization
@@ -17,7 +18,7 @@ out_of_scope:
 spec: docs/superpowers/specs/2026-07-06-runtime-check-migration-judgment-tier-design.md
 plan: docs/superpowers/plans/2026-07-06-runtime-check-migration-judgment-tier.md
 topic_memory: [project_runtime_realization.md]
-validation_gate: null
+validation_gate: "Live judge binding + cadence dispatcher + 4 audit judgment checks + CI cadence, all TDD. Commits: d0efef48 (allowedTools seam in buildClaudeArgs), b06ce519 (audit-procedures.mjs — Seam A, populates the runProcedure map for the 4 audit-* skills read-only), 11662d9a (run-audit.mjs — Seam B cadence dispatcher + gitignored findings artifact), 39428b3b (4 audit-{service,domain,system,e2e-test}.yaml judgment checks + stub eval scenarios + schedule cost_ceiling moderate→expensive fix), cba9ff48 (.github/workflows/runtime-audit.yml weekly+dispatch), 92022e41 (acceptance demo). Registry: loaded 34 check(s), 0 error(s) (30+4). Tests: full runtime suite 327/0 (pnpm nx test runtime); nx run-many test over runtime,tools green + runtime typecheck green (neither has a lint target); meta-check+content-ring 14/0. ACCEPTANCE (demonstrated, not asserted): `node runtime/adapters/claude-code/run-audit.mjs --on=manual --only=audit-e2e-test` (Opus, read-only tool-set) fired the live binding end-to-end and produced 3 REAL findings (count:3, artifact runtime/.audit-findings/audit-manual-local.json); finding audit-e2e-test#0 (EventBusTrap imported from @nestfolio/integration-testing across 4 e2e files — verified real by grep) routed through run-intake.mjs (park exit 3 → --fulfil route:orphan) into docs/backlog/from-audit-e2e-test.md carrying provenance.from_finding=audit-e2e-test#0, from_check=audit-e2e-test. ship-recheck clean (ship:runtime-check-migration-judgment-tier:gate-clean); mint considered → none (a20247d6-era). No deploy: all changes Tier-0 (detect-deploy-needed exit 10). Deferred follow-ups filed (spec §8): runtime-judgment-governance-gaps, runtime-judgment-flake-calibration, runtime-audit-auto-intake-ci. MANUAL SETUP (workflow inert until done): add repo secret CLAUDE_CODE_OAUTH_TOKEN via `claude setup-token` — then workflow_dispatch a first run to confirm CI auth."
 ---
 
 # Runtime check migration — judgment tier (live judge binding + audit-* skills)
