@@ -97,3 +97,10 @@ de-facto curation — drift design law 5). The P3 parity oracle `runtime-regress
 - **Chosen:** Subagent-driven development
 - **Rationale:** writing-plans recommends it; keeps main-loop context clean (long session) while preserving review + floor-handling at each task boundary (two-stage review between tasks). The plan is 6 mechanical TDD tasks with no user-facing forks left, so task-subagent isolation is safe and compatible with the no-worker-isolating-subagents feedback (which targets isolating the /backlog-next worker from decisions, not mechanical plan-execution subtasks). --auto auto-resolves this process fork.
 - **Rejected:** Inline execution: fills the main-loop context with test/YAML output; unnecessary given no forks remain in execution.
+
+### D6 — 2026-07-06
+- **Decision:** Enforcement cadence for the migrated typed-subjects check (surfaced by Task 1)
+- **Options:** [gate] + scope services/** (legacy-parity, non-blocking) | [invariant, gate] (per plan, mirrors the clean checks) | Defer typed-subjects migration until broker-ctrl fixed
+- **Chosen:** [gate] + scope services/** (legacy-parity, non-blocking)
+- **Rationale:** check-typed-subjects.mjs full-scans (does not honor RUNTIME_STAGED_PATHS) and reports 2 pre-existing subject-suffix violations in broker-ctrl (parked: broker-ctrl-sim-funding-subject-suffix-rename, since 2026-06-21). As [invariant] (per plan) the runtime commit gate would block EVERY commit. [gate] + scope services/** fires only on service-staged commits — exactly the legacy verify-structure.sh #8 trigger — so it is belt-and-suspenders parity with no new regression, and backlog/doc commits (this workstream's own + Task 6's gate demo) are unaffected. Keeping libs/event-processor in scope would newly-block lib-only commits, so scope is services-only. Promotion to [invariant, gate] is a follow-up gated on the broker-ctrl fix. Auto-resolved (mechanically correct, non-balanced) and logged per --auto.
+- **Rejected:** [invariant, gate]: blocks all commits on the pre-existing broker-ctrl violations. Defer: leaves the section-12 map incomplete for typed-subjects when legacy-parity enforcement is achievable now.
