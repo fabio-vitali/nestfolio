@@ -158,8 +158,8 @@ rollup: core 0/2 done · captured 0/0 done
 ### [runtime-operationalization](backlog/runtime-operationalization.md) `[epic · parking]` — Adopt/operationalize the Long-Horizon Engineering Runtime via the probes-first roadmap (re-scoped 2026-07-03): P1 probe the two unproven bets (execute seam, backward edge) → P2 moat live (mint/curate in anger, before enforcement triples) → P3 parity oracle + item schema → P4 check migration with cadence + CI golden gates → P5 work-driver strangler re-platform with soak gate → P6 user-triggered legacy retirement + operator surface. runtime-realization shipped the 3 library slices; THIS epic makes the runtime the project's live enforcement + work-driver, reversibly (docs/backlog stays the one item store — procedures migrate, never data).
 done_when: The runtime is the project's LIVE enforcement + work-driver, demonstrated not asserted: (1) enforcement — the gate fires diff-scoped on commit (shipped) AND every migrated check runs on a real cadence (commit gate / CI / schedule / epic-batch; judgment checks via a live judge binding), the ~34-surface migration into runtime/content/checks is complete, and the check golden gates run in CI; (2) the backward edge is live-in-anger — at least one real lesson minted through a real floor into a registered check, and curate-at-the-floor is the only sanctioned path past a failing guard (skip-hatch instrumented); (3) item.schema is reconciled with docs/backlog and validated on read; (4) the parity oracle is green — the regression harness grades the runtime loop against the legacy backlog skills on the same scenarios, plus a greenfield adoption e2e; (5) the work-driver is re-platformed — the backlog skills run on the engine loop with legacy fallback, soaked over ≥5 real workstreams with zero fallbacks; (6) the operator surface (view+executor) is shipped. Every core member shipped or dropped.
 rollup: core 14/20 done · captured 2/12 done
+- core · active · [runtime-replatform-add](backlog/runtime-replatform-add.md)
 - core · parking · [runtime-operational-surface](backlog/runtime-operational-surface.md)
-- core · parking · [runtime-replatform-add](backlog/runtime-replatform-add.md)
 - core · parking · [runtime-replatform-lint](backlog/runtime-replatform-lint.md)
 - core · parking · [runtime-replatform-next](backlog/runtime-replatform-next.md)
 - core · parking · [runtime-replatform-next-epic](backlog/runtime-replatform-next-epic.md)
@@ -236,8 +236,7 @@ rollup: core 0/3 done · captured 0/0 done
 
 ## ACTIVE
 
-_(none)_
-
+- [runtime-replatform-add](backlog/runtime-replatform-add.md) [refactor] — P5 WS-1 (spec §8): re-platform backlog-add onto intake.mjs (nearest parity — the router is already ported). Port the procedural context-loading the raw judge prompt skips (grep the active epic, read done_when:/scope:, run the closure-predicate test) into selectRoute; wire the lint --fix index-regen side-car after writeItemFile. Maps the 7 rt-add-* + atomicity/discard oracle scenarios. Promoted 2026-07-07 (standalone member per epic D1): the block trigger fired — runtime-replatform-prereqs shipped 2026-07-06 with parity-hole #1 (Finding.check optional + AGENT_OBSERVED sentinel), verified at finding.schema.ts:18/14. `[epic:runtime-operationalization · core]`
 
 ## QUEUED
 
