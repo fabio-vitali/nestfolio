@@ -1,12 +1,14 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { mkdtempSync, writeFileSync, mkdirSync } from 'node:fs';
+import { mkdtempSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import {
   activeOutOfScopeViolations, shippedValidationGateViolations,
   promotionTriggerGatedViolations, activeEpicFieldsViolations,
-  frontmatterParseableViolations,
+  frontmatterParseableViolations, singleActiveViolations,
+  queuedRanksViolations, singleActiveEpicViolations, epicClosureViolations,
+  epicPointerIntegrityViolations, indexMatchesViolations, referencesValidViolations,
 } from '../lib/backlog-rules-core.mjs';
 
 function fixture(files) {
@@ -47,11 +49,6 @@ test('precondition: malformed frontmatter → located finding', () => {
   assert.equal(f.length, 1);
   assert.match(f[0].evidence, /bad\.md/);
 });
-
-import {
-  singleActiveViolations, queuedRanksViolations, singleActiveEpicViolations,
-  epicClosureViolations, epicPointerIntegrityViolations, indexMatchesViolations,
-} from '../lib/backlog-rules-core.mjs';
 
 test('rule 2: two non-epic active items → one finding', () => {
   const dir = fixture({
@@ -96,8 +93,6 @@ test('rule 7: index-matches returns findings array (no throw) for a fixture dir'
   assert.ok(Array.isArray(f));
   assert.equal(f.length, 1);
 });
-
-import { referencesValidViolations } from '../lib/backlog-rules-core.mjs';
 
 test('rule 3: design file with a missing reference → one finding', () => {
   const body = `---\nid: d\nstatus: parking\ntype: design\nreferences:\n  - missing-ref.md\n---\n\nbody\n`;
