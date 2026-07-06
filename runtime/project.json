@@ -8,7 +8,7 @@
       "executor": "nx:run-commands",
       "cache": true,
       "inputs": ["{projectRoot}/engine/**/*", "{projectRoot}/adapters/**/*", "{projectRoot}/eval/**/*", "{projectRoot}/starter/**/*", "{projectRoot}/content/**/*", "{projectRoot}/cli.mjs", "{projectRoot}/runtime.config.json"],
-      "options": { "command": "node --test runtime/engine/test/*.test.mjs runtime/engine/backward/test/*.test.mjs runtime/engine/loop/test/*.test.mjs runtime/adapters/**/test/*.test.mjs runtime/eval/test/*.test.mjs runtime/content/test/*.test.mjs", "forwardAllArgs": false }
+      "options": { "command": "node --test runtime/engine/test/*.test.mjs runtime/engine/backward/test/*.test.mjs runtime/engine/loop/test/*.test.mjs runtime/adapters/**/test/*.test.mjs runtime/eval/test/*.test.mjs runtime/eval/e2e/*.test.mjs runtime/content/test/*.test.mjs", "forwardAllArgs": false }
     },
     "typecheck": {
       "executor": "nx:run-commands",
