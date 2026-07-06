@@ -1,6 +1,6 @@
 ---
 id: runtime-replatform-prereqs
-status: active
+status: shipped
 rank: 4
 type: tooling
 epic: runtime-operationalization
@@ -15,7 +15,8 @@ out_of_scope:
 spec: docs/superpowers/specs/2026-07-06-runtime-work-driver-replatform-design.md
 plan: docs/superpowers/plans/2026-07-06-runtime-replatform-prereqs.md
 topic_memory: [project_runtime_realization.md]
-validation_gate: null
+validation_gate: "8-task TDD plan (commits 28c85655..2be65887): (A) runtime/engine/lib/path-provenance.mjs — RUNTIME_ENGINE flag + path:runtime/legacy-fallback ledger; run-item/run-intake emit path:runtime. (B) scripts/parity-oracle/soak-observer.mjs — >=5-runtime / zero-fallback / oracle-green verdict. (C) parity-oracle path:runtime hollow-green guard (runtime-grade path verb + structural-lint) + unmappedIds() checklist + all 11 rt scenarios assert path:runtime. (D) Finding.check optional + agent-observed sentinel; themes clustering + <epic>-leftovers spin-out (themes.mjs + run-themes.mjs); dossier-sync reconcile side-car + shared dossier-io extraction; spec reconcile-lesson path fixed. Gates: full runtime suite 345/345 + parity-oracle 33/33 (node --test); nx test+typecheck green for runtime,tools; ship-recheck clean (journaled ship:runtime-replatform-prereqs:gate-clean); Tier-0 no-deploy; no doc-derivation; mint consideration recorded (none)."
+closed: 2026-07-06
 ---
 
 # Re-platform prerequisites — flag, soak observer, oracle extension, 3 parity holes
