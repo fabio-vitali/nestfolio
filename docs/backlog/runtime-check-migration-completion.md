@@ -1,6 +1,6 @@
 ---
 id: runtime-check-migration-completion
-status: active
+status: shipped
 type: refactor
 epic: runtime-operationalization
 epic_role: core
@@ -18,7 +18,8 @@ out_of_scope:
 spec: docs/superpowers/specs/2026-07-06-runtime-check-migration-completion-design.md
 plan: docs/superpowers/plans/2026-07-06-runtime-check-migration-completion.md
 topic_memory: [project_runtime_realization.md]
-validation_gate: null
+validation_gate: "Final whole-branch review SHIP (opus). Acceptance DEMONSTRATED not asserted: staged a rule-4 violation → runtime commit gate exit=1 with finding `backlog-active-out-of-scope` ('out_of_scope is empty'); restored → gate exit=0. Registry green: meta-check.mjs rc=0, 30 CheckEntries; all 14 [invariant] checks return 0 findings on the clean tree (no commit-bricking); typed-subjects correctly demoted to [gate]+services (D6). §12 deterministic surfaces migrated: 3 cmd: checks (no-appsync-literals/typed-fixtures [invariant,gate]; typed-subjects [gate]), 12 backlog-lint rules as module: cores delegating to rules.mjs (delegate-not-fork verified — precondition + 2,3,4,4a,5,6,7,8,9,10,11), gate-free service-structure extraction (verify-structure.sh #1-5 → check-service-structure.sh, recursion-free). Verify: nx runtime test+typecheck 306/306; node:test backlog-rules-core 13/13 + service-structure 3/3; ship-recheck gate-clean on origin/main..HEAD. Fixed en route: index-matches false-positive (98abd909, DIR/INDEX absolute) + regression test. Commits 17f5b51d..754ded1e."
+closed: 2026-07-06
 ---
 
 # Finish the check migration — deterministic tier (the §12 no-lost-value map)
