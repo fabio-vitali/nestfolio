@@ -1,0 +1,20 @@
+id: no-appsync-literals
+property: >
+  No hardcoded AppSync/AWS endpoint literals (appsync-api, appsync-realtime-api, *.amazonaws.com)
+  in apps/** or the shell/frontend-deps/ui libs — charter invariant.
+kind: inconsistency
+evaluator:
+  type: deterministic
+  run: cmd:node tools/check-no-appsync-literals.mjs
+cost_tier: cheap
+contexts: [invariant, gate]
+scope:
+  paths:
+    - "apps/**/*.ts"
+    - "libs/shell/**/*.ts"
+    - "libs/frontend-deps/**/*.ts"
+    - "libs/ui/**/*.ts"
+status: active
+provenance:
+  minted_by: runtime-check-migration-completion
+  ratified: "2026-07-06"
