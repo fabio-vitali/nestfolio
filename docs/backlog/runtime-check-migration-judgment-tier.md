@@ -1,7 +1,8 @@
 ---
 id: runtime-check-migration-judgment-tier
-status: parking
+status: queued
 type: feature
+rank: 4
 epic: runtime-operationalization
 epic_role: core
 notes: "P4 tier 2 (split from runtime-check-migration-completion 2026-07-06): the JUDGMENT tier of the check migration. Migrate the 4 audit-* skills (audit-service/-domain/-system/-e2e-test) + backlog-lint captured-audit + the 2 judgment gaps (core-vs-captured epic_role classification, ship-time captured promote/spin-out verdict) into skill:/judgment CheckEntries with flake_contracts. Requires building the live judge binding (the skill: executor is a stub throwing JudgeCapabilityUnavailable; makeRunProcedure({procedures}) is never populated — inject procedures[<audit-skill>] via a real headless claude -p invocation, reusing scripts/benchmark-backlog) AND an expensive-check cadence dispatcher (audit-context / schedule / epic-batch — none wired today; only commit is live). Acceptance: >=1 real audit-context execution with findings routed through intake. Needs its own brainstorming (genuinely novel infra)."
@@ -38,5 +39,9 @@ item is the judgment tier — the genuinely-novel infra the deterministic tier d
 
 ## Sequencing
 
-Follows the deterministic tier (`runtime-check-migration-completion`) — the registry conventions + the
-`*-core.mjs` wrapper pattern land there first. Needs its own brainstorming (novel adapter + cadence design).
+Followed the deterministic tier (`runtime-check-migration-completion`, SHIPPED 2026-07-06 PR#35) — the
+registry conventions + the `*-core.mjs` wrapper pattern landed there. That sequencing precondition is now
+satisfied, so this item was **promoted parking → queued (rank 4) on 2026-07-06**. It still needs its own
+brainstorming (novel adapter + cadence design) as its first phase — start it via
+`/backlog-next runtime-check-migration-judgment-tier` (interactive, not `--auto`; the design approval gate
+requires the user).
