@@ -1,6 +1,6 @@
 ---
 id: runtime-check-goldengates-ci
-status: active
+status: shipped
 type: infra
 epic: runtime-operationalization
 epic_role: core
@@ -15,7 +15,8 @@ out_of_scope:
 spec: null
 plan: null
 topic_memory: [project_runtime_realization.md]
-validation_gate: null
+validation_gate: "Complex lane, worktree branch worktree-runtime-check-goldengates-ci (commits 7d8b518a adopt · b215e299 tools nx project · 3a0c4866 pipe-mask findViolations+golden gate · f89bb045 real driver · 65e91183 follow-up). (a) tools/project.json makes `tools` a first-class nx project — verified: nx graph acyclic (tools→runtime implicit, no cycle), tools/affected-projects.mjs returns `tools` on a check-module change and `runtime,tools` on a fixture change, so the EXISTING pr-deploy.yml/deploy.yml `nx run-many -t test -p $AFFECTED` steps run the golden gates in CI with no workflow edit. (b) check-pipe-mask.mjs refactored to export a pure findViolations (identical CLI behaviour) + new tools/check-pipe-mask.test.mjs golden gate; new runtime/eval/test/grade-check-scenario.real.test.mjs grades all 8 deterministic scenarios (2 module: + 6 cmd:) through the REAL gradeCheckScenario. Gate: `nx run-many -t test,lint -p runtime,tools` RC=0, 315 tests pass (full runtime suite incl. greenfield e2e + 12 tools golden-gate/CLI/unit suites + the 9-test data-driven driver). detect-deploy-needed exit 10 (all Tier-0, no deploy/e2e). Backward edge: ship-recheck clean (ship:runtime-check-goldengates-ci:gate-clean journaled); mint consideration recorded --none (filed follow-up nx-orphan-test-file-metacheck)."
+closed: 2026-07-06
 ---
 
 # Wire the check golden gates into nx / CI
