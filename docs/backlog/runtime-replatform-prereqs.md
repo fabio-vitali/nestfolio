@@ -13,7 +13,7 @@ out_of_scope:
   - "Deleting legacy skill bodies (P6, user-triggered)."
   - "Re-designing frozen ring-1 contracts beyond making Finding.check optional (a spec §7 delta re-freezes into SPEC 1)."
 spec: docs/superpowers/specs/2026-07-06-runtime-work-driver-replatform-design.md
-plan: null
+plan: docs/superpowers/plans/2026-07-06-runtime-replatform-prereqs.md
 topic_memory: [project_runtime_realization.md]
 validation_gate: null
 ---
