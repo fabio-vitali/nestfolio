@@ -72,7 +72,7 @@ function perRunTokens(r) {
   return { input, output, cacheRead, cacheWrite, total: input + output + cacheRead + cacheWrite };
 }
 
-function aggregate(runs) {
+export function aggregate(runs) {
   const tk = (f) => median(runs.map((r) => perRunTokens(r)[f]));
   const row = {
     gatePassRate: runs.filter((r) => r.gatePass).length / runs.length,
@@ -102,7 +102,7 @@ function aggregate(runs) {
   return row;
 }
 
-function defaultRunOne(suite, opts) {
+export function defaultRunOne(suite, opts) {
   return async (scenario, ref) => {
     const { dir, cleanup } = await suite.buildSandbox(scenario, ref);
     try {
