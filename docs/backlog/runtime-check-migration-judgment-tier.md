@@ -14,8 +14,8 @@ out_of_scope:
   - "Re-designing ring-1 engine contracts (schemas/helpers/CheckEntry shape) — frozen by runtime-realization; a build-reconciliation delta re-freezes into SPEC 1, not here."
   - "Authoring NET-NEW judgment checks beyond migrating existing enforcement — new lessons flow through the backward edge / backlog-add."
   - "The P5 work-driver strangler re-platform and the P6 operator surface."
-spec: null
-plan: null
+spec: docs/superpowers/specs/2026-07-06-runtime-check-migration-judgment-tier-design.md
+plan: docs/superpowers/plans/2026-07-06-runtime-check-migration-judgment-tier.md
 topic_memory: [project_runtime_realization.md]
 validation_gate: null
 ---
