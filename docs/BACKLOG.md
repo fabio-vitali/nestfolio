@@ -221,7 +221,7 @@ rollup: core 0/3 done · captured 0/0 done
 - core · parking · [portfolio-drift-detected-registry-collision](backlog/portfolio-drift-detected-registry-collision.md)
 - core · parking · [weight-drift-detector](backlog/weight-drift-detector.md)
 
-**Parking health:** 30 theme epic(s), 9 orphan(s) — drive orphans → 0 with `/backlog-themes`
+**Parking health:** 30 theme epic(s), 10 orphan(s) — drive orphans → 0 with `/backlog-themes`
 
 ## ACTIVE
 
@@ -237,6 +237,7 @@ rollup: core 0/3 done · captured 0/0 done
 
 - [backlog-lint-no-element-shape-validation](backlog/backlog-lint-no-element-shape-validation.md) [tooling] — backlog-lint passes on element-shape-corrupt frontmatter (object inside out_of_scope) and the index render silently drops the item.
 - [backlog-next-epic-oversized-epic-splitting](backlog/backlog-next-epic-oversized-epic-splitting.md) [tooling] — backlog-next-epic can't run phased/soak-gated epics; evolve the family: split oversized epics (agile-style), declare/honor a draining mode.
+- [bef-next-auto-finishing-pr-stop-rubricgate-red](backlog/bef-next-auto-finishing-pr-stop-rubricgate-red.md) [bug] — Surfaced by the parity oracle's live bring-up (2026-07-06): legacy next-auto-finishing-pr-stop failed its own rubricGate:4 in 2/2 independent runs (judge 2/5 then 1/5 — 'auto-resolved decisions recorded in the workstream file on the branch' judged missing). Either the legacy --auto decision-log behavior regressed since the 2026-06-27 baseline, or the judge is miscalibrated on this rubric, or the committed bef baseline row for this scenario is stale.
 - [benchmark-agents-skill-simplification](backlog/benchmark-agents-skill-simplification.md) [refactor] — benchmark-agents SKILL.md (§5/§6) prescribes report templates inline; relocate to run.ts+templates.
 - [bump-tsconfig-es2022-to-es2023](backlog/bump-tsconfig-es2022-to-es2023.md) [tooling] — Enable .toSpliced/.toReversed/.with workspace-wide; promote on second use case.
 - [integration-suite-lever-5-cdk-bundling](backlog/integration-suite-lever-5-cdk-bundling.md) [refactor] — cdk-constructs:test bundles 57 assets in 32s as it synthesizes per-construct stacks in tests. This sits in the unit suite, not integration. Dossier called out as out-of-scope for integration slowness but worth tracking if unit wall-clock becomes a concern.

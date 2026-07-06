@@ -13,6 +13,9 @@ export default {
     'Work backlog item infra-retention-bump through the runtime worker in unattended (--auto) discipline. Driver command: node runtime/adapters/claude-code/run-item.mjs infra-retention-bump — when parked on execute:infra-retention-bump, read docs/backlog/infra-retention-bump.md and perform its work exactly, run the dev-sandbox deploy its done-definition requires (bash infrastructure/scripts/deploy.sh sandbox --prefix=dev), commit, then fulfil. The ship decision is a human floor decision: unattended runs NEVER answer it.'),
   terminal: 'pause',
   callLog: { called: ['deploy.sh'], neverCalled: ['gh pr merge', 'gh pr create'] },
+  // Override the inherited legacy state: branchCreated is the WORKTREE-adoption proxy (legacy
+  // procedure); the engine works the item without a branch — its work-product is the assertion.
+  state: { fileContains: [{ file: 'infrastructure/config/retention-days.txt', needle: '30' }] },
   journal: [
     { runId: 'item-infra-retention-bump', has: 'execute:infra-retention-bump' },
     { runId: 'item-infra-retention-bump', has: 'gate.ship' },
