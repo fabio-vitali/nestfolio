@@ -14,7 +14,7 @@ out_of_scope:
   - "Heavy real-LLM calibration sweeps beyond what proves the eval works — quota-gated, front-loaded only where the user approves the token spend."
   - "Operator surface (view+executor) — separate epic member."
 spec: docs/superpowers/specs/2026-07-06-runtime-regression-harness-design.md
-plan: null
+plan: docs/superpowers/plans/2026-07-06-runtime-regression-harness.md
 topic_memory: [project_runtime_realization.md]
 validation_gate: null
 ---

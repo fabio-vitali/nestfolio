@@ -107,16 +107,21 @@ export const MAPPING = {
 
 First cut (finalized at plan time against the actual scenario/check inventories):
 
-- **All 9 `add-*` → mapped (router parity).** Runtime variant drives `run-intake.mjs` with the same
-  finding text over the same fixture; golden asserts the same filed outcome (target file,
-  `epic:`/`epic_role`/`status`). `selectRoute`/`shapeItems` branches
+- **7 of 9 `add-*` → mapped (router parity).** Runtime variant drives `run-intake.mjs` with the same
+  finding text over the same fixture; golden asserts the same filed *routing* outcome
+  (`epic:`/`epic_role`/`status` — the filename follows the runtime's `from-<check>` slug convention,
+  not the legacy title-derived slug). `selectRoute`/`shapeItems` branches
   (`discard|split|fold|join-theme|mint-aggregation|orphan`) map 1:1 to `backlog-add`'s router.
-- **`next-*` engine-expressible subset → mapped (driver parity, ~5–6):** `next-lane-complex-ship`
-  (full drive: adopt → execute-park → work → ship-gate → ship-ask), `--auto` floor pauses
-  (design/irreversible — the worker's ship is *always* a floor ask), fork-resolve,
-  preflight-dirty where a registry gate expresses the same property. Lane classification + deploy
-  detection are skill prose → `unmapped: P5`.
+  Plan-time correction (2026-07-06): `add-id-collision-suffix` + `add-notes-scalar` are write-layer
+  prose (filename suffixing / notes styling), not routing → `unmapped: P5`.
+- **`next-*` engine-expressible subset → mapped (driver parity, 4):** `next-lane-complex-ship`
+  (full drive: adopt → execute-park → work → ship-gate → ship-ask), `next-auto-floor-pause` +
+  `next-auto-finishing-pr-stop` (the worker's ship is *always* a floor ask),
+  `next-preflight-dirty-stop` (start-gate blocks out-of-scope dirt). Lane classification, deploy
+  detection, design-fork recognition and blast-radius forks are skill prose → `unmapped: P5`.
 - **All 34 `bne-*` + 2 `themes-*` → `unmapped: P5`** (orchestrator/clustering procedures).
+
+Live mapped set (plan-time): **11 pairs** (7 intake + 4 worker), within the approved budget.
 
 The unmapped rows are a feature: they ARE the honest P5 migration checklist, and the report prints
 them (no-silent-caps rule).
