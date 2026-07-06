@@ -55,3 +55,10 @@ high-leverage quick win — orthogonal to the loop, so it can land early.
 - **Chosen:** Full real driver (all 8 deterministic scenarios, per-check in-scope-path map)
 - **Rationale:** User-approved scope-boundary decision (--auto hard floor requires the human on out_of_scope forks). Most reusable + complete: a new scenario gets golden-gate CI coverage by adding one map line, not a new hand-written test; exercises the real grader over cmd: (findViolations import) and module: (fn over dir) scenarios; does not touch AUTO-LANDED scenarios or frozen ring-1 contracts.
 - **Rejected:** Module-only/defer-all leave grade-check-scenario unexercised against the cmd: majority (the cleaner-over-blast-radius principle favors the complete driver).
+
+### D4 — 2026-07-06
+- **Decision:** Finishing (Complex lane, --auto): take the PR route and STOP at the open PR
+- **Options:** PR route (push + gh pr create), stop at open PR for user merge | Local merge to main | gh pr merge (auto-merge)
+- **Chosen:** PR route (push + gh pr create), stop at open PR for user merge
+- **Rationale:** backlog-next --auto Step 6.7 hard rule: --auto NEVER runs gh pr merge and never local-merges — the merge is the user's. Push the branch, open the PR with the decision log rendered into the body, surface the open PR via AskUserQuestion, clean up the worktree with --keep-branch, and end the run; Steps 6.8 + postflight are the post-merge tail on a later invocation.
+- **Rejected:** Local merge / auto-merge: both forbidden in --auto (merge ownership stays with the user).
