@@ -88,7 +88,7 @@ description: Scaffold a new service — Nx project, file structure, CDK stack, e
   If a row is a verified **non-governed** outbox/CDC-carrier or external-feed cache
   (written via an intent factory but never read back as a read model), do NOT register
   it — add a `{ "service", "typename", "reason" }` entry to
-  `tools/read-model-exclusions.json` instead. The gate errors on any intent-factory
+  `runtime/content/exclusions/read-model-exclusions.json` instead. The gate errors on any intent-factory
   write that is neither registered nor excluded.
 - [ ] 5. **Define event types** per `create-event`
 
@@ -118,7 +118,7 @@ row and the emitted subject:
 Enforced by `tools/check-typed-subjects.mjs` (nx target
 `event-processor:typed-subject-drift`, also pre-commit). A genuinely-polymorphic reader
 (KB-stringify, agent fan-in) gets a registered entry in
-`tools/typed-subject-exclusions.json` with a reason.
+`runtime/content/exclusions/typed-subject-exclusions.json` with a reason.
 
 - [ ] 6. **Write unit tests** per `testing-patterns`
 - [ ] 7. **Run unit tests** — `pnpm nx test {service-name}`

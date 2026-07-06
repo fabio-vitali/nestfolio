@@ -3,10 +3,11 @@
 // no SF Catch/Retry whose ErrorEquals/errors includes States.Runtime (it silently never fires).
 import { fileURLToPath } from 'node:url';
 import { lineOf, parseRootArg, runGate, reportAndExit, parseExclusions } from './lib/text-scan.mjs';
+import { exclusionsFile } from './lib/exclusions-root.mjs';
 
 // A States.Runtime literal within ~120 chars after an ErrorEquals/errors/addCatch/addRetry context.
 const RE = /(ErrorEquals|errors|addCatch|addRetry)[\s\S]{0,120}?States\.Runtime/g;
-const SIDECAR = 'tools/states-runtime-exclusions.json';
+const SIDECAR = exclusionsFile('states-runtime');
 
 export function findViolations(text, relPath, exclusions = new Set()) {
   if (!relPath.includes('/src/') || exclusions.has(relPath)) return [];

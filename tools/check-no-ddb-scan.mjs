@@ -3,10 +3,11 @@
 // No ScanCommand/.scan(/scanAll under services/**/src, no FilterExpression on a GSI KEY attr.
 import { fileURLToPath } from 'node:url';
 import { lineOf, parseRootArg, runGate, reportAndExit, parseExclusions } from './lib/text-scan.mjs';
+import { exclusionsFile } from './lib/exclusions-root.mjs';
 
 const SCAN_TOKENS = [/\bScanCommand\b/g, /(?<![.\w])\.scan\s*\(/g, /\bscanAll\b/g];
 const KEY_ATTRS = ['__typename', 'tenantId', 'timestamp'];
-const SIDECAR = 'tools/ddb-scan-exclusions.json';
+const SIDECAR = exclusionsFile('ddb-scan');
 
 export function findViolations(text, relPath, exclusions = new Set()) {
   if (!relPath.includes('/src/') || exclusions.has(relPath)) return [];

@@ -211,7 +211,7 @@ regenerate.
 outputs using the shared `TableEntry`-based `AgentCompletionRow<A, O>` generic. Subject reads
 from those rows go through `parseSubject(carrier, <ProducerSchema>)` exactly like any other
 producer row; a genuinely-polymorphic reader (e.g. the `assemble-packet` fan-in that reads
-all 4 agent outputs uniformly) is registered in `tools/typed-subject-exclusions.json`.
+all 4 agent outputs uniformly) is registered in `runtime/content/exclusions/typed-subject-exclusions.json`.
 Cross-reference: `docs/architecture/SYSTEM-ARCHITECTURE.md` § "Typed-subject contracts
 (enforced)" for the full five-convention summary and enforcement details.
 

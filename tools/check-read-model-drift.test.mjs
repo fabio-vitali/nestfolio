@@ -225,7 +225,7 @@ test('R5: an unregistered + unexcluded intent-factory write is a HARD ERROR', ()
 test('R5: an EXCLUDED intent-factory write is clean (no error, no info)', () => {
   const { errors, info } = evalTree({
     'services/x/x-ctrl/src/t.ts': `record('Carrier', {});`,
-    'tools/read-model-exclusions.json':
+    'runtime/content/exclusions/read-model-exclusions.json':
       `{ "exclusions": [ { "service": "x-ctrl", "typename": "Carrier", "reason": "outbox carrier" } ] }`,
   });
   assert.equal(errors.length, 0, JSON.stringify(errors));
@@ -252,7 +252,7 @@ test('R6: a typename both registered AND excluded is a conflict error', () => {
   const { errors } = evalTree({
     'services/x/x-ctrl/src/read-model-ownership.ts': `interface ReadModelOwnership { Order: CommandOwned; }`,
     'services/x/x-ctrl/src/t.ts': `record('Order', {});`,
-    'tools/read-model-exclusions.json':
+    'runtime/content/exclusions/read-model-exclusions.json':
       `{ "exclusions": [ { "service": "x-ctrl", "typename": "Order", "reason": "dup" } ] }`,
   });
   assert.equal(errors.filter(e => e.rule === 'exclusion-conflict').length, 1);
@@ -268,7 +268,7 @@ test('parseExclusions returns empty when the file is absent', () => {
 
 test('parseExclusions throws on an entry missing service/typename/reason', () => {
   withTree({
-    'tools/read-model-exclusions.json': `{ "exclusions": [ { "typename": "A" } ] }`,
+    'runtime/content/exclusions/read-model-exclusions.json': `{ "exclusions": [ { "typename": "A" } ] }`,
   }, (root) => {
     assert.throws(() => parseExclusions(root), /read-model-exclusions\.json/);
   });
@@ -310,7 +310,7 @@ test('CLI exits 1 on an unregistered + unexcluded intent-factory write', () => {
 test('CLI exits 0 when the write is excluded', () => {
   withTree({
     'services/x/x-ctrl/src/t.ts': `record('Ungoverned', {});`,
-    'tools/read-model-exclusions.json':
+    'runtime/content/exclusions/read-model-exclusions.json':
       `{ "exclusions": [ { "service": "x-ctrl", "typename": "Ungoverned", "reason": "carrier" } ] }`,
   }, (root) => {
     const r = spawnSync('node', [SCRIPT, '--root', root], { encoding: 'utf8' });

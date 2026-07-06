@@ -82,7 +82,7 @@ description: Add a new event type — TypeScript schema, producer registration, 
   must carry a top-level monotonic `__version` on its emitted event (the §3
   carriage convention). Run `pnpm nx run event-processor:read-model-drift`.
   (If the new row is a verified non-governed outbox/carrier/feed-cache row, add it to
-  `tools/read-model-exclusions.json` instead of registering it — the gate errors on any
+  `runtime/content/exclusions/read-model-exclusions.json` instead of registering it — the gate errors on any
   unclassified intent-factory write.)
 
 ### Typed-subject conventions (enforced)
@@ -111,7 +111,7 @@ row and the emitted subject:
 Enforced by `tools/check-typed-subjects.mjs` (nx target
 `event-processor:typed-subject-drift`, also pre-commit). A genuinely-polymorphic reader
 (KB-stringify, agent fan-in) gets a registered entry in
-`tools/typed-subject-exclusions.json` with a reason.
+`runtime/content/exclusions/typed-subject-exclusions.json` with a reason.
 
 - [ ] 7. **Write tests** — producer and consumer
 

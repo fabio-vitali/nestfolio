@@ -34,11 +34,12 @@
 import { readdirSync, readFileSync } from 'node:fs';
 import { join, relative, sep } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { exclusionsFile } from './lib/exclusions-root.mjs';
 
 const EXCLUDE_FRAGMENTS = ['node_modules', 'dist', 'cdk.out', '.worktrees', '.nx', 'coverage', 'test'];
 const EXCLUDED_BASENAME_SUFFIXES = ['.test.ts', '.spec.ts'];
 const SCAN_ROOTS = ['services', 'libs'];
-const EXCLUSIONS_FILE = 'tools/typed-subject-exclusions.json';
+const EXCLUSIONS_FILE = exclusionsFile('typed-subject');
 
 // The parseSubject carrier itself reads subject as Record by design.
 const PLATFORM_SEAMS = new Set([

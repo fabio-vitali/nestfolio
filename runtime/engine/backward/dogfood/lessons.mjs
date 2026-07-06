@@ -17,13 +17,13 @@ export const DOGFOOD = [
   { item: { id: 'no-agent-result-fallback-guard' }, lesson: 'feedback_no_silent_fallback_in_agent_results.md', proposal: {
       id: 'no-agent-result-fallback', property: 'No ?? {} / ?? [] fallback on an AgentCore/orchestrator invocation result in advisory agent services.',
       kind: 'drift', evaluator: { type: 'deterministic', run: 'cmd:node tools/check-no-agent-result-fallback.mjs' }, cost_tier: 'cheap',
-      contexts: ['invariant', 'gate'], scope: { paths: ['services/advisory/**/src/**/*.ts'], dossiers: ['feedback_no_silent_fallback_in_agent_results.md'], exclusions: 'tools/agent-result-fallback-exclusions.json' },
+      contexts: ['invariant', 'gate'], scope: { paths: ['services/advisory/**/src/**/*.ts'], dossiers: ['feedback_no_silent_fallback_in_agent_results.md'], exclusions: 'runtime/content/exclusions/agent-result-fallback-exclusions.json' },
       eval_scenario: fx('no-agent-result-fallback', ['throws.ts'], ['nullish-object.ts', 'nullish-array.ts']),
       rationale: 'a missing agent-result key means the agent did not run; silent ?? hides a degraded 200. Mechanizable, recurring, still intended.', gates: gatesAllPass } },
   { item: { id: 'no-ddb-seed-guard' }, lesson: 'feedback_no_seeder_fixtures.md', proposal: {
       id: 'no-ddb-seed-in-integration', property: 'No DdbSeedFixture/AccountSeedingFixture/direct DDB write under services/**/test/integration/**.',
       kind: 'drift', evaluator: { type: 'deterministic', run: 'cmd:node tools/check-no-ddb-seed-in-integration.mjs' }, cost_tier: 'cheap',
-      contexts: ['invariant', 'gate'], scope: { paths: ['services/**/test/integration/**/*.ts'], dossiers: ['feedback_no_seeder_fixtures.md'], exclusions: 'tools/ddb-seed-exclusions.json' },
+      contexts: ['invariant', 'gate'], scope: { paths: ['services/**/test/integration/**/*.ts'], dossiers: ['feedback_no_seeder_fixtures.md'], exclusions: 'runtime/content/exclusions/ddb-seed-exclusions.json' },
       eval_scenario: fx('no-ddb-seed-in-integration', ['via-events.ts'], ['seed-fixture.ts', 'direct-put.ts']),
       rationale: 'integration fixtures must seed via the app pipeline; direct DDB writes bypass CDC. Mechanizable, recurring, still intended.', gates: gatesAllPass } },
   { item: { id: 'no-unsafe-casts-guard' }, lesson: 'feedback_prefer_libraries_over_casts.md', proposal: {

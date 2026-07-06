@@ -15,7 +15,7 @@ scope:
     - "services/**/src/**/*.ts"
   dossiers:
     - "docs/architecture/READ-MODEL-OWNERSHIP.md"
-  exclusions: "tools/read-model-exclusions.json"
+  exclusions: "runtime/content/exclusions/read-model-exclusions.json"
 status: active
 provenance:
   minted_by: "read-model-redesign-ws-d"

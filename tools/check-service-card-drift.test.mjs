@@ -27,7 +27,7 @@ function withTree(files, fn) {
 
 test('parseExclusions: whole-service and per-section', () => {
   withTree({
-    'tools/service-card-exclusions.json': JSON.stringify({ exclusions: [
+    'runtime/content/exclusions/service-card-exclusions.json': JSON.stringify({ exclusions: [
       { service: 'investor-web', reason: 'frontend stack — no event constructs' },
       { service: 'foo-ctrl', section: 'ddb-entities', reason: 'internal-only rows' },
     ]}),
@@ -49,7 +49,7 @@ test('parseExclusions: absent file → empty', () => {
 
 test('parseExclusions: bad section rejected', () => {
   withTree({
-    'tools/service-card-exclusions.json': JSON.stringify({ exclusions: [
+    'runtime/content/exclusions/service-card-exclusions.json': JSON.stringify({ exclusions: [
       { service: 'x', section: 'not-a-section', reason: 'y' },
     ]}),
   }, (root) => {
@@ -393,7 +393,7 @@ test('CLI: exit 1 on drift, exit 0 after --fix', () => {
     'services/d/foo-ctrl/src/domain/events.ts': EVENTS_FOR_STACK,
     'services/d/foo-ctrl/src/service.stack.ts': STACK_EGRESS,
     'services/d/foo-ctrl/CLAUDE.md': '## Egress\n' + wrapBlock('egress', '- NormalizedEvent: WRONG') + '\n',
-    'tools/service-card-exclusions.json': JSON.stringify({ exclusions: [] }),
+    'runtime/content/exclusions/service-card-exclusions.json': JSON.stringify({ exclusions: [] }),
   }, (root) => {
     const check = spawnSync('node', [SCRIPT, '--root', root], { encoding: 'utf8' });
     assert.equal(check.status, 1);
@@ -421,7 +421,7 @@ test('evaluate: service with stack but no card → no-card error', () => {
 
 test('parseExclusions: malformed JSON throws', () => {
   withTree({
-    'tools/service-card-exclusions.json': '{ not valid json',
+    'runtime/content/exclusions/service-card-exclusions.json': '{ not valid json',
   }, (root) => {
     assert.throws(() => parseExclusions(root), /invalid JSON/);
   });

@@ -3,9 +3,10 @@
 // no `as unknown as`, `as any`, or eslint-disable in production source (services/libs/apps **/src, not test/**).
 import { fileURLToPath } from 'node:url';
 import { lineOf, parseRootArg, walkFiles, reportAndExit, parseExclusions } from './lib/text-scan.mjs';
+import { exclusionsFile } from './lib/exclusions-root.mjs';
 
 const TOKENS = [/\bas\s+unknown\s+as\b/g, /\bas\s+any\b/g, /eslint-disable/g];
-const SIDECAR = 'tools/unsafe-cast-exclusions.json';
+const SIDECAR = exclusionsFile('unsafe-cast');
 
 export function findViolations(text, relPath, exclusions = new Set()) {
   if (!relPath.includes('/src/') || /(^|\/)test\//.test(relPath) || exclusions.has(relPath)) return [];

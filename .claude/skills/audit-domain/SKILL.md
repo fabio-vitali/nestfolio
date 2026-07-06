@@ -35,7 +35,7 @@ It enforces: no untyped `subject as …` reads (convention 1), cross-domain `/co
 names (convention 4), no reintroduced `opaqueSubject`, and a TableEntry-row heuristic
 (convention 3). Additionally flag by inspection: a dropped context generic `S` on
 `BusEvent`/`TableEntry` (convention 5), and any new entry added to
-`tools/typed-subject-exclusions.json` without a justifying reason.
+`runtime/content/exclusions/typed-subject-exclusions.json` without a justifying reason.
 
 - [ ] 4. **Aggregate results** into domain report
 - [ ] 5. **Auto-fix:** regenerate stale service cards

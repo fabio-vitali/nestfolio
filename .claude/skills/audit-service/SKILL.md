@@ -127,7 +127,7 @@ When regenerating a card:
 **Read-model ownership sub-check (check #10)** — see `docs/architecture/READ-MODEL-OWNERSHIP.md`:
 
 - **Drift (hard fail):** run `pnpm nx run event-processor:read-model-drift` (or `node tools/check-read-model-drift.mjs`). It is repo-wide; treat any reported violation that names a row written by *this* service as a hard fail. The four classes: a `Projection` written by `accumulate`; a `Projection<'P1'>` written by a non-`projectVersioned` factory (no version guard); a `__typename` written by both a command resolver (`*.fn.js`) and an event-side ongoing intent (dual authority — only the `record`-seed pattern may coexist); the same `__typename` registered with conflicting tags; an intent-factory write that is neither registered nor excluded (R5); a `(service, typename)` both registered and excluded (R6).
-- **Unclassified write (hard fail):** the gate errors (`unclassified-write`) on any intent-factory write that is neither registered in a `ReadModelOwnership` augmentation nor listed in `tools/read-model-exclusions.json`. Treat any such error naming a row written by *this* service as a hard fail — register it (CommandOwned / Projection) or add an exclusion entry with a reason if it is a verified non-governed outbox/carrier/feed-cache row.
+- **Unclassified write (hard fail):** the gate errors (`unclassified-write`) on any intent-factory write that is neither registered in a `ReadModelOwnership` augmentation nor listed in `runtime/content/exclusions/read-model-exclusions.json`. Treat any such error naming a row written by *this* service as a hard fail — register it (CommandOwned / Projection) or add an exclusion entry with a reason if it is a verified non-governed outbox/carrier/feed-cache row.
 - **Structural-zero (warning, prose — the checker cannot see this):** for each field in the service's read-type SDL (`src/schema.graphql`), confirm some transform/factory call actually writes it. A schema field never written is a structural zero (the bug class the redesign dissolved); flag it.
 
 ### Typed-subject convention check
@@ -139,7 +139,7 @@ It enforces: no untyped `subject as …` reads (convention 1), cross-domain `/co
 names (convention 4), no reintroduced `opaqueSubject`, and a TableEntry-row heuristic
 (convention 3). Additionally flag by inspection: a dropped context generic `S` on
 `BusEvent`/`TableEntry` (convention 5), and any new entry added to
-`tools/typed-subject-exclusions.json` without a justifying reason.
+`runtime/content/exclusions/typed-subject-exclusions.json` without a justifying reason.
 
 **Integration test sub-check (check #9)**: Determine applicability by service suffix, then act:
 
