@@ -28,6 +28,7 @@ import { execSync } from 'node:child_process';
 import { existsSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { backlogGate } from './backlog-gate.mjs';
 
 export const VALID_LANES = ['doc-layer', 'simple', 'complex', 'epic-member'];
 
@@ -105,19 +106,15 @@ function main() {
     }
   }
 
-  // 3. backlog-lint (always).
-  const lintPath = join(REPO_ROOT, '.claude/skills/backlog-lint/lint.mjs');
-  if (!existsSync(lintPath)) {
-    failures.push({ rule: 'lint-missing', message: `Expected ${lintPath} not found.` });
-  } else {
-    const lint = shSafe(`node "${lintPath}"`);
-    if (!lint.ok) {
-      failures.push({
-        rule: 'backlog-lint',
-        message: 'backlog-lint failed. Fix violations before starting a new workstream.',
-        detail: [lint.out, lint.err].filter(Boolean).join('\n'),
-      });
-    }
+  // 3. Backlog store validation (always). RUNTIME_ENGINE selects the runtime watch gate vs legacy backlog-lint.
+  const gate = backlogGate(process.env);
+  const gateRes = shSafe(gate.cmd);
+  if (!gateRes.ok) {
+    failures.push({
+      rule: gate.rule,
+      message: `${gate.label} failed. Fix violations before starting a new workstream.`,
+      detail: [gateRes.out, gateRes.err].filter(Boolean).join('\n'),
+    });
   }
 
   // 4. Stale worktrees — standard lanes only (the live epic worktree is legitimate).
@@ -180,9 +177,9 @@ function main() {
       JSON.stringify({ timestamp: new Date().toISOString(), status }, null, 2),
     );
     shSafe('pnpm nx daemon --stop');
-    console.log('✓ Preflight passed: tree clean, main = origin/main, backlog-lint green, no stale worktrees.');
+    console.log('✓ Preflight passed: tree clean, main = origin/main, backlog checks green, no stale worktrees.');
   } else {
-    console.log('✓ Preflight passed (lane=epic-member): worktree tree clean, backlog-lint green.');
+    console.log('✓ Preflight passed (lane=epic-member): worktree tree clean, backlog checks green.');
   }
 }
 
