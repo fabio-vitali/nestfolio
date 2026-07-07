@@ -1,6 +1,7 @@
 ---
 id: runtime-replatform-next-epic
-status: active
+status: shipped
+closed: 2026-07-07
 type: refactor
 rank: 4
 epic: runtime-operationalization
@@ -15,7 +16,17 @@ out_of_scope:
 spec: docs/superpowers/specs/2026-07-06-runtime-work-driver-replatform-design.md
 plan: docs/superpowers/plans/2026-07-07-runtime-replatform-next-epic.md
 topic_memory: [project_runtime_realization.md]
-validation_gate: null
+validation_gate: >
+  Shipped on feat/runtime-replatform-next-epic (6 tasks). run-epic.mjs (driveEpic + main) wraps the live
+  runOrchestrator spine with content-ring member-selection (selectEpicMembers) + rule-11 guard (activeEpics)
+  + headSha e2e-freshness; gh-PR-probe + worktree-ops deferred (spec §8/§10). Unit: epic-members 3/3,
+  run-epic 4/4, epic-driver 2/2; full runtime target 388/388 + greenfield e2e 1/1; parity-oracle
+  deterministic 33/33 (mapping 17/17 — 2 rt-bne-* epic twins mapped, residual bne-* P5 in two honest
+  buckets; scenarios-lint; suites). nx run-many test (runtime,tools) RC 0; runtime:typecheck RC 0.
+  ship-recheck clean (ship:runtime-replatform-next-epic:gate-clean). RUNTIME_ENGINE routes
+  backlog-next-epic E4/E6/merge to run-epic.mjs via epic-driver.mjs; legacy SKILL body byte-for-byte
+  (pure-insertion diff, 19+/0-). Live LLM parity dominance for the 2 epic twins DEFERRED to
+  runtime-replatform-soak-gate (cost-gated cumulative sweep; WS-3 TIER0 precedent). mint consideration: none.
 ---
 
 # WS-4 — re-platform `backlog-next-epic` onto `runOrchestrator` (thin)
