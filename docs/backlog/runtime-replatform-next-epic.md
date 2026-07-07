@@ -13,7 +13,7 @@ out_of_scope:
   - "The gh-PR-state probe and worktree-ops binding — deferred (host git stays; epics drain standalone per D1)."
   - "Deleting the legacy backlog-next-epic skill body (P6, user-triggered)."
 spec: docs/superpowers/specs/2026-07-06-runtime-work-driver-replatform-design.md
-plan: null
+plan: docs/superpowers/plans/2026-07-07-runtime-replatform-next-epic.md
 topic_memory: [project_runtime_realization.md]
 validation_gate: null
 ---
