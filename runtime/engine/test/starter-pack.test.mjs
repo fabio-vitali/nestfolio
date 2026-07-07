@@ -8,10 +8,10 @@ import { fileURLToPath } from 'node:url';
 import { loadRegistry } from '../lib/load-registry.mjs';
 import { metaCheck } from '../lib/meta-check.mjs';
 
-test('the 6 starter checks all validate (loadRegistry reports no errors)', () => {
+test('the 7 starter checks all validate (loadRegistry reports no errors)', () => {   // +deploy-gate (WS-3)
   const reg = loadRegistry({ checksDir: 'runtime/starter/checks' });
   assert.deepEqual(reg.errors, []);
-  assert.equal(reg.checks.length, 6);
+  assert.equal(reg.checks.length, 7);
 });
 
 test('B4: the starter pack is cheap-by-construction — no invariant declares a non-cheap tier', () => {

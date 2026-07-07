@@ -1,0 +1,21 @@
+# runtime/content/checks/deploy-gate.yaml  (ALSO copy verbatim to runtime/starter/checks/deploy-gate.yaml)
+id: deploy-gate
+property: >
+  A code/infra-touching item's branch delta deploys cleanly to the dev sandbox and its affected
+  integration + involved e2e tests pass, before the runtime worker offers the ship floor decision.
+kind: gap
+evaluator:
+  type: deterministic
+  run: "cmd:node runtime/adapters/claude-code/deploy-gate-runner.mjs"
+cost_tier: expensive
+contexts: [audit]
+scope:
+  paths:
+    - "services/**"
+    - "libs/**"
+    - "apps/**"
+    - "infrastructure/**"
+status: active
+provenance:
+  minted_by: "runtime-replatform-next"
+  ratified: "2026-07-07"
