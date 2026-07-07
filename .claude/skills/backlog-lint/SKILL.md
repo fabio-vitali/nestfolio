@@ -12,6 +12,20 @@ Invoke when:
 - The user asks to verify backlog discipline ("lint the backlog", "check BACKLOG.md", etc.).
 - A boundary review is happening (the per-ship 5-minute review).
 
+## Runtime engine path (`RUNTIME_ENGINE`)
+
+When `RUNTIME_ENGINE` is set (read via `usesRuntimeEngine(process.env)` — `runtime/engine/lib/path-provenance.mjs:13`), the `/backlog-next` `preflight`/`postflight` gates validate the backlog store through the **runtime check-registry** instead of this `lint.mjs`:
+
+```
+node runtime/engine/lib/run-watch.mjs --on=commit --changed='docs/backlog/*.md'
+```
+
+The 11 rules run as their already-migrated `module:` checks (`runtime/content/checks/backlog-*.yaml`, each delegating to this skill's `lib/rules.mjs` as the single source of truth). The `commit` trigger excludes the `audit` context (no LLM judge needed) and the `docs/backlog/*.md` scope keeps gate-only non-backlog checks (e.g. `typed-subjects`) out, so the gate is deterministic and backlog-scoped. The flag decision lives in `.claude/skills/backlog-next/backlog-gate.mjs`.
+
+**Scope note:** the runtime gate rides **every active cheap `invariant`-context check repo-wide**, not only the 11 backlog rules — `--changed` scopes only the *non-invariant* checks. So a non-backlog invariant failing under `RUNTIME_ENGINE=1` is expected: it surfaces framed as a `backlog-gate` failure with the true finding in the detail, and the sanctioned remedy during soak is a deliberate legacy fallback (per the strangler design). This broader-than-legacy enforcement is the intended runtime behavior (measured clean at cutover).
+
+When `RUNTIME_ENGINE` is unset, `preflight`/`postflight` run this `lint.mjs` (retained byte-for-byte until P6 legacy retirement). The `--fix` index + dossier regen (`renderIndex` / `syncDossiers`) always stays a side-car of this skill — the runtime gate never runs it.
+
 ## What it enforces
 
 11 rules over `docs/backlog/<id>.md`:

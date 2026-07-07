@@ -14,10 +14,10 @@ export const RULE_MAP = [
   { rule: 'r1-id-matches-filename', checks: ['backlog-id-matches-filename'], mapped: true },
   { rule: 'r2-single-active', checks: ['single-active'], mapped: true },
   { rule: 'r3-references-valid', checks: ['references-valid'], mapped: true },
-  { rule: 'r4-active-out-of-scope', checks: [], mapped: false },
-  { rule: 'r5-shipped-validation-gate', checks: [], mapped: false },
-  { rule: 'r6-queued-ranks', checks: [], mapped: false },
-  { rule: 'r8-promotion-trigger', checks: [], mapped: false },
+  { rule: 'r4-active-out-of-scope', checks: ['backlog-active-out-of-scope'], mapped: true },
+  { rule: 'r5-shipped-validation-gate', checks: ['backlog-shipped-validation-gate'], mapped: true },
+  { rule: 'r6-queued-ranks', checks: ['backlog-queued-ranks'], mapped: true },
+  { rule: 'r8-promotion-trigger', checks: ['backlog-promotion-trigger-gated'], mapped: true },
   // r9/r10: no dedicated runtime check (still P4 gaps), but the stores are caught TRANSITIVELY — the
   // legacy index render omits epic members whose anchor is terminal (r9) or not-an-epic (r10), so the
   // generic index-fresh law fires on the unlisted live member. Observed class: both-catch.

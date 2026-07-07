@@ -16,7 +16,7 @@ const REPO = execFileSync('git', ['rev-parse', '--show-toplevel'], { cwd: HERE }
 // including it would grade the sandbox, not the store. Tune here if bring-up shows another env-dependent check.
 export const SEED_CHECKS = {
   starter: ['single-active.yaml', 'active-item-scope-gate.yaml', 'references-valid.yaml', 'index-fresh.yaml', 'no-unsafe-casts.yaml'],
-  content: ['item-store-valid.yaml', 'backlog-id-matches-filename.yaml'],
+  content: ['item-store-valid.yaml', 'backlog-id-matches-filename.yaml', 'backlog-active-out-of-scope.yaml', 'backlog-shipped-validation-gate.yaml', 'backlog-queued-ranks.yaml', 'backlog-promotion-trigger-gated.yaml'],
 };
 
 export function buildStoreSandbox({ fixtureDir }) {

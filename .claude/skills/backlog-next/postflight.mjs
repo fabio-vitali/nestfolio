@@ -30,6 +30,7 @@ import { existsSync, readFileSync, readdirSync, rmSync, statSync } from 'node:fs
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { makeJournal } from '../../../runtime/engine/lib/journal.mjs';
+import { backlogGate } from './backlog-gate.mjs';
 
 export const VALID_LANES = ['doc-layer', 'simple', 'complex', 'epic-member'];
 
@@ -196,14 +197,14 @@ function main() {
     }
   }
 
-  // 2. backlog-lint
-  const lintPath = join(REPO_ROOT, '.claude/skills/backlog-lint/lint.mjs');
-  const lint = shSafe(`node "${lintPath}"`);
-  if (!lint.ok) {
+  // 2. Backlog store validation. RUNTIME_ENGINE selects the runtime watch gate vs legacy backlog-lint.
+  const gate = backlogGate(process.env);
+  const gateRes = shSafe(gate.cmd);
+  if (!gateRes.ok) {
     failures.push({
-      rule: 'backlog-lint',
-      message: 'backlog-lint failed. Fix violations before declaring the workstream done.',
-      detail: [lint.out, lint.err].filter(Boolean).join('\n'),
+      rule: gate.rule,
+      message: `${gate.label} failed. Fix violations before declaring the workstream done.`,
+      detail: [gateRes.out, gateRes.err].filter(Boolean).join('\n'),
     });
   }
 
@@ -359,7 +360,7 @@ function main() {
     process.exit(1);
   }
 
-  console.log(`✓ Postflight passed (lane=${lane}): tree clean, backlog-lint green${runsComplexChecks(lane) ? ', on main, synced with origin, no stale worktrees' : ''}.`);
+  console.log(`✓ Postflight passed (lane=${lane}): tree clean, backlog checks green${runsComplexChecks(lane) ? ', on main, synced with origin, no stale worktrees' : ''}.`);
 }
 
 if (import.meta.url === `file://${process.argv[1]}` || fileURLToPath(import.meta.url) === process.argv[1]) {

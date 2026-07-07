@@ -77,7 +77,7 @@ form, then enter E0 with that epic id:
 node .claude/skills/backlog-next/preflight.mjs
 ```
 
-Standard lane: tree clean, `main` == `origin/main`, `backlog-lint` green, no stale worktrees. Do not bypass. This runs **once** for the whole epic; per-member preflight later uses `--lane=epic-member`.
+Standard lane: tree clean, `main` == `origin/main`, backlog checks green, no stale worktrees. Do not bypass. This runs **once** for the whole epic; per-member preflight later uses `--lane=epic-member`.
 
 ### E1. Resolve + promote the epic
 
