@@ -99,6 +99,19 @@ Doc-layer and Simple lanes skip adoption — work the item directly on `main`.
 | Architectural ambiguity surfaces | `superpowers:brainstorming` first |
 | New service / feature / event / data flow / MFE | Matching `create-*` / `design-*` skill from `CLAUDE.md` routing table |
 
+#### 5a. Runtime engine drive (behind `RUNTIME_ENGINE` — WS-3 strangler)
+
+When the `RUNTIME_ENGINE` flag is set, the **execute + pre-ship + ship-floor drive** is performed by the
+runtime worker rather than the legacy prose below: run `node runtime/adapters/claude-code/run-next.mjs <id>`.
+The single decision site is [`next-driver.mjs`](./next-driver.mjs) (`nextDriver(env)` → `{cmd, mode}`,
+mirroring [`backlog-gate.mjs`](./backlog-gate.mjs)); flag **off** → the legacy body in the sections below runs
+**unchanged** (byte-for-byte, retained until P6). The runtime worker owns the **deploy-gate** at pre-ship (a
+sha-conditional expensive `runWatch` batch — deploy + affected integration + involved e2e — gated by the
+adapter-computed lane; doc-layer skips it) and always **parks at the ship floor** (never auto-ships). The
+driver exits `0 done / 3 paused / 1 failed / 2 usage`; on a `3` park, fulfil the printed decision key and
+re-invoke. Git-workflow preconditions (tree-clean, main-not-ahead, no-stale-worktree) stay host
+preflight/postflight (§0, §7) — they are not engine concerns.
+
 ### 6. Closing phase
 
 Run the steps in order. Each one is a single command; the agent reads the output and acts.
