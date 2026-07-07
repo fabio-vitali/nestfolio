@@ -4,7 +4,7 @@ status: active
 type: refactor
 epic: runtime-operationalization
 epic_role: core
-notes: "P5 WS-2 (spec §8): re-platform backlog-lint onto the registry gates. This wires the flag so preflight/postflight call `run-watch --on=manual` behind RUNTIME_ENGINE (gate-entrypoint decision, user-confirmed 2026-07-07), journals path:runtime for the soak-observer, and closes the parity-oracle lint-differential gap; renderIndex/syncDossiers stay the untouched --fix side-car. VERIFIED 2026-07-07 against running code: rule-3 (backlog-references-valid) is ALREADY a complete module: check (differential class=both-catch), and the 11 rules are already migrated via P4 check-migration — the spec's 'add the rule-3 evaluator / the one rule with no scheme' premise is STALE. The real oracle work is mechanical: seed the 4 already-migrated content checks (r4 active-out-of-scope, r5 shipped-validation-gate, r6 queued-ranks, r8 promotion-trigger-gated) into scripts/parity-oracle/store-sandbox.mjs SEED_CHECKS and flip their RULE_MAP rows to mapped:true (they turn both-catch). Promoted 2026-07-07 (standalone member per epic D1): the block trigger fired — runtime-replatform-prereqs shipped 2026-07-06 (RUNTIME_ENGINE flag + path-provenance, soak-observer.mjs, the parity-oracle extension mechanism, and the 3 parity-hole fixes), verified status: shipped / closed: 2026-07-06. Sibling WS-1 (runtime-replatform-add) promoted+shipped the same way 2026-07-07."
+notes: "P5 WS-2 (spec §8): re-platform backlog-lint onto the registry gates. This wires the flag so preflight/postflight call `run-watch --on=commit --changed='docs/backlog/*.md'` behind RUNTIME_ENGINE (D3, user-confirmed 2026-07-07 — the earlier --on=manual (D2) was rejected after measurement: it pulls in 5 audit judge checks + the pre-existing typed-subjects drift), and closes the parity-oracle lint-differential gap; the lint gate does NOT journal path:runtime (it is a validation gate, not a workstream driver — see plan's open point); renderIndex/syncDossiers stay the untouched --fix side-car. VERIFIED 2026-07-07 against running code: rule-3 (backlog-references-valid) is ALREADY a complete module: check (differential class=both-catch), and the 11 rules are already migrated via P4 check-migration — the spec's 'add the rule-3 evaluator / the one rule with no scheme' premise is STALE. The real oracle work is mechanical: seed the 4 already-migrated content checks (r4 active-out-of-scope, r5 shipped-validation-gate, r6 queued-ranks, r8 promotion-trigger-gated) into scripts/parity-oracle/store-sandbox.mjs SEED_CHECKS and flip their RULE_MAP rows to mapped:true (they turn both-catch). Promoted 2026-07-07 (standalone member per epic D1): the block trigger fired — runtime-replatform-prereqs shipped 2026-07-06 (RUNTIME_ENGINE flag + path-provenance, soak-observer.mjs, the parity-oracle extension mechanism, and the 3 parity-hole fixes), verified status: shipped / closed: 2026-07-06. Sibling WS-1 (runtime-replatform-add) promoted+shipped the same way 2026-07-07."
 references:
   - docs/superpowers/specs/2026-07-06-runtime-work-driver-replatform-design.md
 out_of_scope:
@@ -12,7 +12,7 @@ out_of_scope:
   - "renderIndex / syncDossiers doc-store materialization — stays a side-car by design (spec §2)."
   - "Deleting the legacy lint.mjs rule bodies (P6, user-triggered)."
 spec: docs/superpowers/specs/2026-07-06-runtime-work-driver-replatform-design.md
-plan: null
+plan: docs/superpowers/plans/2026-07-07-runtime-replatform-lint.md
 topic_memory: [project_runtime_realization.md]
 validation_gate: null
 ---
@@ -56,3 +56,10 @@ PR (epic decision D1), mirroring how sibling WS-1 (`runtime-replatform-add`) was
 - **Chosen:** run-watch --on=manual
 - **Rationale:** The deterministic lint-differential already grades run-watch --on=manual, so the parity-graded path equals the production path with no oracle realignment. It runs all cheap invariant+gate backlog checks whole-store with no item arg. Enforcing all invariants (broader than legacy backlog-only lint.mjs) is the intended runtime behavior. User-confirmed via AskUserQuestion.
 - **Rejected:** run-gate — would force realigning the differential to grade run-gate to keep graded==production. Defer — the decision was ready to make now.
+
+### D3 — 2026-07-07
+- **Decision:** Gate entrypoint scope for the RUNTIME_ENGINE flag-on backlog gate (SUPERSEDES D2).
+- **Options:** run-watch --on=commit --changed=docs/backlog/*.md (backlog-scoped) | Strict backlog-only finding filter | Whole-repo --on=commit (no scope)
+- **Chosen:** run-watch --on=commit --changed='docs/backlog/*.md'
+- **Rationale:** SUPERSEDES D2 (run-watch --on=manual). Measurement against the REAL registry invalidated D2: --on=manual selects 5 audit skill: judgment checks that fail-closed without an injected LLM judge, and surfaces a pre-existing non-backlog typed-subjects drift — both would fail preflight spuriously. The runtime gate rides ALL invariants, not just the 11 backlog rules. Measured: run-watch --on=commit --changed='docs/backlog/*.md' exits CLEAN on the valid backlog — the commit trigger has no audit context (no judge needed), and typed-subjects is contexts:[gate] NOT invariant, so the backlog scope excludes it. Deterministic, minimal (command swap), consistent with the differential's backlog-check parity. User-confirmed via AskUserQuestion 2026-07-07.
+- **Rejected:** Strict backlog-only finding-filter — stricter parity but needs a filter wrapper; unnecessary since the scoped commit trigger is already clean. Whole-repo --on=commit — blocked today by the pre-existing typed-subjects drift, which is outside WS-2 scope.
