@@ -20,6 +20,16 @@ Routes a side-finding to the **right home** (so the parking lot stays bounded �
 § "Backlog Discipline" → Epics) and writes `docs/backlog/<id>.md`, then runs `backlog-lint --fix`
 to regenerate the index.
 
+## Runtime engine path (`RUNTIME_ENGINE`)
+
+When `RUNTIME_ENGINE` is set (read via `usesRuntimeEngine(process.env)` — `runtime/engine/lib/path-provenance.mjs:13`), the **runtime engine drives intake** instead of the prose router below. Hard cutover — on a runtime-path failure, pause at the floor; do **not** silently fall back to the prose path (a deliberate legacy fallback is a human act that journals `path:legacy-fallback`).
+
+1. Write the finding as JSON — the Finding shape `{id, check?, kind, scope, detail, raised_at}`. Omit `check` (or set the reserved `agent-observed` sentinel) for an agent-observed side-finding with no originating check.
+2. Run `node runtime/adapters/claude-code/run-intake.mjs --finding <finding.json>`. It **parks** (exit 3) on the route-classification judgment with a pending key `execute:intake-<finding-id>`; the pre-computed decision context (active epic + `done_when`/`scope`, parking theme epics, parking orphans) is embedded in the parked task. Answer with the route JSON via `--fulfil execute:intake-<finding-id> --value '{"taskId":"intake-<id>","status":"done","summary":"{\"route\":\"…\",\"epic\":\"…\",\"epicRole\":\"…\"}"}'`.
+3. On exit 0 the driver has written the item file(s), regenerated `docs/BACKLOG.md` (the `lint --fix` side-car), and journaled `path:runtime` + `intake:<id>:filed`. Then **commit** the written file(s) with the route-correct `docs(backlog):` message, staging ONLY the touched files.
+
+When `RUNTIME_ENGINE` is unset, follow the legacy prose procedure below (retained byte-for-byte until P6 legacy retirement).
+
 ## The hot-path router (decide cheaply, then write)
 
 This is the **cheap** routing pass; the heavy all-vs-all clustering lives in `/backlog-themes`.
