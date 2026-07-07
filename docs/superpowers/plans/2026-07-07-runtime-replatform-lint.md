@@ -299,7 +299,8 @@ const skillMd = readFileSync(join(dirname(fileURLToPath(import.meta.url)), '..',
 
 test('SKILL.md documents the RUNTIME_ENGINE runtime-gate validation path', () => {
   assert.match(skillMd, /RUNTIME_ENGINE/);
-  assert.match(skillMd, /run-watch --on=commit --changed='docs\/backlog\/\*\.md'/);
+  // match the distinctive scope+trigger; avoid the run-watch vs run-watch.mjs prefix ambiguity
+  assert.match(skillMd, /--on=commit --changed='docs\/backlog\/\*\.md'/);
 });
 
 test('SKILL.md still documents the legacy 11-rule lint (retained until P6)', () => {
