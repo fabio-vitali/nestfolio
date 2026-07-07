@@ -18,11 +18,10 @@ test('differential over all fixtures: expected classes', async () => {
   const { rows } = await runDifferential();
   const byRule = Object.fromEntries(rows.map((r) => [r.rule, r]));
   // mapped rules: runtime must catch what legacy catches
-  for (const rule of ['r1-id-matches-filename', 'r2-single-active', 'r3-references-valid', 'r11-single-active-epic', 'index-matches'])
+  for (const rule of ['r1-id-matches-filename', 'r2-single-active', 'r3-references-valid',
+    'r4-active-out-of-scope', 'r5-shipped-validation-gate', 'r6-queued-ranks', 'r8-promotion-trigger',
+    'r11-single-active-epic', 'index-matches'])
     assert.equal(byRule[rule].class, 'both-catch', `${rule}: ${JSON.stringify(byRule[rule])}`);
-  // unmapped rules: legacy-only is the HONEST gap (feeds P4), never red here
-  for (const rule of ['r4-active-out-of-scope', 'r5-shipped-validation-gate', 'r6-queued-ranks', 'r8-promotion-trigger'])
-    assert.equal(byRule[rule].class, 'legacy-only', `${rule}: ${JSON.stringify(byRule[rule])}`);
   // r9/r10: no dedicated check (mapped:false, still P4 gaps) but caught TRANSITIVELY via index-fresh —
   // the render omits mis-anchored epic members, so the generic index law fires. See RULE_MAP comment.
   for (const rule of ['r9-epic-closure', 'r10-epic-pointer']) {
