@@ -36,7 +36,7 @@ test('fulfilled route JSON → items written with epic/epic_role; journal filed 
   await driveIntake({ finding, backlogDir: join(dir, 'backlog'), checksDir: join(dir, 'checks'), capabilities: c });
   const taskResult = { taskId: 'intake-f1', status: 'done', summary: JSON.stringify({ route: 'fold', epic: 'acme-epic', epicRole: 'core' }) };
   const r2 = await driveIntake({ finding, backlogDir: join(dir, 'backlog'), checksDir: join(dir, 'checks'),
-    fulfil: { key: 'execute:intake-f1', value: taskResult }, capabilities: c });
+    fulfil: { key: 'execute:intake-f1', value: taskResult }, capabilities: c, regenIndex: () => {} });
   assert.equal(r2.exit, 0, JSON.stringify(r2.out));
   const file = join(dir, 'backlog/from-demo-check.md');
   assert.ok(existsSync(file));
@@ -63,8 +63,43 @@ test('a driven intake journals a path:runtime provenance record', async () => {
   const c = caps();
   await driveIntake({ finding, backlogDir: join(dir, 'backlog'), checksDir: join(dir, 'checks'), capabilities: c });
   await driveIntake({ finding, backlogDir: join(dir, 'backlog'), checksDir: join(dir, 'checks'),
-    fulfil: { key: 'execute:intake-f1', value: { taskId: 'intake-f1', status: 'done', summary: JSON.stringify({ route: 'orphan' }) } }, capabilities: c });
+    fulfil: { key: 'execute:intake-f1', value: { taskId: 'intake-f1', status: 'done', summary: JSON.stringify({ route: 'orphan' }) } }, capabilities: c, regenIndex: () => {} });
   const step = c.journal.read('intake-f1').steps.get('path:runtime');
   assert.equal(step?.value?.path, 'runtime');
   assert.equal(step.value.workstream, 'f1');
+});
+
+test('after writing items, the lint --fix index-regen side-car runs once', async () => {
+  const dir = tmpStore();
+  const c = caps();
+  let calls = 0;
+  const regenIndex = () => { calls += 1; };
+  await driveIntake({ finding, backlogDir: join(dir, 'backlog'), checksDir: join(dir, 'checks'), capabilities: c, regenIndex });
+  const r2 = await driveIntake({ finding, backlogDir: join(dir, 'backlog'), checksDir: join(dir, 'checks'),
+    fulfil: { key: 'execute:intake-f1', value: { taskId: 'intake-f1', status: 'done', summary: JSON.stringify({ route: 'orphan' }) } }, capabilities: c, regenIndex });
+  assert.equal(r2.exit, 0, JSON.stringify(r2.out));
+  assert.equal(calls, 1);
+});
+
+test('a discard route writes nothing, so the side-car does NOT run', async () => {
+  const dir = tmpStore();
+  const c = caps();
+  let calls = 0;
+  const regenIndex = () => { calls += 1; };
+  await driveIntake({ finding, backlogDir: join(dir, 'backlog'), checksDir: join(dir, 'checks'), capabilities: c, regenIndex });
+  const r2 = await driveIntake({ finding, backlogDir: join(dir, 'backlog'), checksDir: join(dir, 'checks'),
+    fulfil: { key: 'execute:intake-f1', value: { taskId: 'intake-f1', status: 'done', summary: JSON.stringify({ route: 'discard' }) } }, capabilities: c, regenIndex });
+  assert.equal(r2.exit, 0);
+  assert.equal(calls, 0);
+});
+
+test('a side-car failure surfaces as exit 1 (not swallowed)', async () => {
+  const dir = tmpStore();
+  const c = caps();
+  const regenIndex = () => { throw new Error('lint rule 9 violated'); };
+  await driveIntake({ finding, backlogDir: join(dir, 'backlog'), checksDir: join(dir, 'checks'), capabilities: c, regenIndex });
+  const r2 = await driveIntake({ finding, backlogDir: join(dir, 'backlog'), checksDir: join(dir, 'checks'),
+    fulfil: { key: 'execute:intake-f1', value: { taskId: 'intake-f1', status: 'done', summary: JSON.stringify({ route: 'orphan' }) } }, capabilities: c, regenIndex });
+  assert.equal(r2.exit, 1);
+  assert.match(String(r2.out.error), /lint rule 9/);
 });

@@ -6,7 +6,8 @@
 // deterministically (the frontmatter write is the project binding — it stays out of ring-1).
 // Exit: 0 done / 3 parked / 1 failed / 2 usage.
 import { fileURLToPath } from 'node:url';
-import { readFileSync, writeFileSync, mkdirSync } from 'node:fs';
+import { readFileSync, writeFileSync, mkdirSync, existsSync } from 'node:fs';
+import { execFileSync } from 'node:child_process';
 import { join } from 'node:path';
 import yaml from 'yaml';
 import { intake } from '../../engine/lib/intake.mjs';
@@ -27,7 +28,17 @@ export function writeItemFile({ backlogDir, item, body = '' }) {
   return path;
 }
 
-export async function driveIntake({ finding, backlogDir, checksDir, fulfil, capabilities }) {
+/** The lint --fix index-regen side-car (backlog-add/SKILL.md:65): regenerate docs/BACKLOG.md +
+ *  dossier related_workstreams. Doc-store materialization stays a skill/adapter side-car (spec §2).
+ *  A missing skill script (e.g. the parity sandbox) is a no-op; a real lint-rule failure is fatal. */
+export function regenBacklogIndex() {
+  const lintScript = '.claude/skills/backlog-lint/lint.mjs';
+  if (!existsSync(lintScript)) return;
+  try { execFileSync('node', [lintScript, '--fix'], { stdio: 'pipe' }); }
+  catch (e) { throw new Error(`backlog-lint --fix failed: ${e.stdout?.toString().trim() || e.message}`); }
+}
+
+export async function driveIntake({ finding, backlogDir, checksDir, fulfil, capabilities, regenIndex = regenBacklogIndex }) {
   const runId = `intake-${finding.id}`;
   const { journal } = capabilities;
   journal.begin(runId, { runId, auto: false });
@@ -50,6 +61,10 @@ export async function driveIntake({ finding, backlogDir, checksDir, fulfil, capa
   }
   const written = result.items.map((item) => writeItemFile({ backlogDir, item, body: finding.detail }));
   journal.record(runId, `intake:${finding.id}:filed`, { route: result.route, files: written });
+  if (written.length > 0) {
+    try { regenIndex(); }
+    catch (e) { return { exit: 1, out: { error: e.message, written } }; }
+  }
   return { exit: 0, out: { route: result.route, rationale: result.rationale, written } };
 }
 
