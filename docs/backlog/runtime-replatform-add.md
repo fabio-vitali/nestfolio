@@ -1,6 +1,6 @@
 ---
 id: runtime-replatform-add
-status: active
+status: shipped
 type: refactor
 epic: runtime-operationalization
 epic_role: core
@@ -14,7 +14,8 @@ out_of_scope:
 spec: docs/superpowers/specs/2026-07-06-runtime-work-driver-replatform-design.md
 plan: docs/superpowers/plans/2026-07-07-runtime-replatform-add.md
 topic_memory: [project_runtime_realization.md]
-validation_gate: null
+validation_gate: "WS-1 re-platform of backlog-add onto intake.mjs — 5 feature commits (87c5f934 intake-context loader+renderer; 2bb000c7 selectRoute deterministic-context injection; 579da074 run-intake lint --fix index-regen side-car; c57ed9a9 RUNTIME_ENGINE SKILL.md toggle branch). Unit (node --test, all green): intake-context 5, intake D1-D7 (7), run-intake 7 (side-car runs-once / discard-skips / failure-exit1 + existing hermetic), backlog-add flag-branch 2. True-affected verify (runtime,tools) 354 tests green; runtime typecheck green (no lint target). Live parity oracle sweep (7 add-* pairs, each path:runtime hollow-green-gated): ALL 7 dominant, legacy=runtime=1.0 gatePassRate, parity.green=true (report benchmarks/parity-oracle/parity-2026-07-07T08-00-56-380Z.md, gitignored). ship-recheck clean (journaled ship:runtime-replatform-add:gate-clean); mint considered=none. Tier 0 (no deploy). The 2 write-layer P5 scenarios (add-id-collision-suffix, add-notes-scalar) stay deferred per the spec mapping."
+closed: 2026-07-07
 ---
 
 # WS-1 — re-platform `backlog-add` onto `intake.mjs`
