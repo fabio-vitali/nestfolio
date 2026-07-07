@@ -1,6 +1,6 @@
 ---
 id: runtime-replatform-lint
-status: active
+status: shipped
 type: refactor
 epic: runtime-operationalization
 epic_role: core
@@ -14,7 +14,8 @@ out_of_scope:
 spec: docs/superpowers/specs/2026-07-06-runtime-work-driver-replatform-design.md
 plan: docs/superpowers/plans/2026-07-07-runtime-replatform-lint.md
 topic_memory: [project_runtime_realization.md]
-validation_gate: null
+validation_gate: "WS-2 re-platform of backlog-lint onto the runtime check-registry (SDD, 4 tasks each impl+review clean; final whole-branch review on opus = Ready-to-merge:Yes). Feature commits: f66b6cd6 (backlog-gate.mjs flag-branch selector), 2da5a77e (preflight.mjs:110 + postflight.mjs:201 wired via backlogGate — flag-on → `run-watch --on=commit --changed='docs/backlog/*.md'`, flag-off → legacy lint.mjs byte-for-byte), d1f9e141 (backlog-lint SKILL.md runtime-path doc), a81d458f (parity-oracle: seed r4/r5/r6/r8 content checks into store-sandbox SEED_CHECKS + flip RULE_MAP mapped:true), 156af43f (SKILL.md scope note: gate rides all repo invariants). Rule-3 verified ALREADY complete (no net-new evaluator — spec §8 premise stale). Tests (node --test, all green): backlog-gate 3, gate-wiring 2, runtime-flag 2; full suites parity-oracle 33/33, backlog-lint 71/71, backlog-next 69/69. Parity acceptance (deterministic, no LLM sweep): `node scripts/parity-oracle/lint-differential.mjs` exit 0 — every row both-catch except element-shape (runtime-only); r4/r5/r6/r8 flipped legacy-only→both-catch. Preflight smoke: RUNTIME_ENGINE=1 and unset both exit 0. nx-affected EMPTY (only .claude/skills, scripts/parity-oracle, docs). Tier-0 (detect-deploy exit 10; detect-doc-derivation exit 10). Backward edge: ship-recheck clean (journaled ship:runtime-replatform-lint:gate-clean); mint considered=none (consider:runtime-replatform-lint). Decisions D1 (TDD-plan-then-review), D2→D3 (gate entrypoint run-watch --on=commit --changed=docs/backlog/*.md, supersedes --on=manual) in the Decision log. Deferred follow-up (soak-gate member): realign lint-differential runtimeExit --on=manual → --on=commit to grade the literal production command (low-risk — r4/r5/r6/r8 are invariants that ride every trigger)."
+closed: 2026-07-07
 ---
 
 # WS-2 — re-platform `backlog-lint` onto registry gates
