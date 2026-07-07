@@ -7,11 +7,12 @@ epic_role: core
 notes: "P5 WS-3 (spec §8, the big build): re-platform backlog-next onto runWorker. The deploy-gate evaluator modeled as a sha-conditional expensive runWatch at the ship boundary (reusing the orchestrator's epic-pre-done e2e-batch pattern: cost_ceiling:'expensive', e2eIsFresh sha-pinning, journal.record evidence); host runs deploy.sh/nx/e2e behind the execute/procedure seam. Plus lane→contexts/cost_ceiling mapping, preflight/postflight/detect-* as gate/audit checks, decision-log append = --auto journaled floor. Promoted 2026-07-07: blocker runtime-replatform-prereqs shipped 2026-07-06, satisfying the promotion trigger; ranked after the rank-1..3 e2e blockers."
 references:
   - docs/superpowers/specs/2026-07-06-runtime-work-driver-replatform-design.md
+  - docs/superpowers/specs/2026-07-07-runtime-replatform-next-design.md
 out_of_scope:
   - "The flag/observer/parity-hole mechanism — that is runtime-replatform-prereqs."
   - "The epic orchestrator (run-epic.mjs) — that is runtime-replatform-next-epic."
   - "Deleting the legacy backlog-next skill body (P6, user-triggered)."
-spec: docs/superpowers/specs/2026-07-06-runtime-work-driver-replatform-design.md
+spec: docs/superpowers/specs/2026-07-07-runtime-replatform-next-design.md
 plan: null
 topic_memory: [project_runtime_realization.md]
 validation_gate: null
