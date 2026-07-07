@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { intake, shapeItems } from '../lib/intake.mjs';
+import { intake, shapeItems, selectRoute } from '../lib/intake.mjs';
 
 const finding = { id: 'f1', check: 'no-x', kind: 'inconsistency', scope: ['a/b.ts'], detail: 'broke', raised_at: 't' };
 const fakeCaps = (decision) => ({ execute: async () => ({ taskId: 't', status: 'done', summary: JSON.stringify(decision) }) });
@@ -48,4 +48,15 @@ test('D6: an explicit agent-observed check behaves identically to a check-less f
   const d = await intake({ finding: observed, registry: {}, backlog: [], capabilities: fakeCaps({ route: 'orphan' }) });
   assert.equal(d.items[0].id, 'from-obs-2');
   assert.equal('from_check' in d.items[0].provenance, false);
+});
+
+test('D7: selectRoute injects the active-epic done_when + context into the judge task', async () => {
+  const backlog = [{ id: 'acme-epic', status: 'active', type: 'epic', done_when: 'acme redesigned', scope: 's', out_of_scope: [] }];
+  let seen;
+  const caps = { execute: async (task) => { seen = task; return { taskId: task.id, status: 'done', summary: JSON.stringify({ route: 'fold', epic: 'acme-epic', epicRole: 'core' }) }; } };
+  const d = await selectRoute({ finding, backlog, capabilities: caps });
+  assert.match(seen.prompt, /acme redesigned/);            // done_when reaches the judge prompt
+  assert.equal(seen.payload.context.activeEpic.id, 'acme-epic');
+  assert.equal(d.route, 'fold');
+  assert.equal(d.epicRole, 'core');
 });

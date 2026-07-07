@@ -3,6 +3,7 @@
 // shapeItems = a PURE deterministic core. Ring-1 produces abstract Item[]; the frontmatter write is the
 // project binding. Every item carries provenance.from_finding — the forward-edge trace link (§10).
 import { AGENT_OBSERVED } from '../schema/finding.schema.ts';
+import { loadIntakeContext, renderIntakePrompt } from './intake-context.mjs';
 // A finding with no real originating check (omitted, or the reserved AGENT_OBSERVED sentinel) is an
 // agent-observed side-finding: slug from its unique finding.id, and omit from_check from provenance.
 const originatingCheck = (finding) => (finding.check && finding.check !== AGENT_OBSERVED ? finding.check : null);
@@ -32,9 +33,10 @@ export function shapeItems({ finding, route, epic, epicRole, splitInto }) {
 }
 
 export async function selectRoute({ finding, backlog, capabilities }) {
+  const context = loadIntakeContext({ backlog });
   const task = { id: `intake-${finding.id}`, scope: finding.scope,
-    prompt: `Classify this finding into a route (fold|join-theme|mint-aggregation|orphan|split|discard) per the backlog-add epic-aware router. Return JSON {route, epic?, epicRole?, splitInto?, rationale}. Finding: ${finding.detail}`,
-    payload: { finding, backlog } };
+    prompt: renderIntakePrompt({ finding, context }),
+    payload: { finding, backlog, context } };
   const result = await capabilities.execute(task);
   const d = JSON.parse(result.summary);   // seam convention: route decision as JSON in summary
   return { route: d.route, epic: d.epic, epicRole: d.epicRole, splitInto: d.splitInto, rationale: d.rationale ?? result.summary };
