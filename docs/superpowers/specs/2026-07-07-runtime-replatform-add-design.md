@@ -44,17 +44,20 @@ keeps the one call that is genuinely semantic.
 
 ## 3. Components
 
-### 3.1 `loadIntakeContext` — new pure ring-1 module `runtime/engine/lib/intake-context.mjs`
+### 3.1 `loadIntakeContext` + `renderIntakePrompt` — new pure ring-1 module `runtime/engine/lib/intake-context.mjs`
 ```
-loadIntakeContext({ finding, backlog }) ->
-  { activeEpic: { id, done_when, scope, out_of_scope } | null,
-    themeEpics: [ { id, detail } ],          // status: parking + type: epic
-    orphans:    [ { id, detail } ] }          // status: parking, non-epic, no epic: pointer
+loadIntakeContext({ backlog }) ->
+  { activeEpic: { id, done_when, scope, out_of_scope } | null,   // status: active + type: epic
+    themeEpics: [ { id, notes, scope, done_when } ],             // status: parking + type: epic
+    orphans:    [ { id, notes } ] }                               // status: parking, non-epic, no epic: pointer
+renderIntakePrompt({ finding, context }) -> string               // the route-classification prompt, context embedded
 ```
 Pure — no LLM, no I/O; filters the already-threaded `backlog` array (`readItems()` output, threaded at
-`run-intake.mjs:45`). Unit-tested independently. `activeEpic.done_when` is the material for the closure-predicate;
+`run-intake.mjs:45`). `readItems` exposes **frontmatter only**, so the root-cause signal for theme epics / orphans
+is their `notes:` field. Unit-tested independently. `activeEpic.done_when` is the material for the closure-predicate;
 `themeEpics`/`orphans` feed join-theme / mint-aggregation. `null` active epic ⇒ fold is unavailable (matches the
-legacy skill, whose fold branch only fires with an active epic).
+legacy skill, whose fold branch only fires with an active epic). `renderIntakePrompt` embeds the context so the
+judge runs the closure-predicate and root-cause matching without grepping the repo.
 
 ### 3.2 `selectRoute` enrichment (`intake.mjs:34-41`)
 Build the context via `loadIntakeContext`, embed a **structured summary** in the judge prompt (active-epic id +

@@ -12,7 +12,7 @@ out_of_scope:
   - "The flag/observer/parity-hole mechanism — that is runtime-replatform-prereqs."
   - "Deleting the legacy backlog-add body (P6, user-triggered)."
 spec: docs/superpowers/specs/2026-07-06-runtime-work-driver-replatform-design.md
-plan: null
+plan: docs/superpowers/plans/2026-07-07-runtime-replatform-add.md
 topic_memory: [project_runtime_realization.md]
 validation_gate: null
 ---
