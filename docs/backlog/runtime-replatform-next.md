@@ -1,7 +1,6 @@
 ---
 id: runtime-replatform-next
-status: queued
-rank: 4
+status: active
 type: refactor
 epic: runtime-operationalization
 epic_role: core
