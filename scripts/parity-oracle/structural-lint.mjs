@@ -11,6 +11,6 @@ export function lintRtScenario(s) {
     if (!j.runId) v.push('journal spec entry needs runId');
     if (!j.has && !j.awaiting && !j.absent && !j.path) v.push('journal spec entry needs has|awaiting|absent|path');
   }
-  if (s.driver && !['item', 'intake'].includes(s.driver)) v.push(`unknown driver "${s.driver}"`);
+  if (s.driver && !['item', 'intake', 'epic'].includes(s.driver)) v.push(`unknown driver "${s.driver}"`);
   return v;
 }

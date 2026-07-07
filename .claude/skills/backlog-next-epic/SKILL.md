@@ -127,6 +127,25 @@ The run-state also carries an optional `e8: PR_OPEN_AWAITING_MERGE` marker, set 
 
 ### E4. Member loop
 
+#### Runtime engine drive (behind `RUNTIME_ENGINE` — WS-4 strangler)
+
+When the `RUNTIME_ENGINE` flag is set, the **member loop (E4) + epic-pre-done batch (E6) + merge floor** are
+driven by the runtime orchestrator rather than the legacy prose in E4–E6 below: run
+`node runtime/adapters/claude-code/run-epic.mjs <epic-id>`. The single decision site is
+[`epic-driver.mjs`](./epic-driver.mjs) (`epicDriver(env) → {cmd, mode}`, mirroring
+[`next-driver.mjs`](../backlog-next/next-driver.mjs)); flag **off** → the legacy body below runs **unchanged**
+(byte-for-byte, retained until P6). The adapter wraps the live spine (`runtime/engine/loop/orchestrator.mjs`)
+plus **member-selection** (`selectEpicMembers` — open core members in drive order), the **rule-11**
+single-active-epic guard (`activeEpics`), and **e2e-freshness** (the SHA-conditional epic-pre-done batch). Each
+open core member PARKS on `execute:<member-id>` (exit 3): fulfil it by running that member exactly as E4.2
+prescribes (`/backlog-next <member-id>` in epic-member mode, inline via the Skill tool), then re-invoke with
+`--fulfil <key> --value <TaskResult-json>`; replay advances to the next member, then to the merge floor park.
+The driver exits `0 done / 3 paused / 1 failed / 2 usage` and **never auto-merges** (the merge is always a floor
+ask, even in `--auto`). **Deferred (spec §8/§10):** the gh-PR-state probe (`resume-gate.mjs`) and the
+worktree-ops binding stay host-side — the git-workflow steps (E0–E3 preflight/worktree/run-state, E7 captured
+audit, E8 single PR + cleanup + postflight) remain the orchestrator's prose regardless of the flag; epics still
+drain as standalone member PRs (epic D1).
+
 Repeat until `epic-members.mjs` reports drainable (exit 10):
 
 1. **Pick** the next core member from `epic-members.mjs` (`next=<member-id>`).

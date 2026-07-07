@@ -40,18 +40,29 @@ export const MAPPING = {
   'next-lane-complex': P5('same seam as next-lane-simple: diff-driven classifyLane needs a real code diff the services-free sandbox cannot produce (standalone-complex names no concrete file to create, unlike infra-retention-bump), so its in-sandbox delta reduces to Doc-layer. Batch-firing is proven by rt-next-lane-complex-ship + classify-lane.test.mjs.'),
   'next-auto-design-pause': RT('rt-next-auto-design-pause.scenario.mjs'),
   'next-auto-fork-resolve': RT('rt-next-auto-fork-resolve.scenario.mjs'),
-  // ---- orchestrator + themes: entirely P5 (D3 / item scope: lint, router, driver parity only) ----
+  // ---- orchestrator parity: backlog-next-epic vs runOrchestrator spine (WS-4) ----
+  // The spine-expressible epic happy-path twins move to RT (both stop at the merge floor park — the spine never
+  // auto-merges). The rest stay P5 in two HONEST buckets so the checklist says WHY each is still unmapped.
+  'bne-ship-clean': RT('rt-bne-ship-clean.scenario.mjs'),
+  'bne-e8-auto-no-self-merge': RT('rt-bne-e8-auto-no-self-merge.scenario.mjs'),
+  // Bucket A — host-side, DEFERRED per spec §8/§10: the gh-PR-state probe (resume-gate.mjs), the worktree-ops
+  // binding, and epic selection/promotion — host-git/PR/selection prose with no in-sandbox spine analogue.
   ...Object.fromEntries([
-    'bne-auto-blast-fail', 'bne-auto-blast-pass', 'bne-auto-catchall-pause', 'bne-auto-design-pause',
-    'bne-auto-irreversible-pause', 'bne-e0-dirty-tree-stop', 'bne-e2-worktree-reattach', 'bne-e6-zero-tests-red',
-    'bne-e71-chained-e6', 'bne-e8-auto-no-self-merge', 'bne-e8-conflict-resolution', 'bne-e8-pr-route',
-    'bne-e84-postflight-cwd-survival', 'bne-member-checkpoint-clear', 'bne-member-debug-budget',
-    'bne-member-f21-nonshared-no-typecheck', 'bne-promote-clean', 'bne-promote-already-drainable',
-    'bne-resume-absent-fresh', 'bne-resume-corrupt-stop', 'bne-resume-merged-tail-only', 'bne-resume-partial',
-    'bne-resume-pr-open-stop', 'bne-rule11-different-active', 'bne-select-auto-confirm', 'bne-select-bare-epic-id',
-    'bne-select-impact-rank', 'bne-select-like-criterion', 'bne-select-zero-candidates', 'bne-ship-clean',
-    'bne-ship-captured-promote', 'bne-ship-e2e-red-no-ship', 'bne-ship-stale-sha',
-  ].map((id) => [id, P5('epic orchestrator re-platform is P5; E-phase/runstate mechanics are backlog-next-epic skill prose today')])),
+    'bne-e0-dirty-tree-stop', 'bne-e2-worktree-reattach', 'bne-e8-conflict-resolution', 'bne-e8-pr-route',
+    'bne-e84-postflight-cwd-survival', 'bne-resume-absent-fresh', 'bne-resume-corrupt-stop',
+    'bne-resume-merged-tail-only', 'bne-resume-partial', 'bne-resume-pr-open-stop', 'bne-promote-clean',
+    'bne-promote-already-drainable', 'bne-select-auto-confirm', 'bne-select-bare-epic-id',
+    'bne-select-impact-rank', 'bne-select-like-criterion', 'bne-select-zero-candidates',
+  ].map((id) => [id, P5('WS-4 defers the gh-PR-state probe (resume-gate.mjs) + worktree-ops binding + epic selection/promotion (spec §8/§10) — host-git/PR/selection prose with no in-sandbox spine analogue; epics drain as standalone member PRs (epic D1)')])),
+  // Bucket B — deterministic spine/driver behavior proven by unit tests (orchestrator.test.mjs +
+  // run-epic.test.mjs: sha-conditional replay, gate-red, member park/resume, rule-11 guard) or host auto/
+  // E-phase prose; not distinctly expressible as a live-operator scenario in the services-free sandbox.
+  ...Object.fromEntries([
+    'bne-ship-stale-sha', 'bne-ship-e2e-red-no-ship', 'bne-ship-captured-promote', 'bne-member-checkpoint-clear',
+    'bne-rule11-different-active', 'bne-member-debug-budget', 'bne-member-f21-nonshared-no-typecheck',
+    'bne-e6-zero-tests-red', 'bne-e71-chained-e6', 'bne-auto-blast-fail', 'bne-auto-blast-pass',
+    'bne-auto-catchall-pause', 'bne-auto-design-pause', 'bne-auto-irreversible-pause',
+  ].map((id) => [id, P5('deterministic spine/driver behavior proven by orchestrator.test.mjs + run-epic.test.mjs (sha-conditional replay, gate-red, member park/resume, rule-11 guard) or host auto/E-phase prose; not distinctly expressible as a live-operator scenario in the services-free sandbox')])),
   'themes-cluster-root-cause': P5('parking-lot clustering is backlog-themes prose; no engine procedure exists'),
   'themes-discrimination': P5('parking-lot clustering is backlog-themes prose; no engine procedure exists'),
 };
