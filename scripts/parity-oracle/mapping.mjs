@@ -34,12 +34,12 @@ export const MAPPING = {
   'next-auto-floor-pause': RT('rt-next-auto-floor-pause.scenario.mjs'),
   'next-auto-finishing-pr-stop': RT('rt-next-auto-finishing-pr-stop.scenario.mjs'),
   'next-preflight-dirty-stop': RT('rt-next-preflight-dirty-stop.scenario.mjs'),
-  'next-lane-doc-layer': P5('lane classification is backlog-next skill prose'),
-  'next-lane-simple': P5('lane classification is backlog-next skill prose'),
-  'next-lane-design-doc': P5('lane classification is backlog-next skill prose'),
-  'next-lane-complex': P5('lane classification is backlog-next skill prose'),
-  'next-auto-design-pause': P5('design-fork recognition is --auto policy prose; the engine floor equivalent is covered by rt-next-auto-floor-pause'),
-  'next-auto-fork-resolve': P5('blast-radius fork gate is detect-fork-blast-radius.mjs procedure content'),
+  'next-lane-doc-layer': RT('rt-next-lane-doc-layer.scenario.mjs'),
+  'next-lane-simple': P5('classifyLane is diff-driven (D3): "simple" needs a real single-service code diff, but the services-free runtime sandbox seeds no services/ tree and this routing item does a docs-only lifecycle transition, so the branch delta reduces to Doc-layer in-sandbox. The simple/complex branch correctness is carried by classify-lane.test.mjs (9 cases); the batch-firing path is proven by rt-next-lane-complex-ship (infra-retention-bump). A sandbox that seeds a services/ tree is the forward upgrade.'),
+  'next-lane-design-doc': RT('rt-next-lane-design-doc.scenario.mjs'),
+  'next-lane-complex': P5('same seam as next-lane-simple: diff-driven classifyLane needs a real code diff the services-free sandbox cannot produce (standalone-complex names no concrete file to create, unlike infra-retention-bump), so its in-sandbox delta reduces to Doc-layer. Batch-firing is proven by rt-next-lane-complex-ship + classify-lane.test.mjs.'),
+  'next-auto-design-pause': RT('rt-next-auto-design-pause.scenario.mjs'),
+  'next-auto-fork-resolve': RT('rt-next-auto-fork-resolve.scenario.mjs'),
   // ---- orchestrator + themes: entirely P5 (D3 / item scope: lint, router, driver parity only) ----
   ...Object.fromEntries([
     'bne-auto-blast-fail', 'bne-auto-blast-pass', 'bne-auto-catchall-pause', 'bne-auto-design-pause',

@@ -27,9 +27,10 @@ test('mapped and unmapped partition the full MAPPING (no id is both or neither)'
 
 test('the mapped set is the engine-expressible subset (D3)', () => {
   const mapped = mappedIds();
-  assert.equal(mapped.length, 11);
-  for (const id of ['add-fold-core', 'add-orphan', 'next-lane-complex-ship', 'next-auto-floor-pause']) assert.ok(mapped.includes(id), id);
-  for (const id of ['bne-e8-pr-route', 'themes-cluster-root-cause', 'next-lane-doc-layer', 'add-id-collision-suffix']) assert.ok(!mapped.includes(id), id);
+  assert.equal(mapped.length, 15);   // WS-3 flipped 4 next-* twins (doc-layer, design-doc, auto-design-pause, auto-fork-resolve)
+  for (const id of ['add-fold-core', 'add-orphan', 'next-lane-complex-ship', 'next-auto-floor-pause', 'next-lane-doc-layer', 'next-auto-fork-resolve']) assert.ok(mapped.includes(id), id);
+  // next-lane-simple/complex stay P5: diff-driven classifyLane needs a real code diff the services-free sandbox can't produce.
+  for (const id of ['bne-e8-pr-route', 'themes-cluster-root-cause', 'next-lane-simple', 'next-lane-complex', 'add-id-collision-suffix']) assert.ok(!mapped.includes(id), id);
 });
 
 test('operator prompt encodes park/fulfil + floor-stop contract', () => {
