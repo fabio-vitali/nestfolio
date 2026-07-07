@@ -13,7 +13,7 @@ out_of_scope:
   - "The epic orchestrator (run-epic.mjs) — that is runtime-replatform-next-epic."
   - "Deleting the legacy backlog-next skill body (P6, user-triggered)."
 spec: docs/superpowers/specs/2026-07-07-runtime-replatform-next-design.md
-plan: null
+plan: docs/superpowers/plans/2026-07-07-runtime-replatform-next.md
 topic_memory: [project_runtime_realization.md]
 validation_gate: null
 ---

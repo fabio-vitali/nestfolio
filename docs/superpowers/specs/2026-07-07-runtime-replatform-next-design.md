@@ -95,9 +95,15 @@ WS-3's slice of the 43 `unmapped:'P5'` rows in `scripts/parity-oracle/mapping.mj
 |---|---|---|
 | `next-lane-doc-layer`, `next-lane-simple`, `next-lane-design-doc`, `next-lane-complex` | `classifyLane` | WS-3 (core) |
 | `next-auto-design-pause`, `next-auto-fork-resolve` | `autoResolvePolicy` + floor | WS-3 (core) |
-| `add-id-collision-suffix`, `add-notes-scalar` | write-layer (filename suffixing / notes scalar) | WS-3 **if** the worker write path covers them, else filed forward to a WS-1 follow-up |
+| ~~`add-id-collision-suffix`, `add-notes-scalar`~~ | item-file **writer** (filename suffixing / notes scalar) | **WS-1 follow-up — out of scope.** Confirmed from `mapping.mjs`: these grade *writing a new item file* (backlog-**add**), but `runWorker` drives an existing item to ship and never writes item files. |
 
-For each: author the `rt-<scenario>.scenario.mjs` twin (template: `scripts/parity-oracle/scenarios/rt-next-lane-complex-ship.scenario.mjs`), flip `MAPPING[<id>]` from `P5(...)` to `RT(...)`, and assert `{ runId:'item-<id>', path:'runtime' }` in the scenario `journal[]` so `gradeJournal` (`runtime-grade.mjs:21`) verifies the runtime path actually drove it. Green = every mapped pair `dominant` (`verdict.mjs pairVerdict`). Then flip `RUNTIME_ENGINE` for the backlog-next slice.
+For each of the **6 `next-*` rows**: author the `rt-<scenario>.scenario.mjs` twin (template: `scripts/parity-oracle/scenarios/rt-next-lane-complex-ship.scenario.mjs`), flip `MAPPING[<id>]` from `P5(...)` to `RT(...)`, and assert `{ runId:'item-<id>', path:'runtime' }` in the scenario `journal[]` so `gradeJournal` (`runtime-grade.mjs:21`) verifies the runtime path actually drove it. Green = every mapped pair `dominant` (`verdict.mjs pairVerdict`). Then flip `RUNTIME_ENGINE` for the backlog-next slice.
+
+**Two structural facts the twins must respect (from reading the scenarios):**
+- **The runtime worker always parks at the ship floor** (`worker.mjs:35`, never auto-ships), whereas the legacy skill *completes* doc-layer/simple lanes (`terminal:'completed'`). So a twin cannot mirror the legacy terminal — it defines its own (`terminal:'pause'` at the ship floor). Dominance compares each side against its *own* expected outcome, so this is legitimate; `classifyLane`'s deterministic correctness is carried by its unit tests, and the twin asserts the lane-appropriate *runtime* effect (deploy batch fires for complex; no `e2e` record for doc-layer).
+- **Sandbox visibility.** The parity runtime sandbox (`runtime-sandbox.mjs`) replaces the registry with the **starter pack** and seeds only `runtime/` — not `.claude/skills/` or `tools/`. So for the upgraded `rt-next-lane-complex-ship` to fire the runtime-owned batch in-sandbox, a `deploy-gate` check must be added to `runtime/starter/checks/`, and the deploy-gate runner must degrade gracefully when the nx graph / skill resolver is absent (fall back to a bare `deploy.sh` that hits the stub). Escape hatch if this proves too costly: keep the deploy-gate dogfooded at this workstream's own closing phase and leave the green scenario's `deploy-during-execute` model (the "don't rework the green scenario" option), filing the sandbox upgrade forward.
+
+**`rt-next-lane-complex-ship` is upgraded, not authored fresh** — it already exists (mapped/green) but models deploy *during execute*; WS-3 moves that deploy into the runtime-owned pre-ship batch (operator does only the code work + commit at the execute park; the batch fires `deploy.sh`), so its `journal[]` gains the sha-pinned `e2e` record.
 
 The 33 `bne-*` (epic orchestrator) are **WS-4**. The 2 `themes-*` are separate.
 
@@ -108,14 +114,14 @@ The 33 `bne-*` (epic orchestrator) are **WS-4**. The 2 `themes-*` are separate.
 - **`runtime-operational-surface`** (view+executor).
 - **Re-designing frozen ring-1 contracts** beyond the additive `preShipBatch` extraction (which re-freezes into SPEC 1).
 - **Worktree-ops binding** — host git stays; the engine does not manage worktrees.
-- The 2 `add-*` write-layer scenarios **if** they prove to be pure WS-1 router concerns (then filed forward, not forced into WS-3).
+- The 2 `add-*` write-layer scenarios (`add-id-collision-suffix`, `add-notes-scalar`) — confirmed WS-1 item-writer concerns; `runWorker` never writes item files. Filed forward to a WS-1 follow-up.
 
 ## 8. Testing strategy
 
 - **Unit:** `preShipBatch` (sha-fresh short-circuit vs re-run; findings→failed), `classifyLane`, `laneToTrigger`, `autoResolvePolicy`, `deploy-gate-runner` (sequence + exit-code mapping, with stubbed `deploy.sh`/`nx`), `run-next` flag branch + exit contract.
 - **Orchestrator regression:** the refactor of `orchestrator.mjs:27-37` to call `preShipBatch` must keep existing orchestrator tests + `bne-*` parity green (behavior-preserving).
 - **Parity:** the 6 (+2) scenarios above go `unmapped → dominant` with `path:runtime` assertions.
-- **Dogfood:** this workstream's own closing phase (§6.3/6.4 of `backlog-next`) exercises the real deploy-gate against dev sandbox once — the primary-risk-carrier's live proof.
+- **Dogfood (deferred — see §9):** WS-3's own changes are all TIER0 (`runtime/`, `.claude/`, `scripts/`, `docs/` — `detect-deploy-needed.mjs` exits 10, no deploy), so this workstream's closing phase does **not** fire a real deploy. The deploy-gate's live proof is therefore either (a) deferred to the first service-touching workstream driven by `run-next`, or (b) a one-off synthetic `run-next` drive of a throwaway infra item at closing time. Decide at closing. The parity sandbox (stubbed `deploy.sh`) is the standing regression proof.
 
 ## 9. Risks & open questions
 
