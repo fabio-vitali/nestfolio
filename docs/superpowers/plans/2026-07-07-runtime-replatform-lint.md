@@ -239,22 +239,7 @@ Update the success message (line 362):
 Run: `node --test .claude/skills/backlog-next/test/gate-wiring.test.mjs`
 Expected: PASS (2 tests).
 
-- [ ] **Step 6: Smoke-run the backlog gate, both flag states, from the worktree**
-
-Use `--lane=epic-member` so preflight runs ONLY tree-clean + the backlog gate and **skips** the branch-scope checks — critical because we are on the feature branch, not `main`, so a `--lane=complex`/no-lane run would fail the unrelated `not-on-main` check and mask the gate result.
-
-Run:
-```bash
-# flag off → legacy lint path (must pass on the clean tree)
-node .claude/skills/backlog-next/preflight.mjs --lane=epic-member; echo "preflight legacy exit=$?"
-# flag on → runtime backlog gate (must pass — measured clean; this is the D3 path)
-RUNTIME_ENGINE=1 node .claude/skills/backlog-next/preflight.mjs --lane=epic-member; echo "preflight runtime exit=$?"
-```
-Expected: both exit **0** (tree clean + backlog checks green). Also confirm the flag-on run prints the epic-member success line without a `backlog-gate` failure.
-
-Note for the executor: postflight's smoke is deferred to the workstream closing phase (it asserts shipped-frontmatter + backward-edge evidence that only exist at ship). The `gate-wiring` regression test + this preflight smoke are the Task-2 gates.
-
-- [ ] **Step 7: Commit**
+- [ ] **Step 6: Commit** (before the smoke — see Step 7's tree-clean note)
 
 ```bash
 git add .claude/skills/backlog-next/preflight.mjs .claude/skills/backlog-next/postflight.mjs .claude/skills/backlog-next/test/gate-wiring.test.mjs
@@ -271,6 +256,21 @@ EOF
 )"
 git log --oneline -1
 ```
+
+- [ ] **Step 7: Smoke-run the backlog gate, both flag states, ON THE CLEAN (post-commit) TREE**
+
+Run this AFTER the Step 6 commit — `--lane=epic-member` preflight runs a **tree-clean check**, so an uncommitted diff would fail it and mask the gate result. Use `--lane=epic-member` (not `--lane=complex`/no-lane) so preflight runs ONLY tree-clean + the backlog gate and skips the branch-scope checks — we are on the feature branch, not `main`, so a non-epic-member run would fail the unrelated `not-on-main` check.
+
+Run:
+```bash
+# flag off → legacy lint path (must pass on the clean tree)
+node .claude/skills/backlog-next/preflight.mjs --lane=epic-member; echo "preflight legacy exit=$?"
+# flag on → runtime backlog gate (must pass — measured clean; this is the D3 path)
+RUNTIME_ENGINE=1 node .claude/skills/backlog-next/preflight.mjs --lane=epic-member; echo "preflight runtime exit=$?"
+```
+Expected: both exit **0** (tree clean + backlog checks green), each printing the epic-member success line with no `backlog-gate` failure. If the flag-on run fails on `backlog-gate` (not on tree-clean), stop and report — the wiring or the gate command is wrong. (epic-member preflight writes no snapshot and stops no daemon, so it leaves the tree clean.)
+
+Note for the executor: postflight's smoke is deferred to the workstream closing phase (it asserts shipped-frontmatter + backward-edge evidence that only exist at ship). The `gate-wiring` regression test + this preflight smoke are the Task-2 gates.
 
 ---
 
