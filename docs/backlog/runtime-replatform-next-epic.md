@@ -26,3 +26,21 @@ gh-PR-probe and worktree-ops niceties since epics are now drained as standalone 
 
 **Promoted 2026-07-07** — trigger fired: `runtime-replatform-prereqs` shipped 2026-07-06, and the
 higher-value skills add/lint/next all shipped 2026-07-07. Queued at rank 4 (below the open e2e/CB bugs).
+
+## Decision log
+
+<!-- append-only (F-6): entries are never edited or removed; a reversal is a NEW entry referencing the superseded one. Written by decision-log.mjs — do not hand-edit. -->
+
+### D1 — 2026-07-07
+- **Decision:** Start workstream: parked item runtime-replatform-next-epic whose promotion trigger had fired
+- **Options:** Promote to queued (rank 4) and work now | Promote only, defer work | Leave parked
+- **Chosen:** Promote to queued (rank 4) and work now
+- **Rationale:** All prereqs shipped (prereqs 2026-07-06; add/lint/next 2026-07-07) so the promote-once-prereqs+add/lint/next trigger fired; user confirmed via AskUserQuestion. Epic runtime-operationalization is parking, so this is worked STANDALONE (Complex lane), not epic-member mode.
+- **Rejected:** Leave parked (trigger already satisfied) / promote-only (user wants it worked now)
+
+### D2 — 2026-07-07
+- **Decision:** Plan execution approach (writing-plans handoff)
+- **Options:** Inline execution (executing-plans) | Subagent-driven-development
+- **Chosen:** Inline execution (executing-plans)
+- **Rationale:** In --auto the hard floor MUST surface AskUserQuestion widgets; per feedback No worker-isolating subagents, isolated task subagents cannot surface floor decisions. Inline keeps floors visible in this session. The 6-task TDD sequence has no cross-task parallelism benefit.
+- **Rejected:** Subagent-driven: fresh-subagent-per-task loses direct floor-widget visibility under --auto
