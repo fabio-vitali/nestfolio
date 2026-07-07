@@ -27,3 +27,15 @@ the seam. Lanes map to check contexts; preflight/postflight/detect-* become gate
 
 **Unblocked:** `runtime-replatform-prereqs` shipped 2026-07-06, so this was promoted to `queued` on 2026-07-07.
 This member is the primary risk carrier (spec §14) — a real evaluator over a real AWS deploy.
+
+## Decision log
+
+- **2026-07-07 — worker↔lane edge: inject `preShipTrigger` (not import `classifyLane` into ring-1).**
+  Plan Task 4 Step 3 had the engine `worker.mjs` import `classifyLane`/`laneToTrigger` from the content
+  ring. That inverts the established content→engine dependency and violates SPEC-1's frozen hard constraint
+  ("ring-1 stays project-agnostic; every Nestfolio-specific artifact lives only in the content ring behind
+  the project seam"; `classifyLane`'s regexes name `services/`, `libs/event-types`, `.flow.yaml` — irreducibly
+  Nestfolio). The import-boundary test wouldn't have caught it (it bans adapters/skills/claude-shell only).
+  **Resolved (user):** the worker takes an injected `preShipTrigger` (`{contexts,cost_ceiling,on}`|null) +
+  optional `changedScope`; the **adapter** (`run-next.mjs`) computes `classifyLane`→`laneToTrigger`. Ring-1
+  stays generic and liftable (the primary reuse objective). Re-froze into SPEC-1's re-freeze log.
