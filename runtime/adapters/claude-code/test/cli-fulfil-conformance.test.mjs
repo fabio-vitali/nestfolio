@@ -22,6 +22,7 @@ const TABLE = {
   'run-intake.mjs': ['--finding', 'no-such-finding.json'],
   'run-themes.mjs': [],
   'run-backward.mjs': ['curate', '--check', 'x', '--trigger', 'ship-gate'],
+  'run-view.mjs': [],   // read-only surface: ANY --fulfil/--value is rejected outright (its hints mention --fulfil)
 };
 
 const MALFORMED = [

@@ -3,7 +3,7 @@
 // makeJournal({root}) (persistent) + inMemoryJournal() (tests/headless). Resume = replay: a 'complete'
 // step short-circuits (fn NOT re-invoked); a torn tail line is dropped (crash-safe, generalizes F-11).
 import { execSync } from 'node:child_process';
-import { existsSync, mkdirSync, readFileSync, appendFileSync, writeFileSync, renameSync } from 'node:fs';
+import { existsSync, mkdirSync, readdirSync, readFileSync, appendFileSync, writeFileSync, renameSync } from 'node:fs';
 import { hostname } from 'node:os';
 import { join } from 'node:path';
 import { validateStepRecord, validateRunMeta } from '../schema/journal.schema.ts';
@@ -113,6 +113,14 @@ export function inMemoryJournal() {
     readSteps: (runId) => { const m = new Map(); for (const r of lines.get(runId) ?? []) m.set(r.key, r); return m; },
     appendStep: (runId, rec) => { const a = lines.get(runId) ?? []; a.push(rec); lines.set(runId, a); },
   });
+}
+
+/** Every runId with a ledger under <root>/journal — the journal owns its own layout (§5).
+ *  Read-only + lease-free; the operational surface (§14) derives floor-pending across these. */
+export function listRunIds(root = gitCommonDir()) {
+  const dir = join(root, 'journal');
+  if (!existsSync(dir)) return [];
+  return readdirSync(dir, { withFileTypes: true }).filter((d) => d.isDirectory()).map((d) => d.name).sort();
 }
 
 /** Awaiting records with no later completion (parseSteps is last-write-wins per key). */
