@@ -1,7 +1,6 @@
 ---
 id: runtime-replatform-soak-gate
-status: queued
-rank: 4
+status: active
 type: tooling
 epic: runtime-operationalization
 epic_role: core
