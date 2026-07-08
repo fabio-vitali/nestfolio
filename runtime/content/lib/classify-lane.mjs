@@ -4,7 +4,9 @@
 const DOC_ONLY = [/^docs\//, /^MEMORY\.md$/, /^[^/]+\.md$/, /^BACKLOG\.md$/];
 const PUBLIC_INTERFACE = [/^libs\/event-types\//, /^libs\/cdk-constructs\//, /\/domain\//, /\.flow\.ya?ml$/];
 const DEPLOYED_LIB = [/^libs\/(event-processor|cdk-constructs|agent-orchestrator|event-types)\//];
-const CODE_OR_INFRA = [/^services\//, /^libs\//, /^apps\//, /^infrastructure\//];
+// runtime/tools/skill-.mjs are CODE (Simple lane per SKILL.md §3) even though nothing deploys from
+// those trees — deploys stay service-bound via the deploy-gate check's own scope. SKILL.md prose stays doc-layer.
+const CODE_OR_INFRA = [/^services\//, /^libs\//, /^apps\//, /^infrastructure\//, /^runtime\//, /^tools\//, /^\.claude\/skills\/.+\.mjs$/];
 
 const serviceOf = (p) => (p.match(/^services\/[^/]+\/([^/]+)\//) || [])[1] ?? null;
 

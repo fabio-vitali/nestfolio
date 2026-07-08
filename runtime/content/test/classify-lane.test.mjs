@@ -27,6 +27,18 @@ test('CL7 infrastructure change → complex', () => {
 test('CL8 laneToTrigger: doc-layer skips the batch', () => {
   assert.equal(laneToTrigger('doc-layer'), null);
 });
+test('CL10 runtime engine code diff (with adoption docs) → simple, not doc-layer', () => {
+  assert.equal(classifyLane({ id: 'x', type: 'bug' }, ['runtime/engine/lib/run-watch.mjs', 'docs/backlog/x.md']), 'simple');
+});
+test('CL11 tools-only code diff → simple', () => {
+  assert.equal(classifyLane({ id: 'x', type: 'bug' }, ['tools/affected-projects.mjs']), 'simple');
+});
+test('CL12 skill .mjs code diff → simple', () => {
+  assert.equal(classifyLane({ id: 'x', type: 'bug' }, ['.claude/skills/backlog-next/preflight.mjs']), 'simple');
+});
+test('CL13 skill SKILL.md prose-only diff → doc-layer (only .mjs in skills is code)', () => {
+  assert.equal(classifyLane({ id: 'x', type: 'refactor' }, ['.claude/skills/backlog-next/SKILL.md']), 'doc-layer');
+});
 test('CL9 laneToTrigger: complex → expensive audit item-pre-ship', () => {
   assert.deepEqual(laneToTrigger('complex'), { contexts: ['audit'], cost_ceiling: 'expensive', on: 'item-pre-ship' });
 });
