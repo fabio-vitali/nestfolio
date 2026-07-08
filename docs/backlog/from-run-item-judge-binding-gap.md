@@ -1,8 +1,17 @@
 ---
 id: from-run-item-judge-binding-gap
 type: bug
-status: queued
-rank: 4
+status: shipped
+closed: 2026-07-08
+validation_gate: "Wire commit 83e8e7f6 (run-item.mjs main() → makeDriverCapabilities();
+  DC3 conformance extended to run-item.mjs). Adapter suite green: node --test
+  runtime/adapters/claude-code/test/*.test.mjs → 68/68 pass incl. extended DC3.
+  True-affected gate green: pnpm nx run-many -t test,lint -p runtime,tools.
+  Runtime-driven (10th): RUNTIME_ENGINE=1 run-next.mjs drive exit 0 — 'worked
+  from-run-item-judge-binding-gap; ship approved' (execute fulfil + pre-ship batch
+  lane=simple + user Ship at the floor). Ship-recheck clean on origin/main..HEAD —
+  journaled ship:from-run-item-judge-binding-gap:gate-clean; mint consideration
+  recorded --none @ 5930925e."
 done_when: "run-item.mjs main() builds capabilities via makeDriverCapabilities()
   (the Seam A′ composition in runtime/adapters/claude-code/driver-capabilities.mjs)
   so the runProcedure-derived judge resolves skill:<name> judgment checks selected
@@ -42,3 +51,10 @@ should demonstrate the correct wiring.
 - **Chosen:** Promote to queued rank 4 and work now (wire makeDriverCapabilities into run-item)
 - **Rationale:** User-approved via AskUserQuestion (rule-8 refusal surfaced, never silently promoted). The seam shipped in from-run-next-pre-ship-judge-binding-gap (f3674507) making this a one-line closure; P6 is user-triggered and not imminent; uniform makeDriverCapabilities usage across all four driver mains is the reusable pattern.
 - **Rejected:** Leave-parked keeps run-item fail-closing on skill:<name> judgment checks for the whole interim; drop loses the separate closure verdict the item was filed to track.
+
+### D2 — 2026-07-08
+- **Decision:** Ship floor for from-run-item-judge-binding-gap (runtime worker park)
+- **Options:** Ship | Hold
+- **Chosen:** Ship
+- **Rationale:** User-approved via AskUserQuestion at the floor (merge/ship is never auto). done_when met: wiring + DC3 extension committed (83e8e7f6), adapter suite 68/68, affected test/lint green, pre-ship batch passed (lane simple).
+- **Rejected:** Hold would leave the run parked with the fix stranded on local main.
