@@ -1,0 +1,28 @@
+id: audit-system-arch-docs
+property: The system is globally consistent — no orphaned services/events, flow
+  coverage is complete, and architecture docs (SERVICE-INVENTORY count, BACKLOG
+  design refs, orientation skills) are fresh.
+kind: inconsistency
+evaluator:
+  type: judgment
+  run: skill:audit-system
+cost_tier: expensive
+contexts:
+  - audit
+scope:
+  paths:
+    - services/**
+    - libs/**
+    - docs/architecture/**
+    - .claude/skills/**
+status: active
+flake_contract:
+  eval_scenario: runtime/eval/scenarios/audit-system-arch-docs.scenario.mjs
+  allowed_flake_rate: 0.05
+  calibration: n=20 runs on a known-consistent + known-drifted system snapshot;
+    gatePassRate >= 0.95 (real mechanics deferred to SPEC 2 §eval)
+  min_confidence: 0.7
+provenance:
+  minted_by: from-classify-lane-runtime-code-misclassified-doc-layer
+  ratified: 2026-07-08
+  supersedes: audit-system
