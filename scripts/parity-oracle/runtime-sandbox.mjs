@@ -56,6 +56,11 @@ export async function buildRuntimeSandbox(scenario, ref) {
   mkdirSync(join(dir, 'runtime/content/checks'), { recursive: true });
   for (const f of readdirSync(join(dir, 'runtime/starter/checks')).filter((n) => n.endsWith('.yaml')))
     cpSync(join(dir, 'runtime/starter/checks', f), join(dir, 'runtime/content/checks', f));
+  // minimal clean source tree: every active starter check's scope must resolve to ≥1 file, or the
+  // registry-integrity staleness law red-flags the SANDBOX (zero-file no-unsafe-casts scope), not the
+  // engine, at any audit-context gate (the epic spine's pre-done batch runs audit+gate over **/*).
+  mkdirSync(join(dir, 'services/po-demo/src'), { recursive: true });
+  writeFileSync(join(dir, 'services/po-demo/src/index.ts'), 'export const poDemo = true;\n');
 
   // node_modules: the runtime imports yaml + zod (zero-dep each) — symlink from the main repo
   mkdirSync(join(dir, 'node_modules/.bin'), { recursive: true });

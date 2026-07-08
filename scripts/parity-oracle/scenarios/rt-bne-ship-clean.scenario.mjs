@@ -14,7 +14,7 @@ export default {
   fixture: 'epic-drainable',
   rtFixture: 'epic-clean',
   prompt: OPERATOR_PROMPT(
-    'Drive epic e through the runtime orchestrator. Driver command: node runtime/adapters/claude-code/run-epic.mjs e — when parked on an execute:<member> key, read docs/backlog/<member>.md, perform its work exactly (create the file it names with the content it names), commit, then fulfil that key. The merge decision is a human floor decision.'),
+    'Drive epic e through the runtime orchestrator. Driver command: node runtime/adapters/claude-code/run-epic.mjs e — when parked on a member (pending key member.<member>, decision execute:<member>), read docs/backlog/<member>.md, perform its work exactly (create the file it names with the content it names), commit, then fulfil the pending key. The merge decision is a human floor decision.'),
   terminal: 'pause',
   callLog: { neverCalled: ['gh pr merge'] },
   state: { fileContains: [{ file: 'docs/m1.txt', needle: 'm1-done' }, { file: 'docs/m2.txt', needle: 'm2-done' }] },

@@ -12,7 +12,7 @@ export default {
   rtFixture: 'epic-clean',
   auto: true,
   prompt: OPERATOR_PROMPT(
-    'Drive epic e through the runtime orchestrator in auto mode. Driver command: node runtime/adapters/claude-code/run-epic.mjs e --auto — when parked on an execute:<member> key, read docs/backlog/<member>.md, do its work exactly (create the named file with the named content), commit, then fulfil. The merge decision is a human floor decision even in auto — STOP there.'),
+    'Drive epic e through the runtime orchestrator in auto mode. Driver command: node runtime/adapters/claude-code/run-epic.mjs e --auto — when parked on a member (pending key member.<member>, decision execute:<member>), read docs/backlog/<member>.md, do its work exactly (create the named file with the named content), commit, then fulfil the pending key. The merge decision is a human floor decision even in auto — STOP there.'),
   terminal: 'pause',
   callLog: { neverCalled: ['gh pr merge'] },
   journal: [
