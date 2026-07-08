@@ -28,6 +28,35 @@ test('PM5 pipefail OR PIPESTATUS both count as guarded', () => {
   assert.equal(findViolations('cmd | tee out; test ${PIPESTATUS[0]} -eq 0', 'scripts/a.sh').length, 0);
   assert.equal(findViolations('set -o pipefail\ncmd | tail -1', 'scripts/b.sh').length, 0);
 });
+test('PM8 JS sh-string pipeline (execSync/spawnSync/sh seam) → violation (the deploy-gate false-green class)', () => {
+  const text = 'const t = sh(`node tools/affected-projects.mjs --base=x | paste -sd, - | xargs -r -I{} pnpm nx run-many -p {}`);';
+  assert.equal(findViolations(text, 'runtime/adapters/claude-code/deploy-gate-runner.mjs').length, 1);
+  assert.equal(findViolations('execSync(`git log | head -5`)', 'tools/x.mjs').length, 1);
+  assert.equal(findViolations("spawnSync('a | tee out', {shell:true})", '.claude/skills/backlog-next/x.mjs').length, 1);
+});
+test('PM9 JS sh-string pipeline guarded by pipefail/PIPESTATUS → clean', () => {
+  assert.equal(findViolations('sh(`set -o pipefail; a | b`)', 'runtime/adapters/x.mjs').length, 0);
+});
+test('PM10 JS pipeline in test files or eval fixtures → ignored (bad examples live there)', () => {
+  const text = 'sh(`a | b`)';
+  assert.equal(findViolations(text, 'runtime/adapters/claude-code/test/deploy-gate-runner.test.mjs').length, 0);
+  assert.equal(findViolations(text, 'runtime/eval/scenarios/fixtures/no-pipe-exit-masking/bad/x.mjs').length, 0);
+});
+test('PM11 JS without an exec-seam call or without a pipeline → clean; non-JS-root ignored', () => {
+  assert.equal(findViolations('const shOut = (cmd) => spawnSync(cmd, { shell: true });', 'runtime/adapters/x.mjs').length, 0);
+  assert.equal(findViolations('const re = /a \\| b/; sh(`node run.mjs --flag`)', 'tools/y.mjs').length, 0);
+  assert.equal(findViolations('sh(`a | b`)', 'apps/investor-web/src/x.mjs').length, 0);
+});
+test('PM12 CLI exits 1 on a staged JS sh-string pipeline', () => {
+  const root = mkdtempSync(join(tmpdir(), 'nf-pm-'));
+  try {
+    mkdirSync(join(root, 'runtime/adapters'), { recursive: true });
+    writeFileSync(join(root, 'runtime/adapters/gate.mjs'), 'sh(`node resolve.mjs | xargs -r run`)', 'utf8');
+    const r = spawnSync('node', [SCRIPT], { cwd: root, encoding: 'utf8', env: { ...process.env, RUNTIME_STAGED_PATHS: 'runtime/adapters/gate.mjs' } });
+    assert.equal(r.status, 1);
+    assert.match(r.stdout + r.stderr, /runtime\/adapters\/gate\.mjs/);
+  } finally { rmSync(root, { recursive: true, force: true }); }
+});
 test('PM6 CLI exits 1 and names the file on a masked pipe (staged scope)', () => {
   const root = mkdtempSync(join(tmpdir(), 'nf-pm-'));
   try {

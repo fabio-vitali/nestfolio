@@ -8,10 +8,12 @@ export const scenario = {
   kind: "drift",
   fixtures: {
   "good": [
-    "runtime/eval/scenarios/fixtures/no-pipe-exit-masking/good/with-pipefail.sh"
+    "runtime/eval/scenarios/fixtures/no-pipe-exit-masking/good/with-pipefail.sh",
+    "runtime/eval/scenarios/fixtures/no-pipe-exit-masking/good/sh-string-resolved.mjs"
   ],
   "bad": [
-    "runtime/eval/scenarios/fixtures/no-pipe-exit-masking/bad/tee-no-pipefail.sh"
+    "runtime/eval/scenarios/fixtures/no-pipe-exit-masking/bad/tee-no-pipefail.sh",
+    "runtime/eval/scenarios/fixtures/no-pipe-exit-masking/bad/sh-string-pipeline.mjs"
   ]
 },
   target_pass_rate: 1,

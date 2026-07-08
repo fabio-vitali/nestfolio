@@ -1,7 +1,9 @@
 id: no-pipe-exit-masking
 property: Shell scripts that pipe a command into tee/tail must set pipefail (or
   capture PIPESTATUS) so the pipeline exit code reflects the real command, not
-  the last stage
+  the last stage; JS-composed shell commands (execSync/spawnSync/sh seams in
+  gate/tooling sources) must not embed unguarded pipelines at all — /bin/sh has
+  no pipefail, so the last stage masks upstream crashes into false-green
 kind: drift
 evaluator:
   type: deterministic
@@ -14,6 +16,10 @@ scope:
   paths:
     - scripts/**/*.sh
     - infrastructure/scripts/**/*.sh
+    - runtime/**/*.mjs
+    - tools/**/*.mjs
+    - scripts/**/*.mjs
+    - .claude/skills/**/*.mjs
   dossiers:
     - feedback_pipe_masks_exit_code.md
 status: active

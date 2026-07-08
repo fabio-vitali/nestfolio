@@ -54,3 +54,17 @@ Same live-proof bucket: `spawnSync` inherits `process.env`, and raw `node` does 
 - **Chosen:** Resolve-then-run with shOut seam + sandbox guard, plus non-blocking AWS_PROFILE warning and .env hydration in the CLI main() only
 - **Rationale:** Auto-resolved (detect-fork-blast-radius runDeployGate = exit 0, adapter-local). pipefail is not POSIX-sh portable (dash lacks it; spawnSync shell:true uses /bin/sh) and keeps the failure mode implicit. Resolve-then-run kills the pipe entirely, makes resolver crash a hard {ok:false,stage:integration-resolve}, makes the empty list an EXPLICIT no-op, and is stubbable via the same seam pattern as sh. CRITICAL: the parity sandbox has no tools/ — today its resolver crash is masked by this very bug — so the integration stage must be guarded by the existing line-17 resolver-availability fallback or rt-next-lane-complex-ship regresses. Env preflight is warn-not-block (missing AWS_PROFILE fails LOUD, not silent-green; a blocking assert would also break the sandbox stub-deploy path); the .env hydration lives in main() so the library stays pure and the sandbox (no .env) is untouched. Reusable pattern: never pipe inside a gate — resolve, check, then run.
 - **Rejected:** pipefail prefix: platform-dependent, leaves empty-resolver-output and resolver-crash indistinguishable, untestable through the stub seam.
+
+### D4 — 2026-07-08
+- **Decision:** Engine ship floor: Ship item deploy-gate-runner-pipefail-silent-green?
+- **Options:** Ship | Hold
+- **Chosen:** Ship
+- **Rationale:** USER-CONFIRMED via AskUserQuestion at the engine floor (worker design: merge/ship is always a floor ask, never auto). Evidence at ask time: commit 44312f45, DGR 8/8, runtime+tools 402, typecheck 0, parity deterministic 34/34, ship-recheck gate-clean.
+- **Rejected:** Hold would re-ask next wake with no new evidence to gather.
+
+### D5 — 2026-07-08
+- **Decision:** 6.4b mint consideration chose mint-now, but discovery changed the premise: no-pipe-exit-masking already owns this lesson (minted 2026-07-04) yet was blind to JS sh-string pipelines (scope .sh-only, heuristic tee/tail-only). Mint a sibling, extend the existing check, or file follow-up?
+- **Options:** Extend existing check (widen scope to runtime/tools/scripts/.claude-skills *.mjs + JS sh-string-pipeline predicate) | Mint sibling check no-pipeline-in-gate-runner | File as follow-up item
+- **Chosen:** Extend existing check
+- **Rationale:** USER-CONFIRMED via AskUserQuestion after the premise shift. One property = one check; re-minting a live id is a category error per deriveGeneration; strengthening a check is not guard-lowering so no curate floor is needed. Measured first (P4 lesson): widened predicate returns 0 findings on the clean post-fix tree (no commit-bricking) and would have caught the original bug line. TDD PM8-PM12; eval scenario gains good/bad JS fixtures; gotcha: the bad fixture comment must not contain the literal guard keywords or it waives itself.
+- **Rejected:** Sibling check fragments one lesson across two ids and leaves the original blind outside runtime/adapters; follow-up filing would leave the 4th bite possible.
