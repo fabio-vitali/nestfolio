@@ -137,9 +137,12 @@ driven by the runtime orchestrator rather than the legacy prose in E4–E6 below
 (byte-for-byte, retained until P6). The adapter wraps the live spine (`runtime/engine/loop/orchestrator.mjs`)
 plus **member-selection** (`selectEpicMembers` — open core members in drive order), the **rule-11**
 single-active-epic guard (`activeEpics`), and **e2e-freshness** (the SHA-conditional epic-pre-done batch). Each
-open core member PARKS on `execute:<member-id>` (exit 3): fulfil it by running that member exactly as E4.2
-prescribes (`/backlog-next <member-id>` in epic-member mode, inline via the Skill tool), then re-invoke with
-`--fulfil <key> --value <TaskResult-json>`; replay advances to the next member, then to the merge floor park.
+open core member PARKS under pending step key `member.<member-id>` carrying decision id `execute:<member-id>`
+(exit 3 — the pending record prints BOTH): fulfil it by running that member exactly as E4.2 prescribes
+(`/backlog-next <member-id>` in epic-member mode, inline via the Skill tool), then re-invoke with
+`--fulfil <the pending KEY, exactly as printed> --value <TaskResult-json>` (a unique `decision.id` is also
+accepted — the adapter translates it to the step key, `fulfil-key.mjs`); replay advances to the next member,
+then to the merge floor park.
 The driver exits `0 done / 3 paused / 1 failed / 2 usage` and **never auto-merges** (the merge is always a floor
 ask, even in `--auto`). **Deferred (spec §8/§10):** the gh-PR-state probe (`resume-gate.mjs`) and the
 worktree-ops binding stay host-side — the git-workflow steps (E0–E3 preflight/worktree/run-state, E7 captured

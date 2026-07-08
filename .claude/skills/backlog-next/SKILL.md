@@ -108,9 +108,10 @@ mirroring [`backlog-gate.mjs`](./backlog-gate.mjs)); flag **off** → the legacy
 **unchanged** (byte-for-byte, retained until P6). The runtime worker owns the **deploy-gate** at pre-ship (a
 sha-conditional expensive `runWatch` batch — deploy + affected integration + involved e2e — gated by the
 adapter-computed lane; doc-layer skips it) and always **parks at the ship floor** (never auto-ships). The
-driver exits `0 done / 3 paused / 1 failed / 2 usage`; on a `3` park, fulfil the printed decision key and
-re-invoke. Git-workflow preconditions (tree-clean, main-not-ahead, no-stale-worktree) stay host
-preflight/postflight (§0, §7) — they are not engine concerns.
+driver exits `0 done / 3 paused / 1 failed / 2 usage`; on a `3` park, fulfil the printed pending KEY
+(`pending[].key`, exactly as printed — NOT the decision id; a unique `decision.id` is tolerated, translated
+to its step key by `fulfil-key.mjs`) and re-invoke. Git-workflow preconditions (tree-clean, main-not-ahead,
+no-stale-worktree) stay host preflight/postflight (§0, §7) — they are not engine concerns.
 
 ### 6. Closing phase
 

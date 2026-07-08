@@ -14,6 +14,7 @@ import { readItems } from '../../engine/lib/scope-gate.mjs';
 import { pendingDecisions, gitHeadSha } from '../../engine/lib/journal.mjs';
 import { recordRuntimePath } from '../../engine/lib/path-provenance.mjs';
 import { classifyLane, laneToTrigger } from '../../content/lib/classify-lane.mjs';
+import { resolveFulfilKey } from './fulfil-key.mjs';
 import { makeClaudeCodeCapabilities } from './index.mjs';
 
 const diffOf = (base) => { try { return execSync(`git diff --name-only ${base}...HEAD`, { encoding: 'utf8' }).split('\n').filter(Boolean); } catch { return []; } };
@@ -22,7 +23,7 @@ export async function driveNext({ itemId, backlogDir, checksDir, fulfil, capabil
   const item = readItems(backlogDir).find((i) => i.id === itemId);
   if (!item) return { exit: 2, out: { error: `unknown item: ${itemId}` } };
   const runId = `item-${itemId}`;
-  if (fulfil) capabilities.journal.fulfil(runId, fulfil.key, fulfil.value);
+  if (fulfil) capabilities.journal.fulfil(runId, resolveFulfilKey(capabilities.journal.read(runId), fulfil.key), fulfil.value);
   const registry = loadRegistry({ checksDir });
   // adapter-ring lane classification (Nestfolio content) → injected pre-ship trigger (null ⇒ doc-layer skips).
   const lane = classifyLane(item, diffPaths ?? []);

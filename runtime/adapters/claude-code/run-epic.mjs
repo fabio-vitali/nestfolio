@@ -14,6 +14,7 @@ import { readItems } from '../../engine/lib/scope-gate.mjs';
 import { pendingDecisions, gitHeadSha } from '../../engine/lib/journal.mjs';
 import { recordRuntimePath } from '../../engine/lib/path-provenance.mjs';
 import { selectEpicMembers, activeEpics } from '../../content/lib/epic-members.mjs';
+import { resolveFulfilKey } from './fulfil-key.mjs';
 import { makeClaudeCodeCapabilities } from './index.mjs';
 
 export async function driveEpic({ epicId, backlogDir, checksDir, fulfil, capabilities, headSha, auto = false, locus = {} }) {
@@ -26,7 +27,7 @@ export async function driveEpic({ epicId, backlogDir, checksDir, fulfil, capabil
   if (foreignActive.length) return { exit: 2, out: { error: `rule-11 (single active epic) blocked: other active epic(s): ${foreignActive.join(', ')}` } };
 
   const runId = `epic-${epicId}`;
-  if (fulfil) capabilities.journal.fulfil(runId, fulfil.key, fulfil.value);
+  if (fulfil) capabilities.journal.fulfil(runId, resolveFulfilKey(capabilities.journal.read(runId), fulfil.key), fulfil.value);
   const registry = loadRegistry({ checksDir });
   const members = selectEpicMembers(items, epicId);
   const result = await runOrchestrator({ epic, members, capabilities, registry, headSha, auto, locus });

@@ -54,6 +54,27 @@ test('RE3 non-epic id → exit 2 (use run-next for non-epic items)', async () =>
   } finally { rmSync(root, { recursive: true, force: true }); }
 });
 
+test('RE5 fulfil by the DECISION id (execute:m1) advances the member parked under member.m1', async () => {
+  const { root, bd, cd } = sandbox();
+  try {
+    const j = inMemoryJournal();
+    const capabilities = { journal: j,
+      execute: async (t) => ({ taskId: t.id, status: 'paused', summary: 'awaits session executor',
+        decision: { id: `execute:${t.id}`, question: 'q', options: [{ label: 'F', value: 'fulfil', recommended: true }] } }),
+      ask: async () => ({ value: '<<HARNESS-PAUSE>>' }),
+      runProcedure: async () => ({ status: 'done', findings: [] }) };
+    const first = await driveEpic({ epicId: 'e', backlogDir: bd, checksDir: cd, capabilities, headSha: 'S1' });
+    assert.equal(first.exit, 3);
+    assert.equal(first.out.pending[0].key, 'member.m1');       // parked under the STEP key…
+    assert.equal(first.out.pending[0].decision.id, 'execute:m1'); // …printing the coinciding decision id
+    const second = await driveEpic({ epicId: 'e', backlogDir: bd, checksDir: cd, capabilities, headSha: 'S1',
+      fulfil: { key: 'execute:m1', value: { taskId: 'm1', status: 'done', summary: 'worked in-session' } } });
+    assert.equal(j.read('epic-e').steps.get('member.m1').status, 'complete');   // translated — no orphan step
+    assert.equal(second.exit, 3);                              // advanced past the member to the merge floor
+    assert.equal(second.out.result.decision.id, 'merge-e');
+  } finally { rmSync(root, { recursive: true, force: true }); }
+});
+
 test('RE4 rule-11: a DIFFERENT active epic → refuse (exit 2), spine not driven', async () => {
   const { root, bd, cd } = sandbox({ otherEpicActive: true });
   try {

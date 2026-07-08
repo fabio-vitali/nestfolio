@@ -41,3 +41,17 @@ printed"). Discovered 2026-07-08 while fixing the two red bne parity pairs.
 - **Chosen:** Promote to queued (rank 4) and work it now
 - **Rationale:** User-resolved via AskUserQuestion (parking refusal is a floor stop in --auto, never silently promoted). No unmet trigger language blocks it; theme-epic members drain as standalone PRs; working it via the runtime engine counts toward the soak-gate >=5-workstream clause.
 - **Rejected:** Stop, leave it parking — user explicitly named the item; a dead-stop forcing a hand-edit + re-run adds friction without protecting any invariant.
+
+### D2 — 2026-07-08
+- **Decision:** Drive this workstream via the runtime engine (RUNTIME_ENGINE=1 run-next.mjs, SKILL 5a) or the legacy prose body?
+- **Options:** Runtime engine drive (run-next.mjs) | Legacy SKILL body
+- **Chosen:** Runtime engine drive (run-next.mjs)
+- **Rationale:** The strangler direction the project already committed to (WS-3); accrues a path:runtime provenance record toward the soak-gate >=5-workstream clause (the epic 1s last open clause) and dogfoods the very fulfil seam this item fixes. Reversible — legacy fallback stays intact.
+- **Rejected:** Legacy body — forfeits soak evidence for no benefit; flag-off path remains available if the drive fails (journaled as fallback).
+
+### D3 — 2026-07-08
+- **Decision:** Fix approach for the fulfil-key ambiguity: adapter-ring key translation, SKILL wording fix, or both?
+- **Options:** (a) adapter translation only | (b) SKILL wording only | Both (a)+(b) + stale execute.mjs comment
+- **Chosen:** Both (a)+(b) + stale execute.mjs comment
+- **Rationale:** Blast-radius gate exit 0 on driveEpic/driveNext. The adapter-ring resolveFulfilKey helper is the reusable mechanism (any operator/driver advances regardless of which printed id it quotes; engine ring-1 untouched, per the item body candidate (a)); the SKILL wording fix removes the ambiguity at its source (mirrors the oracle OPERATOR_PROMPT prior art); the execute.mjs comment claiming the decision id is the spine step key by construction is false for the epic spine and gets corrected.
+- **Rejected:** Single-sided fixes — (a) alone leaves the misleading instruction text; (b) alone leaves the production adapter brittle against the exact trap a real session already hit.
