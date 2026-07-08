@@ -1,7 +1,7 @@
 ---
 id: run-epic-fulfil-key-decision-id-ambiguity
-status: queued
-rank: 4
+status: shipped
+closed: 2026-07-08
 type: bug
 epic: runtime-operationalization
 epic_role: core
@@ -11,7 +11,7 @@ out_of_scope: []
 spec: null
 plan: null
 topic_memory: [project_runtime_realization.md]
-validation_gate: null
+validation_gate: "commit 1bb966c9 on main (resolveFulfilKey + wiring + SKILL wording + tests); node --test runtime suites 337/337 + backlog-skill suites 133/133 + pnpm nx run-many -t test,lint -p runtime,tools 397/397 all green; RE5 proves a decision-id fulfil (execute:m1) advances the member parked under member.m1 with no orphan step; detect-deploy exit 10 (Tier 0, nothing to deploy); ship-recheck clean (ship:run-epic-fulfil-key-decision-id-ambiguity:gate-clean journaled); driven end-to-end on the runtime engine (run-next.mjs exit 3→3→0, path:runtime provenance recorded — soak-gate evidence); ship floor + mint consideration (--none) user-approved via AskUserQuestion"
 ---
 
 # run-epic.mjs production fulfil-key ambiguity (step key vs decision id)
@@ -31,7 +31,19 @@ matches a pending step's `decision.id` and translate it to that step's key — a
 robustness, engine untouched; (b) one-line SKILL wording fix ("the pending key, exactly as
 printed"). Discovered 2026-07-08 while fixing the two red bne parity pairs.
 
-## Decision log
+## Ship note (2026-07-08)
+
+Shipped BOTH candidates plus the stale-comment fix, in commit `1bb966c9` on `main` (Simple lane):
+`runtime/adapters/claude-code/fulfil-key.mjs` (`resolveFulfilKey(ledger, key)` — exact pending
+step-key match wins; a UNIQUE pending `decision.id` match translates to that step's key; an
+ambiguous match throws; no match passes through for pre-seeded choices) wired into both
+`run-epic.mjs` and `run-next.mjs`; the trap wording fixed in `backlog-next` SKILL §5a ("fulfil the
+printed decision key" → the pending KEY, exactly as printed) and `backlog-next-epic` SKILL (member
+"PARKS on `execute:<member-id>`" → parks under step key `member.<member-id>` carrying that decision
+id); `execute.mjs` header corrected (decision id is the WORKER spine's step key by construction, not
+the epic spine's). Tests: `fulfil-key.test.mjs` FK1–FK7 + `run-epic.test.mjs` RE5 (decision-id
+fulfil advances the member, no orphan step). The workstream itself was driven end-to-end on the
+runtime engine (first post-replatform live workstream — soak-gate evidence).
 
 <!-- append-only (F-6): entries are never edited or removed; a reversal is a NEW entry referencing the superseded one. Written by decision-log.mjs — do not hand-edit. -->
 
@@ -55,3 +67,17 @@ printed"). Discovered 2026-07-08 while fixing the two red bne parity pairs.
 - **Chosen:** Both (a)+(b) + stale execute.mjs comment
 - **Rationale:** Blast-radius gate exit 0 on driveEpic/driveNext. The adapter-ring resolveFulfilKey helper is the reusable mechanism (any operator/driver advances regardless of which printed id it quotes; engine ring-1 untouched, per the item body candidate (a)); the SKILL wording fix removes the ambiguity at its source (mirrors the oracle OPERATOR_PROMPT prior art); the execute.mjs comment claiming the decision id is the spine step key by construction is false for the epic spine and gets corrected.
 - **Rejected:** Single-sided fixes — (a) alone leaves the misleading instruction text; (b) alone leaves the production adapter brittle against the exact trap a real session already hit.
+
+### D4 — 2026-07-08
+- **Decision:** Ship floor: ship item run-epic-fulfil-key-decision-id-ambiguity?
+- **Options:** Ship | Hold
+- **Chosen:** Ship
+- **Rationale:** User-approved via AskUserQuestion at the runtime ship floor (never auto-resolved). All gates green: runtime 337 + skills 133 + nx runtime,tools 397 tests pass; Tier-0 no-deploy; ship-recheck gate-clean.
+- **Rejected:** Hold — no open findings or risk warranted deferral.
+
+### D5 — 2026-07-08
+- **Decision:** Mint consideration (6.4b): mechanizable recurring lesson from this ship?
+- **Options:** Nothing mechanizable (--none) | Mint a check
+- **Chosen:** Nothing mechanizable (--none)
+- **Rationale:** User-confirmed via AskUserQuestion: the lesson was mechanized directly into the adapter (resolveFulfilKey + FK/RE5 regression tests) and the wording trap removed at source — no recurring check surface remains. consider --none recorded (key consider:run-epic-fulfil-key-decision-id-ambiguity, sha 1bb966c9).
+- **Rejected:** Minting a check — would duplicate what the code fix + tests already enforce mechanically.
