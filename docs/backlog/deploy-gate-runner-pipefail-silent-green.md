@@ -1,7 +1,7 @@
 ---
 id: deploy-gate-runner-pipefail-silent-green
-status: queued
-rank: 4
+status: shipped
+closed: 2026-07-08
 type: bug
 epic: runtime-operationalization
 epic_role: core
@@ -11,7 +11,7 @@ out_of_scope: []
 spec: null
 plan: null
 topic_memory: [project_runtime_realization.md]
-validation_gate: null
+validation_gate: "commits 44312f45 (fix: resolve-then-run shOut seam, integration-resolve fail-hard, AWS_PROFILE warn + .env hydration in CLI main; DGR4-8) + 483b6985 (6.4b: no-pipe-exit-masking extended to JS sh-string pipelines, PM8-12 + JS eval fixtures, measured 0 findings on clean tree pre-widening) on main; pnpm nx run-many -t test,typecheck -p runtime,tools true-exit 0 (runtime 402/402, tools 137/137); parity-oracle deterministic 34/34; node tools/check-pipe-mask.mjs clean-tree exit 0; driven end-to-end on the runtime engine under RUNTIME_ENGINE (run-next.mjs exit 3 park execute → fulfil → exit 3 park ship floor → user Ship via AskUserQuestion → exit 0 done, fallback-free — soak evidence 2/5); ship-recheck gate-clean journaled at 483b6985; mint consideration recorded --minted no-pipe-exit-masking (extended-in-place, user-approved)"
 ---
 
 # deploy-gate-runner: integration stage can report silent green (no pipefail)
