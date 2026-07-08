@@ -3,7 +3,6 @@ import assert from 'node:assert/strict';
 import { mkdtempSync, mkdirSync, writeFileSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { spawnSync } from 'node:child_process';
 import { driveItem } from '../run-item.mjs';
 import { inMemoryJournal } from '../../../engine/lib/journal.mjs';
 import { makeAsk } from '../ask.mjs';
@@ -64,8 +63,5 @@ test('DRV5 a driven item journals a path:runtime provenance record', async () =>
     assert.equal(step.value.workstream, 'probe-x');
   } finally { rmSync(root, { recursive: true, force: true }); }
 });
-test('DRV4 CLI --fulfil with a missing/malformed trailing value prints usage and exits 2 (no crash)', () => {
-  const r = spawnSync('node', ['runtime/adapters/claude-code/run-item.mjs', 'x', '--fulfil', 'k'], { encoding: 'utf8', cwd: process.cwd() });
-  assert.equal(r.status, 2);
-  assert.match(r.stderr, /usage: run-item\.mjs/);
-});
+// DRV4 (CLI badPair guard) moved to cli-fulfil-conformance.test.mjs — ONE table-driven test
+// covers every --fulfil-parsing adapter, discovery-totality included.
