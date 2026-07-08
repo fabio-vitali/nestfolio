@@ -1,8 +1,10 @@
 ---
 id: from-spine-adapters-cli-seam-conformance-test
 type: bug
-status: queued
-rank: 5
+status: active
+out_of_scope:
+  - "Guard behavior changes — the badPair guards themselves shipped in run-next-fulfil-badpair-guard; this item only pins them with one conformance test."
+  - "Promoting the guard to a runtime/content check — stays a node --test guard per the import-boundary precedent (user-confirmed at filing)."
 done_when: "resolve: run-epic.mjs, run-intake.mjs, run-themes.mjs carry the
   malformed --fulfil/--value badPair guard but NO CLI test pins it (only
   run-item DRV4 + run-next RN3 do). Replace per-adapter test copies with ONE
