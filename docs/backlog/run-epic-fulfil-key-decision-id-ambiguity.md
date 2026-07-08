@@ -1,6 +1,7 @@
 ---
 id: run-epic-fulfil-key-decision-id-ambiguity
-status: parking
+status: queued
+rank: 4
 type: bug
 epic: runtime-operationalization
 epic_role: core
@@ -29,3 +30,14 @@ trap the oracle operator hit (fixed for the ORACLE in `parity-oracle-bne-live-re
 matches a pending step's `decision.id` and translate it to that step's key — adapter-ring
 robustness, engine untouched; (b) one-line SKILL wording fix ("the pending key, exactly as
 printed"). Discovered 2026-07-08 while fixing the two red bne parity pairs.
+
+## Decision log
+
+<!-- append-only (F-6): entries are never edited or removed; a reversal is a NEW entry referencing the superseded one. Written by decision-log.mjs — do not hand-edit. -->
+
+### D1 — 2026-07-08
+- **Decision:** Named /backlog-next target run-epic-fulfil-key-decision-id-ambiguity was status: parking (member of parking theme epic runtime-operationalization; no trigger language). Promote and work now, or stop?
+- **Options:** Promote to queued (rank 4) and work it now | Stop, leave it parking
+- **Chosen:** Promote to queued (rank 4) and work it now
+- **Rationale:** User-resolved via AskUserQuestion (parking refusal is a floor stop in --auto, never silently promoted). No unmet trigger language blocks it; theme-epic members drain as standalone PRs; working it via the runtime engine counts toward the soak-gate >=5-workstream clause.
+- **Rejected:** Stop, leave it parking — user explicitly named the item; a dead-stop forcing a hand-edit + re-run adds friction without protecting any invariant.
