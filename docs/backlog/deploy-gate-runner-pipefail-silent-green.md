@@ -1,10 +1,11 @@
 ---
 id: deploy-gate-runner-pipefail-silent-green
-status: parking
+status: queued
+rank: 4
 type: bug
 epic: runtime-operationalization
 epic_role: core
-notes: "deploy-gate-runner integration stage pipes without pipefail — affected-projects.mjs crash → xargs -r runs nothing → silent-green deploy gate. Land before the first service-touching runtime-driven soak workstream (soak evidence integrity)."
+notes: "deploy-gate-runner integration stage pipes without pipefail — affected-projects.mjs crash → xargs -r runs nothing → silent-green deploy gate. Trigger fired 2026-07-08 (user-confirmed): soak is 1/5 and the upcoming runtime-driven workstreams are exactly what this gate protects — deploy-gate integrity must precede any service-touching soak workstream."
 references: []
 out_of_scope: []
 spec: null
@@ -27,4 +28,4 @@ Same live-proof bucket: `spawnSync` inherits `process.env`, and raw `node` does 
 
 **Cheapest fix:** resolve the project list via a separate `execSync` (fail hard on its exit code), then run `pnpm nx run-many` directly — or prefix the pipeline with `set -o pipefail;`. Add a DGR case where the resolver crashes and assert `ok:false`. Consider env preflight (assert `AWS_PROFILE`) before the deploy stage.
 
-**Why core / when:** a silently-green deploy gate would corrupt the soak-gate evidence (`runtime-replatform-soak-gate` closes on "demonstrated not asserted"). Land before the first **service-touching** workstream driven by `run-next.mjs` under `RUNTIME_ENGINE`.
+**Why core:** a silently-green deploy gate would corrupt the soak-gate evidence (`runtime-replatform-soak-gate` closes on "demonstrated not asserted"). **Trigger fired 2026-07-08** (user-confirmed promotion): soak stands at 1/5 and the upcoming runtime-driven workstreams are what this gate protects — it must be fixed before the first **service-touching** workstream driven by `run-next.mjs` under `RUNTIME_ENGINE`.
