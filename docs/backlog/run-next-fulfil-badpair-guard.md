@@ -1,6 +1,7 @@
 ---
 id: run-next-fulfil-badpair-guard
-status: active
+status: shipped
+closed: 2026-07-08
 type: bug
 epic: runtime-operationalization
 epic_role: core
@@ -13,7 +14,7 @@ out_of_scope:
 spec: null
 plan: null
 topic_memory: [project_runtime_realization.md]
-validation_gate: null
+validation_gate: "Commit 2045b5ea (main): badPair guard backported into run-next.mjs main() (verbatim run-epic.mjs/run-item.mjs shape); RN3 mirrors run-item DRV4 across 3 malformed shapes, TDD red→green (red failed exactly on `--fulfil --value 5` — exit 2 only via the unknown-item coincidence, empty stderr). pnpm nx run-many -t test,lint -p runtime,tools → 0 fail. detect-doc-derivation exit 10; detect-deploy exit 10 (all Tier 0). Runtime-engine drive fallback-free (soak 5/5, closing run): run-next.mjs exit 0 'worked run-next-fulfil-badpair-guard; ship approved'; ship-recheck gate-clean + consider --none journaled (sha 218f8e97); side-finding from-spine-adapters-cli-seam-conformance-test filed via runtime intake (join-theme runtime-operationalization, core)."
 ---
 
 # run-next.mjs: backport run-epic's malformed `--fulfil` badPair guard
@@ -49,3 +50,10 @@ const badPair = fi >= 0 && (fv === undefined || fv.startsWith('--') || vv === un
 - **Chosen:** Simple (main)
 - **Rationale:** One tooling file (runtime/adapters/claude-code/run-next.mjs) + its test; no deploy, no public interface (internal adapter CLI seam), no architectural fork — a verbatim backport of an existing guard. Identical classification to the soak-4/5 precedent import-boundary-dynamic-import-gap (a16fd74d, on main).
 - **Rejected:** Complex — no cross-service blast radius, PR overhead unearned; Doc-layer — produces code, not just docs.
+
+### D3 — 2026-07-08
+- **Decision:** Ship floor: ship-run-next-fulfil-badpair-guard (runtime worker parks, never auto-ships)
+- **Options:** Ship (recommended by worker) | Hold
+- **Chosen:** Ship
+- **Rationale:** All gates green before fulfilment: RN3 TDD red→green; nx test,lint runtime,tools 0 fail; detect-doc-derivation exit 10; detect-deploy exit 10 (all Tier 0); ship-recheck gate-clean journaled; mint consideration recorded (consider --none, side-finding filed 218f8e97). Simple lane on main — no PR gate applies; git push is the pre-authorized lane completion.
+- **Rejected:** Hold — nothing outstanding; holding would strand soak run 5/5.
