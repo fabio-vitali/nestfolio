@@ -1,7 +1,8 @@
 #!/usr/bin/env node
 // scripts/parity-oracle/lint-differential.mjs — the deterministic half of lint parity: run BOTH engines
 // over shared per-rule good/bad stores and classify. No LLM. Legacy = backlog-lint lint.mjs (exit code);
-// runtime = run-watch --on=manual over the seeded registry (exit 1 = findings; exit 2 = crash, which is
+// runtime = run-watch --on=commit --changed=docs/backlog/*.md over the seeded registry — the production
+// cadence (diff-scoped commit gate), not a manual full sweep (exit 1 = findings; exit 2 = crash, which is
 // NOT a catch). classes: both-catch | legacy-only | runtime-only | both-miss | good-false-positive.
 import { spawnSync } from 'node:child_process';
 import { join, dirname } from 'node:path';
@@ -12,19 +13,18 @@ const HERE = dirname(fileURLToPath(import.meta.url));
 
 export const RULE_MAP = [
   { rule: 'r1-id-matches-filename', checks: ['backlog-id-matches-filename'], mapped: true },
-  { rule: 'r2-single-active', checks: ['single-active'], mapped: true },
-  { rule: 'r3-references-valid', checks: ['references-valid'], mapped: true },
+  { rule: 'r2-single-active', checks: ['backlog-single-active'], mapped: true },
+  { rule: 'r3-references-valid', checks: ['backlog-references-valid'], mapped: true },
   { rule: 'r4-active-out-of-scope', checks: ['backlog-active-out-of-scope'], mapped: true },
   { rule: 'r5-shipped-validation-gate', checks: ['backlog-shipped-validation-gate'], mapped: true },
   { rule: 'r6-queued-ranks', checks: ['backlog-queued-ranks'], mapped: true },
   { rule: 'r8-promotion-trigger', checks: ['backlog-promotion-trigger-gated'], mapped: true },
-  // r9/r10: no dedicated runtime check (still P4 gaps), but the stores are caught TRANSITIVELY — the
-  // legacy index render omits epic members whose anchor is terminal (r9) or not-an-epic (r10), so the
-  // generic index-fresh law fires on the unlisted live member. Observed class: both-catch.
-  { rule: 'r9-epic-closure', checks: [], mapped: false, transitive: 'index-fresh' },
-  { rule: 'r10-epic-pointer', checks: [], mapped: false, transitive: 'index-fresh' },
-  { rule: 'r11-single-active-epic', checks: ['single-active'], mapped: true },
-  { rule: 'index-matches', checks: ['index-fresh'], mapped: true },
+  // r9/r10: dedicated content checks since the P4 migration (ratified 2026-07-06) — previously
+  // caught only transitively via the starter index-fresh law, which production no longer loads.
+  { rule: 'r9-epic-closure', checks: ['backlog-epic-closure'], mapped: true },
+  { rule: 'r10-epic-pointer', checks: ['backlog-epic-pointer-integrity'], mapped: true },
+  { rule: 'r11-single-active-epic', checks: ['backlog-single-active-epic'], mapped: true },
+  { rule: 'index-matches', checks: ['backlog-index-matches'], mapped: true },
   { rule: 'element-shape', checks: ['item-store-valid'], mapped: true, runtimeOnly: true },
 ];
 
@@ -34,7 +34,7 @@ function legacyExit(dir) {
   return { code: r.status, out: (r.stdout ?? '') + (r.stderr ?? '') };
 }
 function runtimeExit(dir) {
-  const r = spawnSync('node', ['runtime/engine/lib/run-watch.mjs', '--on=manual'], { cwd: dir, encoding: 'utf8' });
+  const r = spawnSync('node', ['runtime/engine/lib/run-watch.mjs', '--on=commit', '--changed=docs/backlog/*.md'], { cwd: dir, encoding: 'utf8' });
   return { code: r.status, out: (r.stdout ?? '') + (r.stderr ?? '') };
 }
 
