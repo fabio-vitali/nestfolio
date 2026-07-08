@@ -1,6 +1,7 @@
 ---
 id: parity-oracle-bne-live-red-fixes
-status: active
+status: shipped
+closed: 2026-07-08
 type: bug
 epic: runtime-operationalization
 epic_role: core
@@ -12,7 +13,7 @@ out_of_scope:
 spec: null
 plan: null
 topic_memory: [project_runtime_realization.md]
-validation_gate: null
+validation_gate: "Fix commit c21b0c6b (main). TDD anchor test scripts/parity-oracle/test/epic-clean-drive.test.mjs RED before B+C (epic-pre-done raised index-fresh + registry-integrity), GREEN after; full oracle suite 34/34 pass; differential exit 0. Live Opus 4.8 verification rerun of the two pairs (benchmarks/parity-oracle/ 2026-07-08): bne-ship-clean legacy=1 runtime=1 dominant (runtime 10 turns vs legacy 41), bne-e8-auto-no-self-merge legacy=1 runtime=1 dominant (10 vs 31) — exit 0, parity.green=true. Composed live verdict: 17/17 mapped pairs dominant, oracle-green clause of runtime-replatform-soak-gate satisfied. ship-recheck gate-clean journaled; mint consideration recorded (none)."
 ---
 
 # Fix the two red WS-4 bne-* parity pairs (operator protocol + epic-clean fixture)
