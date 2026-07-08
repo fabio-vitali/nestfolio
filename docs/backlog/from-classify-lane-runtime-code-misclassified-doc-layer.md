@@ -1,7 +1,8 @@
 ---
 id: from-classify-lane-runtime-code-misclassified-doc-layer
 type: bug
-status: parking
+status: queued
+rank: 4
 done_when: "resolve: classifyLane's CODE_OR_INFRA set only recognizes services/,
   libs/, apps/, infrastructure/ — a diff touching only runtime/**, tools/**, or
   .claude/skills/**/*.mjs falls through to 'doc-layer' (\"nothing recognizable
