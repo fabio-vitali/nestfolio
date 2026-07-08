@@ -39,7 +39,8 @@ async function main() {
   const [itemId] = process.argv.slice(2).filter((a) => !a.startsWith('--'));
   const fi = process.argv.indexOf('--fulfil'); const vi = process.argv.indexOf('--value');
   const fv = fi >= 0 ? process.argv[fi + 1] : undefined; const vv = vi >= 0 ? process.argv[vi + 1] : undefined;
-  if (!itemId || (fi >= 0) !== (vi >= 0)) { console.error('usage: run-next.mjs <item-id> [--fulfil <key> --value <json>]'); process.exit(2); }
+  const badPair = fi >= 0 && (fv === undefined || fv.startsWith('--') || vv === undefined || vv.startsWith('--'));
+  if (!itemId || (fi >= 0) !== (vi >= 0) || badPair) { console.error('usage: run-next.mjs <item-id> [--fulfil <key> --value <json>]'); process.exit(2); }
   const cfg = JSON.parse(readFileSync('runtime/runtime.config.json', 'utf8'));
   const capabilities = makeClaudeCodeCapabilities({});
   const { exit, out } = await driveNext({ itemId, backlogDir: cfg.backlogDir ?? 'docs/backlog', checksDir: cfg.checksDir,

@@ -4,6 +4,7 @@ import assert from 'node:assert/strict';
 import { mkdtempSync, mkdirSync, writeFileSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
+import { spawnSync } from 'node:child_process';
 import { inMemoryJournal } from '../../../engine/lib/journal.mjs';
 import { driveNext } from '../run-next.mjs';
 
@@ -39,4 +40,16 @@ test('RN2 unknown item → exit 2', async () => {
       capabilities: { journal: inMemoryJournal() }, diffPaths: [], headSha: 'S1' });
     assert.equal(exit, 2);
   } finally { rmSync(root, { recursive: true, force: true }); }
+});
+
+test('RN3 CLI --fulfil with a missing/malformed trailing value prints usage and exits 2 (no orphan journal step)', () => {
+  for (const argv of [
+    ['x', '--fulfil', 'k'],             // --value missing entirely (parity)
+    ['x', '--fulfil', '--value', '5'],  // flag swallows flag: key would parse as '--value'
+    ['x', '--fulfil', 'k', '--value'],  // trailing --value with no json
+  ]) {
+    const r = spawnSync('node', ['runtime/adapters/claude-code/run-next.mjs', ...argv], { encoding: 'utf8', cwd: process.cwd() });
+    assert.equal(r.status, 2, `argv: ${argv.join(' ')}`);
+    assert.match(r.stderr, /usage: run-next\.mjs/, `argv: ${argv.join(' ')}`);
+  }
 });
