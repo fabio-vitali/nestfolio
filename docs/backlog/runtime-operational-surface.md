@@ -30,7 +30,7 @@ surface, which is orthogonal to SPEC 3's `done_when`.
   by touching files directly. The operator surface is a *consumer* of the seam, so it stays harness- and
   project-agnostic exactly like the loop spine (`runtime/engine/loop/`).
 
-**Design basis.** §14 of `docs/superpowers/specs/2026-07-01-runtime-spec-3-forward-edge-impl.md` (Option B —
+**Design basis.** §14 of `docs/superpowers/specs/2026-07-01-runtime-spec-3-forward-edge-and-capability-seams.md` (Option B —
 view+executor). The building blocks already exist and are tested: `plan-next.mjs` (`planNext` /
 `computeImpact` / `renderIndex`), `run-watch.mjs` (open findings), the journal (`awaiting` / floor-pending),
 and the Claude Code adapter (`runProcedure` / `ask` / `execute`). The surface is assembly + rendering over
