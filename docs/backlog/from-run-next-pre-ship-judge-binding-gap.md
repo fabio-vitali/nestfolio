@@ -1,8 +1,12 @@
 ---
 id: from-run-next-pre-ship-judge-binding-gap
 type: bug
-status: queued
-rank: 4
+status: active
+out_of_scope:
+  - "run-item.mjs's identical empty-procedures gap — separate closure verdict (generic SPEC-3 CLI; may be retired at P6 instead of wired) — filed via backlog-add"
+  - "audit-* check content/scope changes — the floor-curated audit-system scope (docs/architecture/**) stays as-is"
+  - "flake-contract calibration / judgment eval corpus — parked as runtime-judgment-flake-calibration"
+  - "legacy strangler seam removal (RUNTIME_ENGINE flag, prose bodies) — P6 runtime-legacy-retirement"
 done_when: "resolve: resolve: run-next.mjs and run-epic.mjs build capabilities
   via makeClaudeCodeCapabilities({}) with NO procedures map, so deriveJudge
   fail-closes any skill: judgment check the diff-scoped item-pre-ship /
@@ -38,3 +42,10 @@ resolve: run-next.mjs and run-epic.mjs build capabilities via makeClaudeCodeCapa
 - **Chosen:** Promote to queued (rank 4) + proceed
 - **Rationale:** User-approved via AskUserQuestion (refusal-stop is never auto-resolved). Parking hold was roadmap sequencing; the 2026-07-08 migration-completion lock names this item the next core in order, so the hold fired at the soak-gate close.
 - **Rejected:** Promote-only and Abort would leave the locked migration path stalled with no in-flight workstream.
+
+### D2 — 2026-07-08
+- **Decision:** Wire makeAuditProcedures into driver mains: literal 2-line mirror per main vs one shared makeDriverCapabilities() seam in the adapter ring
+- **Options:** Mirror run-audit.mjs:28-29 inline into run-next + run-epic mains (3 duplicate sites) | Extract makeDriverCapabilities() in driver-capabilities.mjs; use in run-next, run-epic, run-audit mains
+- **Chosen:** Extract makeDriverCapabilities() seam
+- **Rationale:** detect-fork-blast-radius exit 0 (new symbol, no shared-surface refs; makeClaudeCodeCapabilities signature untouched). Reusability rule: one named composition seam is testable (runScenario injection through makeAuditProcedures) and is the liftable pattern — main()-only wiring is exactly what made this bug unreachable by the existing unit tests. Satisfies done_when: both drivers wire makeAuditProcedures({model: RUNTIME_AUDIT_MODEL}).
+- **Rejected:** Inline mirror keeps the untestable main()-wiring pattern that caused the gap and triplicates the composition.
