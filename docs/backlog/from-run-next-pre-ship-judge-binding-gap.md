@@ -1,7 +1,18 @@
 ---
 id: from-run-next-pre-ship-judge-binding-gap
 type: bug
-status: active
+status: shipped
+closed: 2026-07-08
+validation_gate: "fix f3674507 (makeDriverCapabilities seam in
+  runtime/adapters/claude-code/driver-capabilities.mjs; run-next/run-epic/run-audit
+  mains rewired; DC1–DC3 regression tests). node --test runtime: 399/399 pass;
+  pnpm nx run-many -t test,lint -p runtime,tools green. Runtime drive
+  item-from-run-next-pre-ship-judge-binding-gap (9th runtime-driven workstream):
+  pre-ship batch ran lane=simple with JUDGED capabilities — no fail-close —
+  ship-recheck journaled ship:…:gate-clean @ f3674507, consider:none recorded,
+  drive exit 0 'ship approved'. detect-doc-derivation exit 10; detect-deploy exit
+  10 (all Tier 0). run-item's twin gap filed as from-run-item-judge-binding-gap
+  (e544449c)."
 out_of_scope:
   - "run-item.mjs's identical empty-procedures gap — separate closure verdict (generic SPEC-3 CLI; may be retired at P6 instead of wired) — filed via backlog-add"
   - "audit-* check content/scope changes — the floor-curated audit-system scope (docs/architecture/**) stays as-is"
@@ -49,3 +60,10 @@ resolve: run-next.mjs and run-epic.mjs build capabilities via makeClaudeCodeCapa
 - **Chosen:** Extract makeDriverCapabilities() seam
 - **Rationale:** detect-fork-blast-radius exit 0 (new symbol, no shared-surface refs; makeClaudeCodeCapabilities signature untouched). Reusability rule: one named composition seam is testable (runScenario injection through makeAuditProcedures) and is the liftable pattern — main()-only wiring is exactly what made this bug unreachable by the existing unit tests. Satisfies done_when: both drivers wire makeAuditProcedures({model: RUNTIME_AUDIT_MODEL}).
 - **Rejected:** Inline mirror keeps the untestable main()-wiring pattern that caused the gap and triplicates the composition.
+
+### D3 — 2026-07-08
+- **Decision:** 6.4b mint consideration: mint a content-ring check for the judged-capabilities property or record none
+- **Options:** Nothing to mint — DC3 conformance test already mechanizes it | Mint runtime check driver-mains-judged-capabilities on commit-gate cadence
+- **Chosen:** Nothing to mint
+- **Rationale:** User-answered via AskUserQuestion. DC3 (driver-capabilities.test.mjs) guards the property on every nx-affected pass; a content-ring check would duplicate the same grep-tier property on a second cadence. consider:none journaled at f3674507.
+- **Rejected:** Minting would add a duplicate enforcement surface for a property with an existing green cadence.
