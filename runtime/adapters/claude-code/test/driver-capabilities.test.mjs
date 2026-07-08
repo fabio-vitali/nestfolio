@@ -31,7 +31,7 @@ test('DC2 regression contract: bare makeClaudeCodeCapabilities({}) fail-closes t
 
 test('DC3 conformance: every workstream-driver main() composes via makeDriverCapabilities', () => {
   const here = dirname(fileURLToPath(import.meta.url));
-  for (const f of ['run-next.mjs', 'run-epic.mjs', 'run-audit.mjs']) {
+  for (const f of ['run-next.mjs', 'run-epic.mjs', 'run-audit.mjs', 'run-item.mjs']) {
     const src = readFileSync(join(here, '..', f), 'utf8');
     assert.match(src, /makeDriverCapabilities\(/, `${f} must build judged capabilities`);
     assert.doesNotMatch(src, /makeClaudeCodeCapabilities\(\{\}\)/, `${f} must not build bare capabilities`);

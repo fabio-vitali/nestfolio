@@ -10,7 +10,7 @@ import { loadRegistry } from '../../engine/lib/load-registry.mjs';
 import { readItems } from '../../engine/lib/scope-gate.mjs';
 import { pendingDecisions, gitHeadSha } from '../../engine/lib/journal.mjs';
 import { recordRuntimePath } from '../../engine/lib/path-provenance.mjs';
-import { makeClaudeCodeCapabilities } from './index.mjs';
+import { makeDriverCapabilities } from './driver-capabilities.mjs';
 
 export async function driveItem({ itemId, backlogDir, checksDir, fulfil, capabilities }) {
   const item = readItems(backlogDir).find((i) => i.id === itemId);
@@ -32,7 +32,7 @@ async function main() {
   const badPair = fi >= 0 && (fv === undefined || fv.startsWith('--') || vv === undefined || vv.startsWith('--'));
   if (!itemId || (fi >= 0) !== (vi >= 0) || badPair) { console.error('usage: run-item.mjs <item-id> [--fulfil <key> --value <json>]'); process.exit(2); }
   const cfg = JSON.parse(readFileSync('runtime/runtime.config.json', 'utf8'));
-  const capabilities = makeClaudeCodeCapabilities({});
+  const capabilities = makeDriverCapabilities();   // judged: skill:<name> checks resolve instead of fail-closing
   const { exit, out } = await driveItem({ itemId, backlogDir: cfg.backlogDir ?? 'docs/backlog', checksDir: cfg.checksDir,
     fulfil: fi >= 0 ? { key: fv, value: JSON.parse(vv) } : undefined, capabilities });
   console.log(JSON.stringify(out, null, 2));
