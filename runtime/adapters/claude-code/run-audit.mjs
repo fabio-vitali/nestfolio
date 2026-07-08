@@ -8,8 +8,7 @@ import { join } from 'node:path';
 import { loadRegistry, registryErrorLines } from '../../engine/lib/load-registry.mjs';
 import { loadTriggers, runWatch } from '../../engine/lib/run-watch.mjs';
 import { deriveJudge } from '../../engine/lib/derive-judge.mjs';
-import { makeClaudeCodeCapabilities } from './index.mjs';
-import { makeAuditProcedures } from './audit-procedures.mjs';
+import { makeDriverCapabilities } from './driver-capabilities.mjs';
 
 export async function runAudit({ registry, trigger, judge, changedScope = ['**/*'], only }) {
   const scoped = only ? { ...registry, checks: registry.checks.filter((c) => c.id === only) } : registry;
@@ -25,8 +24,7 @@ async function main() {
   if (errLines) { console.error('run-audit: registry corrupt (fail-closed):'); for (const l of errLines) console.error(l); process.exit(2); }
   const trigger = loadTriggers(cfg.triggersFile).find((t) => t.on === on);
   if (!trigger) { console.error(`unknown trigger: ${on}`); process.exit(2); }
-  const procedures = makeAuditProcedures({ model: process.env.RUNTIME_AUDIT_MODEL });
-  const capabilities = makeClaudeCodeCapabilities({ procedures });
+  const capabilities = makeDriverCapabilities();
   const judge = deriveJudge(capabilities.runProcedure);
   const findings = await runAudit({ registry, trigger, judge, only: args.only });
   const runId = `audit-${on}-${process.env.GITHUB_RUN_ID ?? 'local'}`;

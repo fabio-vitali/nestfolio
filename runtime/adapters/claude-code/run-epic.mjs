@@ -15,7 +15,7 @@ import { pendingDecisions, gitHeadSha } from '../../engine/lib/journal.mjs';
 import { recordRuntimePath } from '../../engine/lib/path-provenance.mjs';
 import { selectEpicMembers, activeEpics } from '../../content/lib/epic-members.mjs';
 import { resolveFulfilKey } from './fulfil-key.mjs';
-import { makeClaudeCodeCapabilities } from './index.mjs';
+import { makeDriverCapabilities } from './driver-capabilities.mjs';
 
 export async function driveEpic({ epicId, backlogDir, checksDir, fulfil, capabilities, headSha, auto = false, locus = {} }) {
   const items = readItems(backlogDir);
@@ -44,7 +44,7 @@ async function main() {
   const badPair = fi >= 0 && (fv === undefined || fv.startsWith('--') || vv === undefined || vv.startsWith('--'));
   if (!epicId || (fi >= 0) !== (vi >= 0) || badPair) { console.error('usage: run-epic.mjs <epic-id> [--fulfil <key> --value <json>] [--auto]'); process.exit(2); }
   const cfg = JSON.parse(readFileSync('runtime/runtime.config.json', 'utf8'));
-  const capabilities = makeClaudeCodeCapabilities({});
+  const capabilities = makeDriverCapabilities();   // judged: skill:<name> checks resolve instead of fail-closing
   const { exit, out } = await driveEpic({ epicId, backlogDir: cfg.backlogDir ?? 'docs/backlog', checksDir: cfg.checksDir,
     fulfil: fi >= 0 ? { key: fv, value: JSON.parse(vv) } : undefined, capabilities,
     headSha: gitHeadSha(), auto: process.argv.includes('--auto') });

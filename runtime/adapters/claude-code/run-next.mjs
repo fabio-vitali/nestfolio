@@ -15,7 +15,7 @@ import { pendingDecisions, gitHeadSha } from '../../engine/lib/journal.mjs';
 import { recordRuntimePath } from '../../engine/lib/path-provenance.mjs';
 import { classifyLane, laneToTrigger } from '../../content/lib/classify-lane.mjs';
 import { resolveFulfilKey } from './fulfil-key.mjs';
-import { makeClaudeCodeCapabilities } from './index.mjs';
+import { makeDriverCapabilities } from './driver-capabilities.mjs';
 
 const diffOf = (base) => { try { return execSync(`git diff --name-only ${base}...HEAD`, { encoding: 'utf8' }).split('\n').filter(Boolean); } catch { return []; } };
 
@@ -42,7 +42,7 @@ async function main() {
   const badPair = fi >= 0 && (fv === undefined || fv.startsWith('--') || vv === undefined || vv.startsWith('--'));
   if (!itemId || (fi >= 0) !== (vi >= 0) || badPair) { console.error('usage: run-next.mjs <item-id> [--fulfil <key> --value <json>]'); process.exit(2); }
   const cfg = JSON.parse(readFileSync('runtime/runtime.config.json', 'utf8'));
-  const capabilities = makeClaudeCodeCapabilities({});
+  const capabilities = makeDriverCapabilities();   // judged: skill:<name> checks resolve instead of fail-closing
   const { exit, out } = await driveNext({ itemId, backlogDir: cfg.backlogDir ?? 'docs/backlog', checksDir: cfg.checksDir,
     fulfil: fi >= 0 ? { key: fv, value: JSON.parse(vv) } : undefined, capabilities, diffPaths: diffOf('origin/main') });
   console.log(JSON.stringify(out, null, 2));
