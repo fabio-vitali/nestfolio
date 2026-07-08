@@ -1,7 +1,7 @@
 ---
 id: epic-clean-fixture-twin-id-typo
-status: queued
-rank: 4
+status: shipped
+closed: 2026-07-08
 type: tooling
 epic: runtime-operationalization
 epic_role: core
@@ -11,7 +11,7 @@ out_of_scope: []
 spec: null
 plan: null
 topic_memory: [project_runtime_realization.md]
-validation_gate: null
+validation_gate: "commit d9267ef1 on main (e.md fixture comment: rt-epic-* -> rt-bne-ship-clean / rt-bne-e8-auto-no-self-merge); deterministic epic-clean drive test 1/1 green against the edited fixture (node --test scripts/parity-oracle/test/epic-clean-drive.test.mjs); tools/affected-projects.mjs empty, doc-derivation + deploy detectors both exit 10 (skip); driven end-to-end on the runtime engine under RUNTIME_ENGINE (run-next.mjs exit 3 park execute -> fulfil TaskResult -> exit 3 park ship floor -> user Ship via AskUserQuestion -> exit 0 done; lane doc-layer so pre-ship batch + 6.4b exempt; path:runtime journaled, zero fallback records — soak evidence 3/5)"
 ---
 
 # epic-clean fixture doc names the wrong parity-twin ids
