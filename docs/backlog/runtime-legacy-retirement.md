@@ -12,7 +12,7 @@ out_of_scope:
   - "The epic's captured members (e.g. from-intake-join-theme-cannot-express-epic-role) — audited at epic close, not resolved here."
   - "The gh-PR-state probe / worktree-ops binding deferred within WS-4 (spec §10) — stays deferred."
 spec: docs/superpowers/specs/2026-07-06-runtime-work-driver-replatform-design.md
-plan: null
+plan: docs/superpowers/plans/2026-07-09-runtime-legacy-retirement.md
 topic_memory: [project_runtime_realization.md]
 validation_gate: null
 epic: runtime-operationalization
@@ -63,6 +63,16 @@ condition was "explicit user trigger after `runtime-operational-surface` ships" 
 surface shipped 2026-07-08, the soak gate closed 2026-07-08, and the user directed the run on
 2026-07-09 with three requirements: prove-better-first, ALL legacy content removed, GUIDE/README
 updated). Promoted parking → queued rank 4.
+
+**Capability-coverage audit (2026-07-09, gate clause 4 — PASSED):** every capability the legacy
+flag-off bodies provide is either **runtime-owned** (deploy detect + deploy-gate batch, ship floor
+never-auto, backward-edge ship-recheck/curate/mint, epic member loop + sha-conditional pre-done
+batch, intake routing fold/join/mint/orphan with atomicity + epicRole, all 11 lint rules via
+run-watch, operator visibility via run-view/operational-surface) or **deliberately host-retained
+prose that survives retirement** (§6.1 doc-derivation regen, §6.2 pre-deploy unit tests+lint,
+§6.5 frontmatter write, §6.6 index regen / `lint.mjs --fix` side-car, §6.7/§6.8 finishing+cleanup,
+E0–E3/E7 captured audit/E8 single PR — declared host-side in the strangler prose itself). Zero
+undischarged gaps. Full inventory + matrix in the plan doc.
 
 Topic dossier: `project_runtime_realization.md`.
 
