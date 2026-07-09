@@ -67,7 +67,7 @@ export const TIER0 = [
   /^flows\//,
   /^\.claude\//,
   /^tools\//,           // tools/*.mjs = repo tooling, never a deploy artifact
-  /^scripts\//,         // root scripts/ = build/verify/benchmark tooling (benchmark-agents, benchmark-backlog, assert-shell-html, …) — never a deploy artifact. (Deploy scripts live under infrastructure/scripts, matched by the TIER1 infrastructure/** rule.)
+  /^scripts\//,         // root scripts/ = build/verify/benchmark tooling (benchmark-agents, backlog-regression, assert-shell-html, …) — never a deploy artifact. (Deploy scripts live under infrastructure/scripts, matched by the TIER1 infrastructure/** rule.)
   /^runtime\//,         // Long-Horizon Engineering Runtime (ring-1 engine + content ring) = pure node library run by `node --test`, no CDK stack/Lambda/service; never a deploy artifact
   /^\.github\//,        // CI workflow / scripts config, never a deploy artifact
 

@@ -1,4 +1,4 @@
-// runtime/eval/e2e/greenfield.test.mjs — the greenfield adoption e2e (parity-oracle deliverable d).
+// runtime/eval/e2e/greenfield.test.mjs — the greenfield adoption e2e (the runtime cold-start deliverable).
 // A bare repo + runtime/ only: init seeds starter checks → a violation commit is BLOCKED → a check is
 // MINTED at the floor (park→fulfil) and has teeth → CURATE retires it → the commit passes. The test
 // plays the human via --fulfil. No LLM, no Nestfolio content. Cold-start/portability proof.

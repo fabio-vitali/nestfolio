@@ -3,8 +3,8 @@
 // terminal (pause convention / error / completed), and extracts fenced-JSON payloads. This is host
 // machinery: anything in runtime/ that needs a nested headless session (judged audit procedures,
 // future judge bindings) binds through here — never through repo tooling outside runtime/ (the
-// 2026-07-09 self-containment regression: importing scripts/benchmark-backlog crashed every driver
-// main in any tree that ships runtime/ alone).
+// 2026-07-09 self-containment regression: a ring-2 module reaching into repo scripts/ crashed every
+// driver main in any tree that ships runtime/ alone).
 import { spawn } from 'node:child_process';
 
 const PAUSE_RE = /<<HARNESS-PAUSE:\s*([^>]*)>>/;

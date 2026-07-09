@@ -48,8 +48,8 @@ test('the seam predicate flags every ESM import shape and spares variable-path d
 // unit suite (which runs from the repo root, where the target exists) can never see. Ring 3
 // (content/) is exempt: it is the PROJECT seam and binds project paths by design (content checks
 // delegate into .claude/skills/backlog-lint/lib/rules.mjs etc.). Regression: 2026-07-09 —
-// audit-procedures.mjs imported scripts/benchmark-backlog/{runner,judge}.mjs; every run-*.mjs main
-// crashed ERR_MODULE_NOT_FOUND inside the parity sandbox, caught only by the final oracle sweep.
+// audit-procedures.mjs reached into a repo script under scripts/; every run-*.mjs main crashed
+// ERR_MODULE_NOT_FOUND inside the parity sandbox, caught only by the final oracle sweep.
 const KNOWN_ESCAPES = new Set([
   // Filed ring-2 portability debt (deploy-gate-runner's project bindings belong in ring 3 — see
   // backlog). Allowlisted-and-shrinking: additions fail this test; removals should delete the entry.
