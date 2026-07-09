@@ -12,7 +12,7 @@ import { readItems } from '../../engine/lib/scope-gate.mjs';
 import { pendingDecisions, gitHeadSha } from '../../engine/lib/journal.mjs';
 import { recordRuntimePath } from '../../engine/lib/path-provenance.mjs';
 import { writeItemFile } from './run-intake.mjs';
-import { makeClaudeCodeCapabilities } from './index.mjs';
+import { makeDriverCapabilities } from './driver-capabilities.mjs';
 
 const FM_RE = /^---\n([\s\S]*?)\n---\n?([\s\S]*)$/;
 class ThemesParked extends Error {}
@@ -63,7 +63,7 @@ async function main() {
   const badPair = ff >= 0 && (fv === undefined || fv.startsWith('--') || vv === undefined || vv.startsWith('--'));
   if ((ff >= 0) !== (vi >= 0) || badPair) { console.error('usage: run-themes.mjs [--fulfil <key> --value <json>]'); process.exit(2); }
   const cfg = JSON.parse(readFileSync('runtime/runtime.config.json', 'utf8'));
-  const capabilities = makeClaudeCodeCapabilities({});
+  const capabilities = makeDriverCapabilities();   // judged uniformly (DC3 discovery-total): no bare-caps divergence
   const { exit, out } = await driveThemes({ backlogDir: cfg.backlogDir ?? 'docs/backlog', checksDir: cfg.checksDir,
     fulfil: ff >= 0 ? { key: fv, value: JSON.parse(vv) } : undefined, capabilities });
   console.log(JSON.stringify(out, null, 2));

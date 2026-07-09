@@ -15,7 +15,7 @@ import { loadRegistry } from '../../engine/lib/load-registry.mjs';
 import { readItems } from '../../engine/lib/scope-gate.mjs';
 import { pendingDecisions, gitHeadSha } from '../../engine/lib/journal.mjs';
 import { recordRuntimePath } from '../../engine/lib/path-provenance.mjs';
-import { makeClaudeCodeCapabilities } from './index.mjs';
+import { makeDriverCapabilities } from './driver-capabilities.mjs';
 
 class IntakeParked extends Error {}
 
@@ -79,7 +79,7 @@ async function main() {
   }
   const finding = JSON.parse(readFileSync(findingPath, 'utf8'));
   const cfg = JSON.parse(readFileSync('runtime/runtime.config.json', 'utf8'));
-  const capabilities = makeClaudeCodeCapabilities({});
+  const capabilities = makeDriverCapabilities();   // judged uniformly (DC3 discovery-total): no bare-caps divergence
   const { exit, out } = await driveIntake({ finding, backlogDir: cfg.backlogDir ?? 'docs/backlog',
     checksDir: cfg.checksDir, fulfil: ff >= 0 ? { key: fv, value: JSON.parse(vv) } : undefined, capabilities });
   console.log(JSON.stringify(out, null, 2));

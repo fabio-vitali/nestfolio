@@ -3,7 +3,7 @@
 // or every skill:<name> judgment check the start/pre-ship/ship gates select fail-closes.
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { readFileSync } from 'node:fs';
+import { readFileSync, readdirSync } from 'node:fs';
 import { join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { deriveJudge } from '../../../engine/lib/derive-judge.mjs';
@@ -29,11 +29,21 @@ test('DC2 regression contract: bare makeClaudeCodeCapabilities({}) fail-closes t
   await assert.rejects(() => judge(CHECK), /unknown procedure: audit-service/);
 });
 
-test('DC3 conformance: every workstream-driver main() composes via makeDriverCapabilities', () => {
-  const here = dirname(fileURLToPath(import.meta.url));
-  for (const f of ['run-next.mjs', 'run-epic.mjs', 'run-audit.mjs', 'run-item.mjs']) {
-    const src = readFileSync(join(here, '..', f), 'utf8');
-    assert.match(src, /makeDriverCapabilities\(/, `${f} must build judged capabilities`);
-    assert.doesNotMatch(src, /makeClaudeCodeCapabilities\(\{\}\)/, `${f} must not build bare capabilities`);
+test('DC3 conformance (discovery-total): every run-*.mjs adapter composes capabilities ONLY via makeDriverCapabilities', () => {
+  // Sweeps the adapter dir instead of a hardcoded main list (the CF1 pattern) — a NEW run-*.mjs
+  // driver gets the conformance for free (the hardcoded four-file list missed run-view.mjs the day
+  // it landed). Two teeth: (1) the raw constructor NAME is banned anywhere in a run-*.mjs source
+  // (covers bare calls, {procedures}-by-hand, and import aliasing — the sanctioned wrapper lives in
+  // driver-capabilities.mjs, which is not a run-*.mjs); (2) any `const capabilities =` assignment
+  // must be the seam call (covers a future hand-rolled capability object).
+  const dir = join(dirname(fileURLToPath(import.meta.url)), '..');
+  const files = readdirSync(dir).filter((f) => /^run-.*\.mjs$/.test(f));
+  assert.ok(files.length >= 9, `discovery looks broken: only ${files.length} run-*.mjs found`);
+  for (const f of files) {
+    const src = readFileSync(join(dir, f), 'utf8');
+    assert.doesNotMatch(src, /makeClaudeCodeCapabilities/, `${f}: never compose raw capabilities in a driver — use makeDriverCapabilities (judge binding)`);
+    if (/const capabilities =/.test(src)) {
+      assert.match(src, /const capabilities = makeDriverCapabilities\(/, `${f}: capabilities must be built by makeDriverCapabilities`);
+    }
   }
 });
