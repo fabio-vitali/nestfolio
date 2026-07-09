@@ -23,9 +23,9 @@ const DRIVERS = 'runtime/adapters/claude-code';
 export function resumeHints(runIds) {
   const hints = {};
   for (const runId of runIds) {
-    if (runId.startsWith('item-')) hints[runId] = `RUNTIME_ENGINE=1 node ${DRIVERS}/run-next.mjs ${runId.slice(5)} --fulfil '<key>' --value '<json>'`;
-    else if (runId.startsWith('epic-')) hints[runId] = `RUNTIME_ENGINE=1 node ${DRIVERS}/run-epic.mjs ${runId.slice(5)} --fulfil '<key>' --value '<json>'`;
-    else if (runId.startsWith('intake-')) hints[runId] = `RUNTIME_ENGINE=1 node ${DRIVERS}/run-intake.mjs --finding <finding.json> --fulfil '<key>' --value '<json>'`;
+    if (runId.startsWith('item-')) hints[runId] = `node ${DRIVERS}/run-next.mjs ${runId.slice(5)} --fulfil '<key>' --value '<json>'`;
+    else if (runId.startsWith('epic-')) hints[runId] = `node ${DRIVERS}/run-epic.mjs ${runId.slice(5)} --fulfil '<key>' --value '<json>'`;
+    else if (runId.startsWith('intake-')) hints[runId] = `node ${DRIVERS}/run-intake.mjs --finding <finding.json> --fulfil '<key>' --value '<json>'`;
   }
   return hints;
 }

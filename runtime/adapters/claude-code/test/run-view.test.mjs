@@ -31,6 +31,8 @@ test('RV2 resumeHints maps runId prefixes to the owning driver command', () => {
   assert.match(hints['epic-bar'], /run-epic\.mjs bar --fulfil/);
   assert.match(hints['intake-baz'], /run-intake\.mjs --finding/);
   assert.equal(hints['other-x'], undefined);          // unknown prefix → no hint, row still renders
+  // the retired RUNTIME_ENGINE flag is gone — hints are bare `node …` commands (runtime-legacy-retirement)
+  for (const h of Object.values(hints)) assert.doesNotMatch(h, /RUNTIME_ENGINE/);
 });
 
 test('RV3 view --json smoke over the real repo: exit 0, derived surface shape present', () => {
