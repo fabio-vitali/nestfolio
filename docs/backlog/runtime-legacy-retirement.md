@@ -100,3 +100,10 @@ Topic dossier: `project_runtime_realization.md`.
 - **Chosen:** Keep plain path:runtime journaling, retire fallback instrumentation
 - **Rationale:** User decision via AskUserQuestion 2026-07-09. Near-zero cost, journal stays self-describing, and any future strangler migration gets its soak instrument back for free (reusable observability pattern).
 - **Rejected:** Dropping saves trivial noise but forces a rebuild for the next engine-path migration.
+
+### D4 — 2026-07-09
+- **Decision:** Final pre-removal gate evidence after the self-containment fix
+- **Options:** Re-run all 17 pairs on post-fix HEAD (one coherent artifact) | Accept split evidence (13 pre-fix + 4 post-fix)
+- **Chosen:** Re-run all 17 pairs on post-fix HEAD
+- **Rationale:** User decision via AskUserQuestion 2026-07-09. First full sweep found a real self-containment bug (audit-procedures crashed every driver main in runtime-only trees); the fix (23c32a1e) landed after 13 pairs had already run. A split artifact leaves the 13 greens on stale code plus an unresolved passing-pair/crashing-main contradiction. Re-running all 17 on HEAD produces one coherent green artifact on the exact code that exists at deletion time, matching the be-sure-ALL-better mandate and D1s fresh-full-sweep standard, before irreversible deletion.
+- **Rejected:** Split evidence saves the full-sweep quota but does not meet fresh-full-sweep and leaves a reasoning gap unresolved.
