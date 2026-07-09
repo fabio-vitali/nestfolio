@@ -1,9 +1,8 @@
 // runtime/adapters/claude-code/audit-procedures.mjs — Seam A (ring-2). Populates the runProcedure
 // `procedures` map for the 4 audit-* skills, so deriveJudge yields a working judge. Each procedure
-// runs its audit skill READ-ONLY headless (reusing benchmark-backlog's spawn) and returns structured
-// findings. GUIDE §6: the runtime harness builds on benchmark-backlog's reusable seam.
-import { runScenario as defaultRunScenario } from '../../../scripts/benchmark-backlog/runner.mjs';
-import { parseJudgeResult } from '../../../scripts/benchmark-backlog/judge.mjs';
+// runs its audit skill READ-ONLY headless via the ring-2 headless-run binding and returns
+// structured findings.
+import { runScenario as defaultRunScenario, parseFencedJson } from './headless-run.mjs';
 
 export const AUDIT_SKILLS = ['audit-service', 'audit-domain', 'audit-system', 'audit-e2e-test'];
 const READ_ONLY_TOOLS = ['Bash', 'Read', 'Glob', 'Grep', 'Skill'];   // no Write/Edit — a cadence audit never mutates
@@ -35,7 +34,7 @@ export function makeAuditProcedures({
         const res = await runScenario({ prompt, denySubskills: [] }, 'HEAD',
           { model, cwd, env, pauseConvention: 'n/a', timeoutMs, allowedTools: READ_ONLY_TOOLS });
         try {
-          const parsed = parseJudgeResult(res.result ?? '');
+          const parsed = parseFencedJson(res.result ?? '');
           const findings = Array.isArray(parsed.findings) ? parsed.findings : [];
           return { taskId: skill, status: 'done', summary: `${skill}: ${findings.length} finding(s)`, findings };
         } catch (e) { lastErr = e; }
