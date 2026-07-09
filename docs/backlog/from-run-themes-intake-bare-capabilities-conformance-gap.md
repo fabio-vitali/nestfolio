@@ -1,8 +1,9 @@
 ---
 id: from-run-themes-intake-bare-capabilities-conformance-gap
 type: bug
-status: queued
-rank: 4
+status: shipped
+closed: 2026-07-09
+validation_gate: "Commit 8dafc83c on main (TWELFTH runtime-driven workstream — run-next.mjs 3(execute)→3(ship floor)→0, lane=simple, fallback-free). run-themes.mjs/run-intake.mjs mains compose makeDriverCapabilities(); DC3 rewritten discovery-total over run-*.mjs (bans the raw constructor name anywhere incl. aliasing; const-capabilities assignment law), FAIL-PROVEN against an injected phantom bare-caps driver. runtime suite 421/421 + typecheck clean. ship-recheck gate-clean journaled; mint-considered --none (the sweep IS the mechanization). Dogfood: the patched run-intake main drove the from-intake-join-theme-cannot-express-epic-role filing in the same session."
 done_when: "resolve: run-themes.mjs:66 and run-intake.mjs:82 compose bare
   makeClaudeCodeCapabilities({}) — harmless today (themes()/intake() never
   consume runProcedure/runGate; their parks are human asks), but it is the same
@@ -42,3 +43,10 @@ draining it now resolves both the debt and the role ambiguity.
 - **Chosen:** Work it now as the 12th runtime-driven workstream
 - **Rationale:** run-view.mjs is a fifth runProcedure-consuming main outside DC3s hardcoded sweep — the items list-rots premise is now live, and the discovery-total sweep (CF1 pattern) is the reusable, self-extending fix. Shipping also dissolves the core/captured ambiguity (shipped members never block rule 9). User approved via AskUserQuestion.
 - **Rejected:** Role-only fix leaves a proven-latent divergence plus an unswept fifth main; leave-as-is forces the same work later, after legacy retirement, with the epic ship blocked on it.
+
+### D2 — 2026-07-09
+- **Decision:** Ship floor + 6.4b mint consideration for from-run-themes-intake-bare-capabilities-conformance-gap
+- **Options:** Ship + nothing to mint | Ship + mint a new check | Ship + file follow-up | Hold
+- **Chosen:** Ship + nothing to mint
+- **Rationale:** Pre-ship batch (lane=simple) + ship gate + ship-recheck gate-clean; runtime 421/421 + typecheck green; DC3 discovery-total fail-proven vs injected phantom; the patched run-intake main dogfooded live on the epicRole-gap filing. Mint --none: the lesson was mechanized INTO the fix (DC3 now discovery-total like CF1; adapter-ring node-test concern per the import-boundary precedent). User approved via AskUserQuestion.
+- **Rejected:** Minting would duplicate the sweep that now IS the guard; holding had no failing evidence.
