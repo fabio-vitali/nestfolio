@@ -1,8 +1,9 @@
 ---
 id: runtime-legacy-retirement
-status: parking
+status: queued
+rank: 4
 type: tooling
-notes: "P6: user-triggered legacy work-driver retirement — delete flag-off prose bodies, strangler seams, RUNTIME_ENGINE flag; decide parity-oracle disposition. Filed as core + done_when clause (7) per user decision 2026-07-08."
+notes: "P6: legacy work-driver retirement — delete flag-off prose bodies, strangler seams, RUNTIME_ENGINE flag. Pre-removal gate: FINAL full parity-oracle sweep (user decision 2026-07-09). Comparator retires; deterministic differential survives as runtime-only regression suite. Filed as core + done_when clause (7) per user decision 2026-07-08; trigger fired 2026-07-09."
 references: []
 out_of_scope: []
 spec: docs/superpowers/specs/2026-07-06-runtime-work-driver-replatform-design.md
@@ -40,9 +41,47 @@ migration is complete.
   differential as a runtime-only regression suite, or retire `scripts/benchmark-backlog/` wholesale.
   `soak-observer.mjs`'s purpose also ends here.
 - **Doc layer** — CLAUDE.md skill-routing table, `docs/superpowers` references, dossier update.
+  **`runtime/GUIDE.md` + `runtime/README.md` are first-class deliverables** (explicit user
+  requirement 2026-07-09): both must describe the post-retirement runtime-only world — no
+  strangler/flag/legacy-fallback language left.
 
-**Sequencing trigger (why parking):** work AFTER `runtime-operational-surface` ships (the operator
-surface replaces the visibility the legacy skill bodies provide) and only on an explicit user
-trigger — promotion is the user's act, per the spec's "never bundled" rule.
+**Pre-removal gate (user requirement 2026-07-09 — "all must be BETTER than legacy before
+removal"):** before ANY deletion, run the FINAL full parity-oracle sweep (all 17 mapped pairs,
+legacy vs runtime, headless Opus + judge) — the last run ever possible, since the oracle needs the
+legacy bodies alive; the last green sweep (2026-07-08) predates the `8dafc83c` driver-main changes.
+Gate = fresh sweep green + live soak verdict (12 runtime workstreams / 0 fallbacks) + deterministic
+differential green + capability-coverage audit mapping every legacy-body feature to its runtime
+equivalent. Deletion only proceeds on a fully green gate.
+
+**Trigger fired 2026-07-09:** the user explicitly triggered retirement (this file's parking
+condition was "explicit user trigger after `runtime-operational-surface` ships" — the operator
+surface shipped 2026-07-08, the soak gate closed 2026-07-08, and the user directed the run on
+2026-07-09 with three requirements: prove-better-first, ALL legacy content removed, GUIDE/README
+updated). Promoted parking → queued rank 4.
 
 Topic dossier: `project_runtime_realization.md`.
+
+## Decision log
+
+<!-- append-only (F-6): entries are never edited or removed; a reversal is a NEW entry referencing the superseded one. Written by decision-log.mjs — do not hand-edit. -->
+
+### D1 — 2026-07-09
+- **Decision:** Pre-removal BETTER-than-legacy evidence standard
+- **Options:** Full final oracle sweep + soak verdict + coverage audit | Deterministic differential + prior-sweep evidence | Soak evidence only
+- **Chosen:** Full final oracle sweep + soak verdict + coverage audit
+- **Rationale:** User decision via AskUserQuestion 2026-07-09. Last possible oracle run (needs legacy alive); driver mains changed since the 2026-07-08 green sweep (8dafc83c), so parity is re-proven on current code. Strangler retirement gated on full parity evidence is the reusable pattern.
+- **Rejected:** Evidence-only options assert LLM-path parity from a sweep that predates the latest driver-main changes.
+
+### D2 — 2026-07-09
+- **Decision:** Legacy comparator tooling disposition
+- **Options:** Retire comparator, keep deterministic differential as runtime-only regression suite | Retire wholesale | Archive directory
+- **Chosen:** Retire comparator, keep deterministic differential as runtime-only regression suite
+- **Rationale:** User decision via AskUserQuestion 2026-07-09. Aligns with ALL-legacy-removed while preserving a reusable regression harness: r1-r11 bad/good fixtures re-pointed to assert the runtime gate alone.
+- **Rejected:** Wholesale loses live regression fixtures; archive dir contradicts the ALL-removed instruction.
+
+### D3 — 2026-07-09
+- **Decision:** path-provenance disposition
+- **Options:** Keep plain path:runtime journaling, retire fallback instrumentation | Drop path-provenance entirely
+- **Chosen:** Keep plain path:runtime journaling, retire fallback instrumentation
+- **Rationale:** User decision via AskUserQuestion 2026-07-09. Near-zero cost, journal stays self-describing, and any future strangler migration gets its soak instrument back for free (reusable observability pattern).
+- **Rejected:** Dropping saves trivial noise but forces a rebuild for the next engine-path migration.
