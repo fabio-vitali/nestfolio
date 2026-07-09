@@ -1,11 +1,16 @@
 ---
 id: runtime-legacy-retirement
-status: queued
-rank: 4
+status: active
 type: tooling
 notes: "P6: legacy work-driver retirement — delete flag-off prose bodies, strangler seams, RUNTIME_ENGINE flag. Pre-removal gate: FINAL full parity-oracle sweep (user decision 2026-07-09). Comparator retires; deterministic differential survives as runtime-only regression suite. Filed as core + done_when clause (7) per user decision 2026-07-08; trigger fired 2026-07-09."
 references: []
-out_of_scope: []
+out_of_scope:
+  - "Re-designing ring-1 engine contracts (schemas/helpers) — frozen by runtime-realization; deltas re-freeze into SPEC 1, not here."
+  - "Net-new checks beyond the retirement itself — new lessons flow through the backward edge / backlog-add."
+  - "Runtime engine behavior changes beyond collapsing the strangler seams — the loop/gates/floors stay as-shipped."
+  - "Epic closure (captured audit + ship of runtime-operationalization) — a separate act after this member ships."
+  - "The epic's captured members (e.g. from-intake-join-theme-cannot-express-epic-role) — audited at epic close, not resolved here."
+  - "The gh-PR-state probe / worktree-ops binding deferred within WS-4 (spec §10) — stays deferred."
 spec: docs/superpowers/specs/2026-07-06-runtime-work-driver-replatform-design.md
 plan: null
 topic_memory: [project_runtime_realization.md]
