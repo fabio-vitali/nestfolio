@@ -6,13 +6,17 @@ import { join, dirname } from 'node:path';
 
 const skillMd = readFileSync(join(dirname(fileURLToPath(import.meta.url)), '..', 'SKILL.md'), 'utf8');
 
-test('SKILL.md documents the RUNTIME_ENGINE runtime-engine intake branch', () => {
-  assert.match(skillMd, /RUNTIME_ENGINE/);
+test('SKILL.md drives intake through the runtime intake driver', () => {
   assert.match(skillMd, /run-intake\.mjs --finding/);
-  assert.match(skillMd, /path:legacy-fallback/); // hard-cutover semantics documented
 });
 
-test('SKILL.md retains the legacy prose router (kept byte-for-byte until P6)', () => {
+test('SKILL.md keeps the routing reference (router + closure-predicate + templates)', () => {
   assert.match(skillMd, /The hot-path router/);
   assert.match(skillMd, /closure-predicate test/);
+});
+
+test('the retired RUNTIME_ENGINE strangler flag is gone from the SKILL', () => {
+  assert.doesNotMatch(skillMd, /RUNTIME_ENGINE/);
+  assert.doesNotMatch(skillMd, /path:legacy-fallback/);
+  assert.doesNotMatch(skillMd, /until P6/);
 });
