@@ -1,6 +1,8 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { makeAuditProcedures, buildAuditPrompt } from '../audit-procedures.mjs';
+import { makeAuditProcedures, buildAuditPrompt, AUDIT_SKILLS } from '../audit-procedures.mjs';
+import { loadRegistry } from '../../../engine/lib/load-registry.mjs';
+import { parseRun } from '../../../engine/schema/check.schema.ts';
 
 const check = { id: 'audit-service', kind: 'staleness', scope: { paths: ['services/**'] } };
 
@@ -48,8 +50,34 @@ test('buildAuditPrompt names the skill, the scope, and demands read-only json', 
   assert.match(p, /```json/);
 });
 
-test('all four audit skills are present', () => {
+test('all five audit skills are present (incl. audit-integration-test)', () => {
   const procs = makeAuditProcedures({ runScenario: async () => ({ result: '{"findings":[]}' }) });
   assert.deepEqual(Object.keys(procs).sort(),
-    ['audit-domain', 'audit-e2e-test', 'audit-service', 'audit-system']);
+    ['audit-domain', 'audit-e2e-test', 'audit-integration-test', 'audit-service', 'audit-system']);
+});
+
+test('audit-integration-test procedure runs and parses findings (regression: was unmapped, failed the pre-done gate)', async () => {
+  const fake = async () => ({ result: '```json\n{"findings":[{"detail":"no OrphanReaper","evidence":"services/x/test/integration/x.spec.ts:1","scope":["services/x/test/integration/**"]}]}\n```' });
+  const procs = makeAuditProcedures({ runScenario: fake });
+  const proc = procs['audit-integration-test'];
+  assert.ok(proc, 'audit-integration-test procedure is wired');
+  const r = await proc({ check: { id: 'integration-test-completeness', scope: { paths: ['services/**/test/integration/**'] } } });
+  assert.equal(r.status, 'done');
+  assert.equal(r.taskId, 'audit-integration-test');
+  assert.equal(r.findings.length, 1);
+});
+
+// Recurrence guard for the class: a check declaring `run: skill:<name>` whose <name> is not wired in
+// AUDIT_SKILLS makes runProcedure return `unknown procedure`, deriveJudge throws, and the pre-ship /
+// epic-pre-done gate hard-fails on a spurious `#err` finding. Assert the registry can never drift.
+test('every skill: check in the registry has a wired procedure (no unmapped judge procedures)', () => {
+  const reg = loadRegistry({ checksDir: 'runtime/content/checks' });
+  assert.deepEqual(reg.errors, [], 'registry has no load/validation errors');
+  const skillTargets = reg.checks
+    .map((c) => parseRun(c.evaluator.run))
+    .filter((p) => p && p.scheme === 'skill')
+    .map((p) => p.target);
+  assert.ok(skillTargets.length > 0, 'registry declares at least one skill: check');
+  const unmapped = [...new Set(skillTargets)].filter((t) => !AUDIT_SKILLS.includes(t));
+  assert.deepEqual(unmapped, [], `every skill: check target must be wired in AUDIT_SKILLS; unmapped: ${unmapped.join(', ')}`);
 });

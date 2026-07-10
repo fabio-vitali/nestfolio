@@ -4,7 +4,7 @@
 // structured findings.
 import { runScenario as defaultRunScenario, parseFencedJson } from './headless-run.mjs';
 
-export const AUDIT_SKILLS = ['audit-service', 'audit-domain', 'audit-system', 'audit-e2e-test'];
+export const AUDIT_SKILLS = ['audit-service', 'audit-domain', 'audit-system', 'audit-e2e-test', 'audit-integration-test'];
 const READ_ONLY_TOOLS = ['Bash', 'Read', 'Glob', 'Grep', 'Skill'];   // no Write/Edit — a cadence audit never mutates
 
 export function buildAuditPrompt(skillName, scopePaths) {
