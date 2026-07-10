@@ -1,10 +1,10 @@
 ---
 id: bef-scenario-tags-reusable-suite
-status: parking
+status: dropped
 type: tooling
 epic: runtime-operationalization
 epic_role: captured
-notes: "Add self-declaring `tags: [...]` to scenarios + a runner `--tag=` filter, so a reusable named subset (e.g. core) can be re-run identically before/after backlog-skills-simplification. Build when that epic starts; pin membership only after the corpus is green. Captured under bef-deterministic-coverage-gaps for unified PR context; un-pointed back to a standalone parking orphan at that epic's close (2026-06-30) — confirmed orthogonal ergonomics work by the captured audit (matches the 2026-06-29 backlog-themes adjudication)."
+notes: "DROPPED 2026-07-10 as MOOT — its subject (the benchmark-backlog *.scenario.mjs corpus + the regression/compare A/B runners in scripts/benchmark-backlog/run.mjs) was deleted wholesale by runtime-legacy-retirement (P6, merge acd44767). The A/B comparator is retired; the surviving scripts/backlog-regression/ is a fixture-based deterministic differential, not a tagged scenario suite, and the before/after-skill-simplification purpose is gone (the skills are now simplified/runtime-only). The self-declaring-tags PATTERN was flagged 'liftable' — if ever wanted, re-file it against runtime/eval/ scenarios as a fresh item; it does not survive as this one. Confirmed by the epic-close captured audit; user-approved drop."
 references: []
 out_of_scope:
   - "Pinning the canonical subset membership now — defer until bef-baseline-surfaced-scenario-failures gates green (don't canonize a red subset)."

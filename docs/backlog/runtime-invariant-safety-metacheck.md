@@ -2,7 +2,7 @@
 id: runtime-invariant-safety-metacheck
 status: parking
 type: refactor
-epic: runtime-operationalization
+epic: runtime-operationalization-leftovers
 epic_role: captured
 topic_memory: [project_runtime_realization.md]
 notes: "Backward-edge lesson from runtime-check-migration-completion (2026-07-06): mint an [invariant]-safety meta-check — a registry guard that runs every ACTIVE [invariant] CheckEntry's evaluator against the CLEAN working tree and fails if any returns a finding, because an invariant that isn't clean bricks EVERY commit (fail-closed gate). meta-check.mjs today checks registry integrity (schemas, unique ids, module existence) but NOT invariant-cleanliness. Captured (orthogonal to the epic done_when: the migration is complete + checks run on a cadence regardless; clause-2 'â‰¥1 mint' already satisfied)."

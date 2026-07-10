@@ -1,16 +1,16 @@
 ---
 id: runtime-guide-path-to-live-section-stale
-status: parking
+status: shipped
 type: tooling
 epic: runtime-operationalization
 epic_role: captured
-notes: "runtime/GUIDE.md §7 'path to live' is stale post-make-it-fire — item 1 says the operational surface is parked and the closing line says keep the OLD pre-commit gate, but the runtime gate fires on every commit."
+notes: "SHIPPED (resolved) 2026-07-10 by runtime-legacy-retirement (P6, merge acd44767): runtime/GUIDE.md was rewritten wholesale to the runtime-only world. The stale §7 'path to live' section no longer exists — verified absent are the phrases 'path to live', 'augments them', 'does not replace them yet', and the parked-operational-surface framing; §7 is now 'Testing & regression protection'. The item's work survived (the GUIDE is fresh), so it is terminal-as-resolved."
 references: []
 out_of_scope: []
 spec: null
 plan: null
 topic_memory: [project_runtime_realization.md]
-validation_gate: null
+validation_gate: "runtime/GUIDE.md rewritten in runtime-legacy-retirement (P6, merge acd44767); the stale §7 'path to live' content verified absent (grep for 'path to live' / 'augments them' / 'does not replace them yet' returns nothing) and §7 is now 'Testing & regression protection'. Resolved via the epic-close captured audit, user-approved."
 ---
 
 # runtime/GUIDE.md §7 "path to live" is stale post-make-it-fire

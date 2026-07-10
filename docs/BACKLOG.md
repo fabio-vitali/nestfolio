@@ -155,55 +155,18 @@ rollup: core 0/2 done · captured 0/0 done
 - core · parking · [e2e-contract-emission-bytypename-helper-extract](backlog/e2e-contract-emission-bytypename-helper-extract.md)
 - core · parking · [generalise-appsync-iam-publisher-lib](backlog/generalise-appsync-iam-publisher-lib.md)
 
-### [runtime-operationalization](backlog/runtime-operationalization.md) `[epic · parking]` — Adopt/operationalize the Long-Horizon Engineering Runtime via the probes-first roadmap (re-scoped 2026-07-03): P1 probe the two unproven bets (execute seam, backward edge) → P2 moat live (mint/curate in anger, before enforcement triples) → P3 parity oracle + item schema → P4 check migration with cadence + CI golden gates → P5 work-driver strangler re-platform with soak gate → P6 user-triggered legacy retirement + operator surface. runtime-realization shipped the 3 library slices; THIS epic makes the runtime the project's live enforcement + work-driver, reversibly (docs/backlog stays the one item store — procedures migrate, never data).
-done_when: The runtime is the project's LIVE enforcement + work-driver, demonstrated not asserted: (1) enforcement — the gate fires diff-scoped on commit (shipped) AND every migrated check runs on a real cadence (commit gate / CI / schedule / epic-batch; judgment checks via a live judge binding), the ~34-surface migration into runtime/content/checks is complete, and the check golden gates run in CI; (2) the backward edge is live-in-anger — at least one real lesson minted through a real floor into a registered check, and curate-at-the-floor is the only sanctioned path past a failing guard (skip-hatch instrumented); (3) item.schema is reconciled with docs/backlog and validated on read; (4) the parity oracle is green — the regression harness grades the runtime loop against the legacy backlog skills on the same scenarios, plus a greenfield adoption e2e; (5) the work-driver is re-platformed — the backlog skills run on the engine loop with legacy fallback, soaked over ≥5 real workstreams with zero fallbacks; (6) the operator surface (view+executor) is shipped; (7) the legacy work-driver is RETIRED — the flag-off prose bodies, strangler seams, and RUNTIME_ENGINE flag are deleted so the runtime paths are the only paths (user-triggered, sequenced after the operator surface; clause added 2026-07-08 at the soak-gate ship boundary so epic closure literally means the migration is complete). Every core member shipped or dropped.
-rollup: core 32/32 done · captured 2/14 done
-- core · shipped · [bef-judge-blind-to-subworktree-diff](backlog/bef-judge-blind-to-subworktree-diff.md)
-- core · shipped · [deploy-gate-runner-pipefail-silent-green](backlog/deploy-gate-runner-pipefail-silent-green.md)
-- core · shipped · [epic-clean-fixture-twin-id-typo](backlog/epic-clean-fixture-twin-id-typo.md)
-- core · shipped · [from-classify-lane-runtime-code-misclassified-doc-layer](backlog/from-classify-lane-runtime-code-misclassified-doc-layer.md)
-- core · shipped · [from-run-item-judge-binding-gap](backlog/from-run-item-judge-binding-gap.md)
-- core · shipped · [from-run-next-pre-ship-judge-binding-gap](backlog/from-run-next-pre-ship-judge-binding-gap.md)
-- core · shipped · [from-run-themes-intake-bare-capabilities-conformance-gap](backlog/from-run-themes-intake-bare-capabilities-conformance-gap.md)
-- core · shipped · [from-spine-adapters-cli-seam-conformance-test](backlog/from-spine-adapters-cli-seam-conformance-test.md)
-- core · shipped · [import-boundary-dynamic-import-gap](backlog/import-boundary-dynamic-import-gap.md)
-- core · shipped · [parity-oracle-bne-live-red-fixes](backlog/parity-oracle-bne-live-red-fixes.md)
-- core · shipped · [plan-next-computeimpact-object-references-crash](backlog/plan-next-computeimpact-object-references-crash.md)
-- core · shipped · [run-epic-fulfil-key-decision-id-ambiguity](backlog/run-epic-fulfil-key-decision-id-ambiguity.md)
-- core · shipped · [run-next-fulfil-badpair-guard](backlog/run-next-fulfil-badpair-guard.md)
-- core · shipped · [runtime-backward-edge-live](backlog/runtime-backward-edge-live.md)
-- core · shipped · [runtime-check-exclusions-content-ring](backlog/runtime-check-exclusions-content-ring.md)
-- core · shipped · [runtime-check-goldengates-ci](backlog/runtime-check-goldengates-ci.md)
-- core · shipped · [runtime-check-migration-completion](backlog/runtime-check-migration-completion.md)
-- core · shipped · [runtime-check-migration-judgment-tier](backlog/runtime-check-migration-judgment-tier.md)
-- core · shipped · [runtime-item-schema-reconciliation](backlog/runtime-item-schema-reconciliation.md)
-- core · shipped · [runtime-legacy-retirement](backlog/runtime-legacy-retirement.md)
-- core · shipped · [runtime-make-it-fire](backlog/runtime-make-it-fire.md)
-- core · shipped · [runtime-operational-surface](backlog/runtime-operational-surface.md)
-- core · shipped · [runtime-redteam-hardening](backlog/runtime-redteam-hardening.md)
-- core · shipped · [runtime-regression-harness](backlog/runtime-regression-harness.md)
-- core · shipped · [runtime-replatform-add](backlog/runtime-replatform-add.md)
-- core · shipped · [runtime-replatform-lint](backlog/runtime-replatform-lint.md)
-- core · shipped · [runtime-replatform-next](backlog/runtime-replatform-next.md)
-- core · shipped · [runtime-replatform-next-epic](backlog/runtime-replatform-next-epic.md)
-- core · shipped · [runtime-replatform-prereqs](backlog/runtime-replatform-prereqs.md)
-- core · shipped · [runtime-replatform-soak-gate](backlog/runtime-replatform-soak-gate.md)
-- core · shipped · [runtime-seam-probe](backlog/runtime-seam-probe.md)
-- core · shipped · [runtime-work-driver-replatform](backlog/runtime-work-driver-replatform.md)
-- captured · parking · [bef-scenario-tags-reusable-suite](backlog/bef-scenario-tags-reusable-suite.md)
-- captured · parking · [benchmark-backlog-skill-cost-figures-stale](backlog/benchmark-backlog-skill-cost-figures-stale.md)
+### [runtime-operationalization-leftovers](backlog/runtime-operationalization-leftovers.md) `[epic · parking]` — Auto-spun-out 2026-07-10 when the runtime-operationalization delivery epic shipped (all 27 core members terminal; P6 legacy retirement merged acd44767). These are the genuinely-orthogonal captured members the closure-predicate audit confirmed are NOT load-bearing for any of the 7 done_when clauses — they rode along for unified session context. Re-cluster later by backlog-themes into sharper root-cause themes; do not force a fit. Two captured members were dropped as moot (subjects deleted in P6: benchmark-backlog-skill-cost-figures-stale, bef-scenario-tags-reusable-suite) and one was shipped as resolved (runtime-guide-path-to-live-section-stale — GUIDE.md rewritten in P6), so they are NOT here.
+done_when: Each residual finding spun out of runtime-operationalization is resolved, dropped, or re-clustered by backlog-themes into a sharper root-cause theme; all members shipped or dropped.
+rollup: core 0/0 done · captured 0/9 done
 - captured · parking · [decision-log-utc-date-stamp](backlog/decision-log-utc-date-stamp.md)
 - captured · parking · [from-deploy-gate-runner-ring2-project-bindings](backlog/from-deploy-gate-runner-ring2-project-bindings.md)
 - captured · parking · [from-intake-join-theme-cannot-express-epic-role](backlog/from-intake-join-theme-cannot-express-epic-role.md)
 - captured · parking · [gate-surfaced-source-debt](backlog/gate-surfaced-source-debt.md)
 - captured · parking · [nx-orphan-test-file-metacheck](backlog/nx-orphan-test-file-metacheck.md)
 - captured · parking · [runtime-gate-baseline-semantics](backlog/runtime-gate-baseline-semantics.md)
-- captured · parking · [runtime-guide-path-to-live-section-stale](backlog/runtime-guide-path-to-live-section-stale.md)
 - captured · parking · [runtime-invariant-safety-metacheck](backlog/runtime-invariant-safety-metacheck.md)
 - captured · parking · [runtime-typescript-port](backlog/runtime-typescript-port.md)
 - captured · parking · [worktree-missing-per-package-node-modules-symlink](backlog/worktree-missing-per-package-node-modules-symlink.md)
-- captured · shipped · [no-agent-result-fallback-check-overbroad](backlog/no-agent-result-fallback-check-overbroad.md)
-- captured · shipped · [runtime-design-redteam](backlog/runtime-design-redteam.md)
 
 ### [ssm-override-warm-cache-test-isolation](backlog/ssm-override-warm-cache-test-isolation.md) `[epic · parking]` — Warm-Lambda Parameters-and-Secrets SSM cache (+ override/restore state) defeats SsmOverrideFixture → real-API leak + resilience-trap misses. Theme epic, 2 members.
 done_when: A warm Lambda can no longer serve restored/real SSM param values mid-test (cache-bust or fixture-aware invalidation), so SsmOverrideFixture isolation holds; both members shipped or dropped.
@@ -246,7 +209,7 @@ rollup: core 0/3 done · captured 0/0 done
 - core · parking · [portfolio-drift-detected-registry-collision](backlog/portfolio-drift-detected-registry-collision.md)
 - core · parking · [weight-drift-detector](backlog/weight-drift-detector.md)
 
-**Parking health:** 30 theme epic(s), 14 orphan(s) — drive orphans → 0 with `/backlog-themes`
+**Parking health:** 30 theme epic(s), 14 orphan(s) — ⚠ 1 `*-leftovers` bucket(s) awaiting dissolution — drive orphans → 0 with `/backlog-themes`
 
 ## ACTIVE
 
@@ -278,7 +241,9 @@ _(none)_
 
 ## Recently Shipped (last 10)
 
+- 2026-07-10 — [runtime-guide-path-to-live-section-stale](backlog/runtime-guide-path-to-live-section-stale.md) [tooling] — SHIPPED (resolved) 2026-07-10 by runtime-legacy-retirement (P6, merge acd44767): runtime/GUIDE.md was rewritten wholesale to the runtime-only world. The stale §7 'path to live' section no longer exists — verified absent are the phrases 'path to live', 'augments them', 'does not replace them yet', and the parked-operational-surface framing; §7 is now 'Testing & regression protection'. The item's work survived (the GUIDE is fresh), so it is terminal-as-resolved. `[epic:runtime-operationalization · captured]`
 - 2026-07-10 — [runtime-legacy-retirement](backlog/runtime-legacy-retirement.md) [tooling] — P6: legacy work-driver retirement — delete flag-off prose bodies, strangler seams, RUNTIME_ENGINE flag. Pre-removal gate: FINAL full parity-oracle sweep (user decision 2026-07-09). Comparator retires; deterministic differential survives as runtime-only regression suite. Filed as core + done_when clause (7) per user decision 2026-07-08; trigger fired 2026-07-09. `[epic:runtime-operationalization · core]`
+- 2026-07-10 — [runtime-operationalization](backlog/runtime-operationalization.md) [epic] — Adopt/operationalize the Long-Horizon Engineering Runtime via the probes-first roadmap (re-scoped 2026-07-03): P1 probe the two unproven bets (execute seam, backward edge) → P2 moat live (mint/curate in anger, before enforcement triples) → P3 parity oracle + item schema → P4 check migration with cadence + CI golden gates → P5 work-driver strangler re-platform with soak gate → P6 user-triggered legacy retirement + operator surface. runtime-realization shipped the 3 library slices; THIS epic makes the runtime the project's live enforcement + work-driver, reversibly (docs/backlog stays the one item store — procedures migrate, never data).
 - 2026-07-09 — [from-run-themes-intake-bare-capabilities-conformance-gap](backlog/from-run-themes-intake-bare-capabilities-conformance-gap.md) [bug] `[epic:runtime-operationalization · core]`
 - 2026-07-08 — [deploy-gate-runner-pipefail-silent-green](backlog/deploy-gate-runner-pipefail-silent-green.md) [bug] — deploy-gate-runner integration stage pipes without pipefail — affected-projects.mjs crash → xargs -r runs nothing → silent-green deploy gate. Trigger fired 2026-07-08 (user-confirmed): soak is 1/5 and the upcoming runtime-driven workstreams are exactly what this gate protects — deploy-gate integrity must precede any service-touching soak workstream. `[epic:runtime-operationalization · core]`
 - 2026-07-08 — [epic-clean-fixture-twin-id-typo](backlog/epic-clean-fixture-twin-id-typo.md) [tooling] — epic-clean fixture e.md names its consumer twins rt-epic-* but the shipped scenario ids are rt-bne-ship-clean / rt-bne-e8-auto-no-self-merge — comment drift, grep trap. `[epic:runtime-operationalization · core]`
@@ -286,5 +251,3 @@ _(none)_
 - 2026-07-08 — [from-run-item-judge-binding-gap](backlog/from-run-item-judge-binding-gap.md) [bug] `[epic:runtime-operationalization · core]`
 - 2026-07-08 — [from-run-next-pre-ship-judge-binding-gap](backlog/from-run-next-pre-ship-judge-binding-gap.md) [bug] `[epic:runtime-operationalization · core]`
 - 2026-07-08 — [from-spine-adapters-cli-seam-conformance-test](backlog/from-spine-adapters-cli-seam-conformance-test.md) [bug] `[epic:runtime-operationalization · core]`
-- 2026-07-08 — [import-boundary-dynamic-import-gap](backlog/import-boundary-dynamic-import-gap.md) [tooling] — import-boundary.test.mjs only matches static `from '…'` — a dynamic await import('…/content/…') in ring-1 would slip past the engine→content ban. Extend the regex to import(…). `[epic:runtime-operationalization · core]`
-- 2026-07-08 — [parity-oracle-bne-live-red-fixes](backlog/parity-oracle-bne-live-red-fixes.md) [bug] — First live oracle sweep (2026-07-08, Opus 4.8, 17 pairs) came back 15/17 dominant; both WS-4 bne-* twins red on their first-ever live run (WS-4 had deferred live parity to the soak gate). Deterministic no-LLM repro isolated two stacked defects: (1) operator-protocol seam — the epic spine parks members under journal step key `member.<id>` with decision id `execute:<id>`, but mapping.mjs OPERATOR_PROMPT identifies execute-parks by pending-KEY prefix `execute:` and orders a STOP otherwise, so a compliant operator can never advance an epic member (worker spine keys coincide, which is why all next-* pairs pass); (2) sandbox data gap — fixtures/rt/epic-clean lacks BACKLOG.md (index-fresh red at epic-pre-done) and the runtime sandbox seeds no services/**|libs/** TS file (registry-integrity staleness on no-unsafe-casts), so epic-pre-done fails and the merge floor is structurally unreachable. bne-ship-clean's 0-turn/600s timeout was transient Opus unavailability layered on top. Blocks the oracle-green clause of runtime-replatform-soak-gate. `[epic:runtime-operationalization · core]`

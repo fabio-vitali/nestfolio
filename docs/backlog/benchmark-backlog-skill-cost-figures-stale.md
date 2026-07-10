@@ -1,10 +1,10 @@
 ---
 id: benchmark-backlog-skill-cost-figures-stale
-status: parking
+status: dropped
 type: tooling
 epic: runtime-operationalization
 epic_role: captured
-notes: "benchmark-backlog/SKILL.md cost gate hardcodes '6 bne scenarios' but the live corpus has 35 bne / 53 total — understates the spend ~6× (real 1×≈90M, 3×≈270M tokens). Derive the count dynamically. Captured under bef-deterministic-coverage-gaps for unified PR context; un-pointed back to a standalone parking orphan at that epic's close (2026-06-30) — confirmed orthogonal doc-drift nit by the captured audit (matches the 2026-06-29 backlog-themes adjudication)."
+notes: "DROPPED 2026-07-10 as MOOT — its subject, benchmark-backlog/SKILL.md (and the entire .claude/skills/benchmark-backlog/ + scripts/benchmark-backlog/ trees), was deleted wholesale by runtime-legacy-retirement (P6, merge acd44767): the A/B benchmark comparator was retired, leaving only the runtime-only deterministic differential at scripts/backlog-regression/. There is no SKILL.md left to carry a stale cost figure. Confirmed by the epic-close captured audit; user-approved drop. (History: benchmark-backlog/SKILL.md cost gate hardcoded '6 bne scenarios' vs a live 35-bne / 53-total corpus, understating spend ~6×; the fix would have derived the count dynamically.)"
 references: []
 out_of_scope: []
 spec: null
