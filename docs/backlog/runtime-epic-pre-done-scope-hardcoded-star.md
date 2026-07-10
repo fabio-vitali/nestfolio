@@ -28,3 +28,14 @@ natural "cumulative epic change" scope.
 Shares a root cause with [[runtime-epic-gate-unmapped-audit-integration-test-procedure]] (both are
 epic-pre-done gate defects surfaced together); `backlog-themes` may cluster them into a runtime-epic-gate
 theme epic.
+
+## Decision log
+
+<!-- append-only (F-6): entries are never edited or removed; a reversal is a NEW entry referencing the superseded one. Written by decision-log.mjs — do not hand-edit. -->
+
+### D1 — 2026-07-10
+- **Decision:** How to scope the epic-pre-done batch to the real branch delta (fix shape)
+- **Options:** Add a `changedScope` param to runOrchestrator + compute the branch delta in the adapter (run-epic.mjs), mirroring runWorker/run-next.mjs; extract the shared branchDelta helper (git-delta.mjs) so both adapters use ONE implementation | Compute `git diff origin/main...HEAD` directly inside runOrchestrator (ring-1) | Copy run-next.mjs's inline diffOf one-liner into run-epic.mjs (duplicate)
+- **Chosen:** Add a `changedScope` param to runOrchestrator + adapter computes the delta via a shared branchDelta helper
+- **Rationale:** Mirrors the already-correct sibling (runWorker takes `changedScope`; run-next.mjs injects `diffOf('origin/main')`), keeping the engine project-agnostic re: the origin/main base (SPEC-1 constraint) — the reusable/cleanest option (primary objective, CLAUDE.md Hard Constraints). Extracting branchDelta removes the copy-paste. Fail-broad (`changedScope?.length ? … : ['**/*']`) so an empty/failed diff never under-scopes a ship gate. detect-fork-blast-radius(runOrchestrator) = exit 0 (no shared-surface ripple).
+- **Rejected:** Computing the diff in ring-1 hardcodes the `origin/main` host convention into the project-agnostic engine; copy-pasting diffOf duplicates a git primitive across two adapters.

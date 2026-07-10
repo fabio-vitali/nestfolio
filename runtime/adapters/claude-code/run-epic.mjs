@@ -16,8 +16,9 @@ import { recordRuntimePath } from '../../engine/lib/path-provenance.mjs';
 import { selectEpicMembers, activeEpics } from '../../content/lib/epic-members.mjs';
 import { resolveFulfilKey } from './fulfil-key.mjs';
 import { makeDriverCapabilities } from './driver-capabilities.mjs';
+import { branchDelta } from './git-delta.mjs';
 
-export async function driveEpic({ epicId, backlogDir, checksDir, fulfil, capabilities, headSha, auto = false, locus = {} }) {
+export async function driveEpic({ epicId, backlogDir, checksDir, fulfil, capabilities, headSha, auto = false, locus = {}, diffPaths }) {
   const items = readItems(backlogDir);
   const epic = items.find((i) => i.id === epicId);
   if (!epic) return { exit: 2, out: { error: `unknown epic: ${epicId}` } };
@@ -30,7 +31,9 @@ export async function driveEpic({ epicId, backlogDir, checksDir, fulfil, capabil
   if (fulfil) capabilities.journal.fulfil(runId, resolveFulfilKey(capabilities.journal.read(runId), fulfil.key), fulfil.value);
   const registry = loadRegistry({ checksDir });
   const members = selectEpicMembers(items, epicId);
-  const result = await runOrchestrator({ epic, members, capabilities, registry, headSha, auto, locus });
+  // scope the epic-pre-done batch to the cumulative branch delta (adapter-ring, keeps the engine
+  // project-agnostic re: the origin/main base) — mirrors run-next.mjs's changedScope injection.
+  const result = await runOrchestrator({ epic, members, capabilities, registry, headSha, auto, locus, changedScope: diffPaths });
   recordRuntimePath(capabilities.journal, { runId, workstream: epicId, sha: headSha ?? gitHeadSha() });
   const pending = pendingDecisions(capabilities.journal.read(runId));
   const exit = result.status === 'done' ? 0 : result.status === 'paused' ? 3 : 1;
@@ -47,7 +50,7 @@ async function main() {
   const capabilities = makeDriverCapabilities();   // judged: skill:<name> checks resolve instead of fail-closing
   const { exit, out } = await driveEpic({ epicId, backlogDir: cfg.backlogDir ?? 'docs/backlog', checksDir: cfg.checksDir,
     fulfil: fi >= 0 ? { key: fv, value: JSON.parse(vv) } : undefined, capabilities,
-    headSha: gitHeadSha(), auto: process.argv.includes('--auto') });
+    headSha: gitHeadSha(), auto: process.argv.includes('--auto'), diffPaths: branchDelta('origin/main') });
   console.log(JSON.stringify(out, null, 2));
   process.exit(exit);
 }

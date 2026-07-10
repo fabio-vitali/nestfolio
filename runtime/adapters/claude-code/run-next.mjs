@@ -7,7 +7,6 @@
 // flag were retired 2026-07-09). Exit: 0 done / 3 paused / 1 failed / 2 usage. Git-workflow preconditions stay host.
 import { fileURLToPath } from 'node:url';
 import { readFileSync } from 'node:fs';
-import { execSync } from 'node:child_process';
 import { runWorker } from '../../engine/loop/worker.mjs';
 import { loadRegistry } from '../../engine/lib/load-registry.mjs';
 import { readItems } from '../../engine/lib/scope-gate.mjs';
@@ -16,8 +15,7 @@ import { recordRuntimePath } from '../../engine/lib/path-provenance.mjs';
 import { classifyLane, laneToTrigger } from '../../content/lib/classify-lane.mjs';
 import { resolveFulfilKey } from './fulfil-key.mjs';
 import { makeDriverCapabilities } from './driver-capabilities.mjs';
-
-const diffOf = (base) => { try { return execSync(`git diff --name-only ${base}...HEAD`, { encoding: 'utf8' }).split('\n').filter(Boolean); } catch { return []; } };
+import { branchDelta } from './git-delta.mjs';
 
 export async function driveNext({ itemId, backlogDir, checksDir, fulfil, capabilities, diffPaths, headSha }) {
   const item = readItems(backlogDir).find((i) => i.id === itemId);
@@ -44,7 +42,7 @@ async function main() {
   const cfg = JSON.parse(readFileSync('runtime/runtime.config.json', 'utf8'));
   const capabilities = makeDriverCapabilities();   // judged: skill:<name> checks resolve instead of fail-closing
   const { exit, out } = await driveNext({ itemId, backlogDir: cfg.backlogDir ?? 'docs/backlog', checksDir: cfg.checksDir,
-    fulfil: fi >= 0 ? { key: fv, value: JSON.parse(vv) } : undefined, capabilities, diffPaths: diffOf('origin/main') });
+    fulfil: fi >= 0 ? { key: fv, value: JSON.parse(vv) } : undefined, capabilities, diffPaths: branchDelta('origin/main') });
   console.log(JSON.stringify(out, null, 2));
   process.exit(exit);
 }

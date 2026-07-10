@@ -21,6 +21,13 @@ function fakeCaps(overrides = {}) {
     ...overrides };
 }
 function emptyRegistry() { return { checks: [], byId: new Map(), errors: [] }; }
+// two always-failing GATE/AUDIT checks (NOT invariants — invariants bypass scoping) in disjoint scopes,
+// so a narrow changedScope selects exactly one and the whole-repo fallback selects both.
+function scopedRegistry() {
+  const check = (id, ctx, path) => ({ id, property: 'p', kind: 'gap', cost_tier: 'expensive', contexts: [ctx],
+    status: 'active', scope: { paths: [path] }, evaluator: { type: 'deterministic', run: 'cmd:false' }, provenance: { minted_by: 'x' } });
+  return { checks: [check('A-runtime', 'audit', 'runtime/**'), check('B-services', 'gate', 'services/**')], byId: new Map(), errors: [] };
+}
 
 test('orchestrator drives CORE members inline via execute (never fanOut) and asks to merge once', async () => {
   const caps = fakeCaps();
@@ -78,4 +85,22 @@ test('O-C headSha comes from the param (capabilities carries no gitHeadSha)', as
   assert.equal('gitHeadSha' in caps, false);
   const r = await runOrchestrator({ epic: EPIC, members: MEMBERS, capabilities: caps, registry: emptyRegistry(), headSha: 'sha-abc' });
   assert.equal(r.status, 'done');
+});
+
+// O-D the epic-pre-done batch is SCOPED to the injected branch delta (the fix) — NOT the whole repo
+test('O-D epic-pre-done is scoped to changedScope: a check outside the branch delta is not selected', async () => {
+  const caps = fakeCaps();
+  const r = await runOrchestrator({ epic: EPIC, members: [], capabilities: caps, registry: scopedRegistry(),
+    headSha: 'sha1', changedScope: ['runtime/engine/loop/orchestrator.mjs'] });
+  assert.equal(r.status, 'failed');
+  assert.equal(r.findings.length, 1);              // only the runtime-scoped check ran…
+  assert.equal(r.findings[0].check, 'A-runtime');   // …the services-scoped check was OUT of the delta
+});
+
+// O-E fail-broad: an absent/empty delta must NOT silently under-scope a ship gate
+test('O-E absent/empty changedScope falls back to the whole repo (both checks run)', async () => {
+  const noDelta = await runOrchestrator({ epic: EPIC, members: [], capabilities: fakeCaps(), registry: scopedRegistry(), headSha: 'sha1' });
+  assert.equal(noDelta.findings.length, 2);        // undefined ⇒ ['**/*'] ⇒ both selected
+  const emptyDelta = await runOrchestrator({ epic: EPIC, members: [], capabilities: fakeCaps(), registry: scopedRegistry(), headSha: 'sha1', changedScope: [] });
+  assert.equal(emptyDelta.findings.length, 2);     // [] ⇒ ['**/*'] too (git-failure/no-diff never narrows)
 });

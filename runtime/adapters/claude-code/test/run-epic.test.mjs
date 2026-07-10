@@ -75,6 +75,29 @@ test('RE5 fulfil by the DECISION id (execute:m1) advances the member parked unde
   } finally { rmSync(root, { recursive: true, force: true }); }
 });
 
+test('RE6 diffPaths threads into the epic-pre-done scope: a check outside the branch delta is not selected', async () => {
+  const { root, bd, cd } = sandbox();
+  try {
+    // one always-failing GATE check (NOT an invariant — invariants bypass scoping) scoped to services/**
+    writeFileSync(join(cd, 'svc.yaml'),
+      'id: svc-gate\nproperty: p\nkind: gap\nevaluator:\n  type: deterministic\n  run: cmd:false\n' +
+      'cost_tier: expensive\ncontexts:\n  - gate\nscope:\n  paths:\n    - services/**\nstatus: active\n' +
+      'provenance:\n  minted_by: test\n', 'utf8');
+    const caps = () => ({ journal: inMemoryJournal(),
+      execute: async (t) => ({ taskId: t.id, status: 'done', summary: 'ok' }),   // member completes → reach pre-done
+      ask: async () => ({ value: '<<HARNESS-PAUSE>>' }),                          // park at merge floor
+      runProcedure: async () => ({ status: 'done', findings: [] }) });
+    // delta touches runtime/** only ⇒ services-scoped gate is OUT of scope ⇒ not selected ⇒ reaches merge floor
+    const outside = await driveEpic({ epicId: 'e', backlogDir: bd, checksDir: cd, capabilities: caps(), headSha: 'S1', diffPaths: ['runtime/x.mjs'] });
+    assert.equal(outside.exit, 3);
+    assert.equal(outside.out.result.decision.id, 'merge-e');   // no pre-done finding blocked the merge
+    // delta touches services/** ⇒ the gate IS selected ⇒ cmd:false fails ⇒ epic fails
+    const inside = await driveEpic({ epicId: 'e', backlogDir: bd, checksDir: cd, capabilities: caps(), headSha: 'S2', diffPaths: ['services/y.ts'] });
+    assert.equal(inside.exit, 1);
+    assert.equal(inside.out.result.status, 'failed');
+  } finally { rmSync(root, { recursive: true, force: true }); }
+});
+
 test('RE4 rule-11: a DIFFERENT active epic → refuse (exit 2), spine not driven', async () => {
   const { root, bd, cd } = sandbox({ otherEpicActive: true });
   try {

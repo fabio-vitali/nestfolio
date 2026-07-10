@@ -4,13 +4,17 @@
 // infrastructure, not a capability). Epic-pre-done stays SHA-CONDITIONAL via e2eIsFresh (F-14).
 // Re-freeze 2026-07-07 (WS-3): the inline epic-pre-done batch is extracted into the shared ring-1 helper
 // preShipBatch (also called by runWorker's item-pre-ship step); this delegation is behavior-preserving.
+// 2026-07-10: the epic-pre-done batch is scoped to the injected branch delta (`changedScope`), mirroring
+// runWorker — the adapter (run-epic.mjs) computes it via branchDelta('origin/main'). The epic's `scope:`
+// is prose (not globs) so toGlobs(epic.scope) is unusable here; an absent/empty delta fails BROAD
+// (`['**/*']`) so a ship gate never silently under-scopes.
 import { preShipBatch } from './pre-ship-batch.mjs';
 import { askStep, fulfilledChoices } from '../lib/journal.mjs';
 import { deriveJudge } from '../lib/derive-judge.mjs';
 
 const toGlobs = (scope) => (scope ?? '').split(/[\s,]+/).filter(Boolean);
 
-export async function runOrchestrator({ epic, members, capabilities, registry, locus = {}, auto = false, headSha }) {
+export async function runOrchestrator({ epic, members, capabilities, registry, locus = {}, auto = false, headSha, changedScope }) {
   const { journal, execute, ask, runProcedure } = capabilities;
   const runId = `epic-${epic.id}`;
   journal.begin(runId, { runId, auto,
@@ -26,8 +30,10 @@ export async function runOrchestrator({ epic, members, capabilities, registry, l
     if (res.status !== 'done') return { taskId: epic.id, status: res.status, summary: `member ${m.id}: ${res.summary}`, findings: res.findings };
   }
 
-  // epic-pre-done batch — SHA-CONDITIONAL, delegated to the shared helper (WS-3).
-  const findings = await preShipBatch({ journal, runId, registry, changedScope: ['**/*'], judge, headSha,
+  // epic-pre-done batch — SHA-CONDITIONAL, delegated to the shared helper (WS-3). Scoped to the branch
+  // delta (the cumulative epic change) injected by the adapter; fail-broad to '**/*' when unavailable.
+  const findings = await preShipBatch({ journal, runId, registry,
+    changedScope: changedScope?.length ? changedScope : ['**/*'], judge, headSha,
     contexts: ['audit', 'gate'], cost_ceiling: 'expensive', on: 'epic-pre-done' });
   if (findings.length) return { taskId: epic.id, status: 'failed', summary: `epic-pre-done raised ${findings.length} findings`, findings };
 
