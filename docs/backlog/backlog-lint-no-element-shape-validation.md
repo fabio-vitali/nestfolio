@@ -1,6 +1,7 @@
 ---
 id: backlog-lint-no-element-shape-validation
-status: active
+status: shipped
+closed: 2026-07-10
 type: tooling
 notes: "backlog-lint passes on element-shape-corrupt frontmatter (object inside out_of_scope) and the index render silently drops the item."
 references: []
@@ -12,7 +13,7 @@ out_of_scope:
 spec: null
 plan: null
 topic_memory: []
-validation_gate: null
+validation_gate: "ruleItemSchemaValid added to lib/rules.mjs (reuses single-source validateItem from runtime/engine/schema/item.schema.ts), wired into lint.mjs's per-file loop. Evidence: `node --test .claude/skills/backlog-lint/test/*.test.mjs` → 80/80 pass (7 new unit cases + 1 end-to-end regression parsing the real one-key-mapping corruption through loadBacklogFiles). E2E: dropped a live corrupt file into docs/backlog, real `node lint.mjs` main() exited non-zero with `[item-schema-valid] out_of_scope.0: Expected string, received object`; clean (458 files) after removal. No deploy (Tier 0 tooling). Branch feat/epic-backlog-item-frontmatter-integrity @ 383a4a19."
 epic: backlog-item-frontmatter-integrity
 epic_role: core
 ---
