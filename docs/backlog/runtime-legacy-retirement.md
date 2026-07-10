@@ -1,6 +1,7 @@
 ---
 id: runtime-legacy-retirement
-status: active
+status: shipped
+closed: 2026-07-10
 type: tooling
 notes: "P6: legacy work-driver retirement — delete flag-off prose bodies, strangler seams, RUNTIME_ENGINE flag. Pre-removal gate: FINAL full parity-oracle sweep (user decision 2026-07-09). Comparator retires; deterministic differential survives as runtime-only regression suite. Filed as core + done_when clause (7) per user decision 2026-07-08; trigger fired 2026-07-09."
 references: []
@@ -14,7 +15,7 @@ out_of_scope:
 spec: docs/superpowers/specs/2026-07-06-runtime-work-driver-replatform-design.md
 plan: docs/superpowers/plans/2026-07-09-runtime-legacy-retirement.md
 topic_memory: [project_runtime_realization.md]
-validation_gate: null
+validation_gate: "Legacy work-driver RETIRED on branch worktree-runtime-legacy-retirement (10 commits 9bb7ccd8..b5f81648). PRE-REMOVAL GATE (all 4 clauses green on post-fix HEAD before any deletion): (1) FINAL full parity-oracle sweep 17/17 pairs dominant, 0 non-dominant, 0 red rules — 2 pairs runtime-strictly-better (next-lane-complex-ship, next-auto-finishing-pr-stop legacy=0 runtime=1); re-run on HEAD per user decision D4 after the self-containment fix (23c32a1e) landed post the first 13 pairs; (2) soak-observer --oracle-green: green (13 runtime workstreams, 0 path:legacy-fallback); (3) deterministic differential green (all 11 rules both-catch + element-shape); (4) capability-coverage audit — zero undischarged gaps (every legacy capability runtime-owned or host-retained prose). DELETIONS: RUNTIME_ENGINE flag + usesRuntimeEngine + legacy-fallback ledger (path-provenance trimmed, D3 kept path:runtime journaling); next-driver.mjs + epic-driver.mjs (+tests); backlog-gate.mjs collapsed runtime-only; legacy prose bodies + flag framing removed from all 4 backlog SKILLs; scripts/parity-oracle + scripts/benchmark-backlog retired wholesale (D2, 7371 deletions) with the differential relocated runtime-only to scripts/backlog-regression (2/2 green, all 12 rules runtime-catches); .claude/skills/benchmark-backlog retired (D6, broken by D2); verify-structure.sh slimmed to non-duplicated checks (D5 — #1-5/#8/#9 provably covered by the runtime pre-commit-gate; #10 kept). DOCS: runtime/GUIDE.md + README.md rewritten to the runtime-only world; backlog-system.md + agent-system.md doc sweep; CLAUDE.md verified clean. VERIFICATION: pnpm nx test runtime 420/420 + typecheck green; nx test tools 137; skill suites 203/203; backlog-regression 2/2; rings-1/2 self-containment guard added + green (3/3). No deploy (all Tier-0). BACKWARD EDGE: ship-recheck clean (ship:runtime-legacy-retirement:gate-clean journaled); mint consideration --none (self-containment lesson already mechanized as import-boundary.test.mjs, D7). POST-MERGE: reinstall .git/hooks/pre-commit from the merged verify-structure.sh (worktree .git is a file; the shared hook was deliberately not mutated pre-merge)."
 epic: runtime-operationalization
 epic_role: core
 ---
@@ -121,3 +122,10 @@ Topic dossier: `project_runtime_realization.md`.
 - **Chosen:** Retire the /benchmark-backlog skill + its docs with the deleted framework; point skill-testing at the runtime suites
 - **Rationale:** D2 explicitly authorized deleting scripts/benchmark-backlog (the harness the skill wholly depends on: 11 refs, disable-model-invocation, no routing target). The skill graded LEGACY prose-skill behavior via headless runs; the runtime engine now owns that behavior and is tested deterministically by pnpm nx test runtime (422), greenfield.test.mjs (cold-start e2e), and scripts/backlog-regression (the 11-rule commit-gate differential). A broken skill pointing at a deleted framework is strictly worse than removal. docs/backlog-system.md + agent-system.md updated to point skill-testing at the runtime suites.
 - **Rejected:** Restoring the framework contradicts the user-approved D2 deletion; leaving a broken skill + stale docs violates ALL-legacy-removed. Rebuilding skill-eval on the runtime is net-new tooling, out of scope for retirement.
+
+### D7 — 2026-07-10
+- **Decision:** 6.4b mint consideration for the legacy-retirement ship
+- **Options:** Record none — the self-containment lesson is already mechanized as engine/test/import-boundary.test.mjs | Mint a content-ring check enforcing rings-1/2 self-containment at commit cadence
+- **Chosen:** Record none — already mechanized as the import-boundary test
+- **Rationale:** User decision via AskUserQuestion 2026-07-10. The self-containment property (rings 1+2 never import outside runtime/) is a runtime-internal structural invariant already guarded by engine/test/import-boundary.test.mjs, which runs in the runtime CI suite. A content-ring check would duplicate the regex-over-imports logic for redundant coverage. Recorded via run-backward.mjs consider --none.
+- **Rejected:** Minting a content-ring check adds a maintained check re-implementing the guard test for marginal commit-cadence gain.

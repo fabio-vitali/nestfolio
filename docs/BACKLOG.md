@@ -157,8 +157,7 @@ rollup: core 0/2 done · captured 0/0 done
 
 ### [runtime-operationalization](backlog/runtime-operationalization.md) `[epic · parking]` — Adopt/operationalize the Long-Horizon Engineering Runtime via the probes-first roadmap (re-scoped 2026-07-03): P1 probe the two unproven bets (execute seam, backward edge) → P2 moat live (mint/curate in anger, before enforcement triples) → P3 parity oracle + item schema → P4 check migration with cadence + CI golden gates → P5 work-driver strangler re-platform with soak gate → P6 user-triggered legacy retirement + operator surface. runtime-realization shipped the 3 library slices; THIS epic makes the runtime the project's live enforcement + work-driver, reversibly (docs/backlog stays the one item store — procedures migrate, never data).
 done_when: The runtime is the project's LIVE enforcement + work-driver, demonstrated not asserted: (1) enforcement — the gate fires diff-scoped on commit (shipped) AND every migrated check runs on a real cadence (commit gate / CI / schedule / epic-batch; judgment checks via a live judge binding), the ~34-surface migration into runtime/content/checks is complete, and the check golden gates run in CI; (2) the backward edge is live-in-anger — at least one real lesson minted through a real floor into a registered check, and curate-at-the-floor is the only sanctioned path past a failing guard (skip-hatch instrumented); (3) item.schema is reconciled with docs/backlog and validated on read; (4) the parity oracle is green — the regression harness grades the runtime loop against the legacy backlog skills on the same scenarios, plus a greenfield adoption e2e; (5) the work-driver is re-platformed — the backlog skills run on the engine loop with legacy fallback, soaked over ≥5 real workstreams with zero fallbacks; (6) the operator surface (view+executor) is shipped; (7) the legacy work-driver is RETIRED — the flag-off prose bodies, strangler seams, and RUNTIME_ENGINE flag are deleted so the runtime paths are the only paths (user-triggered, sequenced after the operator surface; clause added 2026-07-08 at the soak-gate ship boundary so epic closure literally means the migration is complete). Every core member shipped or dropped.
-rollup: core 31/32 done · captured 2/14 done
-- core · active · [runtime-legacy-retirement](backlog/runtime-legacy-retirement.md)
+rollup: core 32/32 done · captured 2/14 done
 - core · shipped · [bef-judge-blind-to-subworktree-diff](backlog/bef-judge-blind-to-subworktree-diff.md)
 - core · shipped · [deploy-gate-runner-pipefail-silent-green](backlog/deploy-gate-runner-pipefail-silent-green.md)
 - core · shipped · [epic-clean-fixture-twin-id-typo](backlog/epic-clean-fixture-twin-id-typo.md)
@@ -178,6 +177,7 @@ rollup: core 31/32 done · captured 2/14 done
 - core · shipped · [runtime-check-migration-completion](backlog/runtime-check-migration-completion.md)
 - core · shipped · [runtime-check-migration-judgment-tier](backlog/runtime-check-migration-judgment-tier.md)
 - core · shipped · [runtime-item-schema-reconciliation](backlog/runtime-item-schema-reconciliation.md)
+- core · shipped · [runtime-legacy-retirement](backlog/runtime-legacy-retirement.md)
 - core · shipped · [runtime-make-it-fire](backlog/runtime-make-it-fire.md)
 - core · shipped · [runtime-operational-surface](backlog/runtime-operational-surface.md)
 - core · shipped · [runtime-redteam-hardening](backlog/runtime-redteam-hardening.md)
@@ -250,7 +250,8 @@ rollup: core 0/3 done · captured 0/0 done
 
 ## ACTIVE
 
-- [runtime-legacy-retirement](backlog/runtime-legacy-retirement.md) [tooling] — P6: legacy work-driver retirement — delete flag-off prose bodies, strangler seams, RUNTIME_ENGINE flag. Pre-removal gate: FINAL full parity-oracle sweep (user decision 2026-07-09). Comparator retires; deterministic differential survives as runtime-only regression suite. Filed as core + done_when clause (7) per user decision 2026-07-08; trigger fired 2026-07-09. `[epic:runtime-operationalization · core]`
+_(none)_
+
 
 ## QUEUED
 
@@ -277,6 +278,7 @@ rollup: core 0/3 done · captured 0/0 done
 
 ## Recently Shipped (last 10)
 
+- 2026-07-10 — [runtime-legacy-retirement](backlog/runtime-legacy-retirement.md) [tooling] — P6: legacy work-driver retirement — delete flag-off prose bodies, strangler seams, RUNTIME_ENGINE flag. Pre-removal gate: FINAL full parity-oracle sweep (user decision 2026-07-09). Comparator retires; deterministic differential survives as runtime-only regression suite. Filed as core + done_when clause (7) per user decision 2026-07-08; trigger fired 2026-07-09. `[epic:runtime-operationalization · core]`
 - 2026-07-09 — [from-run-themes-intake-bare-capabilities-conformance-gap](backlog/from-run-themes-intake-bare-capabilities-conformance-gap.md) [bug] `[epic:runtime-operationalization · core]`
 - 2026-07-08 — [deploy-gate-runner-pipefail-silent-green](backlog/deploy-gate-runner-pipefail-silent-green.md) [bug] — deploy-gate-runner integration stage pipes without pipefail — affected-projects.mjs crash → xargs -r runs nothing → silent-green deploy gate. Trigger fired 2026-07-08 (user-confirmed): soak is 1/5 and the upcoming runtime-driven workstreams are exactly what this gate protects — deploy-gate integrity must precede any service-touching soak workstream. `[epic:runtime-operationalization · core]`
 - 2026-07-08 — [epic-clean-fixture-twin-id-typo](backlog/epic-clean-fixture-twin-id-typo.md) [tooling] — epic-clean fixture e.md names its consumer twins rt-epic-* but the shipped scenario ids are rt-bne-ship-clean / rt-bne-e8-auto-no-self-merge — comment drift, grep trap. `[epic:runtime-operationalization · core]`
@@ -286,4 +288,3 @@ rollup: core 0/3 done · captured 0/0 done
 - 2026-07-08 — [from-spine-adapters-cli-seam-conformance-test](backlog/from-spine-adapters-cli-seam-conformance-test.md) [bug] `[epic:runtime-operationalization · core]`
 - 2026-07-08 — [import-boundary-dynamic-import-gap](backlog/import-boundary-dynamic-import-gap.md) [tooling] — import-boundary.test.mjs only matches static `from '…'` — a dynamic await import('…/content/…') in ring-1 would slip past the engine→content ban. Extend the regex to import(…). `[epic:runtime-operationalization · core]`
 - 2026-07-08 — [parity-oracle-bne-live-red-fixes](backlog/parity-oracle-bne-live-red-fixes.md) [bug] — First live oracle sweep (2026-07-08, Opus 4.8, 17 pairs) came back 15/17 dominant; both WS-4 bne-* twins red on their first-ever live run (WS-4 had deferred live parity to the soak gate). Deterministic no-LLM repro isolated two stacked defects: (1) operator-protocol seam — the epic spine parks members under journal step key `member.<id>` with decision id `execute:<id>`, but mapping.mjs OPERATOR_PROMPT identifies execute-parks by pending-KEY prefix `execute:` and orders a STOP otherwise, so a compliant operator can never advance an epic member (worker spine keys coincide, which is why all next-* pairs pass); (2) sandbox data gap — fixtures/rt/epic-clean lacks BACKLOG.md (index-fresh red at epic-pre-done) and the runtime sandbox seeds no services/**|libs/** TS file (registry-integrity staleness on no-unsafe-casts), so epic-pre-done fails and the merge floor is structurally unreachable. bne-ship-clean's 0-turn/600s timeout was transient Opus unavailability layered on top. Blocks the oracle-green clause of runtime-replatform-soak-gate. `[epic:runtime-operationalization · core]`
-- 2026-07-08 — [run-epic-fulfil-key-decision-id-ambiguity](backlog/run-epic-fulfil-key-decision-id-ambiguity.md) [bug] — run-epic --fulfil advances only on the STEP key (member.<id>) but pending prints decision execute:<id> too — fulfil-by-decision-id journals an orphan step and thrashes; SKILL wording ambiguous. `[epic:runtime-operationalization · core]`
