@@ -1,5 +1,8 @@
 import { readFileSync, existsSync } from 'node:fs';
 import { join, isAbsolute } from 'node:path';
+// Single source of truth for item shape — the ring-1 ItemSchema the runtime read
+// path fails closed on (re-freeze 2026-07-05). Node 24 strips the .ts import inline.
+import { validateItem } from '../../../../runtime/engine/schema/item.schema.ts';
 
 const v = (rule, file, message) => ({ rule, file: file?.filename ?? null, message });
 
@@ -20,6 +23,29 @@ export function ruleFrontmatterParseable(file) {
   if (file.parseError) {
     return [v('frontmatter-parseable', file,
       `${file.filename}: malformed YAML frontmatter — ${file.parseError}`)];
+  }
+  return [];
+}
+
+// Structural precondition (NOT a numbered rule): validate each file's frontmatter
+// against the ring-1 ItemSchema via the SAME validateItem the runtime read path uses
+// (single source of truth — no second schema). Catches element-shape corruption the
+// 11 relational rules are blind to: an unquoted scalar with an embedded colon parses
+// as a one-key mapping, so e.g. `out_of_scope` silently becomes an object (or an array
+// holding one) instead of a string[]. Left unvalidated, backlog-lint would pass AND the
+// index render would silently drop the item — two silent failures for one typo. The
+// runtime commit gate already runs this via the `item-store-valid` check; this closes
+// the same gap for every DIRECT `lint.mjs` invocation (ship steps, --fix, boundary
+// reviews) that never hits that gate. Parse-errored files are owned by
+// ruleFrontmatterParseable, so skip them here (no double-report). The filename-derived
+// id is injected so a missing/mismatched id stays rule 1's concern, keeping this rule
+// focused on element shapes.
+export function ruleItemSchemaValid(file) {
+  if (file.parseError || !file.frontmatter) return [];
+  const r = validateItem({ id: file.frontmatter?.id ?? file.id, ...file.frontmatter });
+  if (!r.ok) {
+    return [v('item-schema-valid', file,
+      `${file.filename}: frontmatter fails ItemSchema — ${r.error}`)];
   }
   return [];
 }

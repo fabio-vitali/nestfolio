@@ -31,3 +31,14 @@ Cheapest fix: a lint pre-pass that runs every file's frontmatter through the rec
 minimum element-type assertions on `out_of_scope`/`references`/`topic_memory`. NOT folded into the
 runtime-operationalization epic: its out_of_scope excludes net-new checks (they flow through the backward
 edge / backlog-add), and no done_when clause requires lint-side shape validation.
+
+## Decision log
+
+<!-- append-only (F-6): entries are never edited or removed; a reversal is a NEW entry referencing the superseded one. Written by decision-log.mjs — do not hand-edit. -->
+
+### D1 — 2026-07-10
+- **Decision:** How to wire ring-1 ItemSchema element-shape validation into backlog-lint (the check side of the epic)
+- **Options:** Add ruleItemSchemaValid to rules.mjs, validating lint's already-parsed frontmatter via the imported validateItem | Call the runtime itemStoreViolations() from item-store-core.mjs inside lint | Also refactor the runtime item-store-valid check to delegate to the new lint rule (one home for all shape validation)
+- **Chosen:** Add ruleItemSchemaValid to rules.mjs, validating lint's already-parsed frontmatter via the imported validateItem
+- **Rationale:** Reusability: reuses the SINGLE source of truth (validateItem from runtime/engine/schema/item.schema.ts — the same schema the runtime read path fails closed on), and hooks into lint's EXISTING per-file rule loop, so there is zero traversal duplication, no double file I/O, and no double parse-error reporting. Fits the established rules.mjs pattern (the 11 rules + their module: checks already delegate to rules.mjs as the single source). Both the new lint rule and the runtime item-store-core consume the same validateItem, so single-source-of-truth holds without folding one into the other.
+- **Rejected:** itemStoreViolations() re-reads and re-parses all 458 files lint already loaded and would double-report parse errors ruleFrontmatterParseable already owns. Refactoring the minted item-store-valid runtime check is out of scope (the runtime commit gate already validates shapes there and works) and adds blast radius to a minted check for no coverage gain — direct lint.mjs invocations were the actual gap.
