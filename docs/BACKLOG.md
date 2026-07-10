@@ -6,12 +6,6 @@
 
 ## EPICS
 
-### [backlog-item-frontmatter-integrity](backlog/backlog-item-frontmatter-integrity.md) `[epic · active]` — Theme epic (minted 2026-07-10 by backlog-themes). Root cause: backlog-item frontmatter can be silently produced or accepted in a contract-violating state because the runtime item.schema isn't enforced uniformly across the write (intake) and check (lint) boundaries — intake drops epic_role on two routes, and lint passes corrupt element shapes. Both fixes converge on that one schema. 2 core members (1 ex-orphan + 1 ex-leftover).
-done_when: Both members resolved or dropped: the runtime item.schema is enforced uniformly at the backlog-item write and check boundaries — intake writes a valid, complete item on every route (epic_role expressible on join-theme/mint-aggregation, not just fold), and backlog-lint validates frontmatter element shapes against the same item.schema (no silently-corrupt frontmatter passes lint or silently drops from the index). All members shipped or dropped.
-rollup: core 2/2 done · captured 0/0 done
-- core · shipped · [backlog-lint-no-element-shape-validation](backlog/backlog-lint-no-element-shape-validation.md)
-- core · shipped · [from-intake-join-theme-cannot-express-epic-role](backlog/from-intake-join-theme-cannot-express-epic-role.md)
-
 ### [advisory-narrative-memory-read-latency](backlog/advisory-narrative-memory-read-latency.md) `[epic · parking]` — advisory-narrative-ctrl blocks on AgentCore Memory reads before writing its observable HEAD row → 30-40s integration tests. Theme epic, 2 members.
 done_when: advisory-narrative-ctrl's observable HEAD row is visible to tests in ~5-10s (eager write and/or tightened Memory-retry delays) with no dev/prod consistency skew; both members shipped or dropped.
 rollup: core 0/2 done · captured 0/0 done
@@ -255,6 +249,7 @@ _(none)_
 
 ## Recently Shipped (last 10)
 
+- 2026-07-10 — [backlog-item-frontmatter-integrity](backlog/backlog-item-frontmatter-integrity.md) [epic] — Theme epic (minted 2026-07-10 by backlog-themes). Root cause: backlog-item frontmatter can be silently produced or accepted in a contract-violating state because the runtime item.schema isn't enforced uniformly across the write (intake) and check (lint) boundaries — intake drops epic_role on two routes, and lint passes corrupt element shapes. Both fixes converge on that one schema. 2 core members (1 ex-orphan + 1 ex-leftover).
 - 2026-07-10 — [backlog-lint-no-element-shape-validation](backlog/backlog-lint-no-element-shape-validation.md) [tooling] — backlog-lint passes on element-shape-corrupt frontmatter (object inside out_of_scope) and the index render silently drops the item. `[epic:backlog-item-frontmatter-integrity · core]`
 - 2026-07-10 — [from-intake-join-theme-cannot-express-epic-role](backlog/from-intake-join-theme-cannot-express-epic-role.md) [bug] `[epic:backlog-item-frontmatter-integrity · core]`
 - 2026-07-10 — [runtime-guide-path-to-live-section-stale](backlog/runtime-guide-path-to-live-section-stale.md) [tooling] — SHIPPED (resolved) 2026-07-10 by runtime-legacy-retirement (P6, merge acd44767): runtime/GUIDE.md was rewritten wholesale to the runtime-only world. The stale §7 'path to live' section no longer exists — verified absent are the phrases 'path to live', 'augments them', 'does not replace them yet', and the parked-operational-surface framing; §7 is now 'Testing & regression protection'. The item's work survived (the GUIDE is fresh), so it is terminal-as-resolved. `[epic:runtime-operationalization · captured]`
@@ -264,4 +259,3 @@ _(none)_
 - 2026-07-08 — [deploy-gate-runner-pipefail-silent-green](backlog/deploy-gate-runner-pipefail-silent-green.md) [bug] — deploy-gate-runner integration stage pipes without pipefail — affected-projects.mjs crash → xargs -r runs nothing → silent-green deploy gate. Trigger fired 2026-07-08 (user-confirmed): soak is 1/5 and the upcoming runtime-driven workstreams are exactly what this gate protects — deploy-gate integrity must precede any service-touching soak workstream. `[epic:runtime-operationalization · core]`
 - 2026-07-08 — [epic-clean-fixture-twin-id-typo](backlog/epic-clean-fixture-twin-id-typo.md) [tooling] — epic-clean fixture e.md names its consumer twins rt-epic-* but the shipped scenario ids are rt-bne-ship-clean / rt-bne-e8-auto-no-self-merge — comment drift, grep trap. `[epic:runtime-operationalization · core]`
 - 2026-07-08 — [from-classify-lane-runtime-code-misclassified-doc-layer](backlog/from-classify-lane-runtime-code-misclassified-doc-layer.md) [bug] `[epic:runtime-operationalization · core]`
-- 2026-07-08 — [from-run-item-judge-binding-gap](backlog/from-run-item-judge-binding-gap.md) [bug] `[epic:runtime-operationalization · core]`
