@@ -6,6 +6,14 @@
 
 ## EPICS
 
+### [runtime-self-hosting-debt](backlog/runtime-self-hosting-debt.md) `[epic · active]` — Theme epic (minted 2026-07-10 by backlog-themes from runtime-operationalization-leftovers). Root cause: the runtime/ engine does not yet hold its own code/registry to the standards it enforces on the rest of the repo — it is an untyped .mjs island, has a ring-2 project-binding escape, and its registry lacks the self-safety meta-checks it would demand elsewhere. 4 core members.
+done_when: Each member resolved or dropped: the runtime engine holds itself to the bar it enforces — its logic is type-checked (or the .mjs/.ts hybrid consciously kept with a recorded rationale), its ring-2 seam binds host primitives only (KNOWN_ESCAPES → 0), and the registry gains the two self-safety meta-checks (every active [invariant] check returns 0 on a clean tree; every test file is covered by an nx test target). All members shipped or dropped.
+rollup: core 0/4 done · captured 0/0 done
+- core · parking · [from-deploy-gate-runner-ring2-project-bindings](backlog/from-deploy-gate-runner-ring2-project-bindings.md)
+- core · parking · [nx-orphan-test-file-metacheck](backlog/nx-orphan-test-file-metacheck.md)
+- core · parking · [runtime-invariant-safety-metacheck](backlog/runtime-invariant-safety-metacheck.md)
+- core · parking · [runtime-typescript-port](backlog/runtime-typescript-port.md)
+
 ### [advisory-narrative-memory-read-latency](backlog/advisory-narrative-memory-read-latency.md) `[epic · parking]` — advisory-narrative-ctrl blocks on AgentCore Memory reads before writing its observable HEAD row → 30-40s integration tests. Theme epic, 2 members.
 done_when: advisory-narrative-ctrl's observable HEAD row is visible to tests in ~5-10s (eager write and/or tightened Memory-retry delays) with no dev/prod consistency skew; both members shipped or dropped.
 rollup: core 0/2 done · captured 0/0 done
@@ -168,14 +176,6 @@ rollup: core 0/3 done · captured 0/0 done
 - core · parking · [runtime-judgment-flake-calibration](backlog/runtime-judgment-flake-calibration.md)
 - core · parking · [runtime-judgment-governance-gaps](backlog/runtime-judgment-governance-gaps.md)
 
-### [runtime-self-hosting-debt](backlog/runtime-self-hosting-debt.md) `[epic · parking]` — Theme epic (minted 2026-07-10 by backlog-themes from runtime-operationalization-leftovers). Root cause: the runtime/ engine does not yet hold its own code/registry to the standards it enforces on the rest of the repo — it is an untyped .mjs island, has a ring-2 project-binding escape, and its registry lacks the self-safety meta-checks it would demand elsewhere. 4 core members.
-done_when: Each member resolved or dropped: the runtime engine holds itself to the bar it enforces — its logic is type-checked (or the .mjs/.ts hybrid consciously kept with a recorded rationale), its ring-2 seam binds host primitives only (KNOWN_ESCAPES → 0), and the registry gains the two self-safety meta-checks (every active [invariant] check returns 0 on a clean tree; every test file is covered by an nx test target). All members shipped or dropped.
-rollup: core 0/4 done · captured 0/0 done
-- core · parking · [from-deploy-gate-runner-ring2-project-bindings](backlog/from-deploy-gate-runner-ring2-project-bindings.md)
-- core · parking · [nx-orphan-test-file-metacheck](backlog/nx-orphan-test-file-metacheck.md)
-- core · parking · [runtime-invariant-safety-metacheck](backlog/runtime-invariant-safety-metacheck.md)
-- core · parking · [runtime-typescript-port](backlog/runtime-typescript-port.md)
-
 ### [ssm-override-warm-cache-test-isolation](backlog/ssm-override-warm-cache-test-isolation.md) `[epic · parking]` — Warm-Lambda Parameters-and-Secrets SSM cache (+ override/restore state) defeats SsmOverrideFixture → real-API leak + resilience-trap misses. Theme epic, 2 members.
 done_when: A warm Lambda can no longer serve restored/real SSM param values mid-test (cache-bust or fixture-aware invalidation), so SsmOverrideFixture isolation holds; both members shipped or dropped.
 rollup: core 0/2 done · captured 0/0 done
@@ -217,7 +217,7 @@ rollup: core 0/3 done · captured 0/0 done
 - core · parking · [portfolio-drift-detected-registry-collision](backlog/portfolio-drift-detected-registry-collision.md)
 - core · parking · [weight-drift-detector](backlog/weight-drift-detector.md)
 
-**Parking health:** 32 theme epic(s), 12 orphan(s) — drive orphans → 0 with `/backlog-themes`
+**Parking health:** 31 theme epic(s), 12 orphan(s) — drive orphans → 0 with `/backlog-themes`
 
 ## ACTIVE
 

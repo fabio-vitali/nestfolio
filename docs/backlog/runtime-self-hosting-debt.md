@@ -1,6 +1,6 @@
 ---
 id: runtime-self-hosting-debt
-status: parking
+status: active
 type: epic
 notes: "Theme epic (minted 2026-07-10 by backlog-themes from runtime-operationalization-leftovers). Root cause: the runtime/ engine does not yet hold its own code/registry to the standards it enforces on the rest of the repo — it is an untyped .mjs island, has a ring-2 project-binding escape, and its registry lacks the self-safety meta-checks it would demand elsewhere. 4 core members."
 done_when: "Each member resolved or dropped: the runtime engine holds itself to the bar it enforces — its logic is type-checked (or the .mjs/.ts hybrid consciously kept with a recorded rationale), its ring-2 seam binds host primitives only (KNOWN_ESCAPES → 0), and the registry gains the two self-safety meta-checks (every active [invariant] check returns 0 on a clean tree; every test file is covered by an nx test target). All members shipped or dropped."
