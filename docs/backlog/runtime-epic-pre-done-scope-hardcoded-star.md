@@ -1,9 +1,10 @@
 ---
 id: runtime-epic-pre-done-scope-hardcoded-star
 type: bug
-status: queued
-rank: 5
+status: shipped
+closed: 2026-07-10
 done_when: "resolve: `runOrchestrator` (runtime/engine/loop/orchestrator.mjs) hardcodes `changedScope: ['**/*']` for the epic-pre-done `preShipBatch`, so `selectChecks` picks EVERY expensive audit/gate check regardless of what the branch actually changed (34 vs 23 checks for a runtime-tooling-only epic). Consequences: (a) it runs headless-Opus audits of `services/**`,`libs/**`,`apps/**` surfaces the epic never touched — cost, plus the risk of blocking a ship on pre-existing drift unrelated to the branch; (b) it is inconsistent with the sibling `runWorker` (runtime/engine/loop/worker.mjs) which scopes item-pre-ship to `changedScope ?? toGlobs(item.scope)`. Fix: scope the epic-pre-done batch to the REAL branch delta (`git diff origin/main...HEAD --name-only`) so it validates the cumulative CHANGES, not the whole repo. NB: the epic's `scope:` is prose (not path globs), so `toGlobs(epic.scope)` is unusable here — derive the scope from the branch diff (git is already an orchestrator options param via `headSha`)."
+validation_gate: "Fixed in e364afd2 — runOrchestrator (runtime/engine/loop/orchestrator.mjs) now takes a `changedScope` param and scopes the epic-pre-done preShipBatch to it (fail-broad to `['**/*']` only when the delta is absent/empty, so a ship gate never under-scopes); the adapter run-epic.mjs injects the cumulative branch delta via a shared branchDelta helper (runtime/adapters/claude-code/git-delta.mjs), and run-next.mjs was de-duplicated onto that same helper — mirroring the already-correct sibling runWorker. Verified: node --test on the touched suites → 21 pass incl. new O-D/O-E (orchestrator scoping + fail-broad), GD1/GD2 (branchDelta unit), RE6 (adapter threads diffPaths into the pre-done scope); full runtime suite (node --test runtime/**/test/*.test.mjs) → 431 pass; pnpm nx run-many -t test -p runtime,tools → 432 pass (runtime/tools carry no lint target). detect-doc-derivation → none; detect-deploy-needed → none (all Tier 0, runtime-harness change — no Lambda/deploy/e2e). ship-recheck clean on origin/main..HEAD (journaled ship:<id>:gate-clean); mint-considered: none. Fork D1 auto-resolved via detect-fork-blast-radius(runOrchestrator) = exit 0."
 topic_memory: [project_runtime_realization.md]
 ---
 
