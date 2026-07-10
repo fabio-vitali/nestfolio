@@ -4,8 +4,8 @@
 // single-active-epic guard (Nestfolio content, computed HERE in the adapter ring — the engine stays
 // project-agnostic, SPEC-1 hard constraint) and (b) git provenance / headSha threading (e2e-freshness).
 // DEFERRED per spec §8/§10: the gh-PR-state probe and worktree-ops binding stay host-side (epics drain as
-// standalone member PRs). Behind RUNTIME_ENGINE the backlog-next-epic SKILL drive calls this; flag off →
-// the legacy skill body (byte-for-byte). Exit: 0 done / 3 paused / 1 failed / 2 usage.
+// standalone member PRs). The backlog-next-epic SKILL drive calls this unconditionally (the legacy prose
+// body + RUNTIME_ENGINE flag were retired 2026-07-09). Exit: 0 done / 3 paused / 1 failed / 2 usage.
 import { fileURLToPath } from 'node:url';
 import { readFileSync } from 'node:fs';
 import { runOrchestrator } from '../../engine/loop/orchestrator.mjs';

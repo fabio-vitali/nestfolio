@@ -1,15 +1,21 @@
 ---
 id: runtime-legacy-retirement
-status: queued
-rank: 4
+status: shipped
+closed: 2026-07-10
 type: tooling
 notes: "P6: legacy work-driver retirement — delete flag-off prose bodies, strangler seams, RUNTIME_ENGINE flag. Pre-removal gate: FINAL full parity-oracle sweep (user decision 2026-07-09). Comparator retires; deterministic differential survives as runtime-only regression suite. Filed as core + done_when clause (7) per user decision 2026-07-08; trigger fired 2026-07-09."
 references: []
-out_of_scope: []
+out_of_scope:
+  - "Re-designing ring-1 engine contracts (schemas/helpers) — frozen by runtime-realization; deltas re-freeze into SPEC 1, not here."
+  - "Net-new checks beyond the retirement itself — new lessons flow through the backward edge / backlog-add."
+  - "Runtime engine behavior changes beyond collapsing the strangler seams — the loop/gates/floors stay as-shipped."
+  - "Epic closure (captured audit + ship of runtime-operationalization) — a separate act after this member ships."
+  - "The epic's captured members (e.g. from-intake-join-theme-cannot-express-epic-role) — audited at epic close, not resolved here."
+  - "The gh-PR-state probe / worktree-ops binding deferred within WS-4 (spec §10) — stays deferred."
 spec: docs/superpowers/specs/2026-07-06-runtime-work-driver-replatform-design.md
-plan: null
+plan: docs/superpowers/plans/2026-07-09-runtime-legacy-retirement.md
 topic_memory: [project_runtime_realization.md]
-validation_gate: null
+validation_gate: "Legacy work-driver RETIRED on branch worktree-runtime-legacy-retirement (10 commits 9bb7ccd8..b5f81648). PRE-REMOVAL GATE (all 4 clauses green on post-fix HEAD before any deletion): (1) FINAL full parity-oracle sweep 17/17 pairs dominant, 0 non-dominant, 0 red rules — 2 pairs runtime-strictly-better (next-lane-complex-ship, next-auto-finishing-pr-stop legacy=0 runtime=1); re-run on HEAD per user decision D4 after the self-containment fix (23c32a1e) landed post the first 13 pairs; (2) soak-observer --oracle-green: green (13 runtime workstreams, 0 path:legacy-fallback); (3) deterministic differential green (all 11 rules both-catch + element-shape); (4) capability-coverage audit — zero undischarged gaps (every legacy capability runtime-owned or host-retained prose). DELETIONS: RUNTIME_ENGINE flag + usesRuntimeEngine + legacy-fallback ledger (path-provenance trimmed, D3 kept path:runtime journaling); next-driver.mjs + epic-driver.mjs (+tests); backlog-gate.mjs collapsed runtime-only; legacy prose bodies + flag framing removed from all 4 backlog SKILLs; scripts/parity-oracle + scripts/benchmark-backlog retired wholesale (D2, 7371 deletions) with the differential relocated runtime-only to scripts/backlog-regression (2/2 green, all 12 rules runtime-catches); .claude/skills/benchmark-backlog retired (D6, broken by D2); verify-structure.sh slimmed to non-duplicated checks (D5 — #1-5/#8/#9 provably covered by the runtime pre-commit-gate; #10 kept). DOCS: runtime/GUIDE.md + README.md rewritten to the runtime-only world; backlog-system.md + agent-system.md doc sweep; CLAUDE.md verified clean. VERIFICATION: pnpm nx test runtime 420/420 + typecheck green; nx test tools 137; skill suites 203/203; backlog-regression 2/2; rings-1/2 self-containment guard added + green (3/3). No deploy (all Tier-0). BACKWARD EDGE: ship-recheck clean (ship:runtime-legacy-retirement:gate-clean journaled); mint consideration --none (self-containment lesson already mechanized as import-boundary.test.mjs, D7). POST-MERGE: reinstall .git/hooks/pre-commit from the merged verify-structure.sh (worktree .git is a file; the shared hook was deliberately not mutated pre-merge)."
 epic: runtime-operationalization
 epic_role: core
 ---
@@ -59,6 +65,16 @@ surface shipped 2026-07-08, the soak gate closed 2026-07-08, and the user direct
 2026-07-09 with three requirements: prove-better-first, ALL legacy content removed, GUIDE/README
 updated). Promoted parking → queued rank 4.
 
+**Capability-coverage audit (2026-07-09, gate clause 4 — PASSED):** every capability the legacy
+flag-off bodies provide is either **runtime-owned** (deploy detect + deploy-gate batch, ship floor
+never-auto, backward-edge ship-recheck/curate/mint, epic member loop + sha-conditional pre-done
+batch, intake routing fold/join/mint/orphan with atomicity + epicRole, all 11 lint rules via
+run-watch, operator visibility via run-view/operational-surface) or **deliberately host-retained
+prose that survives retirement** (§6.1 doc-derivation regen, §6.2 pre-deploy unit tests+lint,
+§6.5 frontmatter write, §6.6 index regen / `lint.mjs --fix` side-car, §6.7/§6.8 finishing+cleanup,
+E0–E3/E7 captured audit/E8 single PR — declared host-side in the strangler prose itself). Zero
+undischarged gaps. Full inventory + matrix in the plan doc.
+
 Topic dossier: `project_runtime_realization.md`.
 
 ## Decision log
@@ -85,3 +101,31 @@ Topic dossier: `project_runtime_realization.md`.
 - **Chosen:** Keep plain path:runtime journaling, retire fallback instrumentation
 - **Rationale:** User decision via AskUserQuestion 2026-07-09. Near-zero cost, journal stays self-describing, and any future strangler migration gets its soak instrument back for free (reusable observability pattern).
 - **Rejected:** Dropping saves trivial noise but forces a rebuild for the next engine-path migration.
+
+### D4 — 2026-07-09
+- **Decision:** Final pre-removal gate evidence after the self-containment fix
+- **Options:** Re-run all 17 pairs on post-fix HEAD (one coherent artifact) | Accept split evidence (13 pre-fix + 4 post-fix)
+- **Chosen:** Re-run all 17 pairs on post-fix HEAD
+- **Rationale:** User decision via AskUserQuestion 2026-07-09. First full sweep found a real self-containment bug (audit-procedures crashed every driver main in runtime-only trees); the fix (23c32a1e) landed after 13 pairs had already run. A split artifact leaves the 13 greens on stale code plus an unresolved passing-pair/crashing-main contradiction. Re-running all 17 on HEAD produces one coherent green artifact on the exact code that exists at deletion time, matching the be-sure-ALL-better mandate and D1s fresh-full-sweep standard, before irreversible deletion.
+- **Rejected:** Split evidence saves the full-sweep quota but does not meet fresh-full-sweep and leaves a reasoning gap unresolved.
+
+### D5 — 2026-07-10
+- **Decision:** verify-structure.sh hook refactor scope
+- **Options:** Remove the 3 provably-duplicated blocking checks (#1-5/#8/#9), keep #10 + WARNs + reinstall | Defer the whole hook refactor to a follow-up item | Remove #1-5/#8/#9 AND #10 by moving service-card-fresh to commit cadence
+- **Chosen:** Remove the 3 provably-duplicated blocking checks (#1-5/#8/#9), keep #10 + WARNs + reinstall
+- **Rationale:** User decision via AskUserQuestion 2026-07-10. Measured zero-gap: pre-commit-gate runWatch(commit) already selects service-structure/typed-subjects/typed-fixtures over the same staged set at the same cheap cadence, so the three verify-structure.sh blocking checks are pure duplication. #10 service-card-drift kept because its runtime twin service-card-fresh is moderate (weekly audit, not commit) — removing it would downgrade drift detection cadence. #6/#7 WARNs advisory. Completes ALL-legacy-removed without touching enforcement cadence.
+- **Rejected:** Defer splits an in-scope checklist item unnecessarily now that removal is measured-safe; moving #10 to commit cadence is a runtime-behavior change beyond seam collapse, needs its own validation.
+
+### D6 — 2026-07-10
+- **Decision:** benchmark-backlog eval SKILL + docs disposition (consequence of D2)
+- **Options:** Retire the /benchmark-backlog skill + its docs with the deleted framework; point skill-testing at the runtime suites | Restore scripts/benchmark-backlog to keep the skill functional | Leave the skill in place pointing at the deleted framework
+- **Chosen:** Retire the /benchmark-backlog skill + its docs with the deleted framework; point skill-testing at the runtime suites
+- **Rationale:** D2 explicitly authorized deleting scripts/benchmark-backlog (the harness the skill wholly depends on: 11 refs, disable-model-invocation, no routing target). The skill graded LEGACY prose-skill behavior via headless runs; the runtime engine now owns that behavior and is tested deterministically by pnpm nx test runtime (422), greenfield.test.mjs (cold-start e2e), and scripts/backlog-regression (the 11-rule commit-gate differential). A broken skill pointing at a deleted framework is strictly worse than removal. docs/backlog-system.md + agent-system.md updated to point skill-testing at the runtime suites.
+- **Rejected:** Restoring the framework contradicts the user-approved D2 deletion; leaving a broken skill + stale docs violates ALL-legacy-removed. Rebuilding skill-eval on the runtime is net-new tooling, out of scope for retirement.
+
+### D7 — 2026-07-10
+- **Decision:** 6.4b mint consideration for the legacy-retirement ship
+- **Options:** Record none — the self-containment lesson is already mechanized as engine/test/import-boundary.test.mjs | Mint a content-ring check enforcing rings-1/2 self-containment at commit cadence
+- **Chosen:** Record none — already mechanized as the import-boundary test
+- **Rationale:** User decision via AskUserQuestion 2026-07-10. The self-containment property (rings 1+2 never import outside runtime/) is a runtime-internal structural invariant already guarded by engine/test/import-boundary.test.mjs, which runs in the runtime CI suite. A content-ring check would duplicate the regex-over-imports logic for redundant coverage. Recorded via run-backward.mjs consider --none.
+- **Rejected:** Minting a content-ring check adds a maintained check re-implementing the guard test for marginal commit-cadence gain.

@@ -46,7 +46,12 @@ runtime/
     loop/                 # worker (single-item spine) + orchestrator (epic spine) — call ONLY capabilities
     backward/             # SPEC 2, the backward edge (mint · curate). See engine/backward/README.md
     test/                 # node:test golden gates + wiring + import-boundary + starter-pack + cli
-  adapters/claude-code/   # RING 2 — seam #1's first binding (six bindings + index assembly)
+  adapters/claude-code/   # RING 2 — seam #1's first binding: the six bindings + index assembly,
+                          #   the run-* drivers (next/epic/item/intake/themes/audit/view/backward — the
+                          #   backlog skills' engine drive), operational-surface (view+executor),
+                          #   driver-capabilities (judged seam), headless-run (nested-session spawn),
+                          #   deploy-gate-runner + classify-lane + pre-ship-batch (the deploy gate)
+  adapters/git/           # RING 2 — pre-commit-gate (the commit-trigger watch) + ship-recheck (branch-delta gate)
   content/checks/*.yaml   # RING 3 — Nestfolio's check library
   content/lessons/*.md    # RING 3 — lesson mirrors carrying `mints:` pointers (enforcement-as-memory)
   content/triggers.yaml   # RING 3 — the cadence map (which contexts fire on commit/merge/schedule/pre-done)
@@ -107,11 +112,14 @@ helpers.
 
 Every forward-edge and capability row of the vision maps to a built home (above): watch → `run-watch`,
 intake → `intake`, planner → `plan-next`, gates → `run-gate`, the loop → `loop/`, the six capabilities →
-`capabilities/` + `adapters/claude-code/`, the eval carry-forward → `eval/grade-check-scenario.mjs` +
-`benchmark-backlog`'s live `defineSuite` seam. Two rows are **net-new `generalized`**: the `journal`
-(git-native idempotency ledger) and the self-resolving `scope-gate`. The **operational surface (§14)** is
-the one deliberate deferral — a filed follow-on of the `runtime-realization` program (fork Q2), to be
-built once the seam is dogfooded by a real consumer.
+`capabilities/` + `adapters/claude-code/`, the eval carry-forward → `eval/grade-check-scenario.mjs`.
+Two rows are **net-new `generalized`**: the `journal` (git-native idempotency ledger) and the
+self-resolving `scope-gate`. The **operational surface (§14)** shipped 2026-07-08
+(`operational-surface.mjs` + `run-view.mjs` — derived state over the real stores, resume hints per
+parked runId, a whitelisted executor). The work-driver re-platform completed the picture: the backlog
+skills run ON the engine loop (P5, soaked over 12 fallback-free workstreams), and the legacy prose
+driver was retired after a final full parity sweep (P6, 2026-07-09) — the runtime paths are the only
+paths.
 
 ## Run the gates
 
@@ -128,4 +136,7 @@ pnpm nx typecheck runtime   # tsc --noEmit: proves the frozen .ts contract compi
 
 **Runtime requirement:** Node ≥24 (native `.ts` type-stripping — zero build step). zod v3, `yaml` v2.
 No external service; the whole runtime is git-native files + small tested helpers. **Tier-0: never
-deploys** — its validation *is* `node --test` + `tsc` + the `benchmark-backlog` corpus.
+deploys** — its validation *is* `node --test` + `tsc` + the check golden gates +
+`scripts/backlog-regression/` (the runtime-only backlog-gate regression suite). Rings 1+2 are
+**self-contained** (no production import escapes `runtime/` — `engine/test/import-boundary.test.mjs`),
+so the subtree ships alone into a sandbox or a fresh repo.

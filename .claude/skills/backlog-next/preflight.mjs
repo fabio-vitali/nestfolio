@@ -106,8 +106,8 @@ function main() {
     }
   }
 
-  // 3. Backlog store validation (always). RUNTIME_ENGINE selects the runtime watch gate vs legacy backlog-lint.
-  const gate = backlogGate(process.env);
+  // 3. Backlog store validation (always) — the runtime watch gate scoped to the backlog store.
+  const gate = backlogGate();
   const gateRes = shSafe(gate.cmd);
   if (!gateRes.ok) {
     failures.push({

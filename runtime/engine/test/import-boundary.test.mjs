@@ -40,3 +40,39 @@ test('the seam predicate flags every ESM import shape and spares variable-path d
   ];
   for (const src of legal) assert.ok(!seamViolation(src), `guard must NOT flag: ${src}`);
 });
+
+// Rings 1+2 are SELF-CONTAINED: a production engine/** or adapters/** module never imports a path
+// that resolves outside runtime/ (scripts/, tools/, .claude/, libs/ …). The runtime ships alone —
+// into a sandbox, a fresh repo via `runtime init`, or any host that copies only runtime/ — so an
+// escaping relative import crashes every driver main at module load in exactly the environments the
+// unit suite (which runs from the repo root, where the target exists) can never see. Ring 3
+// (content/) is exempt: it is the PROJECT seam and binds project paths by design (content checks
+// delegate into .claude/skills/backlog-lint/lib/rules.mjs etc.). Regression: 2026-07-09 —
+// audit-procedures.mjs reached into a repo script under scripts/; every run-*.mjs main crashed
+// ERR_MODULE_NOT_FOUND inside the parity sandbox, caught only by the final oracle sweep.
+const KNOWN_ESCAPES = new Set([
+  // Filed ring-2 portability debt (deploy-gate-runner's project bindings belong in ring 3 — see
+  // backlog). Allowlisted-and-shrinking: additions fail this test; removals should delete the entry.
+  'runtime/adapters/claude-code/deploy-gate-runner.mjs → ../../../.claude/skills/backlog-next/detect-deploy-needed.mjs',
+  'runtime/adapters/claude-code/deploy-gate-runner.mjs → ../../../tools/affected-projects.mjs',
+]);
+test('rings 1+2 (engine/ + adapters/) never import outside the runtime subtree (self-containment)', () => {
+  const files = execSync("git ls-files 'runtime/engine/**/*.mjs' 'runtime/adapters/**/*.mjs'", { encoding: 'utf8' })
+    .split('\n').filter((f) => f && !f.includes('/test/'));
+  assert.ok(files.length > 0, 'guard captured zero files — the glob is wrong');
+  const SPECIFIER = /(?:from\s+|^\s*import\s+|import\s*\(\s*)['"]((?:\.\.?\/)[^'"]*)['"]/gm;
+  const offenders = [];
+  for (const f of files) {
+    const src = readFileSync(f, 'utf8');
+    const dir = f.split('/').slice(0, -1).join('/');
+    for (const m of src.matchAll(SPECIFIER)) {
+      const resolved = [...dir.split('/'), ...m[1].split('/')].reduce((acc, seg) => {
+        if (seg === '..') acc.pop(); else if (seg !== '.' && seg !== '') acc.push(seg);
+        return acc;
+      }, []);
+      const edge = `${f} → ${m[1]}`;
+      if (resolved[0] !== 'runtime' && !KNOWN_ESCAPES.has(edge)) offenders.push(edge);
+    }
+  }
+  assert.deepEqual(offenders, [], `ring-1/2 self-containment violations:\n${offenders.join('\n')}`);
+});

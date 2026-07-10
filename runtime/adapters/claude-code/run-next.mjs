@@ -3,8 +3,8 @@
 // run-item.mjs but (a) computes the Nestfolio lane→trigger mapping HERE in the adapter ring — classifyLane
 // (content) stays OUT of ring-1, keeping the engine project-agnostic (SPEC-1 hard constraint) — and injects
 // the resulting preShipTrigger + branch-delta changedScope into runWorker; (b) threads git provenance.
-// Behind RUNTIME_ENGINE the backlog-next SKILL entry/closing step calls this; flag off → the legacy skill
-// body (byte-for-byte). Exit: 0 done / 3 paused / 1 failed / 2 usage. Git-workflow preconditions stay host.
+// The backlog-next SKILL Step-5 drive calls this unconditionally (the legacy prose body + RUNTIME_ENGINE
+// flag were retired 2026-07-09). Exit: 0 done / 3 paused / 1 failed / 2 usage. Git-workflow preconditions stay host.
 import { fileURLToPath } from 'node:url';
 import { readFileSync } from 'node:fs';
 import { execSync } from 'node:child_process';

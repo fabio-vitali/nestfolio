@@ -99,19 +99,16 @@ Doc-layer and Simple lanes skip adoption — work the item directly on `main`.
 | Architectural ambiguity surfaces | `superpowers:brainstorming` first |
 | New service / feature / event / data flow / MFE | Matching `create-*` / `design-*` skill from `CLAUDE.md` routing table |
 
-#### 5a. Runtime engine drive (behind `RUNTIME_ENGINE` — WS-3 strangler)
+#### 5a. The worker drive
 
-When the `RUNTIME_ENGINE` flag is set, the **execute + pre-ship + ship-floor drive** is performed by the
-runtime worker rather than the legacy prose below: run `node runtime/adapters/claude-code/run-next.mjs <id>`.
-The single decision site is [`next-driver.mjs`](./next-driver.mjs) (`nextDriver(env)` → `{cmd, mode}`,
-mirroring [`backlog-gate.mjs`](./backlog-gate.mjs)); flag **off** → the legacy body in the sections below runs
-**unchanged** (byte-for-byte, retained until P6). The runtime worker owns the **deploy-gate** at pre-ship (a
-sha-conditional expensive `runWatch` batch — deploy + affected integration + involved e2e — gated by the
-adapter-computed lane; doc-layer skips it) and always **parks at the ship floor** (never auto-ships). The
-driver exits `0 done / 3 paused / 1 failed / 2 usage`; on a `3` park, fulfil the printed pending KEY
-(`pending[].key`, exactly as printed — NOT the decision id; a unique `decision.id` is tolerated, translated
-to its step key by `fulfil-key.mjs`) and re-invoke. Git-workflow preconditions (tree-clean, main-not-ahead,
-no-stale-worktree) stay host preflight/postflight (§0, §7) — they are not engine concerns.
+The **execute + pre-ship + ship-floor drive** is performed by the runtime worker: run
+`node runtime/adapters/claude-code/run-next.mjs <id>`. The runtime worker owns the **deploy-gate** at
+pre-ship (a sha-conditional expensive `runWatch` batch — deploy + affected integration + involved e2e —
+gated by the adapter-computed lane; doc-layer skips it) and always **parks at the ship floor** (never
+auto-ships). The driver exits `0 done / 3 paused / 1 failed / 2 usage`; on a `3` park, fulfil the printed
+pending KEY (`pending[].key`, exactly as printed — NOT the decision id; a unique `decision.id` is tolerated,
+translated to its step key by `fulfil-key.mjs`) and re-invoke. Git-workflow preconditions (tree-clean,
+main-not-ahead, no-stale-worktree) stay host preflight/postflight (§0, §7) — they are not engine concerns.
 
 ### 6. Closing phase
 
@@ -137,23 +134,18 @@ full event-processor closure for any single-service change.)
 
 Must pass before any deploy fires. Auto-deploying broken code wastes a cycle.
 
-**6.3 Detect deploy needs.**
+**6.3 + 6.4 Deploy + scoped validation — performed by the worker's pre-ship deploy-gate.**
 
-```bash
-node .claude/skills/backlog-next/detect-deploy-needed.mjs
-```
-
-Exit 0 ⇒ deploy needed (script prints the affected services). Exit 10 ⇒ skip 6.4 entirely. See `deploy-paths.md` for the mapping.
-
-**6.4 Deploy + scoped validation (only if 6.3 said deploy).**
-
-```bash
-bash infrastructure/scripts/deploy.sh sandbox --prefix=dev --services=<from-detect-output>
-AFFECTED=$(node tools/affected-projects.mjs --base=origin/main --with-target=test-integration | paste -sd, -)
-[ -n "$AFFECTED" ] && pnpm nx run-many -t test-integration -p "$AFFECTED" || echo "no affected integration suites"
-```
-
-Then run only the **involved** `apps/e2e-feature-tests` scenarios — pick from the workstream's context (which flows/services it touched). **NEVER the full e2e suite. NEVER Playwright.** See [[feedback-always-rerun-e2e]]. If any scenario fails-then-passes on a rerun, pull CloudWatch evidence from the failing window before continuing and run a second confirmation pass — flakes are real failures, not noise. See [[feedback-flake-means-broken]]. Dev-account operations need no confirmation — see [[feedback-sole-dev-no-shared-caution]].
+The `run-next.mjs` drive (§5a) owns deploy detection **and** deploy + scoped validation at pre-ship: its
+sha-conditional `runWatch` batch runs `detect-deploy-needed.mjs` (Step 6.3 — exit 0 ⇒ deploy needed,
+exit 10 ⇒ skip; see `deploy-paths.md`), then `deploy.sh sandbox --prefix=dev`, the affected
+`test-integration` suites, and the **involved** `apps/e2e-feature-tests` scenarios — lane-gated, so
+doc-layer skips the whole batch. The operator does **not** run `deploy.sh` by hand: fulfil the ship-floor
+park once the batch passes. **NEVER the full e2e suite. NEVER Playwright.** See [[feedback-always-rerun-e2e]].
+If any scenario fails-then-passes on a rerun, pull CloudWatch evidence from the failing window before
+continuing and run a second confirmation pass — flakes are real failures, not noise. See
+[[feedback-flake-means-broken]]. Dev-account operations need no confirmation — see
+[[feedback-sole-dev-no-shared-caution]].
 
 **6.4b Backward-edge ritual — ship recheck + mint consideration (simple + complex lanes; doc-layer exempt).**
 

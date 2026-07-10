@@ -108,56 +108,26 @@ when the parking lot grows.
 /backlog-themes
 ```
 
-### `/benchmark-backlog <mode> [refs] [flags]`
+## Testing the backlog skills
 
-Test the backlog skills themselves — see below. Use when you change a skill.
+The backlog skills run on the Long-Horizon Engineering Runtime (`runtime/`) — the `run-*.mjs` drivers
+own the execute / gate / ship drive, so the skills' behavior is exercised by the runtime's own tests
+rather than by headless prose-skill grading:
 
----
+- **`pnpm nx test runtime`** — the engine/loop/adapter/schema/journal suites (the drive, gates, floors,
+  intake routing, orchestrator spine).
+- **`runtime/eval/e2e/greenfield.test.mjs`** — the cold-start adoption e2e: init → violation blocked →
+  mint at the floor → curate → commit passes, played end-to-end with no LLM.
+- **`node --test scripts/backlog-regression/test/*.test.mjs`** — the deterministic backlog-gate
+  regression: the runtime commit gate must catch every one of the 11 lint-rule violation classes
+  (+ index-matches + element-shape) over per-rule good/bad fixture stores.
+- **`node --test .claude/skills/backlog-*/test/*.test.mjs`** — the skills' own helper unit suites
+  (preflight/postflight, backlog-gate, epic-members, decision-log, …).
 
-## Testing the backlog skills (the evaluation framework)
-
-The skills are large and encode many hard-won lessons, so changing one can silently regress
-behavior. The framework at `scripts/benchmark-backlog/` runs a real skill against a sandboxed repo
-(stubbed `gh` / `nx` / deploy) and grades the result — 52 scenarios in all.
-
-Each run yields one pass/fail from four checks: clean exit, expected file changes, backlog still
-valid, and an LLM-judge score on the run's judgement calls. The deterministic unit suites run
-alongside, so one invocation reports overall health.
-
-### Usage
-
-```bash
-/benchmark-backlog <mode> [refs] [flags]
-# under the hood:
-node scripts/benchmark-backlog/run.mjs <mode> [refs] [flags]
-```
-
-| Mode | |
-|---|---|
-| `regression` | Run on current HEAD; flag anything below the committed baseline. |
-| `compare <before> <after>` | Interleaved A/B over two refs to prove a change helps or doesn't regress. |
-| `rebaseline` | Overwrite the committed baseline. The only mode that writes. |
-
-| Flag | Default | |
-|---|---|---|
-| `--skill=<name>` | all | One family: `backlog-add` · `backlog-next` · `backlog-next-epic` · `backlog-themes`. |
-| `--scenario=id1,id2` | all | Only these scenario ids. |
-| `--iterations=N` | `3` | Runs per scenario. |
-| `--model=<id>` | `claude-opus-4-8` | Model the skills run under. |
-
-### Examples
-
-```bash
-/benchmark-backlog regression                                      # regressions vs baseline
-/benchmark-backlog compare main HEAD                               # A/B the branch against main
-/benchmark-backlog compare main HEAD --scenario=add-fold-captured  # single-scenario check
-/benchmark-backlog regression --skill=backlog-add --iterations=1   # narrow spot-check
-/benchmark-backlog rebaseline                                      # save a new baseline (writes)
-```
-
-The baseline tracks both quality and cost (tokens), so a quality-neutral but pricier change still
-trips it. A full run costs millions of tokens — the skill confirms before a full sweep and never
-runs on its own; narrow with `--skill` / `--scenario` / `--iterations=1` to spot-check first.
+> The legacy headless `/benchmark-backlog` evaluation harness (`scripts/benchmark-backlog/`) and the
+> `parity-oracle` A/B comparator were retired with the legacy work-driver (runtime-legacy-retirement,
+> 2026-07-09/10): they graded the legacy prose-skill behavior, which the runtime engine + the
+> deterministic suites above now own and test.
 
 ---
 
