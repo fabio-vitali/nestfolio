@@ -2,8 +2,8 @@
 id: runtime-gate-baseline-semantics
 status: parking
 type: design
-epic: runtime-operationalization-leftovers
-epic_role: captured
+epic: runtime-gate-baseline-debt
+epic_role: core
 notes: "Probe-surfaced (contract-gap #1): item gates run global invariants whole-scope, so pre-existing tree debt blocks every item's start gate. Interim: baseline-exclusion ratchet (per-file sidecars, blunt at 72-file scale). Design the proper semantics: baseline-relative / diff-aware item gates — 'the item made nothing worse' — mirroring make-it-fire's attribution-not-selection precedent."
 references:
   - docs/superpowers/specs/2026-07-03-runtime-gate-diff-scoping-design.md

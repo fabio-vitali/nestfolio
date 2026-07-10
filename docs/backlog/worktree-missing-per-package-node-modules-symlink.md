@@ -2,8 +2,6 @@
 id: worktree-missing-per-package-node-modules-symlink
 status: parking
 type: tooling
-epic: runtime-operationalization-leftovers
-epic_role: captured
 notes: "backlog-next(-epic) worktree setup symlinks only ROOT node_modules, not per-package libs/*/node_modules. pnpm puts a package's DIRECT deps under its own node_modules, so affected test+lint for event-processor/agent-orchestrator/cdk-constructs FALSE-REDs in a worktree (resolves on main). Surfaced + worked around in the deploy-tooling-integrity epic."
 references: []
 out_of_scope: []

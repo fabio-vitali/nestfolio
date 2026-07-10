@@ -15,8 +15,8 @@ done_when: "resolve: shapeItems' join-theme and mint-aggregation routes cannot
   renderIntakePrompt guiding the judge's core-vs-captured call."
 provenance:
   from_finding: intake-join-theme-cannot-express-epic-role
-epic: runtime-operationalization-leftovers
-epic_role: captured
+epic: backlog-item-frontmatter-integrity
+epic_role: core
 ---
 
 # from-intake-join-theme-cannot-express-epic-role

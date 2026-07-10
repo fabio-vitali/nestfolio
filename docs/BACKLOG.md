@@ -26,6 +26,12 @@ rollup: core 0/2 done · captured 0/0 done
 - core · parking · [broker-circuit-breaker-concurrent-escalation-duplicate](backlog/broker-circuit-breaker-concurrent-escalation-duplicate.md)
 - core · parking · [sf-start-idempotency-at-least-once-redelivery](backlog/sf-start-idempotency-at-least-once-redelivery.md)
 
+### [backlog-item-frontmatter-integrity](backlog/backlog-item-frontmatter-integrity.md) `[epic · parking]` — Theme epic (minted 2026-07-10 by backlog-themes). Root cause: backlog-item frontmatter can be silently produced or accepted in a contract-violating state because the runtime item.schema isn't enforced uniformly across the write (intake) and check (lint) boundaries — intake drops epic_role on two routes, and lint passes corrupt element shapes. Both fixes converge on that one schema. 2 core members (1 ex-orphan + 1 ex-leftover).
+done_when: Both members resolved or dropped: the runtime item.schema is enforced uniformly at the backlog-item write and check boundaries — intake writes a valid, complete item on every route (epic_role expressible on join-theme/mint-aggregation, not just fold), and backlog-lint validates frontmatter element shapes against the same item.schema (no silently-corrupt frontmatter passes lint or silently drops from the index). All members shipped or dropped.
+rollup: core 0/2 done · captured 0/0 done
+- core · parking · [backlog-lint-no-element-shape-validation](backlog/backlog-lint-no-element-shape-validation.md)
+- core · parking · [from-intake-join-theme-cannot-express-epic-role](backlog/from-intake-join-theme-cannot-express-epic-role.md)
+
 ### [bff-read-model-semantic-gaps](backlog/bff-read-model-semantic-gaps.md) `[epic · parking]` — A BFF read-model materializes correctly (single-writer ownership satisfied) but lacks the semantic richness/sub-state a UI feature needs; the fix sources a new signal, not a richer re-materialization. Theme epic, 2 members.
 done_when: Each in-scope BFF read-model surfaces the semantic signal/sub-state its UI needs, sourced from the right event or projection (cross-domain subscription or status projection); both members shipped or dropped.
 rollup: core 0/2 done · captured 0/0 done
@@ -155,18 +161,26 @@ rollup: core 0/2 done · captured 0/0 done
 - core · parking · [e2e-contract-emission-bytypename-helper-extract](backlog/e2e-contract-emission-bytypename-helper-extract.md)
 - core · parking · [generalise-appsync-iam-publisher-lib](backlog/generalise-appsync-iam-publisher-lib.md)
 
-### [runtime-operationalization-leftovers](backlog/runtime-operationalization-leftovers.md) `[epic · parking]` — Auto-spun-out 2026-07-10 when the runtime-operationalization delivery epic shipped (all 27 core members terminal; P6 legacy retirement merged acd44767). These are the genuinely-orthogonal captured members the closure-predicate audit confirmed are NOT load-bearing for any of the 7 done_when clauses — they rode along for unified session context. Re-cluster later by backlog-themes into sharper root-cause themes; do not force a fit. Two captured members were dropped as moot (subjects deleted in P6: benchmark-backlog-skill-cost-figures-stale, bef-scenario-tags-reusable-suite) and one was shipped as resolved (runtime-guide-path-to-live-section-stale — GUIDE.md rewritten in P6), so they are NOT here.
-done_when: Each residual finding spun out of runtime-operationalization is resolved, dropped, or re-clustered by backlog-themes into a sharper root-cause theme; all members shipped or dropped.
-rollup: core 0/0 done · captured 0/9 done
-- captured · parking · [decision-log-utc-date-stamp](backlog/decision-log-utc-date-stamp.md)
-- captured · parking · [from-deploy-gate-runner-ring2-project-bindings](backlog/from-deploy-gate-runner-ring2-project-bindings.md)
-- captured · parking · [from-intake-join-theme-cannot-express-epic-role](backlog/from-intake-join-theme-cannot-express-epic-role.md)
-- captured · parking · [gate-surfaced-source-debt](backlog/gate-surfaced-source-debt.md)
-- captured · parking · [nx-orphan-test-file-metacheck](backlog/nx-orphan-test-file-metacheck.md)
-- captured · parking · [runtime-gate-baseline-semantics](backlog/runtime-gate-baseline-semantics.md)
-- captured · parking · [runtime-invariant-safety-metacheck](backlog/runtime-invariant-safety-metacheck.md)
-- captured · parking · [runtime-typescript-port](backlog/runtime-typescript-port.md)
-- captured · parking · [worktree-missing-per-package-node-modules-symlink](backlog/worktree-missing-per-package-node-modules-symlink.md)
+### [runtime-gate-baseline-debt](backlog/runtime-gate-baseline-debt.md) `[epic · parking]` — Theme epic (minted 2026-07-10 by backlog-themes from runtime-operationalization-leftovers). Root cause: item-gates run global invariants whole-scope, so pre-existing tree debt blocks every item's start gate. The interim blunt per-file exclusion ratchet holds 94 real service-violation paths; proper diff-aware gate semantics should subsume the ratchet and the debt it hides gets remediated. 2 core members.
+done_when: Both members resolved or dropped: the runtime item-gate attributes debt diff-aware ('the item made nothing worse') so pre-existing tree debt no longer blocks item starts, the blunt per-file exclusion ratchet is retired, and the real service violations it currently suppresses are remediated per their existing feedback_* dossiers. All members shipped or dropped.
+rollup: core 0/2 done · captured 0/0 done
+- core · parking · [gate-surfaced-source-debt](backlog/gate-surfaced-source-debt.md)
+- core · parking · [runtime-gate-baseline-semantics](backlog/runtime-gate-baseline-semantics.md)
+
+### [runtime-judgment-tier-maturation](backlog/runtime-judgment-tier-maturation.md) `[epic · parking]` — Theme epic (minted 2026-07-10 by backlog-themes). Root cause: the runtime judgment/audit tier shipped as a deliberate MVP in runtime-check-migration-judgment-tier (2026-07-06, spec §8) — existence-only eval stubs + human-driven intake — and its maturation was deferred. 3 core members, all deferred from that same ship.
+done_when: Each member resolved or dropped: the runtime judgment/audit tier gains real teeth beyond the shipped MVP — flake-contracts become enforced regressions (not declared targets), the 3 backlog/epic-governance verdicts surface as live judgment CheckEntries (or are dropped as redundant with the already-shipped lint-level enforcement), and the audit cadence can route findings into filed backlog items with zero human step. All members shipped or dropped.
+rollup: core 0/3 done · captured 0/0 done
+- core · parking · [runtime-audit-auto-intake-ci](backlog/runtime-audit-auto-intake-ci.md)
+- core · parking · [runtime-judgment-flake-calibration](backlog/runtime-judgment-flake-calibration.md)
+- core · parking · [runtime-judgment-governance-gaps](backlog/runtime-judgment-governance-gaps.md)
+
+### [runtime-self-hosting-debt](backlog/runtime-self-hosting-debt.md) `[epic · parking]` — Theme epic (minted 2026-07-10 by backlog-themes from runtime-operationalization-leftovers). Root cause: the runtime/ engine does not yet hold its own code/registry to the standards it enforces on the rest of the repo — it is an untyped .mjs island, has a ring-2 project-binding escape, and its registry lacks the self-safety meta-checks it would demand elsewhere. 4 core members.
+done_when: Each member resolved or dropped: the runtime engine holds itself to the bar it enforces — its logic is type-checked (or the .mjs/.ts hybrid consciously kept with a recorded rationale), its ring-2 seam binds host primitives only (KNOWN_ESCAPES → 0), and the registry gains the two self-safety meta-checks (every active [invariant] check returns 0 on a clean tree; every test file is covered by an nx test target). All members shipped or dropped.
+rollup: core 0/4 done · captured 0/0 done
+- core · parking · [from-deploy-gate-runner-ring2-project-bindings](backlog/from-deploy-gate-runner-ring2-project-bindings.md)
+- core · parking · [nx-orphan-test-file-metacheck](backlog/nx-orphan-test-file-metacheck.md)
+- core · parking · [runtime-invariant-safety-metacheck](backlog/runtime-invariant-safety-metacheck.md)
+- core · parking · [runtime-typescript-port](backlog/runtime-typescript-port.md)
 
 ### [ssm-override-warm-cache-test-isolation](backlog/ssm-override-warm-cache-test-isolation.md) `[epic · parking]` — Warm-Lambda Parameters-and-Secrets SSM cache (+ override/restore state) defeats SsmOverrideFixture → real-API leak + resilience-trap misses. Theme epic, 2 members.
 done_when: A warm Lambda can no longer serve restored/real SSM param values mid-test (cache-bust or fixture-aware invalidation), so SsmOverrideFixture isolation holds; both members shipped or dropped.
@@ -209,7 +223,7 @@ rollup: core 0/3 done · captured 0/0 done
 - core · parking · [portfolio-drift-detected-registry-collision](backlog/portfolio-drift-detected-registry-collision.md)
 - core · parking · [weight-drift-detector](backlog/weight-drift-detector.md)
 
-**Parking health:** 30 theme epic(s), 14 orphan(s) — ⚠ 1 `*-leftovers` bucket(s) awaiting dissolution — drive orphans → 0 with `/backlog-themes`
+**Parking health:** 33 theme epic(s), 12 orphan(s) — drive orphans → 0 with `/backlog-themes`
 
 ## ACTIVE
 
@@ -224,20 +238,18 @@ _(none)_
 
 ## LATER
 
-- [backlog-lint-no-element-shape-validation](backlog/backlog-lint-no-element-shape-validation.md) [tooling] — backlog-lint passes on element-shape-corrupt frontmatter (object inside out_of_scope) and the index render silently drops the item.
 - [backlog-next-epic-oversized-epic-splitting](backlog/backlog-next-epic-oversized-epic-splitting.md) [tooling] — backlog-next-epic can't run phased/soak-gated epics; evolve the family: split oversized epics (agile-style), declare/honor a draining mode.
 - [bef-next-auto-finishing-pr-stop-rubricgate-red](backlog/bef-next-auto-finishing-pr-stop-rubricgate-red.md) [bug] — Surfaced by the parity oracle's live bring-up (2026-07-06): legacy next-auto-finishing-pr-stop failed its own rubricGate:4 in 2/2 independent runs (judge 2/5 then 1/5 — 'auto-resolved decisions recorded in the workstream file on the branch' judged missing). Either the legacy --auto decision-log behavior regressed since the 2026-06-27 baseline, or the judge is miscalibrated on this rubric, or the committed bef baseline row for this scenario is stale.
 - [benchmark-agents-skill-simplification](backlog/benchmark-agents-skill-simplification.md) [refactor] — benchmark-agents SKILL.md (§5/§6) prescribes report templates inline; relocate to run.ts+templates.
 - [bump-tsconfig-es2022-to-es2023](backlog/bump-tsconfig-es2022-to-es2023.md) [tooling] — Enable .toSpliced/.toReversed/.with workspace-wide; promote on second use case.
+- [decision-log-utc-date-stamp](backlog/decision-log-utc-date-stamp.md) [bug] — decision-log.mjs stamps the UTC date — evening-CET appends land under yesterday's date in an append-only audit log
 - [from-audit-e2e-test](backlog/from-audit-e2e-test.md) [bug]
 - [integration-suite-lever-5-cdk-bundling](backlog/integration-suite-lever-5-cdk-bundling.md) [refactor] — cdk-constructs:test bundles 57 assets in 32s as it synthesizes per-construct stacks in tests. This sits in the unit suite, not integration. Dossier called out as out-of-scope for integration slowness but worth tracking if unit wall-clock becomes a concern.
 - [rebalance-planner-mode-awareness](backlog/rebalance-planner-mode-awareness.md) [refactor] — rebalance-planner stays mode-blind; promote on mode-correlated gap.
 - [rename-nestfolio-integ-prefix-to-prefix](backlog/rename-nestfolio-integ-prefix-to-prefix.md) [refactor] — Verbose NESTFOLIO_INTEG_ namespace is friction; rename atomically + sweep docs.
-- [runtime-audit-auto-intake-ci](backlog/runtime-audit-auto-intake-ci.md) [feature] — Deferred from runtime-check-migration-judgment-tier (SHIPPED 2026-07-06, spec §8). Make the weekly runtime-audit cadence job ALSO route its findings into backlog items automatically — bind the intake `execute` capability to a headless runner so run-intake's selectRoute judgment resolves in-CI instead of parking for a human. TODAY the cadence dispatcher (run-audit.mjs) only PRODUCES findings (stdout + gitignored runtime/.audit-findings/<runId>.json artifact); intake is human-driven (run-intake.mjs --finding … then --fulfil per a session route decision), as demonstrated by the acceptance run. Promote when the audit cadence should be fully autonomous (findings → filed backlog items with zero human step); needs a headless execute binding + a route-classification prompt/guardrails so it does not mis-file.
-- [runtime-judgment-flake-calibration](backlog/runtime-judgment-flake-calibration.md) [feature] — Deferred from runtime-check-migration-judgment-tier (SHIPPED 2026-07-06, spec §8). Build the REAL flake-contract calibration mechanics (SPEC 2 §eval): the judgment eval corpus with good/bad fixtures + n-run calibration that turns a check's flake_contract (allowed_flake_rate / calibration / min_confidence) into an enforced regression, instead of a declared target. TODAY every judgment eval_scenario is an existence-only STUB — the template's (integration-test-completeness) and the 4 new audit-* ones landed by this workstream. Blocked-by nothing in code; it is net-new eval infra the epic excluded. Promote when judgment checks need real flake-regression teeth (e.g. before relying on an audit check as a hard gate rather than an advisory cadence artifact).
-- [runtime-judgment-governance-gaps](backlog/runtime-judgment-governance-gaps.md) [feature] — Deferred from runtime-check-migration-judgment-tier (SHIPPED 2026-07-06, spec §8). Migrate the 3 backlog/epic-governance judgment verdicts into runtime `judgment` CheckEntries driven by the live judge binding: (1) the epicCapturedAudit load-bearing verdict, (2) the core-vs-captured epic_role classification, (3) the ship-time captured promote/spin-out verdict. The judgment tier wrapped the 4 EXISTING audit-* skills; these 3 gaps have NO existing skill and need net-new judge procedures (and possibly new skills) — which is why they were deferred, and they border the epic's 'no net-new checks' out_of_scope. NB: the LINT-level enforcement of these already shipped in backlog-epic-captured-misroute-fix (predicate routing + atomicity invariant + ship-time captured audit in lint.mjs), so this item is only about ALSO surfacing them as RUNTIME judgment checks. Promote when extending the runtime judgment tier beyond the audit-* skills; DROP as redundant if the shipped lint-level enforcement is judged sufficient.
 - [test-support-typecheck-put-event-type-test-drift](backlog/test-support-typecheck-put-event-type-test-drift.md) [tooling] — test-support:typecheck red on main — put-event.type-test @ts-expect-error drifted off the now-relocated overload error (false-red, not a masked real error)
 - [unified-ingress-refactoring](backlog/unified-ingress-refactoring.md) [refactor] — Single event-listener with ResumeIntent + PublishIntent (planned, not started).
+- [worktree-missing-per-package-node-modules-symlink](backlog/worktree-missing-per-package-node-modules-symlink.md) [tooling] — backlog-next(-epic) worktree setup symlinks only ROOT node_modules, not per-package libs/*/node_modules. pnpm puts a package's DIRECT deps under its own node_modules, so affected test+lint for event-processor/agent-orchestrator/cdk-constructs FALSE-REDs in a worktree (resolves on main). Surfaced + worked around in the deploy-tooling-integrity epic.
 
 ## Recently Shipped (last 10)
 

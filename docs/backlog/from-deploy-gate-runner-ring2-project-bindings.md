@@ -16,8 +16,8 @@ done_when: "resolve: deploy-gate-runner.mjs (ring-2, the Claude Code harness
   delete both KNOWN_ESCAPES entries so the guard is total."
 provenance:
   from_finding: deploy-gate-runner-ring2-project-bindings
-epic: runtime-operationalization-leftovers
-epic_role: captured
+epic: runtime-self-hosting-debt
+epic_role: core
 notes: "deploy-gate-runner (ring-2) binds project paths directly; relocate to ring 3 / injection, then drop the KNOWN_ESCAPES allowlist entries"
 ---
 

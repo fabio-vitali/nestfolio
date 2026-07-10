@@ -9,6 +9,8 @@ spec: null
 plan: null
 topic_memory: [project_runtime_realization.md]
 validation_gate: null
+epic: runtime-judgment-tier-maturation
+epic_role: core
 ---
 
 # runtime-judgment-flake-calibration

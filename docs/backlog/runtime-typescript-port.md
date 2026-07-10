@@ -9,8 +9,8 @@ spec: null
 plan: null
 topic_memory: [project_runtime_realization.md]
 validation_gate: null
-epic: runtime-operationalization-leftovers
-epic_role: captured
+epic: runtime-self-hosting-debt
+epic_role: core
 ---
 
 # Port the runtime project to full TypeScript

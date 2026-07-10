@@ -9,6 +9,8 @@ spec: null
 plan: null
 topic_memory: []
 validation_gate: null
+epic: backlog-item-frontmatter-integrity
+epic_role: core
 ---
 
 # backlog-lint does not type-check frontmatter element shapes

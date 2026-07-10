@@ -2,8 +2,8 @@
 id: nx-orphan-test-file-metacheck
 status: parking
 type: tooling
-epic: runtime-operationalization-leftovers
-epic_role: captured
+epic: runtime-self-hosting-debt
+epic_role: core
 notes: "No meta-check ensures every *.test.mjs/.test.ts is covered by an nx test target, so a test file with no owning nx project silently never runs under affected/CI (the tools/check-*.test.mjs gap fixed by runtime-check-goldengates-ci)."
 references: []
 out_of_scope: []

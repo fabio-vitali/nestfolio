@@ -2,8 +2,6 @@
 id: decision-log-utc-date-stamp
 status: parking
 type: bug
-epic: runtime-operationalization-leftovers
-epic_role: captured
 notes: "decision-log.mjs stamps the UTC date — evening-CET appends land under yesterday's date in an append-only audit log"
 references: []
 out_of_scope: []

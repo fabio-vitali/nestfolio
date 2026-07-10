@@ -1,6 +1,7 @@
 ---
 id: runtime-operationalization-leftovers
-status: parking
+status: dropped
+closed: 2026-07-10
 type: epic
 notes: "Auto-spun-out 2026-07-10 when the runtime-operationalization delivery epic shipped (all 27 core members terminal; P6 legacy retirement merged acd44767). These are the genuinely-orthogonal captured members the closure-predicate audit confirmed are NOT load-bearing for any of the 7 done_when clauses — they rode along for unified session context. Re-cluster later by backlog-themes into sharper root-cause themes; do not force a fit. Two captured members were dropped as moot (subjects deleted in P6: benchmark-backlog-skill-cost-figures-stale, bef-scenario-tags-reusable-suite) and one was shipped as resolved (runtime-guide-path-to-live-section-stale — GUIDE.md rewritten in P6), so they are NOT here."
 done_when: "Each residual finding spun out of runtime-operationalization is resolved, dropped, or re-clustered by backlog-themes into a sharper root-cause theme; all members shipped or dropped."
@@ -11,6 +12,12 @@ plan: null
 topic_memory: [project_runtime_realization.md]
 validation_gate: null
 ---
+
+> **DISSOLVED 2026-07-10 by `/backlog-themes`.** All 9 members redistributed by shared root cause —
+> 4 → `runtime-self-hosting-debt`, 2 → `runtime-gate-baseline-debt`, 1 (`from-intake-…-epic-role`) →
+> `backlog-item-frontmatter-integrity`; 2 genuine singletons un-pointed to standalone parking orphans
+> (`decision-log-utc-date-stamp`, `worktree-missing-per-package-node-modules-symlink`). Bucket emptied →
+> `dropped`. Provenance preserved below and in git.
 
 # runtime-operationalization — residual findings (leftovers)
 
