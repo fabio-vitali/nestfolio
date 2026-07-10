@@ -4,7 +4,7 @@ import { existsSync, mkdirSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { loadBacklogFiles } from './lib/frontmatter.mjs';
 import {
-  ruleFrontmatterParseable,
+  ruleFrontmatterParseable, ruleItemSchemaValid,
   ruleIdMatchesFilename, ruleSingleActive, ruleQueuedRanks,
   ruleActiveOutOfScope, ruleShippedValidationGate, ruleReferencesValid,
   rulePromotionTriggerGated, ruleActiveEpicFields, ruleEpicClosure,
@@ -39,6 +39,7 @@ function main() {
   const violations = [];
   for (const f of files) {
     violations.push(...ruleFrontmatterParseable(f));
+    violations.push(...ruleItemSchemaValid(f));
     violations.push(...ruleIdMatchesFilename(f));
     violations.push(...ruleActiveOutOfScope(f));
     violations.push(...ruleShippedValidationGate(f));

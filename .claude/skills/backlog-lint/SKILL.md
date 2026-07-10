@@ -1,6 +1,6 @@
 ---
 name: backlog-lint
-description: Validate docs/backlog/ frontmatter against the 11 invariants (incl. epic closure / pointer / single-active-epic) and (with --fix) regenerate docs/BACKLOG.md from frontmatter and related_workstreams in topic dossiers. Use at every workstream ship and on demand.
+description: Validate docs/backlog/ frontmatter against the 11 invariants (incl. epic closure / pointer / single-active-epic) plus element-shape validation against the ring-1 ItemSchema, and (with --fix) regenerate docs/BACKLOG.md from frontmatter and related_workstreams in topic dossiers. Use at every workstream ship and on demand.
 ---
 
 ## When this skill applies
@@ -41,6 +41,15 @@ The `lint.mjs --fix` index + dossier regen (`renderIndex` / `syncDossiers`) is a
 9. **Epic closure:** `type: epic` + `status: shipped` ⇒ no member (a file whose `epic:` equals this id) is in a non-terminal status. Core members must be `shipped`/`dropped`; captured members must be resolved/dropped **or** re-homed (e.g. to `<epic>-leftovers`).
 10. **Epic pointer integrity:** a member's `epic:` references an existing `type: epic` file; an epic file must NOT carry an `epic:` pointer (1-level tree, no nesting); `epic_role`, when set, ∈ {`core`, `captured`}.
 11. **Single active epic:** at most one `type: epic` with `status: active` (the one delivery epic in flight). Theme epics (`status: parking`) and scheduled epics (`status: queued`) are unbounded.
+
+## Structural preconditions (run alongside the 11 rules, not numbered)
+
+Two per-file gates run in `lint.mjs`'s loop **before** the 11 relational rules. They guard the *shape* of a single item's own frontmatter (the 11 rules guard *relationships between* items):
+
+- **`frontmatter-parseable`** — a file whose YAML fence fails to parse is reported located-by-filename instead of crashing the run (relies on `loadBacklogFiles`' total `parseError` field).
+- **`item-schema-valid`** — validates each file's frontmatter against the ring-1 `ItemSchema` via the **same** `validateItem` the runtime read path fails closed on (`runtime/engine/schema/item.schema.ts` — single source of truth, no second schema). Catches element-shape corruption the parse gate is blind to: an unquoted scalar with an embedded colon parses as a one-key mapping, so e.g. `out_of_scope` silently becomes an object (or an array holding one) instead of a `string[]`. Left unvalidated, lint would pass **and** the index render would silently drop the item — two silent failures for one typo. Parse-errored files are skipped here (owned by `frontmatter-parseable`); the filename-derived id is injected so id mismatches stay rule 1's concern.
+
+The runtime commit gate already runs shape validation via the `item-store-valid` check (`runtime/content/checks/item-store-valid.yaml` → `item-store-core.mjs`, same `validateItem`). `item-schema-valid` closes the identical gap for every **direct** `lint.mjs` invocation (ship steps, `--fix`, boundary reviews) that never rides that gate.
 
 ## Epic schema (frontmatter)
 
