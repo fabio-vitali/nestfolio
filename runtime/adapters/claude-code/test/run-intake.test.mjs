@@ -48,6 +48,19 @@ test('fulfilled route JSON → items written with epic/epic_role; journal filed 
   assert.equal(filed.value.route, 'fold');
 });
 
+test('regression: a join-theme route with epicRole writes epic_role into the file (role no longer dropped)', async () => {
+  const dir = tmpStore();
+  const c = caps();
+  await driveIntake({ finding, backlogDir: join(dir, 'backlog'), checksDir: join(dir, 'checks'), capabilities: c });
+  const taskResult = { taskId: 'intake-f1', status: 'done', summary: JSON.stringify({ route: 'join-theme', epic: 'some-theme-epic', epicRole: 'captured' }) };
+  const r2 = await driveIntake({ finding, backlogDir: join(dir, 'backlog'), checksDir: join(dir, 'checks'),
+    fulfil: { key: 'execute:intake-f1', value: taskResult }, capabilities: c, regenIndex: () => {} });
+  assert.equal(r2.exit, 0, JSON.stringify(r2.out));
+  const text = readFileSync(join(dir, 'backlog/from-demo-check.md'), 'utf8');
+  assert.match(text, /epic: some-theme-epic/);
+  assert.match(text, /epic_role: captured/);   // the self-demonstrating bug: this line used to be silently absent
+});
+
 test('malformed route JSON in the fulfilled summary → exit 1, not a crash', async () => {
   const dir = tmpStore();
   const c = caps();

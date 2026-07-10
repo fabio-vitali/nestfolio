@@ -45,6 +45,16 @@ test('renderIntakePrompt embeds the finding, the active-epic done_when, and the 
   assert.match(p, /closure-predicate/i);
 });
 
+test('renderIntakePrompt requests epicRole route-agnostically — for join-theme and mint-aggregation, not only fold', () => {
+  const context = loadIntakeContext({ backlog: [
+    { id: 'acme-epic', status: 'active', type: 'epic', done_when: 'acme redesigned', scope: 's', out_of_scope: [] },
+  ] });
+  const p = renderIntakePrompt({ finding, context });
+  // every epic-attaching route must invite the judge to set epicRole (else the write defaults it to core)
+  assert.match(p, /join-theme[^\n]*epicRole/i);
+  assert.match(p, /mint-aggregation[^\n]*epicRole/i);
+});
+
 test('renderIntakePrompt states fold is unavailable when there is no active epic', () => {
   const context = loadIntakeContext({ backlog: [] });
   const p = renderIntakePrompt({ finding, context });

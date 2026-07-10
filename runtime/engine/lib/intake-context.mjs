@@ -42,6 +42,6 @@ export function renderIntakePrompt({ finding, context }) {
     epicBlock,
     themeBlock,
     orphanBlock,
-    'Return JSON {route, epic?, epicRole?, splitInto?, rationale}. fold → epic=the active epic id + epicRole per the closure-predicate. join-theme → epic=the matching theme epic id. mint-aggregation → epic=a NEW aggregation epic id and name the clustered orphans in rationale. split → splitInto=[suffixes]. orphan/discard → omit epic.',
+    'Return JSON {route, epic?, epicRole?, splitInto?, rationale}. Every epic-attaching route (fold, join-theme, mint-aggregation) MUST set epicRole per the closure-predicate above — a member with an omitted epicRole silently defaults to "core". fold → epic=the active epic id + epicRole. join-theme → epic=the matching theme epic id + epicRole. mint-aggregation → epic=a NEW aggregation epic id + epicRole, and name the clustered orphans in rationale. split → splitInto=[suffixes]. orphan/discard → omit epic.',
   ].join('\n\n');
 }

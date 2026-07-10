@@ -24,9 +24,14 @@ export function shapeItems({ finding, route, epic, epicRole, splitInto }) {
   switch (route) {
     case 'discard': return [];
     case 'split':   return (splitInto ?? []).map((s) => baseItem(finding, { id: slug(finding, s) }));
-    case 'fold':    return [baseItem(finding, { epic, epic_role: epicRole ?? 'core' })];
-    case 'join-theme': return [baseItem(finding, { epic })];
-    case 'mint-aggregation': return [baseItem(finding, { epic })];
+    // Every epic-attaching route writes epic_role route-agnostically — the item shape is identical (an
+    // epic pointer + a role); the routes differ only in WHICH epic (selectRoute's judgment), never in the
+    // written shape. Anything but 'core'/'captured' from the judge is undefined here → defaults to 'core',
+    // matching the CLAUDE.md epic_role default (so a member never silently lands core by an omitted key).
+    case 'fold':
+    case 'join-theme':
+    case 'mint-aggregation':
+      return [baseItem(finding, { epic, epic_role: epicRole ?? 'core' })];
     case 'orphan':  return [baseItem(finding, {})];
     default: throw new Error(`unknown intake route: ${route}`);
   }
