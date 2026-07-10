@@ -50,6 +50,28 @@ test('D6: an explicit agent-observed check behaves identically to a check-less f
   assert.equal('from_check' in d.items[0].provenance, false);
 });
 
+test('D8: join-theme threads epicRole → the member carries the judge-chosen role (not silently core)', async () => {
+  const d = await intake({ finding, registry: {}, backlog: [], capabilities: fakeCaps({ route: 'join-theme', epic: 'some-theme', epicRole: 'captured' }) });
+  assert.equal(d.route, 'join-theme');
+  assert.equal(d.items.length, 1);
+  assert.equal(d.items[0].epic, 'some-theme');
+  assert.equal(d.items[0].epic_role, 'captured');   // role must survive the write, not default to core
+});
+
+test('D9: mint-aggregation threads epicRole → the member carries the judge-chosen role', async () => {
+  const d = await intake({ finding, registry: {}, backlog: [], capabilities: fakeCaps({ route: 'mint-aggregation', epic: 'new-theme', epicRole: 'captured' }) });
+  assert.equal(d.route, 'mint-aggregation');
+  assert.equal(d.items[0].epic, 'new-theme');
+  assert.equal(d.items[0].epic_role, 'captured');
+});
+
+test('D10: an epic-attaching route with no epicRole defaults to core (route-agnostic, matching fold)', async () => {
+  for (const route of ['join-theme', 'mint-aggregation']) {
+    const d = await intake({ finding, registry: {}, backlog: [], capabilities: fakeCaps({ route, epic: 'e' }) });
+    assert.equal(d.items[0].epic_role, 'core', `${route} should default to core`);
+  }
+});
+
 test('D7: selectRoute injects the active-epic done_when + context into the judge task', async () => {
   const backlog = [{ id: 'acme-epic', status: 'active', type: 'epic', done_when: 'acme redesigned', scope: 's', out_of_scope: [] }];
   let seen;
