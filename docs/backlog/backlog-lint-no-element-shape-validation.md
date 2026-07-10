@@ -1,10 +1,14 @@
 ---
 id: backlog-lint-no-element-shape-validation
-status: parking
+status: active
 type: tooling
 notes: "backlog-lint passes on element-shape-corrupt frontmatter (object inside out_of_scope) and the index render silently drops the item."
 references: []
-out_of_scope: []
+out_of_scope:
+  - "The 11 lint semantic invariants themselves (relationships BETWEEN items) — this rule validates the shape/validity of a single item's OWN frontmatter against the ring-1 ItemSchema, orthogonal to the relational rules."
+  - "The intake write-side fix (sibling member from-intake-join-theme-cannot-express-epic-role) — that hardens the producer; this hardens the checker."
+  - "Repairing existing corrupt data — none remains (the original one-key-mapping corruption was repaired in runtime-item-schema-reconciliation); this prevents recurrence."
+  - "Changing the ItemSchema itself — this wires the EXISTING frozen schema into lint as a checker; it does not alter the schema (re-freeze 2026-07-05)."
 spec: null
 plan: null
 topic_memory: []

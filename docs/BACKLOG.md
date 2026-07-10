@@ -9,7 +9,7 @@
 ### [backlog-item-frontmatter-integrity](backlog/backlog-item-frontmatter-integrity.md) `[epic · active]` — Theme epic (minted 2026-07-10 by backlog-themes). Root cause: backlog-item frontmatter can be silently produced or accepted in a contract-violating state because the runtime item.schema isn't enforced uniformly across the write (intake) and check (lint) boundaries — intake drops epic_role on two routes, and lint passes corrupt element shapes. Both fixes converge on that one schema. 2 core members (1 ex-orphan + 1 ex-leftover).
 done_when: Both members resolved or dropped: the runtime item.schema is enforced uniformly at the backlog-item write and check boundaries — intake writes a valid, complete item on every route (epic_role expressible on join-theme/mint-aggregation, not just fold), and backlog-lint validates frontmatter element shapes against the same item.schema (no silently-corrupt frontmatter passes lint or silently drops from the index). All members shipped or dropped.
 rollup: core 0/2 done · captured 0/0 done
-- core · parking · [backlog-lint-no-element-shape-validation](backlog/backlog-lint-no-element-shape-validation.md)
+- core · active · [backlog-lint-no-element-shape-validation](backlog/backlog-lint-no-element-shape-validation.md)
 - core · parking · [from-intake-join-theme-cannot-express-epic-role](backlog/from-intake-join-theme-cannot-express-epic-role.md)
 
 ### [advisory-narrative-memory-read-latency](backlog/advisory-narrative-memory-read-latency.md) `[epic · parking]` — advisory-narrative-ctrl blocks on AgentCore Memory reads before writing its observable HEAD row → 30-40s integration tests. Theme epic, 2 members.
