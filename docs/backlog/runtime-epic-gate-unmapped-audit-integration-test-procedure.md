@@ -1,9 +1,10 @@
 ---
 id: runtime-epic-gate-unmapped-audit-integration-test-procedure
 type: bug
-status: queued
-rank: 4
+status: shipped
+closed: 2026-07-10
 done_when: "resolve: the epic-pre-done / item-pre-ship batch selects the `integration-test-completeness` check (evaluator `run: skill:audit-integration-test`), but `makeAuditProcedures` (runtime/adapters/claude-code/audit-procedures.mjs) maps only 4 audit skills — `audit-service`, `audit-domain`, `audit-system`, `audit-e2e-test` — so `audit-integration-test` is UNMAPPED. `makeRunProcedure` returns `{status:'failed', summary:'unknown procedure: audit-integration-test'}`, `deriveJudge`'s judge throws, `runWatch` records a `#err` finding, and `preShipBatch` returns findings ⇒ the epic-pre-done gate returns status `failed`. Any epic-pre-done batch (changedScope `['**/*']`) OR item-pre-ship whose scope includes `services/**/test/integration/**` hard-fails on this. Fix: either map `audit-integration-test` into `AUDIT_SKILLS`/`makeAuditProcedures` (READ_ONLY headless, identical to the other four), or make an unmapped judge procedure a non-fatal skip (a check with no wired procedure should not manufacture a spurious finding)."
+validation_gate: "Fixed in cadcfad8 — audit-integration-test wired into AUDIT_SKILLS (runtime/adapters/claude-code/audit-procedures.mjs). Verified: node --test audit-procedures.test.mjs → 8/8 pass incl. the new recurrence-guard ('every registry skill: check has a wired procedure') + a direct audit-integration-test regression; pnpm nx run-many -t test -p runtime,tools → 427 pass; runtime:typecheck clean. detect-doc-derivation → none; detect-deploy-needed → none (runtime-harness change, no Lambda/deploy/e2e). ship-recheck clean on origin/main..HEAD (journaled ship:<id>:gate-clean); mint-considered: none (guard mechanized as a unit test). Fork D2 auto-resolved via detect-fork-blast-radius (exit 0)."
 topic_memory: [project_runtime_realization.md]
 ---
 
