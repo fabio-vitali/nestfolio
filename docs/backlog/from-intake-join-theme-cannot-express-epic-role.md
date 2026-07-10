@@ -1,7 +1,11 @@
 ---
 id: from-intake-join-theme-cannot-express-epic-role
 type: bug
-status: parking
+status: active
+out_of_scope:
+  - "The lint element-shape validation half of the epic (its sibling member, already shipped) — this member is the write-side (intake) half only."
+  - "The closure-predicate semantics themselves / which epic the judge picks — this threads the judge's already-emitted epicRole through the write, it does not change the judgment."
+  - "Retro-fixing backlog items already filed with a silently-dropped role (no data migration) — the fix is forward-only for new intakes."
 done_when: "resolve: shapeItems' join-theme and mint-aggregation routes cannot
   write epic_role — only the fold route accepts epicRole — so every intake-filed
   theme-epic member silently defaults to core (the CLAUDE.md epic_role default).
