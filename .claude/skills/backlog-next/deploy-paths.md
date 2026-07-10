@@ -44,7 +44,7 @@ consumer closure.
 | `.claude/**` | Skills, agent config |
 | `tools/**` | Repo tooling (check-scripts, resolver) — never a deploy artifact |
 | `runtime/**` | Long-Horizon Engineering Runtime (ring-1 engine + content ring) — a pure node library run by `node --test`, with no CDK stack/Lambda/service; never compiled into a deployed bundle |
-| `scripts/**` | Root build/verify/benchmark tooling (`benchmark-agents`, `benchmark-backlog`, `assert-shell-html`, …) — never a deploy artifact. Deploy scripts live under `infrastructure/scripts/` (matched by the TIER1 `infrastructure/**` rule). |
+| `scripts/**` | Root build/verify/benchmark tooling (`benchmark-agents`, `backlog-regression`, `assert-shell-html`, …) — never a deploy artifact. Deploy scripts live under `infrastructure/scripts/` (matched by the TIER1 `infrastructure/**` rule). |
 | `.github/**` | CI workflows + scripts — never a deploy artifact |
 | `MEMORY.md` | Agent memory |
 | `*.md` at root | README, CHANGELOG, etc. |

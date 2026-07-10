@@ -327,14 +327,15 @@ defined in the parent `nestfolio.d2` and won't be available. Always render from 
 There are three layers of verification:
 
 **Pre-commit hook** (`scripts/verify-structure.sh`). Runs in ~3-8 seconds with no API calls.
-Scoped to services with staged changes. Checks:
-- `project.json` exists with required targets
-- `src/service.stack.ts` exists
-- `test/` directory exists
-- No imports from `services/` (only `libs/`)
-- Service name follows `-ctrl`, `-bff`, `-hub`, `-adpt`, or `-web` suffix convention
+Its first and primary layer is the **runtime enforcement gate** (`runtime/adapters/git/pre-commit-gate.mjs`):
+the content-ring commit-trigger checks run over the staged set via the ring-1 watch engine (fail-closed),
+so the structural invariants below (project.json / service.stack.ts / test dir / no `services/`→`services/`
+imports / name-suffix convention) and the typed-subject / typed-fixture gates are all enforced there as
+content checks — no longer duplicated in this shell script. What remains in the shell wrapper, scoped to
+services with staged changes:
+- Service-card drift (blocking) — its runtime twin is `moderate`-tier, so the cheap commit gate skips it
 - Service card (CLAUDE.md) exists (warning only, non-blocking)
-- Shows `nx affected` blast radius for the staged changes
+- Shows `nx affected` blast radius for the staged changes (warning only)
 
 **CI GitHub Action** (`.github/workflows/pr-audit.yml`). Runs on every PR using
 `claude-sonnet-4-6` (cost-efficient for convention checking). Scoped via:

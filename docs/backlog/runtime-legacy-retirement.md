@@ -107,3 +107,17 @@ Topic dossier: `project_runtime_realization.md`.
 - **Chosen:** Re-run all 17 pairs on post-fix HEAD
 - **Rationale:** User decision via AskUserQuestion 2026-07-09. First full sweep found a real self-containment bug (audit-procedures crashed every driver main in runtime-only trees); the fix (23c32a1e) landed after 13 pairs had already run. A split artifact leaves the 13 greens on stale code plus an unresolved passing-pair/crashing-main contradiction. Re-running all 17 on HEAD produces one coherent green artifact on the exact code that exists at deletion time, matching the be-sure-ALL-better mandate and D1s fresh-full-sweep standard, before irreversible deletion.
 - **Rejected:** Split evidence saves the full-sweep quota but does not meet fresh-full-sweep and leaves a reasoning gap unresolved.
+
+### D5 — 2026-07-10
+- **Decision:** verify-structure.sh hook refactor scope
+- **Options:** Remove the 3 provably-duplicated blocking checks (#1-5/#8/#9), keep #10 + WARNs + reinstall | Defer the whole hook refactor to a follow-up item | Remove #1-5/#8/#9 AND #10 by moving service-card-fresh to commit cadence
+- **Chosen:** Remove the 3 provably-duplicated blocking checks (#1-5/#8/#9), keep #10 + WARNs + reinstall
+- **Rationale:** User decision via AskUserQuestion 2026-07-10. Measured zero-gap: pre-commit-gate runWatch(commit) already selects service-structure/typed-subjects/typed-fixtures over the same staged set at the same cheap cadence, so the three verify-structure.sh blocking checks are pure duplication. #10 service-card-drift kept because its runtime twin service-card-fresh is moderate (weekly audit, not commit) — removing it would downgrade drift detection cadence. #6/#7 WARNs advisory. Completes ALL-legacy-removed without touching enforcement cadence.
+- **Rejected:** Defer splits an in-scope checklist item unnecessarily now that removal is measured-safe; moving #10 to commit cadence is a runtime-behavior change beyond seam collapse, needs its own validation.
+
+### D6 — 2026-07-10
+- **Decision:** benchmark-backlog eval SKILL + docs disposition (consequence of D2)
+- **Options:** Retire the /benchmark-backlog skill + its docs with the deleted framework; point skill-testing at the runtime suites | Restore scripts/benchmark-backlog to keep the skill functional | Leave the skill in place pointing at the deleted framework
+- **Chosen:** Retire the /benchmark-backlog skill + its docs with the deleted framework; point skill-testing at the runtime suites
+- **Rationale:** D2 explicitly authorized deleting scripts/benchmark-backlog (the harness the skill wholly depends on: 11 refs, disable-model-invocation, no routing target). The skill graded LEGACY prose-skill behavior via headless runs; the runtime engine now owns that behavior and is tested deterministically by pnpm nx test runtime (422), greenfield.test.mjs (cold-start e2e), and scripts/backlog-regression (the 11-rule commit-gate differential). A broken skill pointing at a deleted framework is strictly worse than removal. docs/backlog-system.md + agent-system.md updated to point skill-testing at the runtime suites.
+- **Rejected:** Restoring the framework contradicts the user-approved D2 deletion; leaving a broken skill + stale docs violates ALL-legacy-removed. Rebuilding skill-eval on the runtime is net-new tooling, out of scope for retirement.

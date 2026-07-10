@@ -28,10 +28,13 @@ fi
 echo "Verifying service structure for staged changes..."
 echo ""
 
-# Hard-fail structural invariants #1-#5 (extracted, shared with the runtime service-structure check)
-if ! RUNTIME_STAGED_PATHS="$(git diff --cached --name-only)" bash scripts/check-service-structure.sh; then
-  ERRORS=$((ERRORS + 1))
-fi
+# NOTE (runtime-legacy-retirement, 2026-07-10): the blocking structural checks #1-5 (service-structure),
+# #8 (typed-subjects) and #9 (typed-fixtures) were removed from this hook — the runtime pre-commit-gate
+# above already runs their content-check twins (service-structure / typed-subjects / typed-fixtures) over
+# the SAME staged set at the SAME commit cadence (measured: runWatch(commit) selects all three). Keeping
+# them here was pure double-coverage. #10 (service-card-drift) stays: its runtime twin service-card-fresh
+# is cost_tier:moderate and the cheap commit trigger does not run it, so removing it would drop commit-time
+# drift detection. #6/#7 remain advisory WARNs.
 
 for SERVICE_PATH in $CHANGED_SERVICES; do
   if [ ! -d "$SERVICE_PATH" ]; then
@@ -59,19 +62,8 @@ if [ "$AFFECTED" -gt 5 ]; then
   WARNINGS=$((WARNINGS + 1))
 fi
 
-# Check 8: typed-subject convention gate (blocking, daemon-free pure-node scan)
-if ! node tools/check-typed-subjects.mjs > /tmp/typed-subject-check.out 2>&1; then
-  cat /tmp/typed-subject-check.out
-  ERRORS=$((ERRORS + 1))
-fi
-
-# Check 9: typed-fixture regression gate (blocking, daemon-free pure-node scan)
-if ! node tools/check-typed-fixtures.mjs > /tmp/typed-fixture-check.out 2>&1; then
-  cat /tmp/typed-fixture-check.out
-  ERRORS=$((ERRORS + 1))
-fi
-
 # Check 10: service-card drift gate (blocking, daemon-free pure-node scan)
+# Kept: the runtime twin (service-card-fresh) is moderate-tier and the cheap commit trigger skips it.
 if ! node tools/check-service-card-drift.mjs > /tmp/card-drift-check.out 2>&1; then
   cat /tmp/card-drift-check.out
   ERRORS=$((ERRORS + 1))
