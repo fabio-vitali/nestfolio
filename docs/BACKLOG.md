@@ -235,6 +235,8 @@ _(none)_
 1. [e2e-live-suite-exceeds-bedrock-daily-token-budget](backlog/e2e-live-suite-exceeds-bedrock-daily-token-budget.md) [infra] — One full live-AgentCore e2e run (~7.2k Bedrock invocations) exhausts the dev account daily token-per-day quota mid-suite, so the suite self-throttles and cannot go fully green in a single pass.
 2. [e2e-fixtures-test-stale-detail-envelope-assertion](backlog/e2e-fixtures-test-stale-detail-envelope-assertion.md) [bug] — apps/e2e-feature-tests fixtures.test.ts asserts the old flat detail:{} EB envelope, but the fixtures now emit the DRY {context, subject} envelope — 2 stale-assertion failures unrelated to any service.
 3. [circuit-breaker-lifecycle-e2e-breaker-stuck-open](backlog/circuit-breaker-lifecycle-e2e-breaker-stuck-open.md) [bug] — scenario 14 circuit-breaker-lifecycle e2e: initiateDeposit returns SERVICE_TEMPORARILY_UNAVAILABLE (breaker OPEN) when the test expects it closed — root cause unconfirmed (state-leak vs throttle-storm collateral).
+4. [runtime-epic-gate-unmapped-audit-integration-test-procedure](backlog/runtime-epic-gate-unmapped-audit-integration-test-procedure.md) [bug]
+5. [runtime-epic-pre-done-scope-hardcoded-star](backlog/runtime-epic-pre-done-scope-hardcoded-star.md) [bug]
 
 ## LATER
 
