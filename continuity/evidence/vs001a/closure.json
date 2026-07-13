@@ -1,0 +1,53 @@
+{
+  "schema_version": 1,
+  "phase": "vs001a-closure",
+  "closed_on": "2026-07-13",
+  "decision": "PASS",
+  "run_id": "run-vs001a",
+  "run_status": "completed",
+  "final_checkpoint": "run-vs001a-final-2",
+  "executor": {
+    "product": "Claude Code",
+    "claude_code_version": "2.1.207 (Claude Code)",
+    "claude_code_path": "/Users/fabiovitali/.local/bin/claude",
+    "model": "claude-fable-5",
+    "session_1_claude_session_id": "ea22919f-d2db-4667-ab73-84e2b1563e28",
+    "session_2_claude_session_id": "99ea8ab4-eb2e-4433-b293-1da9e628eb18",
+    "startup_source_both_sessions": "startup",
+    "transcript_contents_inspected": false,
+    "provenance_records": ".continuity/executor-sessions/"
+  },
+  "revisions": {
+    "required_baseline": "34f7c86d0bea256f2fbe8c0c63ca2b04f924f62f",
+    "run_baseline_head": "7db8688c1586b685ec295dcfa28c17f0ad798ebc",
+    "run_baseline_contains_required_baseline": true,
+    "branch": "main",
+    "repository_fingerprint_at_start": "a57d8786c62c86d9d391dea014de21ef37f56b489d9348f247bfcf40328d516b",
+    "repository_fingerprint_at_final_checkpoint": "84014b0a7bf33f0c2f4145ba66e431d705823b3d6463ff3c345e676572e49336",
+    "result_revision": "recorded in the commit that introduces this file (the VS-001A closure commit on main)"
+  },
+  "effect_deduplication": {
+    "effect_key": "vs001a-material-effect",
+    "first_execution_session": "session-vs001a-1",
+    "replay_session": "session-vs001a-2",
+    "replay_result": "deduplicated",
+    "completed_effect_records": 1,
+    "audit_operation": "op-b210cbbc-8aa1-4367-93f7-bdaefca5c95d"
+  },
+  "resume_freshness_validation": {
+    "passed": true,
+    "repository_fingerprint": "84014b0a7bf33f0c2f4145ba66e431d705823b3d6463ff3c345e676572e49336",
+    "context_pack_digest": "8871381dd69d455a9b7edce89665faa44be519113067582a8eb7f59690b59c85",
+    "pack_lock_digest": "050be66fe746bce73cb09f56cb0a677fbd08b3be50a0858d7a2b2661ba4fe793",
+    "checkpoint_digest": "1381c0b223eecc319b11ff605218554e44ab9f83afdcd8c9717669cfbf4043fc",
+    "record": ".continuity/runs/run-vs001a/head.json last_resume_validation"
+  },
+  "criteria": [
+    { "id": "vs001a-deterministic-tests", "status": "passed", "evidence": "run-vs001a-vs001a-deterministic-tests" },
+    { "id": "vs001a-keyed-effect-materialized", "status": "passed", "evidence": "run-vs001a-vs001a-keyed-effect-materialized" },
+    { "id": "actual-adapter-bootstrap", "status": "passed", "evidence": "run-vs001a-actual-adapter-bootstrap" },
+    { "id": "actual-first-session-end", "status": "passed", "evidence": "run-vs001a-actual-first-session-end" },
+    { "id": "actual-fresh-session-resume", "status": "passed", "evidence": "run-vs001a-actual-fresh-session-resume" },
+    { "id": "effect-deduplication-confirmation", "status": "passed", "evidence": "run-vs001a-effect-deduplication-confirmation" }
+  ]
+}

@@ -1,0 +1,29 @@
+{
+  "adapter": "claude-code",
+  "close_reason": "run-completed",
+  "closed_at": "2026-07-13T17:00:14.539Z",
+  "digest": "7e1084b3c97c61e36ba6a02960cae438888fc083c4e7659161c1f44ecbce7344",
+  "executor": "Claude Code",
+  "id": "session-vs001a-2",
+  "lease": {
+    "acquired_at": "2026-07-13T16:58:55.531Z",
+    "active": true,
+    "digest": "234ca337f3f900e1e13297989b1ad2514b69600bfdf79136874e10eb21552912",
+    "run_id": "run-vs001a",
+    "session_id": "session-vs001a-2",
+    "updated_at": "2026-07-13T16:58:55.531Z"
+  },
+  "opened_at": "2026-07-13T16:58:55.532Z",
+  "prior_session_ref": "session-vs001a-1",
+  "resumed_from_checkpoint_ref": {
+    "digest": "1381c0b223eecc319b11ff605218554e44ab9f83afdcd8c9717669cfbf4043fc",
+    "id": "run-vs001a-cp-1",
+    "revision": 1
+  },
+  "revision": 2,
+  "run_id": "run-vs001a",
+  "schema_version": 1,
+  "status": "closed",
+  "transcript_dependency": false,
+  "updated_at": "2026-07-13T17:00:14.539Z"
+}

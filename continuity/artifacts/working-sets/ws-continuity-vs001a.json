@@ -1,9 +1,52 @@
 {
   "active_run_refs": [],
-  "completed_run_refs": [],
+  "completed_run_refs": [
+    {
+      "digest": "2cabb408082ffc833be635d104234ce0de10285b71fee8f729fc683ffa853022",
+      "id": "run-vs001a",
+      "revision": 9
+    }
+  ],
   "dependency_rationale": "Single bounded VS-001 implementation/dogfood item; no unrelated Nestfolio work.",
-  "digest": "d27a2df0deb0c241a06cef5d260cef36ca53ccd1e1d0305b1e22196b8f857788",
-  "evidence_refs": [],
+  "digest": "3b224859ccdc3b3321f7fea5f9de49a110d6d249ef0fc9fb26a801a7e96b81bd",
+  "evidence_refs": [
+    {
+      "criterion_id": "vs001a-deterministic-tests",
+      "digest": "585b9cb155e796e358bf63382d7ecc17e34ce9f62828ab1d8196bf95b363dcb3",
+      "id": "run-vs001a-vs001a-deterministic-tests",
+      "revision": 1
+    },
+    {
+      "criterion_id": "vs001a-keyed-effect-materialized",
+      "digest": "94526d39eff21624233d74ee1760b9d4898336ec3d760beb1765b1862419ca16",
+      "id": "run-vs001a-vs001a-keyed-effect-materialized",
+      "revision": 1
+    },
+    {
+      "criterion_id": "actual-adapter-bootstrap",
+      "digest": "9b026ba4f2055e09ea64379e2a87dfa37f30dbfe9e5a2eadc57489f17a7a1064",
+      "id": "run-vs001a-actual-adapter-bootstrap",
+      "revision": 1
+    },
+    {
+      "criterion_id": "actual-first-session-end",
+      "digest": "f271f87d38395ddea6613847975ea15daa5185632edcf46b9ad2f6e8104b2bf8",
+      "id": "run-vs001a-actual-first-session-end",
+      "revision": 1
+    },
+    {
+      "criterion_id": "actual-fresh-session-resume",
+      "digest": "834484f280994c21f834dbb9ccfe6ff49f4794680d07fca5851fa770ff0ad2a4",
+      "id": "run-vs001a-actual-fresh-session-resume",
+      "revision": 1
+    },
+    {
+      "criterion_id": "effect-deduplication-confirmation",
+      "digest": "93f002b417a0515c51b5c6053601ae7672c9888cfcf08cb8605b91fd34713d3b",
+      "id": "run-vs001a-effect-deduplication-confirmation",
+      "revision": 1
+    }
+  ],
   "exclusions": [
     "Continuity Core semantics and the accepted VS-001 artifacts (run-vs001 is never rerun or rewritten).",
     "Existing Nestfolio business applications, services, infrastructure, and domain code.",
@@ -15,11 +58,21 @@
     {
       "action": "created",
       "at": "2026-07-13T16:45:45.632Z"
+    },
+    {
+      "action": "run-started",
+      "at": "2026-07-13T16:56:04.600Z",
+      "run_id": "run-vs001a"
+    },
+    {
+      "action": "completed",
+      "at": "2026-07-13T17:00:14.537Z",
+      "run_id": "run-vs001a"
     }
   ],
   "id": "ws-continuity-vs001a",
   "objective": "Prove executor provenance for the accepted VS-001 slice with two genuine Claude Code Sessions on Run run-vs001a. Session 1 (session-vs001a-1) executes exactly one material keyed effect: node runtime/continuity/adapters/claude-code/cli.mjs effect --run-id run-vs001a --session-id session-vs001a-1 --key vs001a-material-effect --path continuity/dogfood/vs001a-effect.txt --content 'VS-001A keyed effect completed exactly once.' — then checkpoints with the exact next action 'Replay effect key vs001a-material-effect to prove deduplication, then validate and complete run-vs001a.' and interrupts to publish the Handoff before the Claude Code session ends. Session 2 (session-vs001a-2) is a separately invoked fresh Claude Code process that is resumed by the SessionStart hook from repository-local state, replays the same effect key/path/content to prove deduplicated: true, then runs validate and complete for run-vs001a.",
-  "revision": 1,
+  "revision": 3,
   "schema_version": 1,
   "scope_ref": {
     "digest": "520e1a94abd13747fbd22edb5773d66da8342bd9d8baa50bf6b7ef1e59e32c3a",
@@ -27,13 +80,13 @@
     "revision": 1
   },
   "shared_completion_boundary": "All deterministic criteria pass with criterion-linked Evidence proving both genuine Claude Code Sessions, the verified Checkpoint/Handoff session boundary, the transcript-free fresh-session resume, and the deduplicated keyed effect; the Run completes revision-safely.",
-  "status": "ready",
-  "updated_at": "2026-07-13T16:45:45.632Z",
+  "status": "completed",
+  "updated_at": "2026-07-13T17:00:14.537Z",
   "work_item_refs": [
     {
-      "digest": "d92785491468f9175225765e8599e06946ba08b71e9d5012c3db6bd774ee6fb5",
+      "digest": "d8d0d657857cf60574714d47e46f2a3c18e75aeb458ee2d0283bca3bb600494b",
       "id": "continuity-vs001a-claude-code-session-confirmation",
-      "revision": 1
+      "revision": 3
     }
   ]
 }

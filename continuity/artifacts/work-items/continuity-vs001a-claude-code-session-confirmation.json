@@ -1,13 +1,19 @@
 {
   "active_run_refs": [],
   "blockers": [],
-  "completed_run_refs": [],
+  "completed_run_refs": [
+    {
+      "digest": "2cabb408082ffc833be635d104234ce0de10285b71fee8f729fc683ffa853022",
+      "id": "run-vs001a",
+      "revision": 9
+    }
+  ],
   "completion_criteria": [
     {
       "description": "The session hooks, provenance validator, and bounded Core/store/Pack behavior pass deterministic unit tests.",
       "id": "vs001a-deterministic-tests",
       "required_evidence_type": "test-result",
-      "status": "pending",
+      "status": "passed",
       "validator": {
         "command": [
           "node",
@@ -23,7 +29,7 @@
       "description": "The material keyed effect file exists with the expected content: continuity/dogfood/vs001a-effect.txt containing 'VS-001A keyed effect completed exactly once.'",
       "id": "vs001a-keyed-effect-materialized",
       "required_evidence_type": "repository-file",
-      "status": "pending",
+      "status": "passed",
       "validator": {
         "contains": "VS-001A keyed effect completed exactly once.",
         "path": "continuity/dogfood/vs001a-effect.txt",
@@ -34,7 +40,7 @@
       "description": "Genuine Claude Code Session 1 began from a real recorded Claude Code startup and received the adapter-produced start execution view (digest-matched, injected into context by the SessionStart hook).",
       "id": "actual-adapter-bootstrap",
       "required_evidence_type": "executor-provenance-inspection",
-      "status": "pending",
+      "status": "passed",
       "validator": {
         "command": [
           "node",
@@ -51,7 +57,7 @@
       "description": "Genuine Claude Code Session 1 ended (SessionEnd hook recorded the real session id, termination reason, and timestamp) after a verified Checkpoint and a published transcript-independent Handoff.",
       "id": "actual-first-session-end",
       "required_evidence_type": "executor-provenance-inspection",
-      "status": "pending",
+      "status": "passed",
       "validator": {
         "command": [
           "node",
@@ -68,7 +74,7 @@
       "description": "A distinct genuine Claude Code Session 2 (different real Claude Code session id, source=startup, never a transcript resume) resumed the Run from repository-local Continuity state through the adapter-produced resume view.",
       "id": "actual-fresh-session-resume",
       "required_evidence_type": "executor-provenance-inspection",
-      "status": "pending",
+      "status": "passed",
       "validator": {
         "command": [
           "node",
@@ -85,7 +91,7 @@
       "description": "The second execution of the stable effect key vs001a-material-effect returned deduplicated: true and exactly one completed effect record exists.",
       "id": "effect-deduplication-confirmation",
       "required_evidence_type": "executor-provenance-inspection",
-      "status": "pending",
+      "status": "passed",
       "validator": {
         "command": [
           "node",
@@ -114,8 +120,45 @@
     }
   ],
   "dependencies": [],
-  "digest": "d92785491468f9175225765e8599e06946ba08b71e9d5012c3db6bd774ee6fb5",
-  "evidence_refs": [],
+  "digest": "d8d0d657857cf60574714d47e46f2a3c18e75aeb458ee2d0283bca3bb600494b",
+  "evidence_refs": [
+    {
+      "criterion_id": "vs001a-deterministic-tests",
+      "digest": "585b9cb155e796e358bf63382d7ecc17e34ce9f62828ab1d8196bf95b363dcb3",
+      "id": "run-vs001a-vs001a-deterministic-tests",
+      "revision": 1
+    },
+    {
+      "criterion_id": "vs001a-keyed-effect-materialized",
+      "digest": "94526d39eff21624233d74ee1760b9d4898336ec3d760beb1765b1862419ca16",
+      "id": "run-vs001a-vs001a-keyed-effect-materialized",
+      "revision": 1
+    },
+    {
+      "criterion_id": "actual-adapter-bootstrap",
+      "digest": "9b026ba4f2055e09ea64379e2a87dfa37f30dbfe9e5a2eadc57489f17a7a1064",
+      "id": "run-vs001a-actual-adapter-bootstrap",
+      "revision": 1
+    },
+    {
+      "criterion_id": "actual-first-session-end",
+      "digest": "f271f87d38395ddea6613847975ea15daa5185632edcf46b9ad2f6e8104b2bf8",
+      "id": "run-vs001a-actual-first-session-end",
+      "revision": 1
+    },
+    {
+      "criterion_id": "actual-fresh-session-resume",
+      "digest": "834484f280994c21f834dbb9ccfe6ff49f4794680d07fca5851fa770ff0ad2a4",
+      "id": "run-vs001a-actual-fresh-session-resume",
+      "revision": 1
+    },
+    {
+      "criterion_id": "effect-deduplication-confirmation",
+      "digest": "93f002b417a0515c51b5c6053601ae7672c9888cfcf08cb8605b91fd34713d3b",
+      "id": "run-vs001a-effect-deduplication-confirmation",
+      "revision": 1
+    }
+  ],
   "exclusions": [
     "Continuity Core semantics and the accepted VS-001 artifacts (run-vs001 is never rerun or rewritten).",
     "Existing Nestfolio business applications, services, infrastructure, and domain code.",
@@ -142,6 +185,24 @@
       "action": "selected",
       "at": "2026-07-13T16:45:45.630Z",
       "source_sha256": "5e4d22f24aa922b3a5245d26edc1393b5f3eb65bef3834d3f8ced43265a173b9"
+    },
+    {
+      "action": "run-started",
+      "at": "2026-07-13T16:56:04.599Z",
+      "run_id": "run-vs001a"
+    },
+    {
+      "action": "completed",
+      "at": "2026-07-13T17:00:14.536Z",
+      "evidence_refs": [
+        "run-vs001a-vs001a-deterministic-tests",
+        "run-vs001a-vs001a-keyed-effect-materialized",
+        "run-vs001a-actual-adapter-bootstrap",
+        "run-vs001a-actual-first-session-end",
+        "run-vs001a-actual-fresh-session-resume",
+        "run-vs001a-effect-deduplication-confirmation"
+      ],
+      "run_id": "run-vs001a"
     }
   ],
   "id": "continuity-vs001a-claude-code-session-confirmation",
@@ -167,7 +228,7 @@
     "executor-provenance Evidence for the distinct transcript-free Session 2 resume",
     "executor-provenance Evidence for keyed-effect deduplication"
   ],
-  "revision": 1,
+  "revision": 3,
   "schema_version": 1,
   "scope_ref": {
     "id": "scope-continuity-vs001a",
@@ -179,7 +240,7 @@
     "source_status": "active",
     "type": "nestfolio-backlog"
   },
-  "status": "selected",
+  "status": "completed",
   "type": "implementation",
-  "updated_at": "2026-07-13T16:45:45.631Z"
+  "updated_at": "2026-07-13T17:00:14.536Z"
 }

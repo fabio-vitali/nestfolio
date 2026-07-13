@@ -1,0 +1,26 @@
+{
+  "criterion_id": "vs001a-deterministic-tests",
+  "digest": "e2d05efb58776bf7b3d81db4e83d0aa5a95ef2d8c7567142f013c51e8b858f69",
+  "exit_code": 0,
+  "id": "run-vs001a-vs001a-deterministic-tests-1",
+  "mode": "deterministic-command",
+  "revision": 1,
+  "run_id": "run-vs001a",
+  "schema_version": 1,
+  "status": "passed",
+  "stderr_excerpt": "",
+  "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+  "stdout_excerpt": "✔ repository store enforces expected revisions and rebuilds derived index (15.830084ms)\n✔ Nestfolio backlog binding uses source digest as the revision guard (12.752875ms)\n✔ Pack resolution locks reusable and Nestfolio-specific Claude Code assets (22.066334ms)\n✔ missing or mismatched Skill assets fail closed (19.797458ms)\n✔ hooks are inert for sessions without a Continuity identity (228.51925ms)\n✔ non-startup SessionStart events are recorded but never re-drive the lifecycle (447.047042ms)\n✔ two hook-driven sessions produce provenance that passes every VS-001A criterion (1139.669708ms)\nℹ tests 7\nℹ suites 0\nℹ pass 7\nℹ fail 0\nℹ cancelled 0\nℹ skipped 0\nℹ todo 0\nℹ duration_ms 1877.778875\n",
+  "stdout_sha256": "1b0ebb4677695ead9e9757e525a546923b888687048ee79346306244c00993a9",
+  "updated_at": "2026-07-13T16:59:49.519Z",
+  "validator": {
+    "command": [
+      "node",
+      "--test",
+      "runtime/continuity/test/core.test.mjs",
+      "runtime/continuity/test/pack-resolution.test.mjs",
+      "runtime/continuity/test/session-hooks.test.mjs"
+    ],
+    "type": "command"
+  }
+}

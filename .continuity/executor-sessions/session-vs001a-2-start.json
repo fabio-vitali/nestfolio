@@ -1,0 +1,34 @@
+{
+  "adapter_command": {
+    "action": "resume",
+    "exact_next_action": "Replay effect key vs001a-material-effect to prove deduplication, then validate and complete run-vs001a.",
+    "ok": true
+  },
+  "claude_code_version": "2.1.207 (Claude Code)",
+  "claude_session_id": "99ea8ab4-eb2e-4433-b293-1da9e628eb18",
+  "context_injected": true,
+  "continuity": {
+    "action": "resume",
+    "run_id": "run-vs001a",
+    "session_id": "session-vs001a-2",
+    "working_set_id": null
+  },
+  "cwd": "/Users/fabiovitali/WebstormProjects/nestfolio",
+  "execution_view": {
+    "digest_match": true,
+    "path": ".continuity/derived/execution-views/run-vs001a-session-vs001a-2.md",
+    "recomputed_sha256": "1cbf4a814ad817ce08efbc6a8db3973f02a0b2938374eb43c178b43e2e4cfae0",
+    "sha256": "1cbf4a814ad817ce08efbc6a8db3973f02a0b2938374eb43c178b43e2e4cfae0"
+  },
+  "git_revision": {
+    "branch": "main",
+    "head": "7db8688c1586b685ec295dcfa28c17f0ad798ebc",
+    "mode": "git"
+  },
+  "hook_event_name": "SessionStart",
+  "model": "claude-fable-5",
+  "schema_version": 1,
+  "startup_source": "startup",
+  "timestamp": "2026-07-13T16:58:51.102Z",
+  "transcript_contents_inspected": false
+}

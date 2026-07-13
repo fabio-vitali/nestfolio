@@ -221,7 +221,8 @@ rollup: core 0/3 done · captured 0/0 done
 
 ## ACTIVE
 
-- [continuity-vs001a-claude-code-session-confirmation](backlog/continuity-vs001a-claude-code-session-confirmation.md) [implementation] — Corrective validation slice authorized by continuity-lab VS-001A. Closes the VS-001 executor-provenance evidence gap (acceptance criteria 4, 7, 8) with two genuine Claude Code Sessions driven by project-local SessionStart/SessionEnd hooks; no architecture expansion, no rerun of run-vs001.
+_(none)_
+
 
 ## QUEUED
 
@@ -247,6 +248,7 @@ rollup: core 0/3 done · captured 0/0 done
 ## Recently Shipped (last 10)
 
 - 2026-07-13 — [continuity-vs001-resumable-agent-work-session](backlog/continuity-vs001-resumable-agent-work-session.md) [implementation] — Authorized architecture-validation slice from continuity-lab TA-002. Proves one bounded resumable Claude Code-oriented agent work session; not a broad runtime migration.
+- 2026-07-13 — [continuity-vs001a-claude-code-session-confirmation](backlog/continuity-vs001a-claude-code-session-confirmation.md) [implementation] — Corrective validation slice authorized by continuity-lab VS-001A. Closes the VS-001 executor-provenance evidence gap (acceptance criteria 4, 7, 8) with two genuine Claude Code Sessions driven by project-local SessionStart/SessionEnd hooks; no architecture expansion, no rerun of run-vs001.
 - 2026-07-10 — [backlog-item-frontmatter-integrity](backlog/backlog-item-frontmatter-integrity.md) [epic] — Theme epic (minted 2026-07-10 by backlog-themes). Root cause: backlog-item frontmatter can be silently produced or accepted in a contract-violating state because the runtime item.schema isn't enforced uniformly across the write (intake) and check (lint) boundaries — intake drops epic_role on two routes, and lint passes corrupt element shapes. Both fixes converge on that one schema. 2 core members (1 ex-orphan + 1 ex-leftover).
 - 2026-07-10 — [backlog-lint-no-element-shape-validation](backlog/backlog-lint-no-element-shape-validation.md) [tooling] — backlog-lint passes on element-shape-corrupt frontmatter (object inside out_of_scope) and the index render silently drops the item. `[epic:backlog-item-frontmatter-integrity · core]`
 - 2026-07-10 — [from-intake-join-theme-cannot-express-epic-role](backlog/from-intake-join-theme-cannot-express-epic-role.md) [bug] `[epic:backlog-item-frontmatter-integrity · core]`
@@ -255,4 +257,3 @@ rollup: core 0/3 done · captured 0/0 done
 - 2026-07-10 — [runtime-guide-path-to-live-section-stale](backlog/runtime-guide-path-to-live-section-stale.md) [tooling] — SHIPPED (resolved) 2026-07-10 by runtime-legacy-retirement (P6, merge acd44767): runtime/GUIDE.md was rewritten wholesale to the runtime-only world. The stale §7 'path to live' section no longer exists — verified absent are the phrases 'path to live', 'augments them', 'does not replace them yet', and the parked-operational-surface framing; §7 is now 'Testing & regression protection'. The item's work survived (the GUIDE is fresh), so it is terminal-as-resolved. `[epic:runtime-operationalization · captured]`
 - 2026-07-10 — [runtime-legacy-retirement](backlog/runtime-legacy-retirement.md) [tooling] — P6: legacy work-driver retirement — delete flag-off prose bodies, strangler seams, RUNTIME_ENGINE flag. Pre-removal gate: FINAL full parity-oracle sweep (user decision 2026-07-09). Comparator retires; deterministic differential survives as runtime-only regression suite. Filed as core + done_when clause (7) per user decision 2026-07-08; trigger fired 2026-07-09. `[epic:runtime-operationalization · core]`
 - 2026-07-10 — [runtime-operationalization](backlog/runtime-operationalization.md) [epic] — Adopt/operationalize the Long-Horizon Engineering Runtime via the probes-first roadmap (re-scoped 2026-07-03): P1 probe the two unproven bets (execute seam, backward edge) → P2 moat live (mint/curate in anger, before enforcement triples) → P3 parity oracle + item schema → P4 check migration with cadence + CI golden gates → P5 work-driver strangler re-platform with soak gate → P6 user-triggered legacy retirement + operator surface. runtime-realization shipped the 3 library slices; THIS epic makes the runtime the project's live enforcement + work-driver, reversibly (docs/backlog stays the one item store — procedures migrate, never data).
-- 2026-07-09 — [from-run-themes-intake-bare-capabilities-conformance-gap](backlog/from-run-themes-intake-bare-capabilities-conformance-gap.md) [bug] `[epic:runtime-operationalization · core]`

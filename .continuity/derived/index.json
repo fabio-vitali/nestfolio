@@ -4,6 +4,11 @@
       "digest": "c217df1f43717a6d2324c7a49c6d91cf11ccb5587a96bce9162d83243be6a328",
       "id": "run-vs001",
       "status": "completed"
+    },
+    {
+      "digest": "05843e29c1fe78be62a2a2d840e6fddbb37c9f824570d0f215f98b2a644791ce",
+      "id": "run-vs001a",
+      "status": "completed"
     }
   ],
   "artifacts": {
@@ -19,12 +24,30 @@
         "id": "run-vs001-final-2",
         "revision": 1,
         "status": "verified"
+      },
+      {
+        "digest": "1381c0b223eecc319b11ff605218554e44ab9f83afdcd8c9717669cfbf4043fc",
+        "id": "run-vs001a-cp-1",
+        "revision": 1,
+        "status": "verified"
+      },
+      {
+        "digest": "dd6be1460c7f1a7551b5119db39638f65d3fe3acd2cb9b7de0ca442cb141a48b",
+        "id": "run-vs001a-final-2",
+        "revision": 1,
+        "status": "verified"
       }
     ],
     "context-packs": [
       {
         "digest": "400c0450c627a813165afd440b4dde9bb08ae401431aeed3010604926efc31fc",
         "id": "run-vs001",
+        "revision": 1,
+        "status": "authorized"
+      },
+      {
+        "digest": "8871381dd69d455a9b7edce89665faa44be519113067582a8eb7f59690b59c85",
+        "id": "run-vs001a",
         "revision": 1,
         "status": "authorized"
       }
@@ -53,6 +76,42 @@
         "id": "run-vs001-resume-contract-observable",
         "revision": 1,
         "status": "accepted"
+      },
+      {
+        "digest": "9b026ba4f2055e09ea64379e2a87dfa37f30dbfe9e5a2eadc57489f17a7a1064",
+        "id": "run-vs001a-actual-adapter-bootstrap",
+        "revision": 1,
+        "status": "accepted"
+      },
+      {
+        "digest": "f271f87d38395ddea6613847975ea15daa5185632edcf46b9ad2f6e8104b2bf8",
+        "id": "run-vs001a-actual-first-session-end",
+        "revision": 1,
+        "status": "accepted"
+      },
+      {
+        "digest": "834484f280994c21f834dbb9ccfe6ff49f4794680d07fca5851fa770ff0ad2a4",
+        "id": "run-vs001a-actual-fresh-session-resume",
+        "revision": 1,
+        "status": "accepted"
+      },
+      {
+        "digest": "93f002b417a0515c51b5c6053601ae7672c9888cfcf08cb8605b91fd34713d3b",
+        "id": "run-vs001a-effect-deduplication-confirmation",
+        "revision": 1,
+        "status": "accepted"
+      },
+      {
+        "digest": "585b9cb155e796e358bf63382d7ecc17e34ce9f62828ab1d8196bf95b363dcb3",
+        "id": "run-vs001a-vs001a-deterministic-tests",
+        "revision": 1,
+        "status": "accepted"
+      },
+      {
+        "digest": "94526d39eff21624233d74ee1760b9d4898336ec3d760beb1765b1862419ca16",
+        "id": "run-vs001a-vs001a-keyed-effect-materialized",
+        "revision": 1,
+        "status": "accepted"
       }
     ],
     "formation-traces": [
@@ -61,12 +120,24 @@
         "id": "run-vs001",
         "revision": 1,
         "status": null
+      },
+      {
+        "digest": "272b28e2aafba1abc1df6c5403cb6a50c0fc8dfd2bc9659244a8c355a9029e06",
+        "id": "run-vs001a",
+        "revision": 1,
+        "status": null
       }
     ],
     "handoffs": [
       {
         "digest": "f93cc5bb2d38fa2f5bbebb68f8b60717ca73564b2f4144f92ccd117cec1948f8",
         "id": "run-vs001-session-vs001-1",
+        "revision": 1,
+        "status": "published"
+      },
+      {
+        "digest": "439112ff5444521aada0d06a346f5143a43aaace8e869fc13bb81cd22b3ddd1e",
+        "id": "run-vs001a-session-vs001a-1",
         "revision": 1,
         "status": "published"
       }
@@ -105,6 +176,12 @@
         "id": "run-vs001",
         "revision": 1,
         "status": "locked"
+      },
+      {
+        "digest": "afb6f0ba43850ba90f571f1245302ed1074766e5947c1131c556955b25cf2be4",
+        "id": "run-vs001a",
+        "revision": 1,
+        "status": "locked"
       }
     ],
     "runs": [
@@ -112,6 +189,12 @@
         "digest": "3bd16838207f698f9b5ef2658ac09c9b4835df0317074df15fd128c5e19c1ec0",
         "id": "run-vs001",
         "revision": 11,
+        "status": "completed"
+      },
+      {
+        "digest": "2cabb408082ffc833be635d104234ce0de10285b71fee8f729fc683ffa853022",
+        "id": "run-vs001a",
+        "revision": 9,
         "status": "completed"
       }
     ],
@@ -141,12 +224,30 @@
         "id": "session-vs001-2",
         "revision": 2,
         "status": "closed"
+      },
+      {
+        "digest": "f4716a0e43037ace49e334a9b1331176d7e161844334b9203c800a2235503064",
+        "id": "session-vs001a-1",
+        "revision": 2,
+        "status": "interrupted"
+      },
+      {
+        "digest": "7e1084b3c97c61e36ba6a02960cae438888fc083c4e7659161c1f44ecbce7344",
+        "id": "session-vs001a-2",
+        "revision": 2,
+        "status": "closed"
       }
     ],
     "validation-plans": [
       {
         "digest": "8c3e0ceb2fdc91e0d79647d8f831998ce3daf4663323d168e148bc25377c96e5",
         "id": "run-vs001",
+        "revision": 1,
+        "status": "ready"
+      },
+      {
+        "digest": "f6ea1d1aefd9a04ff9d77ccb6e081f74d7ca02f80a15b87c1b44c9b673334749",
+        "id": "run-vs001a",
         "revision": 1,
         "status": "ready"
       }
@@ -175,6 +276,42 @@
         "id": "run-vs001-resume-contract-observable-3",
         "revision": 1,
         "status": "passed"
+      },
+      {
+        "digest": "eeb8b6ba56a58a28f85e37b16bc7e31c75bb3cfef13620338ffe5393eea16777",
+        "id": "run-vs001a-actual-adapter-bootstrap-3",
+        "revision": 1,
+        "status": "passed"
+      },
+      {
+        "digest": "83597cd2db3f511465c45111c5c6c8cfc42c6514e1dd5af55f705fe93c36d699",
+        "id": "run-vs001a-actual-first-session-end-4",
+        "revision": 1,
+        "status": "passed"
+      },
+      {
+        "digest": "82d41f2f28b9295083569fe7f6c637947d2cd67c87428030c1951891c6d5b39d",
+        "id": "run-vs001a-actual-fresh-session-resume-5",
+        "revision": 1,
+        "status": "passed"
+      },
+      {
+        "digest": "a0a0219819a6d425c322f703d0adcd259c4512b674d655e871ab6f18357e881b",
+        "id": "run-vs001a-effect-deduplication-confirmation-6",
+        "revision": 1,
+        "status": "passed"
+      },
+      {
+        "digest": "e2d05efb58776bf7b3d81db4e83d0aa5a95ef2d8c7567142f013c51e8b858f69",
+        "id": "run-vs001a-vs001a-deterministic-tests-1",
+        "revision": 1,
+        "status": "passed"
+      },
+      {
+        "digest": "d5deb69188de166cbc11d996e73bdd2270484d61a28301c9adc8d9b5ca41f155",
+        "id": "run-vs001a-vs001a-keyed-effect-materialized-2",
+        "revision": 1,
+        "status": "passed"
       }
     ],
     "work-items": [
@@ -185,10 +322,10 @@
         "status": "completed"
       },
       {
-        "digest": "d92785491468f9175225765e8599e06946ba08b71e9d5012c3db6bd774ee6fb5",
+        "digest": "d8d0d657857cf60574714d47e46f2a3c18e75aeb458ee2d0283bca3bb600494b",
         "id": "continuity-vs001a-claude-code-session-confirmation",
-        "revision": 1,
-        "status": "selected"
+        "revision": 3,
+        "status": "completed"
       }
     ],
     "working-sets": [
@@ -199,15 +336,15 @@
         "status": "completed"
       },
       {
-        "digest": "d27a2df0deb0c241a06cef5d260cef36ca53ccd1e1d0305b1e22196b8f857788",
+        "digest": "3b224859ccdc3b3321f7fea5f9de49a110d6d249ef0fc9fb26a801a7e96b81bd",
         "id": "ws-continuity-vs001a",
-        "revision": 1,
-        "status": "ready"
+        "revision": 3,
+        "status": "completed"
       }
     ]
   },
   "derived": true,
-  "digest": "14c51f013d0e0f682be668f3149b4c4f0043e96943d92760b09f2946954cc0ab",
-  "rebuilt_at": "2026-07-13T16:45:45.638Z",
+  "digest": "ba74a3d50e9d2aa482140a146dafbf60ac6b4e0151fd9934965517e39da50476",
+  "rebuilt_at": "2026-07-13T17:00:14.543Z",
   "schema_version": 1
 }

@@ -1,0 +1,33 @@
+{
+  "authority": "deterministic",
+  "criterion_id": "effect-deduplication-confirmation",
+  "digest": "93f002b417a0515c51b5c6053601ae7672c9888cfcf08cb8605b91fd34713d3b",
+  "evidence_type": "executor-provenance-inspection",
+  "id": "run-vs001a-effect-deduplication-confirmation",
+  "provenance": {
+    "adapter": "claude-code",
+    "repository_fingerprint": "84014b0a7bf33f0c2f4145ba66e431d705823b3d6463ff3c345e676572e49336",
+    "session_id": "session-vs001a-2",
+    "validator": {
+      "command": [
+        "node",
+        "runtime/continuity/tools/validate-vs001a-executor-provenance.mjs",
+        "--run-id",
+        "run-vs001a",
+        "--criterion",
+        "effect-deduplication-confirmation"
+      ],
+      "type": "command"
+    }
+  },
+  "revision": 1,
+  "run_id": "run-vs001a",
+  "schema_version": 1,
+  "status": "accepted",
+  "updated_at": "2026-07-13T16:59:50.108Z",
+  "validation_result_ref": {
+    "digest": "a0a0219819a6d425c322f703d0adcd259c4512b674d655e871ab6f18357e881b",
+    "id": "run-vs001a-effect-deduplication-confirmation-6",
+    "revision": 1
+  }
+}

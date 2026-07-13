@@ -1,6 +1,6 @@
 ---
 id: continuity-vs001a-claude-code-session-confirmation
-status: active
+status: shipped
 type: implementation
 notes: "Corrective validation slice authorized by continuity-lab VS-001A. Closes the VS-001 executor-provenance evidence gap (acceptance criteria 4, 7, 8) with two genuine Claude Code Sessions driven by project-local SessionStart/SessionEnd hooks; no architecture expansion, no rerun of run-vs001."
 references:
@@ -12,8 +12,8 @@ out_of_scope:
 spec: null
 plan: null
 topic_memory: []
-validation_gate: null
-closed: null
+validation_gate: "Continuity VS-001 Run run-vs001a: all required criteria passed with criterion-linked Evidence; final Checkpoint run-vs001a-final-2."
+closed: 2026-07-13
 ---
 
 # VS-001A — Interactive Claude Code Session Confirmation

@@ -1,0 +1,27 @@
+{
+  "authority": "deterministic",
+  "criterion_id": "vs001a-keyed-effect-materialized",
+  "digest": "94526d39eff21624233d74ee1760b9d4898336ec3d760beb1765b1862419ca16",
+  "evidence_type": "repository-file",
+  "id": "run-vs001a-vs001a-keyed-effect-materialized",
+  "provenance": {
+    "adapter": "claude-code",
+    "repository_fingerprint": "84014b0a7bf33f0c2f4145ba66e431d705823b3d6463ff3c345e676572e49336",
+    "session_id": "session-vs001a-2",
+    "validator": {
+      "contains": "VS-001A keyed effect completed exactly once.",
+      "path": "continuity/dogfood/vs001a-effect.txt",
+      "type": "file"
+    }
+  },
+  "revision": 1,
+  "run_id": "run-vs001a",
+  "schema_version": 1,
+  "status": "accepted",
+  "updated_at": "2026-07-13T16:59:49.675Z",
+  "validation_result_ref": {
+    "digest": "d5deb69188de166cbc11d996e73bdd2270484d61a28301c9adc8d9b5ca41f155",
+    "id": "run-vs001a-vs001a-keyed-effect-materialized-2",
+    "revision": 1
+  }
+}

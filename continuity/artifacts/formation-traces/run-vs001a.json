@@ -1,0 +1,84 @@
+{
+  "diagnostics": [],
+  "digest": "272b28e2aafba1abc1df6c5403cb6a50c0fc8dfd2bc9659244a8c355a9029e06",
+  "formed_at": "2026-07-13T16:56:04.591Z",
+  "id": "run-vs001a",
+  "omissions": [],
+  "revision": 1,
+  "run_id": "run-vs001a",
+  "schema_version": 1,
+  "sources": [
+    {
+      "digest": "d92785491468f9175225765e8599e06946ba08b71e9d5012c3db6bd774ee6fb5",
+      "id": "continuity-vs001a-claude-code-session-confirmation",
+      "rationale": "Selected work authority",
+      "required": true,
+      "revision": 1,
+      "type": "work_item"
+    },
+    {
+      "digest": "d27a2df0deb0c241a06cef5d260cef36ca53ccd1e1d0305b1e22196b8f857788",
+      "id": "ws-continuity-vs001a",
+      "rationale": "Bounded execution selection",
+      "required": true,
+      "revision": 1,
+      "type": "working_set"
+    },
+    {
+      "digest": "520e1a94abd13747fbd22edb5773d66da8342bd9d8baa50bf6b7ef1e59e32c3a",
+      "id": "scope-continuity-vs001a",
+      "rationale": "Read/write boundary and exclusions",
+      "required": true,
+      "revision": 1,
+      "type": "scope"
+    },
+    {
+      "digest": "1394bee3746051d7906c41b48fb7df10940c2ccee0469b3965a11a3bdf3968b7",
+      "id": "resumable-agent-work",
+      "rationale": "Resolved executable procedure",
+      "required": true,
+      "revision": "continuity-core@0.1.0-vs001",
+      "type": "procedure"
+    },
+    {
+      "digest": "4de64689023f384eb2afd0bd4e0ebbda152b65c7ce5d69929efa86034697b855",
+      "id": "nestfolio-backlog-and-evidence",
+      "rationale": "Resolved executable procedure",
+      "required": true,
+      "revision": "nestfolio-binding@0.1.0-vs001",
+      "type": "procedure"
+    },
+    {
+      "digest": "f2d32742a45c4a414ba21716c5fb4edcd58261b3b6f4aeaee7ddac93aae765b4",
+      "id": "nestfolio-vs001a-bounded-scope",
+      "rationale": "Applicable project Guard",
+      "required": true,
+      "revision": "1",
+      "type": "guard"
+    },
+    {
+      "digest": "4c537dc8b919c7cd78005607439695eda16982d66c8a27e898c9b622d4ea134e",
+      "id": "vs001a-accepted-architecture-decisions",
+      "rationale": "Accepted architectural/project Decision",
+      "required": true,
+      "revision": "1",
+      "type": "decision"
+    }
+  ],
+  "stages": [
+    "bind-work",
+    "bind-execution-boundary",
+    "resolve-packs",
+    "resolve-procedures",
+    "resolve-decisions",
+    "resolve-guards-and-criteria",
+    "inspect-repository-evidence",
+    "apply-inclusions-and-exclusions",
+    "detect-stale-missing-contradictory-state",
+    "assemble-context-pack",
+    "validate-and-authorize",
+    "deliver-adapter-view"
+  ],
+  "trace_digest": "2b791f73e49faaa05d3355caa6d3f9dcb8436bf1bd0af9d1b9af62e35bb32619",
+  "updated_at": "2026-07-13T16:56:04.591Z"
+}

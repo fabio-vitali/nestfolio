@@ -1,0 +1,17 @@
+{
+  "active_session_id": null,
+  "digest": "05843e29c1fe78be62a2a2d840e6fddbb37c9f824570d0f215f98b2a644791ce",
+  "last_resume_validation": {
+    "checkpoint_digest": "1381c0b223eecc319b11ff605218554e44ab9f83afdcd8c9717669cfbf4043fc",
+    "context_pack_digest": "8871381dd69d455a9b7edce89665faa44be519113067582a8eb7f59690b59c85",
+    "pack_lock_digest": "050be66fe746bce73cb09f56cb0a677fbd08b3be50a0858d7a2b2661ba4fe793",
+    "passed": true,
+    "repository_fingerprint": "84014b0a7bf33f0c2f4145ba66e431d705823b3d6463ff3c345e676572e49336"
+  },
+  "latest_checkpoint_id": "run-vs001a-final-2",
+  "run_id": "run-vs001a",
+  "run_revision": 9,
+  "schema_version": 1,
+  "status": "completed",
+  "updated_at": "2026-07-13T17:00:14.539Z"
+}

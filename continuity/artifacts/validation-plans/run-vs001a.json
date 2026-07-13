@@ -1,0 +1,115 @@
+{
+  "completion_policy": "all-required-criteria-pass-with-evidence",
+  "criteria": [
+    {
+      "description": "The session hooks, provenance validator, and bounded Core/store/Pack behavior pass deterministic unit tests.",
+      "id": "vs001a-deterministic-tests",
+      "required": true,
+      "required_evidence_type": "test-result",
+      "validator": {
+        "command": [
+          "node",
+          "--test",
+          "runtime/continuity/test/core.test.mjs",
+          "runtime/continuity/test/pack-resolution.test.mjs",
+          "runtime/continuity/test/session-hooks.test.mjs"
+        ],
+        "type": "command"
+      }
+    },
+    {
+      "description": "The material keyed effect file exists with the expected content: continuity/dogfood/vs001a-effect.txt containing 'VS-001A keyed effect completed exactly once.'",
+      "id": "vs001a-keyed-effect-materialized",
+      "required": true,
+      "required_evidence_type": "repository-file",
+      "validator": {
+        "contains": "VS-001A keyed effect completed exactly once.",
+        "path": "continuity/dogfood/vs001a-effect.txt",
+        "type": "file"
+      }
+    },
+    {
+      "description": "Genuine Claude Code Session 1 began from a real recorded Claude Code startup and received the adapter-produced start execution view (digest-matched, injected into context by the SessionStart hook).",
+      "id": "actual-adapter-bootstrap",
+      "required": true,
+      "required_evidence_type": "executor-provenance-inspection",
+      "validator": {
+        "command": [
+          "node",
+          "runtime/continuity/tools/validate-vs001a-executor-provenance.mjs",
+          "--run-id",
+          "run-vs001a",
+          "--criterion",
+          "actual-adapter-bootstrap"
+        ],
+        "type": "command"
+      }
+    },
+    {
+      "description": "Genuine Claude Code Session 1 ended (SessionEnd hook recorded the real session id, termination reason, and timestamp) after a verified Checkpoint and a published transcript-independent Handoff.",
+      "id": "actual-first-session-end",
+      "required": true,
+      "required_evidence_type": "executor-provenance-inspection",
+      "validator": {
+        "command": [
+          "node",
+          "runtime/continuity/tools/validate-vs001a-executor-provenance.mjs",
+          "--run-id",
+          "run-vs001a",
+          "--criterion",
+          "actual-first-session-end"
+        ],
+        "type": "command"
+      }
+    },
+    {
+      "description": "A distinct genuine Claude Code Session 2 (different real Claude Code session id, source=startup, never a transcript resume) resumed the Run from repository-local Continuity state through the adapter-produced resume view.",
+      "id": "actual-fresh-session-resume",
+      "required": true,
+      "required_evidence_type": "executor-provenance-inspection",
+      "validator": {
+        "command": [
+          "node",
+          "runtime/continuity/tools/validate-vs001a-executor-provenance.mjs",
+          "--run-id",
+          "run-vs001a",
+          "--criterion",
+          "actual-fresh-session-resume"
+        ],
+        "type": "command"
+      }
+    },
+    {
+      "description": "The second execution of the stable effect key vs001a-material-effect returned deduplicated: true and exactly one completed effect record exists.",
+      "id": "effect-deduplication-confirmation",
+      "required": true,
+      "required_evidence_type": "executor-provenance-inspection",
+      "validator": {
+        "command": [
+          "node",
+          "runtime/continuity/tools/validate-vs001a-executor-provenance.mjs",
+          "--run-id",
+          "run-vs001a",
+          "--criterion",
+          "effect-deduplication-confirmation"
+        ],
+        "type": "command"
+      }
+    }
+  ],
+  "digest": "f6ea1d1aefd9a04ff9d77ccb6e081f74d7ca02f80a15b87c1b44c9b673334749",
+  "guards": [
+    {
+      "definition_sha256": "f2d32742a45c4a414ba21716c5fb4edcd58261b3b6f4aeaee7ddac93aae765b4",
+      "id": "nestfolio-vs001a-bounded-scope",
+      "path": "continuity/bindings/nestfolio/guards/vs001a-scope.json",
+      "version": "1"
+    }
+  ],
+  "id": "run-vs001a",
+  "revision": 1,
+  "run_id": "run-vs001a",
+  "schema_version": 1,
+  "status": "ready",
+  "updated_at": "2026-07-13T16:56:04.593Z"
+}

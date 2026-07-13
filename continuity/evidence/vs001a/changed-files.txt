@@ -1,0 +1,42 @@
+ M .continuity/audit.ndjson
+ M .continuity/derived/index.json
+ M continuity/artifacts/work-items/continuity-vs001a-claude-code-session-confirmation.json
+ M continuity/artifacts/working-sets/ws-continuity-vs001a.json
+ M docs/BACKLOG.md
+ M docs/backlog/continuity-vs001a-claude-code-session-confirmation.md
+?? .continuity/derived/execution-views/run-vs001a-session-vs001a-1.md
+?? .continuity/derived/execution-views/run-vs001a-session-vs001a-2.md
+?? .continuity/executor-sessions/session-vs001a-1-end.json
+?? .continuity/executor-sessions/session-vs001a-1-start.json
+?? .continuity/executor-sessions/session-vs001a-1.ndjson
+?? .continuity/executor-sessions/session-vs001a-2-end.json
+?? .continuity/executor-sessions/session-vs001a-2-start.json
+?? .continuity/executor-sessions/session-vs001a-2.ndjson
+?? .continuity/runs/run-vs001a/effects.json
+?? .continuity/runs/run-vs001a/head.json
+?? .continuity/runs/run-vs001a/lease.json
+?? continuity/artifacts/checkpoints/run-vs001a-cp-1.json
+?? continuity/artifacts/checkpoints/run-vs001a-final-2.json
+?? continuity/artifacts/context-packs/run-vs001a.json
+?? continuity/artifacts/evidence/run-vs001a-actual-adapter-bootstrap.json
+?? continuity/artifacts/evidence/run-vs001a-actual-first-session-end.json
+?? continuity/artifacts/evidence/run-vs001a-actual-fresh-session-resume.json
+?? continuity/artifacts/evidence/run-vs001a-effect-deduplication-confirmation.json
+?? continuity/artifacts/evidence/run-vs001a-vs001a-deterministic-tests.json
+?? continuity/artifacts/evidence/run-vs001a-vs001a-keyed-effect-materialized.json
+?? continuity/artifacts/formation-traces/run-vs001a.json
+?? continuity/artifacts/handoffs/run-vs001a-session-vs001a-1.json
+?? continuity/artifacts/pack-locks/run-vs001a.json
+?? continuity/artifacts/runs/run-vs001a.json
+?? continuity/artifacts/sessions/session-vs001a-1.json
+?? continuity/artifacts/sessions/session-vs001a-2.json
+?? continuity/artifacts/validation-plans/run-vs001a.json
+?? continuity/artifacts/validation-results/run-vs001a-actual-adapter-bootstrap-3.json
+?? continuity/artifacts/validation-results/run-vs001a-actual-first-session-end-4.json
+?? continuity/artifacts/validation-results/run-vs001a-actual-fresh-session-resume-5.json
+?? continuity/artifacts/validation-results/run-vs001a-effect-deduplication-confirmation-6.json
+?? continuity/artifacts/validation-results/run-vs001a-vs001a-deterministic-tests-1.json
+?? continuity/artifacts/validation-results/run-vs001a-vs001a-keyed-effect-materialized-2.json
+?? continuity/dogfood/vs001a-effect.txt
+?? continuity/evidence/vs001a/changed-files.txt
+?? continuity/evidence/vs001a/closure.json
