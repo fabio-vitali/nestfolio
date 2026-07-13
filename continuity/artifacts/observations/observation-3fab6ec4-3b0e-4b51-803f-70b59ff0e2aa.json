@@ -1,0 +1,12 @@
+{
+  "digest": "d718383b32ef4bcba0cdd575d05f6505c46012b77fdf242455ed88ffa98d7394",
+  "evidence_refs": [],
+  "id": "observation-3fab6ec4-3b0e-4b51-803f-70b59ff0e2aa",
+  "revision": 1,
+  "run_id": "run-vs001",
+  "schema_version": 1,
+  "session_id": "session-vs001-2",
+  "statement": "One validation failure may occur during agent work.",
+  "status": "triaged",
+  "updated_at": "2026-07-13T11:14:37.466Z"
+}

@@ -1,0 +1,16 @@
+{
+  "adapter": "claude-code",
+  "close_reason": "simulated-unexpected-Claude-Code-session-termination",
+  "closed_at": "2026-07-13T11:14:14.254Z",
+  "digest": "9b5f24f3812f3a05b00080892f21d7884f3b7681b08cc2231f7ff47fddd00e5a",
+  "executor": "Claude Code",
+  "id": "session-vs001-1",
+  "opened_at": "2026-07-13T11:13:47.171Z",
+  "prior_session_ref": null,
+  "revision": 2,
+  "run_id": "run-vs001",
+  "schema_version": 1,
+  "status": "interrupted",
+  "transcript_dependency": false,
+  "updated_at": "2026-07-13T11:14:14.254Z"
+}

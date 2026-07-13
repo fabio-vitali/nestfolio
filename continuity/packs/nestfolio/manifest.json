@@ -1,0 +1,20 @@
+{
+  "schema_version": 1,
+  "id": "nestfolio-binding",
+  "version": "0.1.0-vs001",
+  "description": "Nestfolio-specific backlog, repository, Guard, and validation binding.",
+  "procedures": [
+    {
+      "id": "nestfolio-backlog-and-evidence",
+      "procedure_path": "continuity/packs/nestfolio/procedures/backlog-and-evidence.json",
+      "executor": "claude-code",
+      "executor_asset": ".claude/skills/continuity-nestfolio-binding/SKILL.md",
+      "capabilities": [
+        "nestfolio-backlog-read",
+        "nestfolio-backlog-write",
+        "nestfolio-scope",
+        "nestfolio-validation"
+      ]
+    }
+  ]
+}

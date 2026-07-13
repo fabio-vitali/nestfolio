@@ -1,0 +1,1 @@
+PASS 461 backlog files rendered with the existing canonical renderer logic; YAML parsed by PyYAML because node_modules are absent.

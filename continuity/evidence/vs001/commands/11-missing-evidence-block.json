@@ -1,0 +1,28 @@
+{
+  "ok": false,
+  "error": {
+    "code": "COMPLETION_GATE_BLOCKED",
+    "message": "Run run-vs001 cannot complete",
+    "details": {
+      "failed_criteria": [
+        {
+          "id": "core-implementation-tests",
+          "status": "pending"
+        },
+        {
+          "id": "keyed-effect-materialized",
+          "status": "pending"
+        },
+        {
+          "id": "resume-contract-observable",
+          "status": "pending"
+        },
+        {
+          "id": "learning-not-promoted",
+          "status": "pending"
+        }
+      ],
+      "missing_evidence": []
+    }
+  }
+}

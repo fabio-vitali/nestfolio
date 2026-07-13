@@ -1,0 +1,25 @@
+{
+  "criterion_id": "learning-not-promoted",
+  "digest": "0ed5bf2f0da412ac430c28efb5b1ae8d2c37a83380ba04203bafcec0c0119366",
+  "exit_code": 0,
+  "id": "run-vs001-learning-not-promoted-4",
+  "mode": "deterministic-command",
+  "revision": 1,
+  "run_id": "run-vs001",
+  "schema_version": 1,
+  "status": "passed",
+  "stderr_excerpt": "",
+  "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+  "stdout_excerpt": "{\n  \"run_id\": \"run-vs001\",\n  \"candidate_lesson_id\": \"lesson-f4536b4b-1784-4a7a-95b0-daa941f2fefe\",\n  \"rejected_unsafe_lesson_id\": \"lesson-555720ab-06d5-4e28-a40a-c59b5dc229c2\",\n  \"automatic_promotion\": false,\n  \"target_changes\": []\n}\n",
+  "stdout_sha256": "94345c6b7cbf0906f113aee2a96b3c1c5ab546a7fbc429c0cad7020e43c0beaa",
+  "updated_at": "2026-07-13T11:14:38.012Z",
+  "validator": {
+    "command": [
+      "node",
+      "runtime/continuity/tools/validate-learning-state.mjs",
+      "--run-id",
+      "run-vs001"
+    ],
+    "type": "command"
+  }
+}

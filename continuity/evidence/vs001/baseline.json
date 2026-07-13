@@ -1,0 +1,8 @@
+{
+  "upstream_nestfolio_revision": "3aa8f4773955541415f615abd80a0a9702bcb416",
+  "uploaded_archive": "nestfolio-3aa8f4773955541415f615abd80a0a9702bcb416(1).zip",
+  "uploaded_archive_sha256": "0ff27fc97261b3e782d39af2e563c0a785593f0ba4c3ac5474f20bef42ec13be",
+  "archive_git_metadata_present": false,
+  "synthetic_local_baseline_revision": "dc2eb20e2ee65c2d6f47064d9d7114c6f557c398",
+  "note": "The synthetic revision was created only to validate and package the uploaded snapshot. It does not replace the upstream revision identity."
+}

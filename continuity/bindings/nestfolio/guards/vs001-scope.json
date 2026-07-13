@@ -1,0 +1,13 @@
+{
+  "schema_version": 1,
+  "id": "nestfolio-vs001-bounded-scope",
+  "version": "1",
+  "status": "active",
+  "condition": "VS-001 writes only Continuity slice code, adapter assets, canonical artifacts, dogfood evidence, and its own backlog/index records.",
+  "rationale": "Prevent architecture validation from becoming broad runtime migration or unrelated Nestfolio feature work.",
+  "applicability": "Work Item continuity-vs001-resumable-agent-work-session",
+  "evaluation_mode": "deterministic",
+  "severity": "blocking",
+  "owner": "VS-001",
+  "exception_policy": "No automatic exception. Scope expansion requires a new explicit Scope revision and human authorization."
+}

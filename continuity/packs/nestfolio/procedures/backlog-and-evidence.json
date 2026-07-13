@@ -1,0 +1,30 @@
+{
+  "schema_version": 1,
+  "id": "nestfolio-backlog-and-evidence",
+  "version": "0.1.0-vs001",
+  "owner": "nestfolio",
+  "purpose": "Bind Continuity Work state to the Nestfolio repository without making Nestfolio conventions part of Framework Core.",
+  "backlog": {
+    "path_pattern": "docs/backlog/<id>.md",
+    "selection_statuses": [
+      "active",
+      "queued",
+      "parking"
+    ],
+    "completion_status": "shipped",
+    "write_policy": "expected source SHA-256"
+  },
+  "repository_rules": {
+    "write_paths": [
+      "runtime/continuity",
+      "continuity",
+      ".continuity",
+      ".claude/skills/continuity-resumable-work",
+      ".claude/skills/continuity-nestfolio-binding",
+      "docs/backlog/continuity-vs001-resumable-agent-work-session.md",
+      "docs/BACKLOG.md"
+    ],
+    "unrelated_product_paths": "excluded"
+  },
+  "validation": "Use deterministic Node tests and repository artifact inspection; no external services."
+}

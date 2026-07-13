@@ -1,0 +1,12 @@
+{
+  "ok": false,
+  "error": {
+    "code": "LEASE_CONFLICT",
+    "message": "Run run-vs001 is already owned by Session session-vs001-1",
+    "details": {
+      "run_id": "run-vs001",
+      "holder_session_id": "session-vs001-1",
+      "requested_session_id": "session-conflict"
+    }
+  }
+}

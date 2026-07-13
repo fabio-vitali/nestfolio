@@ -1,0 +1,24 @@
+{
+  "digest": "e126b67a6dc415a08231168b979dcd261059dee24d9eeee85449c297b7f673bb",
+  "evidence_refs": [],
+  "id": "lesson-f4536b4b-1784-4a7a-95b0-daa941f2fefe",
+  "observation_ref": {
+    "digest": "33234cfe62df7ba29fa0e2980df03c7d2fca47afc151640bdb6ce49fcb9d9086",
+    "id": "observation-7f1dc36c-0754-4035-88af-f4bd58432878",
+    "revision": 1
+  },
+  "promotion": {
+    "automatic": false,
+    "status": "not_promoted",
+    "target_changes": []
+  },
+  "revision": 1,
+  "run_id": "run-vs001",
+  "safety_review": {
+    "status": "pending-human-review"
+  },
+  "schema_version": 1,
+  "statement": "Keep exact-next-action validation mandatory for every verified Checkpoint.",
+  "status": "candidate",
+  "updated_at": "2026-07-13T11:14:37.376Z"
+}

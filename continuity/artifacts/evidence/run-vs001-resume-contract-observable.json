@@ -1,0 +1,31 @@
+{
+  "authority": "deterministic",
+  "criterion_id": "resume-contract-observable",
+  "digest": "04ff4976683644520dc98f01aabef47c590998f8e30cf73b4807056622b0ffc3",
+  "evidence_type": "continuity-state-inspection",
+  "id": "run-vs001-resume-contract-observable",
+  "provenance": {
+    "adapter": "claude-code",
+    "repository_fingerprint": "8f5197e90ddb32b2e325e958edbba107a560537fa909fe2bead9097fe45ccd41",
+    "session_id": "session-vs001-2",
+    "validator": {
+      "command": [
+        "node",
+        "runtime/continuity/tools/validate-dogfood-state.mjs",
+        "--run-id",
+        "run-vs001"
+      ],
+      "type": "command"
+    }
+  },
+  "revision": 1,
+  "run_id": "run-vs001",
+  "schema_version": 1,
+  "status": "accepted",
+  "updated_at": "2026-07-13T11:14:37.944Z",
+  "validation_result_ref": {
+    "digest": "b08ee8a14e44ca7ce27bbf014b09880d19742db6df530cb1bc5d1729fc637d05",
+    "id": "run-vs001-resume-contract-observable-3",
+    "revision": 1
+  }
+}

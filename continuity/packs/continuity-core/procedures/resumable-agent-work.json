@@ -1,0 +1,27 @@
+{
+  "schema_version": 1,
+  "id": "resumable-agent-work",
+  "version": "0.1.0-vs001",
+  "owner": "continuity-core",
+  "purpose": "Execute one bounded Working Set through a checkpointed, resumable Claude Code Run.",
+  "preconditions": [
+    "A selected Work Item and ready Working Set exist.",
+    "Scope, completion criteria, required Evidence, Guards, Decisions, and Pack lock are explicit.",
+    "The active Session owns the mutating lease."
+  ],
+  "steps": [
+    "start from the adapter-produced execution view",
+    "record each material retryable side effect with a stable effect key",
+    "checkpoint with exact next action and completed effects",
+    "publish a transcript-independent Handoff at the session boundary",
+    "resume only after freshness, Pack, Skill, Checkpoint, and lease validation",
+    "validate every completion criterion and attach criterion-linked Evidence",
+    "complete through the gate and record candidate learning without promotion"
+  ],
+  "prohibitions": [
+    "do not infer state from an old transcript",
+    "do not repeat a completed keyed effect",
+    "do not complete with missing or failed required Evidence",
+    "do not auto-promote Lessons or Guards"
+  ]
+}

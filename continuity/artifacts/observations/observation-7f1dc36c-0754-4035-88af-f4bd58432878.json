@@ -1,0 +1,12 @@
+{
+  "digest": "33234cfe62df7ba29fa0e2980df03c7d2fca47afc151640bdb6ce49fcb9d9086",
+  "evidence_refs": [],
+  "id": "observation-7f1dc36c-0754-4035-88af-f4bd58432878",
+  "revision": 1,
+  "run_id": "run-vs001",
+  "schema_version": 1,
+  "session_id": "session-vs001-2",
+  "statement": "Fresh-session resume depends on an explicit exact next action.",
+  "status": "triaged",
+  "updated_at": "2026-07-13T11:14:37.374Z"
+}

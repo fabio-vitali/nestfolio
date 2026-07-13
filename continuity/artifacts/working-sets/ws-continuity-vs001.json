@@ -1,0 +1,79 @@
+{
+  "active_run_refs": [],
+  "completed_run_refs": [
+    {
+      "digest": "3bd16838207f698f9b5ef2658ac09c9b4835df0317074df15fd128c5e19c1ec0",
+      "id": "run-vs001",
+      "revision": 11
+    }
+  ],
+  "dependency_rationale": "Single bounded VS-001 implementation/dogfood item; no unrelated Nestfolio work.",
+  "digest": "86347060d4f43a404b96bfab256bb5a45656e8c80aa12830c377c250e725b073",
+  "evidence_refs": [
+    {
+      "criterion_id": "core-implementation-tests",
+      "digest": "4e22601e474130919e5836f996394e66a7bb47e00c6d5a863fa5010096f8cdb6",
+      "id": "run-vs001-core-implementation-tests",
+      "revision": 1
+    },
+    {
+      "criterion_id": "keyed-effect-materialized",
+      "digest": "e3a5da9019d4c3b0122a1dac830a9cb7fc452d579f43cc86c7ba567698b8f6eb",
+      "id": "run-vs001-keyed-effect-materialized",
+      "revision": 1
+    },
+    {
+      "criterion_id": "resume-contract-observable",
+      "digest": "04ff4976683644520dc98f01aabef47c590998f8e30cf73b4807056622b0ffc3",
+      "id": "run-vs001-resume-contract-observable",
+      "revision": 1
+    },
+    {
+      "criterion_id": "learning-not-promoted",
+      "digest": "7d1a71ae0f18bf52c6313011abd160f0bf05ff387d27b69d12cf1202a9a6d965",
+      "id": "run-vs001-learning-not-promoted",
+      "revision": 1
+    }
+  ],
+  "exclusions": [
+    "Existing Nestfolio business applications, services, infrastructure, and domain code.",
+    "Current runtime feature families outside the minimum concepts reused by VS-001.",
+    "External backlog or CI mutation.",
+    "Parallel fan-out, Epic orchestration, deploy/release, hosted collaboration, RBAC, analytics, and universal Console."
+  ],
+  "history": [
+    {
+      "action": "created",
+      "at": "2026-07-13T11:13:38.638Z"
+    },
+    {
+      "action": "run-started",
+      "at": "2026-07-13T11:13:47.174Z",
+      "run_id": "run-vs001"
+    },
+    {
+      "action": "completed",
+      "at": "2026-07-13T11:14:51.475Z",
+      "run_id": "run-vs001"
+    }
+  ],
+  "id": "ws-continuity-vs001",
+  "objective": "Implement and dogfood the minimum Continuity path that resumes a Claude Code-oriented Run from a verified repository-local Checkpoint without transcript reconstruction or duplicate effects.",
+  "revision": 3,
+  "schema_version": 1,
+  "scope_ref": {
+    "digest": "38391f9f89782d0de4d3938eac97018f92c5fbd40d3c6c9d7957fc077d5e6c26",
+    "id": "scope-continuity-vs001",
+    "revision": 1
+  },
+  "shared_completion_boundary": "All deterministic criteria pass, each has Evidence, the Run completes revision-safely, and no Lesson is promoted.",
+  "status": "completed",
+  "updated_at": "2026-07-13T11:14:51.475Z",
+  "work_item_refs": [
+    {
+      "digest": "02597b633595bf1a85073bf6f11dd3df0b1596d9bce35f2a15552fe6a57440c3",
+      "id": "continuity-vs001-resumable-agent-work-session",
+      "revision": 3
+    }
+  ]
+}

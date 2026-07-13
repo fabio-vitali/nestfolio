@@ -1,0 +1,50 @@
+{
+  "allowed_read_paths": [
+    "runtime/continuity",
+    "runtime/engine/lib/journal.mjs",
+    ".claude/skills",
+    "docs/backlog",
+    "continuity"
+  ],
+  "allowed_write_paths": [
+    "runtime/continuity",
+    "continuity",
+    ".continuity",
+    ".claude/skills/continuity-resumable-work",
+    ".claude/skills/continuity-nestfolio-binding",
+    "docs/backlog/continuity-vs001-resumable-agent-work-session.md",
+    "docs/BACKLOG.md"
+  ],
+  "digest": "38391f9f89782d0de4d3938eac97018f92c5fbd40d3c6c9d7957fc077d5e6c26",
+  "effect_classes": [
+    "repository-file-write",
+    "canonical-artifact-write",
+    "operational-state-write",
+    "backlog-state-write"
+  ],
+  "exclusions": [
+    "Existing Nestfolio business applications, services, infrastructure, and domain code.",
+    "Current runtime feature families outside the minimum concepts reused by VS-001.",
+    "External backlog or CI mutation.",
+    "Parallel fan-out, Epic orchestration, deploy/release, hosted collaboration, RBAC, analytics, and universal Console."
+  ],
+  "expansion_policy": "explicit-revision-and-authorization",
+  "fingerprint_paths": [
+    "runtime/continuity",
+    ".claude/skills/continuity-resumable-work",
+    ".claude/skills/continuity-nestfolio-binding",
+    "continuity/packs",
+    "continuity/bindings",
+    "continuity/dogfood"
+  ],
+  "id": "scope-continuity-vs001",
+  "owner": "VS-001",
+  "repository_identity": {
+    "declared_upstream_baseline": "3aa8f4773955541415f615abd80a0a9702bcb416",
+    "repository": "nestfolio"
+  },
+  "revision": 1,
+  "schema_version": 1,
+  "status": "active",
+  "updated_at": "2026-07-13T11:13:38.638Z"
+}

@@ -1,0 +1,162 @@
+{
+  "checkpoint_ref": {
+    "digest": "4bdcb7f93c8714d1824a55390d16fa975b9a82f3af77c2c579607f45b820491c",
+    "id": "run-vs001-cp-1",
+    "revision": 1
+  },
+  "completed_effects": [
+    {
+      "after_sha256": "09c9622554c35985c71e2ca9f3ab6c6b970f74ee6f4cc14b679287136c9e4e23",
+      "key": "vs001-material-effect",
+      "path": "continuity/dogfood/vs001-effect.txt"
+    }
+  ],
+  "context_pack_digest": "400c0450c627a813165afd440b4dde9bb08ae401431aeed3010604926efc31fc",
+  "digest": "f93cc5bb2d38fa2f5bbebb68f8b60717ca73564b2f4144f92ccd117cec1948f8",
+  "exact_next_action": "Resume in a fresh Session, verify the keyed effect is deduplicated, record learning, validate, and complete.",
+  "from_session_id": "session-vs001-1",
+  "id": "run-vs001-session-vs001-1",
+  "pack_lock_digest": "050be66fe746bce73cb09f56cb0a677fbd08b3be50a0858d7a2b2661ba4fe793",
+  "reason": "simulated-unexpected-Claude-Code-session-termination",
+  "repository_fingerprint": {
+    "digest": "8f5197e90ddb32b2e325e958edbba107a560537fa909fe2bead9097fe45ccd41",
+    "files": [
+      {
+        "path": ".claude/skills/continuity-nestfolio-binding/SKILL.md",
+        "sha256": "b8d14455821985268184bb4b10b6fd6d106bf32bb74a1a8633adbfe13d307186",
+        "size": 766
+      },
+      {
+        "path": ".claude/skills/continuity-resumable-work/SKILL.md",
+        "sha256": "177834221c0c5ceea6684f3d644c875bb26888f493156cb04f7c1abaa1d6a47f",
+        "size": 1429
+      },
+      {
+        "path": "continuity/bindings/nestfolio/decisions/vs001-accepted-decisions.json",
+        "sha256": "182613f9047e742b454ea2def0a3ca8605041a53224d4e2ab5ddab79cc5c1fc2",
+        "size": 478
+      },
+      {
+        "path": "continuity/bindings/nestfolio/guards/vs001-scope.json",
+        "sha256": "8022c964de724bc6f554e3dbc3905a49c8ef912408f93ec385e2de223d41487e",
+        "size": 674
+      },
+      {
+        "path": "continuity/bindings/nestfolio/work-items/continuity-vs001-resumable-agent-work-session.json",
+        "sha256": "8135e9acc2fc5cedc4c121e76efc08a7b5a55761e72cd4a7373dfb19e28eae98",
+        "size": 5131
+      },
+      {
+        "path": "continuity/dogfood/vs001-effect.txt",
+        "sha256": "09c9622554c35985c71e2ca9f3ab6c6b970f74ee6f4cc14b679287136c9e4e23",
+        "size": 44
+      },
+      {
+        "path": "continuity/packs/continuity-core/manifest.json",
+        "sha256": "7a0793d0842e48beefcb1bc537b35e881ca8a2bb7572183cfe38db86eeb45a99",
+        "size": 625
+      },
+      {
+        "path": "continuity/packs/continuity-core/procedures/resumable-agent-work.json",
+        "sha256": "1394bee3746051d7906c41b48fb7df10940c2ccee0469b3965a11a3bdf3968b7",
+        "size": 1201
+      },
+      {
+        "path": "continuity/packs/nestfolio/manifest.json",
+        "sha256": "22ac0cc8ba666c43789dbff939571ad529386cd6e1847fa09caf5eb4473f659e",
+        "size": 618
+      },
+      {
+        "path": "continuity/packs/nestfolio/procedures/backlog-and-evidence.json",
+        "sha256": "4de64689023f384eb2afd0bd4e0ebbda152b65c7ce5d69929efa86034697b855",
+        "size": 953
+      },
+      {
+        "path": "runtime/continuity/adapters/claude-code/cli.mjs",
+        "sha256": "4c523fe704fcc290a1f8dc86c918298fea12be58763f155801431d76728d4f0f",
+        "size": 2935
+      },
+      {
+        "path": "runtime/continuity/lib/backlog-binding.mjs",
+        "sha256": "c7b52a38fe4f8f296eff1efec3f8f28f8b451e7422ae68b6929e1d1f5b7f47a1",
+        "size": 3398
+      },
+      {
+        "path": "runtime/continuity/lib/context.mjs",
+        "sha256": "679a3ea6d08c6104d10958696ca30c12091c94a7854ae61a29c53000b6527d35",
+        "size": 3184
+      },
+      {
+        "path": "runtime/continuity/lib/errors.mjs",
+        "sha256": "f1edd864583dd4712c6b2246a3c8b7c1d3d3762d4c3f0bd5fc5f8b20dd7d9c3d",
+        "size": 651
+      },
+      {
+        "path": "runtime/continuity/lib/pack-resolver.mjs",
+        "sha256": "db10c0fadd1063f5632a58b285c0b7f682616d07550911a935f2af760c5e60f1",
+        "size": 3988
+      },
+      {
+        "path": "runtime/continuity/lib/store.mjs",
+        "sha256": "aed2d6fa93bee7c1a6871aa96d2210004787a6a7a35d6070a58775665b94d15c",
+        "size": 4260
+      },
+      {
+        "path": "runtime/continuity/lib/utils.mjs",
+        "sha256": "e8897333f05bf76a6cd20c1f8f6341d011f79975240e50977e8afbbf302b231f",
+        "size": 5430
+      },
+      {
+        "path": "runtime/continuity/lib/workflow.mjs",
+        "sha256": "6d0f828282183a8cc93f30ec8e61478f31ff4bea41160d763e531a4bb143ffac",
+        "size": 37791
+      },
+      {
+        "path": "runtime/continuity/README.md",
+        "sha256": "690112fb698cfd2b0d202e3429c39c541a6b59c13310aab5c9254d1f92f9a6e1",
+        "size": 1686
+      },
+      {
+        "path": "runtime/continuity/test/core.test.mjs",
+        "sha256": "d7e926a1f2053093b8d2440457d936a90595565cd0e6492bcc84c0ee132e0dea",
+        "size": 2087
+      },
+      {
+        "path": "runtime/continuity/test/pack-resolution.test.mjs",
+        "sha256": "aa33e93a78978020d4e6bf5d5d2c094095dacea5b73c529142bcc7206715ce8a",
+        "size": 1475
+      },
+      {
+        "path": "runtime/continuity/test/resumable-session.test.mjs",
+        "sha256": "c2b937c4b57ffb53aef3aa0dc2ccad9a1a1bf99c2c7d776ec3fd69b6b4765d11",
+        "size": 5598
+      },
+      {
+        "path": "runtime/continuity/test/test-fixture.mjs",
+        "sha256": "ee284ad1d9396f951781ad5dba88fcee24a44e25c049a5c576e5526ef4921ddb",
+        "size": 1027
+      },
+      {
+        "path": "runtime/continuity/tools/validate-dogfood-state.mjs",
+        "sha256": "7df0c163f629bad538d8d11972aedede7a1049a8d40028cdc238541b6c3447d0",
+        "size": 2479
+      },
+      {
+        "path": "runtime/continuity/tools/validate-learning-state.mjs",
+        "sha256": "938b8756bbc69ff31582142c51d764b626a5c8b24ca633f070a789a1005466da",
+        "size": 1566
+      }
+    ],
+    "identity": {
+      "branch": "master",
+      "head": "dc2eb20e2ee65c2d6f47064d9d7114c6f557c398",
+      "mode": "git"
+    }
+  },
+  "revision": 1,
+  "run_id": "run-vs001",
+  "schema_version": 1,
+  "status": "published",
+  "transcript_dependency": false,
+  "updated_at": "2026-07-13T11:14:14.256Z"
+}

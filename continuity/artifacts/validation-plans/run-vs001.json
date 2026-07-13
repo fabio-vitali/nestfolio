@@ -1,0 +1,76 @@
+{
+  "completion_policy": "all-required-criteria-pass-with-evidence",
+  "criteria": [
+    {
+      "description": "The bounded Core/store/Pack behavior passes deterministic unit tests.",
+      "id": "core-implementation-tests",
+      "required": true,
+      "required_evidence_type": "test-result",
+      "validator": {
+        "command": [
+          "node",
+          "--test",
+          "runtime/continuity/test/core.test.mjs",
+          "runtime/continuity/test/pack-resolution.test.mjs"
+        ],
+        "type": "command"
+      }
+    },
+    {
+      "description": "The material dogfood file effect exists with the expected content.",
+      "id": "keyed-effect-materialized",
+      "required": true,
+      "required_evidence_type": "repository-file",
+      "validator": {
+        "contains": "VS-001 keyed effect completed exactly once.",
+        "path": "continuity/dogfood/vs001-effect.txt",
+        "type": "file"
+      }
+    },
+    {
+      "description": "Canonical artifacts prove two Sessions, a verified Checkpoint, a published Handoff, a passing resume check, and one completed keyed effect.",
+      "id": "resume-contract-observable",
+      "required": true,
+      "required_evidence_type": "continuity-state-inspection",
+      "validator": {
+        "command": [
+          "node",
+          "runtime/continuity/tools/validate-dogfood-state.mjs",
+          "--run-id",
+          "run-vs001"
+        ],
+        "type": "command"
+      }
+    },
+    {
+      "description": "A candidate Lesson and an unsafe rejected Lesson exist, and neither changed a Skill or Guard automatically.",
+      "id": "learning-not-promoted",
+      "required": true,
+      "required_evidence_type": "learning-governance-inspection",
+      "validator": {
+        "command": [
+          "node",
+          "runtime/continuity/tools/validate-learning-state.mjs",
+          "--run-id",
+          "run-vs001"
+        ],
+        "type": "command"
+      }
+    }
+  ],
+  "digest": "8c3e0ceb2fdc91e0d79647d8f831998ce3daf4663323d168e148bc25377c96e5",
+  "guards": [
+    {
+      "definition_sha256": "8022c964de724bc6f554e3dbc3905a49c8ef912408f93ec385e2de223d41487e",
+      "id": "nestfolio-vs001-bounded-scope",
+      "path": "continuity/bindings/nestfolio/guards/vs001-scope.json",
+      "version": "1"
+    }
+  ],
+  "id": "run-vs001",
+  "revision": 1,
+  "run_id": "run-vs001",
+  "schema_version": 1,
+  "status": "ready",
+  "updated_at": "2026-07-13T11:13:47.170Z"
+}

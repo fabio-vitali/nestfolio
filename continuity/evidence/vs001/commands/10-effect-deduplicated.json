@@ -1,0 +1,16 @@
+{
+  "ok": true,
+  "result": {
+    "effect": {
+      "after_sha256": "09c9622554c35985c71e2ca9f3ab6c6b970f74ee6f4cc14b679287136c9e4e23",
+      "before_sha256": null,
+      "completed_at": "2026-07-13T11:13:57.305Z",
+      "effect_class": "repository-file-write",
+      "key": "vs001-material-effect",
+      "path": "continuity/dogfood/vs001-effect.txt",
+      "session_id": "session-vs001-1",
+      "status": "completed"
+    },
+    "deduplicated": true
+  }
+}

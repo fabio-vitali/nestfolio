@@ -1,0 +1,7 @@
+{
+  "run_id": "run-vs001",
+  "candidate_lesson_id": "lesson-f4536b4b-1784-4a7a-95b0-daa941f2fefe",
+  "rejected_unsafe_lesson_id": "lesson-555720ab-06d5-4e28-a40a-c59b5dc229c2",
+  "automatic_promotion": false,
+  "target_changes": []
+}

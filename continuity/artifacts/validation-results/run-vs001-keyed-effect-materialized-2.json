@@ -1,0 +1,21 @@
+{
+  "criterion_id": "keyed-effect-materialized",
+  "digest": "efe660021e5a7d1be29b7d312fa5693b89b2c258a643e982df80a76bfd0d60e8",
+  "exit_code": 0,
+  "id": "run-vs001-keyed-effect-materialized-2",
+  "mode": "deterministic-file",
+  "revision": 1,
+  "run_id": "run-vs001",
+  "schema_version": 1,
+  "status": "passed",
+  "stderr_excerpt": "",
+  "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+  "stdout_excerpt": "Verified continuity/dogfood/vs001-effect.txt",
+  "stdout_sha256": "5b2eb0c11e651490e6434ec0c8b0a79ebcde963e7d6edd91744cdb232aced7ad",
+  "updated_at": "2026-07-13T11:14:37.815Z",
+  "validator": {
+    "contains": "VS-001 keyed effect completed exactly once.",
+    "path": "continuity/dogfood/vs001-effect.txt",
+    "type": "file"
+  }
+}

@@ -1,0 +1,11 @@
+{
+  "ok": false,
+  "error": {
+    "code": "SKILL_ASSET_MISMATCH",
+    "message": "Executor asset changed: .claude/skills/continuity-resumable-work/SKILL.md",
+    "details": {
+      "expected_sha256": "177834221c0c5ceea6684f3d644c875bb26888f493156cb04f7c1abaa1d6a47f",
+      "actual_sha256": "c72b4e19a61e7f04b1b276f9d0ab89b0ccb9d8d7c4a0757ba373d52d7771e658"
+    }
+  }
+}

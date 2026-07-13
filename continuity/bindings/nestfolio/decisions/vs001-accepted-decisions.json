@@ -1,0 +1,17 @@
+{
+  "schema_version": 1,
+  "id": "vs001-accepted-architecture-decisions",
+  "version": "1",
+  "status": "accepted",
+  "source_repository": "continuity-lab",
+  "decision_ids": [
+    "DR-0012",
+    "DR-0013",
+    "DR-0014",
+    "DR-0015",
+    "DR-0016",
+    "DR-0017",
+    "DR-0018"
+  ],
+  "effect": "Authorize only the bounded VS-001 path, keep repository-local canonical state, use the Claude Code adapter first, lock Packs/Skills, and prohibit automatic learning promotion."
+}

@@ -1,0 +1,16 @@
+{
+  "ok": false,
+  "error": {
+    "code": "STALE_RUN",
+    "message": "Run run-vs001 is stale and cannot resume automatically",
+    "details": {
+      "failures": [
+        {
+          "label": "repository_fingerprint",
+          "expected": "8f5197e90ddb32b2e325e958edbba107a560537fa909fe2bead9097fe45ccd41",
+          "actual": "d803e19a9f0f904c2c71d8fc718a4263fa186d852c171537c6f9405e4312ae4b"
+        }
+      ]
+    }
+  }
+}

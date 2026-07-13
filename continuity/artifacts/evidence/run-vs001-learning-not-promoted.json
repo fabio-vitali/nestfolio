@@ -1,0 +1,31 @@
+{
+  "authority": "deterministic",
+  "criterion_id": "learning-not-promoted",
+  "digest": "7d1a71ae0f18bf52c6313011abd160f0bf05ff387d27b69d12cf1202a9a6d965",
+  "evidence_type": "learning-governance-inspection",
+  "id": "run-vs001-learning-not-promoted",
+  "provenance": {
+    "adapter": "claude-code",
+    "repository_fingerprint": "8f5197e90ddb32b2e325e958edbba107a560537fa909fe2bead9097fe45ccd41",
+    "session_id": "session-vs001-2",
+    "validator": {
+      "command": [
+        "node",
+        "runtime/continuity/tools/validate-learning-state.mjs",
+        "--run-id",
+        "run-vs001"
+      ],
+      "type": "command"
+    }
+  },
+  "revision": 1,
+  "run_id": "run-vs001",
+  "schema_version": 1,
+  "status": "accepted",
+  "updated_at": "2026-07-13T11:14:38.050Z",
+  "validation_result_ref": {
+    "digest": "0ed5bf2f0da412ac430c28efb5b1ae8d2c37a83380ba04203bafcec0c0119366",
+    "id": "run-vs001-learning-not-promoted-4",
+    "revision": 1
+  }
+}

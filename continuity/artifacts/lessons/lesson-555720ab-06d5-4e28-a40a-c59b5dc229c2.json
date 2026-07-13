@@ -1,0 +1,25 @@
+{
+  "digest": "0cb8e9caa9dc24d1dc4e8a91283a120e71f6aa56779211c848b80539f0f8b284",
+  "evidence_refs": [],
+  "id": "lesson-555720ab-06d5-4e28-a40a-c59b5dc229c2",
+  "observation_ref": {
+    "digest": "d718383b32ef4bcba0cdd575d05f6505c46012b77fdf242455ed88ffa98d7394",
+    "id": "observation-3fab6ec4-3b0e-4b51-803f-70b59ff0e2aa",
+    "revision": 1
+  },
+  "promotion": {
+    "automatic": false,
+    "status": "not_promoted",
+    "target_changes": []
+  },
+  "revision": 1,
+  "run_id": "run-vs001",
+  "safety_review": {
+    "rationale": "A single Run may not automatically create or modify canonical Guards, Skills, or Procedures.",
+    "status": "unsafe"
+  },
+  "schema_version": 1,
+  "statement": "Automatically mint a blocking Guard after any single validation failure.",
+  "status": "rejected",
+  "updated_at": "2026-07-13T11:14:37.468Z"
+}

@@ -1,0 +1,31 @@
+{
+  "authority": "deterministic",
+  "criterion_id": "core-implementation-tests",
+  "digest": "4e22601e474130919e5836f996394e66a7bb47e00c6d5a863fa5010096f8cdb6",
+  "evidence_type": "test-result",
+  "id": "run-vs001-core-implementation-tests",
+  "provenance": {
+    "adapter": "claude-code",
+    "repository_fingerprint": "8f5197e90ddb32b2e325e958edbba107a560537fa909fe2bead9097fe45ccd41",
+    "session_id": "session-vs001-2",
+    "validator": {
+      "command": [
+        "node",
+        "--test",
+        "runtime/continuity/test/core.test.mjs",
+        "runtime/continuity/test/pack-resolution.test.mjs"
+      ],
+      "type": "command"
+    }
+  },
+  "revision": 1,
+  "run_id": "run-vs001",
+  "schema_version": 1,
+  "status": "accepted",
+  "updated_at": "2026-07-13T11:14:37.815Z",
+  "validation_result_ref": {
+    "digest": "afef3b780d5085dc1c15f7fe3f7c94c7e4df059b96f57e07bcad8ae16016cbe6",
+    "id": "run-vs001-core-implementation-tests-1",
+    "revision": 1
+  }
+}

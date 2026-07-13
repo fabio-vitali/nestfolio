@@ -1,0 +1,46 @@
+TAP version 13
+# Subtest: repository store enforces expected revisions and rebuilds derived index
+ok 1 - repository store enforces expected revisions and rebuilds derived index
+  ---
+  duration_ms: 23.953798
+  type: 'test'
+  ...
+# Subtest: Nestfolio backlog binding uses source digest as the revision guard
+ok 2 - Nestfolio backlog binding uses source digest as the revision guard
+  ---
+  duration_ms: 12.300262
+  type: 'test'
+  ...
+# Subtest: Pack resolution locks reusable and Nestfolio-specific Claude Code assets
+ok 3 - Pack resolution locks reusable and Nestfolio-specific Claude Code assets
+  ---
+  duration_ms: 30.191668
+  type: 'test'
+  ...
+# Subtest: missing or mismatched Skill assets fail closed
+ok 4 - missing or mismatched Skill assets fail closed
+  ---
+  duration_ms: 34.268889
+  type: 'test'
+  ...
+# Subtest: full bounded path resumes in a fresh Session without duplicate effects
+ok 5 - full bounded path resumes in a fresh Session without duplicate effects
+  ---
+  duration_ms: 509.492664
+  type: 'test'
+  ...
+# Subtest: failed validation blocks completion and produces no passing Evidence for that criterion
+ok 6 - failed validation blocks completion and produces no passing Evidence for that criterion
+  ---
+  duration_ms: 362.769096
+  type: 'test'
+  ...
+1..6
+# tests 6
+# suites 0
+# pass 6
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 998.059463

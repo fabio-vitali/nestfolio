@@ -1,0 +1,23 @@
+{
+  "schema_version": 1,
+  "id": "continuity-core",
+  "version": "0.1.0-vs001",
+  "description": "Portable bounded agent-work lifecycle for VS-001.",
+  "procedures": [
+    {
+      "id": "resumable-agent-work",
+      "procedure_path": "continuity/packs/continuity-core/procedures/resumable-agent-work.json",
+      "executor": "claude-code",
+      "executor_asset": ".claude/skills/continuity-resumable-work/SKILL.md",
+      "capabilities": [
+        "work-selection",
+        "run-start",
+        "checkpoint",
+        "fresh-session-resume",
+        "validation",
+        "completion",
+        "learning"
+      ]
+    }
+  ]
+}

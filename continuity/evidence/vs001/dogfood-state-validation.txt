@@ -1,0 +1,39 @@
+{
+  "run_id": "run-vs001",
+  "sessions": [
+    {
+      "id": "session-vs001-1",
+      "status": "interrupted"
+    },
+    {
+      "id": "session-vs001-2",
+      "status": "closed"
+    }
+  ],
+  "checkpoints": [
+    {
+      "id": "run-vs001-cp-1",
+      "status": "verified"
+    },
+    {
+      "id": "run-vs001-final-2",
+      "status": "verified"
+    }
+  ],
+  "handoffs": [
+    {
+      "id": "run-vs001-session-vs001-1",
+      "status": "published"
+    }
+  ],
+  "effect_keys": [
+    "vs001-material-effect"
+  ],
+  "resume_validation": {
+    "checkpoint_digest": "4bdcb7f93c8714d1824a55390d16fa975b9a82f3af77c2c579607f45b820491c",
+    "context_pack_digest": "400c0450c627a813165afd440b4dde9bb08ae401431aeed3010604926efc31fc",
+    "pack_lock_digest": "050be66fe746bce73cb09f56cb0a677fbd08b3be50a0858d7a2b2661ba4fe793",
+    "passed": true,
+    "repository_fingerprint": "8f5197e90ddb32b2e325e958edbba107a560537fa909fe2bead9097fe45ccd41"
+  }
+}

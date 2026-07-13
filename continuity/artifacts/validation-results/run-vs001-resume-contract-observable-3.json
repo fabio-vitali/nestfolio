@@ -1,0 +1,25 @@
+{
+  "criterion_id": "resume-contract-observable",
+  "digest": "b08ee8a14e44ca7ce27bbf014b09880d19742db6df530cb1bc5d1729fc637d05",
+  "exit_code": 0,
+  "id": "run-vs001-resume-contract-observable-3",
+  "mode": "deterministic-command",
+  "revision": 1,
+  "run_id": "run-vs001",
+  "schema_version": 1,
+  "status": "passed",
+  "stderr_excerpt": "",
+  "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+  "stdout_excerpt": "{\n  \"run_id\": \"run-vs001\",\n  \"sessions\": [\n    {\n      \"id\": \"session-vs001-1\",\n      \"status\": \"interrupted\"\n    },\n    {\n      \"id\": \"session-vs001-2\",\n      \"status\": \"active\"\n    }\n  ],\n  \"checkpoints\": [\n    {\n      \"id\": \"run-vs001-cp-1\",\n      \"status\": \"verified\"\n    }\n  ],\n  \"handoffs\": [\n    {\n      \"id\": \"run-vs001-session-vs001-1\",\n      \"status\": \"published\"\n    }\n  ],\n  \"effect_keys\": [\n    \"vs001-material-effect\"\n  ],\n  \"resume_validation\": {\n    \"checkpoint_digest\": \"4bdcb7f93c8714d1824a55390d16fa975b9a82f3af77c2c579607f45b820491c\",\n    \"context_pack_digest\": \"400c0450c627a813165afd440b4dde9bb08ae401431aeed3010604926efc31fc\",\n    \"pack_lock_digest\": \"050be66fe746bce73cb09f56cb0a677fbd08b3be50a0858d7a2b2661ba4fe793\",\n    \"passed\": true,\n    \"repository_fingerprint\": \"8f5197e90ddb32b2e325e958edbba107a560537fa909fe2bead9097fe45ccd41\"\n  }\n}\n",
+  "stdout_sha256": "67afd4e4f0830def59e895bcd3ff1f8b93153e1d1d2f98517a1c84c365775c52",
+  "updated_at": "2026-07-13T11:14:37.913Z",
+  "validator": {
+    "command": [
+      "node",
+      "runtime/continuity/tools/validate-dogfood-state.mjs",
+      "--run-id",
+      "run-vs001"
+    ],
+    "type": "command"
+  }
+}

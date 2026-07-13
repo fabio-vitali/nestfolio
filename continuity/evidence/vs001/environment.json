@@ -1,0 +1,10 @@
+{
+  "captured_on": "2026-07-13",
+  "executor_target": "Claude Code",
+  "claude_code_binary_available": false,
+  "claude_code_binary_lookup": "command -v claude returned no path",
+  "node_version": "v22.16.0",
+  "package_installation": "node_modules absent in uploaded archive",
+  "dogfood_execution_mode": "separate operating-system CLI processes invoking the Claude Code adapter boundary",
+  "limitation": "No genuine Claude Code process/session provenance could be captured in this sandbox. Adapter views, Skills, Pack locks, Session records, interruption, resume, effect deduplication, validation and completion were exercised, but acceptance criteria requiring actual Claude Code Sessions remain unproven."
+}

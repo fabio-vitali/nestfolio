@@ -1,0 +1,150 @@
+{
+  "schema_version": 1,
+  "id": "continuity-vs001-resumable-agent-work-session",
+  "objective": "Implement and dogfood the minimum Continuity path that resumes a Claude Code-oriented Run from a verified repository-local Checkpoint without transcript reconstruction or duplicate effects.",
+  "dependencies": [],
+  "constraints": [
+    "No broad migration of the current Nestfolio runtime.",
+    "No unrelated Nestfolio feature work.",
+    "No external writes, hosted control plane, multi-executor parity, or automatic Lesson promotion."
+  ],
+  "expected_outputs": [
+    "bounded Continuity implementation and tests",
+    "Claude Code adapter execution views",
+    "verified intermediate and final Checkpoints",
+    "criterion-linked Evidence",
+    "completed Work and Working Set state",
+    "candidate and rejected-unsafe Lessons"
+  ],
+  "shared_completion_boundary": "All deterministic criteria pass, each has Evidence, the Run completes revision-safely, and no Lesson is promoted.",
+  "required_capabilities": [
+    "work-selection",
+    "run-start",
+    "checkpoint",
+    "fresh-session-resume",
+    "validation",
+    "completion",
+    "learning",
+    "nestfolio-backlog-read",
+    "nestfolio-backlog-write",
+    "nestfolio-scope",
+    "nestfolio-validation"
+  ],
+  "scope": {
+    "id": "scope-continuity-vs001",
+    "repository_identity": {
+      "repository": "nestfolio",
+      "declared_upstream_baseline": "3aa8f4773955541415f615abd80a0a9702bcb416"
+    },
+    "allowed_read_paths": [
+      "runtime/continuity",
+      "runtime/engine/lib/journal.mjs",
+      ".claude/skills",
+      "docs/backlog",
+      "continuity"
+    ],
+    "allowed_write_paths": [
+      "runtime/continuity",
+      "continuity",
+      ".continuity",
+      ".claude/skills/continuity-resumable-work",
+      ".claude/skills/continuity-nestfolio-binding",
+      "docs/backlog/continuity-vs001-resumable-agent-work-session.md",
+      "docs/BACKLOG.md"
+    ],
+    "fingerprint_paths": [
+      "runtime/continuity",
+      ".claude/skills/continuity-resumable-work",
+      ".claude/skills/continuity-nestfolio-binding",
+      "continuity/packs",
+      "continuity/bindings",
+      "continuity/dogfood"
+    ],
+    "effect_classes": [
+      "repository-file-write",
+      "canonical-artifact-write",
+      "operational-state-write",
+      "backlog-state-write"
+    ],
+    "exclusions": [
+      "Existing Nestfolio business applications, services, infrastructure, and domain code.",
+      "Current runtime feature families outside the minimum concepts reused by VS-001.",
+      "External backlog or CI mutation.",
+      "Parallel fan-out, Epic orchestration, deploy/release, hosted collaboration, RBAC, analytics, and universal Console."
+    ]
+  },
+  "guards": [
+    {
+      "id": "nestfolio-vs001-bounded-scope",
+      "version": "1",
+      "path": "continuity/bindings/nestfolio/guards/vs001-scope.json"
+    }
+  ],
+  "decisions": [
+    {
+      "id": "vs001-accepted-architecture-decisions",
+      "version": "1",
+      "path": "continuity/bindings/nestfolio/decisions/vs001-accepted-decisions.json"
+    }
+  ],
+  "completion_criteria": [
+    {
+      "id": "core-implementation-tests",
+      "description": "The bounded Core/store/Pack behavior passes deterministic unit tests.",
+      "required_evidence_type": "test-result",
+      "validator": {
+        "type": "command",
+        "command": [
+          "node",
+          "--test",
+          "runtime/continuity/test/core.test.mjs",
+          "runtime/continuity/test/pack-resolution.test.mjs"
+        ]
+      }
+    },
+    {
+      "id": "keyed-effect-materialized",
+      "description": "The material dogfood file effect exists with the expected content.",
+      "required_evidence_type": "repository-file",
+      "validator": {
+        "type": "file",
+        "path": "continuity/dogfood/vs001-effect.txt",
+        "contains": "VS-001 keyed effect completed exactly once."
+      }
+    },
+    {
+      "id": "resume-contract-observable",
+      "description": "Canonical artifacts prove two Sessions, a verified Checkpoint, a published Handoff, a passing resume check, and one completed keyed effect.",
+      "required_evidence_type": "continuity-state-inspection",
+      "validator": {
+        "type": "command",
+        "command": [
+          "node",
+          "runtime/continuity/tools/validate-dogfood-state.mjs",
+          "--run-id",
+          "run-vs001"
+        ]
+      }
+    },
+    {
+      "id": "learning-not-promoted",
+      "description": "A candidate Lesson and an unsafe rejected Lesson exist, and neither changed a Skill or Guard automatically.",
+      "required_evidence_type": "learning-governance-inspection",
+      "validator": {
+        "type": "command",
+        "command": [
+          "node",
+          "runtime/continuity/tools/validate-learning-state.mjs",
+          "--run-id",
+          "run-vs001"
+        ]
+      }
+    }
+  ],
+  "required_evidence": [
+    "test result for each deterministic command criterion",
+    "repository-file Evidence for the keyed effect",
+    "state inspection Evidence for resume/idempotency",
+    "learning governance Evidence proving no promotion"
+  ]
+}

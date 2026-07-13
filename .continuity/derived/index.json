@@ -1,0 +1,195 @@
+{
+  "active_runs": [
+    {
+      "digest": "c217df1f43717a6d2324c7a49c6d91cf11ccb5587a96bce9162d83243be6a328",
+      "id": "run-vs001",
+      "status": "completed"
+    }
+  ],
+  "artifacts": {
+    "checkpoints": [
+      {
+        "digest": "4bdcb7f93c8714d1824a55390d16fa975b9a82f3af77c2c579607f45b820491c",
+        "id": "run-vs001-cp-1",
+        "revision": 1,
+        "status": "verified"
+      },
+      {
+        "digest": "6ad6dcd000882280ac6aab737cf145e203fdb22a3e464401270c6c29e0d356a0",
+        "id": "run-vs001-final-2",
+        "revision": 1,
+        "status": "verified"
+      }
+    ],
+    "context-packs": [
+      {
+        "digest": "400c0450c627a813165afd440b4dde9bb08ae401431aeed3010604926efc31fc",
+        "id": "run-vs001",
+        "revision": 1,
+        "status": "authorized"
+      }
+    ],
+    "evidence": [
+      {
+        "digest": "4e22601e474130919e5836f996394e66a7bb47e00c6d5a863fa5010096f8cdb6",
+        "id": "run-vs001-core-implementation-tests",
+        "revision": 1,
+        "status": "accepted"
+      },
+      {
+        "digest": "e3a5da9019d4c3b0122a1dac830a9cb7fc452d579f43cc86c7ba567698b8f6eb",
+        "id": "run-vs001-keyed-effect-materialized",
+        "revision": 1,
+        "status": "accepted"
+      },
+      {
+        "digest": "7d1a71ae0f18bf52c6313011abd160f0bf05ff387d27b69d12cf1202a9a6d965",
+        "id": "run-vs001-learning-not-promoted",
+        "revision": 1,
+        "status": "accepted"
+      },
+      {
+        "digest": "04ff4976683644520dc98f01aabef47c590998f8e30cf73b4807056622b0ffc3",
+        "id": "run-vs001-resume-contract-observable",
+        "revision": 1,
+        "status": "accepted"
+      }
+    ],
+    "formation-traces": [
+      {
+        "digest": "18cc4d872fb925e47753479cae4a5beb2c2e5271d09880b8cf9c4ed91c5db151",
+        "id": "run-vs001",
+        "revision": 1,
+        "status": null
+      }
+    ],
+    "handoffs": [
+      {
+        "digest": "f93cc5bb2d38fa2f5bbebb68f8b60717ca73564b2f4144f92ccd117cec1948f8",
+        "id": "run-vs001-session-vs001-1",
+        "revision": 1,
+        "status": "published"
+      }
+    ],
+    "lessons": [
+      {
+        "digest": "0cb8e9caa9dc24d1dc4e8a91283a120e71f6aa56779211c848b80539f0f8b284",
+        "id": "lesson-555720ab-06d5-4e28-a40a-c59b5dc229c2",
+        "revision": 1,
+        "status": "rejected"
+      },
+      {
+        "digest": "e126b67a6dc415a08231168b979dcd261059dee24d9eeee85449c297b7f673bb",
+        "id": "lesson-f4536b4b-1784-4a7a-95b0-daa941f2fefe",
+        "revision": 1,
+        "status": "candidate"
+      }
+    ],
+    "observations": [
+      {
+        "digest": "d718383b32ef4bcba0cdd575d05f6505c46012b77fdf242455ed88ffa98d7394",
+        "id": "observation-3fab6ec4-3b0e-4b51-803f-70b59ff0e2aa",
+        "revision": 1,
+        "status": "triaged"
+      },
+      {
+        "digest": "33234cfe62df7ba29fa0e2980df03c7d2fca47afc151640bdb6ce49fcb9d9086",
+        "id": "observation-7f1dc36c-0754-4035-88af-f4bd58432878",
+        "revision": 1,
+        "status": "triaged"
+      }
+    ],
+    "pack-locks": [
+      {
+        "digest": "c4b21ff511acc30111793f51665ee71081e00dd8d1cc2d75a47337ff0071f0da",
+        "id": "run-vs001",
+        "revision": 1,
+        "status": "locked"
+      }
+    ],
+    "runs": [
+      {
+        "digest": "3bd16838207f698f9b5ef2658ac09c9b4835df0317074df15fd128c5e19c1ec0",
+        "id": "run-vs001",
+        "revision": 11,
+        "status": "completed"
+      }
+    ],
+    "scopes": [
+      {
+        "digest": "38391f9f89782d0de4d3938eac97018f92c5fbd40d3c6c9d7957fc077d5e6c26",
+        "id": "scope-continuity-vs001",
+        "revision": 1,
+        "status": "active"
+      }
+    ],
+    "sessions": [
+      {
+        "digest": "9b5f24f3812f3a05b00080892f21d7884f3b7681b08cc2231f7ff47fddd00e5a",
+        "id": "session-vs001-1",
+        "revision": 2,
+        "status": "interrupted"
+      },
+      {
+        "digest": "32a08160ab444d028f24e2d6a87d11dabd2b312ab916aab6d29acc586884da6b",
+        "id": "session-vs001-2",
+        "revision": 2,
+        "status": "closed"
+      }
+    ],
+    "validation-plans": [
+      {
+        "digest": "8c3e0ceb2fdc91e0d79647d8f831998ce3daf4663323d168e148bc25377c96e5",
+        "id": "run-vs001",
+        "revision": 1,
+        "status": "ready"
+      }
+    ],
+    "validation-results": [
+      {
+        "digest": "afef3b780d5085dc1c15f7fe3f7c94c7e4df059b96f57e07bcad8ae16016cbe6",
+        "id": "run-vs001-core-implementation-tests-1",
+        "revision": 1,
+        "status": "passed"
+      },
+      {
+        "digest": "efe660021e5a7d1be29b7d312fa5693b89b2c258a643e982df80a76bfd0d60e8",
+        "id": "run-vs001-keyed-effect-materialized-2",
+        "revision": 1,
+        "status": "passed"
+      },
+      {
+        "digest": "0ed5bf2f0da412ac430c28efb5b1ae8d2c37a83380ba04203bafcec0c0119366",
+        "id": "run-vs001-learning-not-promoted-4",
+        "revision": 1,
+        "status": "passed"
+      },
+      {
+        "digest": "b08ee8a14e44ca7ce27bbf014b09880d19742db6df530cb1bc5d1729fc637d05",
+        "id": "run-vs001-resume-contract-observable-3",
+        "revision": 1,
+        "status": "passed"
+      }
+    ],
+    "work-items": [
+      {
+        "digest": "02597b633595bf1a85073bf6f11dd3df0b1596d9bce35f2a15552fe6a57440c3",
+        "id": "continuity-vs001-resumable-agent-work-session",
+        "revision": 3,
+        "status": "completed"
+      }
+    ],
+    "working-sets": [
+      {
+        "digest": "86347060d4f43a404b96bfab256bb5a45656e8c80aa12830c377c250e725b073",
+        "id": "ws-continuity-vs001",
+        "revision": 3,
+        "status": "completed"
+      }
+    ]
+  },
+  "derived": true,
+  "digest": "a1e4f6872c27de1b74a699e87fcdf3a46aac557bb3d1124a39f4b3bbb0da505a",
+  "rebuilt_at": "2026-07-13T11:21:34.350Z",
+  "schema_version": 1
+}

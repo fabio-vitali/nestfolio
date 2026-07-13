@@ -1,0 +1,190 @@
+{
+  "active_run_refs": [],
+  "blockers": [],
+  "completed_run_refs": [
+    {
+      "digest": "3bd16838207f698f9b5ef2658ac09c9b4835df0317074df15fd128c5e19c1ec0",
+      "id": "run-vs001",
+      "revision": 11
+    }
+  ],
+  "completion_criteria": [
+    {
+      "description": "The bounded Core/store/Pack behavior passes deterministic unit tests.",
+      "id": "core-implementation-tests",
+      "required_evidence_type": "test-result",
+      "status": "passed",
+      "validator": {
+        "command": [
+          "node",
+          "--test",
+          "runtime/continuity/test/core.test.mjs",
+          "runtime/continuity/test/pack-resolution.test.mjs"
+        ],
+        "type": "command"
+      }
+    },
+    {
+      "description": "The material dogfood file effect exists with the expected content.",
+      "id": "keyed-effect-materialized",
+      "required_evidence_type": "repository-file",
+      "status": "passed",
+      "validator": {
+        "contains": "VS-001 keyed effect completed exactly once.",
+        "path": "continuity/dogfood/vs001-effect.txt",
+        "type": "file"
+      }
+    },
+    {
+      "description": "Canonical artifacts prove two Sessions, a verified Checkpoint, a published Handoff, a passing resume check, and one completed keyed effect.",
+      "id": "resume-contract-observable",
+      "required_evidence_type": "continuity-state-inspection",
+      "status": "passed",
+      "validator": {
+        "command": [
+          "node",
+          "runtime/continuity/tools/validate-dogfood-state.mjs",
+          "--run-id",
+          "run-vs001"
+        ],
+        "type": "command"
+      }
+    },
+    {
+      "description": "A candidate Lesson and an unsafe rejected Lesson exist, and neither changed a Skill or Guard automatically.",
+      "id": "learning-not-promoted",
+      "required_evidence_type": "learning-governance-inspection",
+      "status": "passed",
+      "validator": {
+        "command": [
+          "node",
+          "runtime/continuity/tools/validate-learning-state.mjs",
+          "--run-id",
+          "run-vs001"
+        ],
+        "type": "command"
+      }
+    }
+  ],
+  "constraints": [
+    "No broad migration of the current Nestfolio runtime.",
+    "No unrelated Nestfolio feature work.",
+    "No external writes, hosted control plane, multi-executor parity, or automatic Lesson promotion."
+  ],
+  "decisions": [
+    {
+      "id": "vs001-accepted-architecture-decisions",
+      "path": "continuity/bindings/nestfolio/decisions/vs001-accepted-decisions.json",
+      "version": "1"
+    }
+  ],
+  "dependencies": [],
+  "digest": "02597b633595bf1a85073bf6f11dd3df0b1596d9bce35f2a15552fe6a57440c3",
+  "evidence_refs": [
+    {
+      "criterion_id": "core-implementation-tests",
+      "digest": "4e22601e474130919e5836f996394e66a7bb47e00c6d5a863fa5010096f8cdb6",
+      "id": "run-vs001-core-implementation-tests",
+      "revision": 1
+    },
+    {
+      "criterion_id": "keyed-effect-materialized",
+      "digest": "e3a5da9019d4c3b0122a1dac830a9cb7fc452d579f43cc86c7ba567698b8f6eb",
+      "id": "run-vs001-keyed-effect-materialized",
+      "revision": 1
+    },
+    {
+      "criterion_id": "resume-contract-observable",
+      "digest": "04ff4976683644520dc98f01aabef47c590998f8e30cf73b4807056622b0ffc3",
+      "id": "run-vs001-resume-contract-observable",
+      "revision": 1
+    },
+    {
+      "criterion_id": "learning-not-promoted",
+      "digest": "7d1a71ae0f18bf52c6313011abd160f0bf05ff387d27b69d12cf1202a9a6d965",
+      "id": "run-vs001-learning-not-promoted",
+      "revision": 1
+    }
+  ],
+  "exclusions": [
+    "Existing Nestfolio business applications, services, infrastructure, and domain code.",
+    "Current runtime feature families outside the minimum concepts reused by VS-001.",
+    "External backlog or CI mutation.",
+    "Parallel fan-out, Epic orchestration, deploy/release, hosted collaboration, RBAC, analytics, and universal Console."
+  ],
+  "expected_outputs": [
+    "bounded Continuity implementation and tests",
+    "Claude Code adapter execution views",
+    "verified intermediate and final Checkpoints",
+    "criterion-linked Evidence",
+    "completed Work and Working Set state",
+    "candidate and rejected-unsafe Lessons"
+  ],
+  "guards": [
+    {
+      "id": "nestfolio-vs001-bounded-scope",
+      "path": "continuity/bindings/nestfolio/guards/vs001-scope.json",
+      "version": "1"
+    }
+  ],
+  "history": [
+    {
+      "action": "selected",
+      "at": "2026-07-13T11:13:38.637Z",
+      "source_sha256": "10a2ed55d8699ba8a6fda20c17971aade5fd845391338e98115b3196b025af72"
+    },
+    {
+      "action": "run-started",
+      "at": "2026-07-13T11:13:47.174Z",
+      "run_id": "run-vs001"
+    },
+    {
+      "action": "completed",
+      "at": "2026-07-13T11:14:51.475Z",
+      "evidence_refs": [
+        "run-vs001-core-implementation-tests",
+        "run-vs001-keyed-effect-materialized",
+        "run-vs001-resume-contract-observable",
+        "run-vs001-learning-not-promoted"
+      ],
+      "run_id": "run-vs001"
+    }
+  ],
+  "id": "continuity-vs001-resumable-agent-work-session",
+  "objective": "Implement and dogfood the minimum Continuity path that resumes a Claude Code-oriented Run from a verified repository-local Checkpoint without transcript reconstruction or duplicate effects.",
+  "project_binding": "nestfolio",
+  "required_capabilities": [
+    "work-selection",
+    "run-start",
+    "checkpoint",
+    "fresh-session-resume",
+    "validation",
+    "completion",
+    "learning",
+    "nestfolio-backlog-read",
+    "nestfolio-backlog-write",
+    "nestfolio-scope",
+    "nestfolio-validation"
+  ],
+  "required_evidence": [
+    "test result for each deterministic command criterion",
+    "repository-file Evidence for the keyed effect",
+    "state inspection Evidence for resume/idempotency",
+    "learning governance Evidence proving no promotion"
+  ],
+  "revision": 3,
+  "schema_version": 1,
+  "scope_ref": {
+    "id": "scope-continuity-vs001",
+    "revision": 1
+  },
+  "source": {
+    "path": "docs/backlog/continuity-vs001-resumable-agent-work-session.md",
+    "sha256": "10a2ed55d8699ba8a6fda20c17971aade5fd845391338e98115b3196b025af72",
+    "source_status": "active",
+    "type": "nestfolio-backlog"
+  },
+  "status": "completed",
+  "type": "implementation",
+  "updated_at": "2026-07-13T11:14:51.475Z"
+}
