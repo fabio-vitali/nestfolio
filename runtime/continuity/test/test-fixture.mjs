@@ -19,12 +19,18 @@ export function createFixture() {
   copy('.claude/skills/continuity-resumable-work');
   copy('.claude/skills/continuity-nestfolio-binding');
   copy('docs/backlog/continuity-vs001-resumable-agent-work-session.md');
-  const workItemPath = join(root, 'docs/backlog/continuity-vs001-resumable-agent-work-session.md');
-  const selectableWorkItem = readFileSync(workItemPath, 'utf8')
-    .replace(/^status: shipped$/m, 'status: active')
-    .replace(/^closed: .*$/m, 'closed: null')
-    .replace(/^validation_gate: .*$/m, 'validation_gate: null');
-  writeFileSync(workItemPath, selectableWorkItem);
+  copy('docs/backlog/continuity-vs001a-claude-code-session-confirmation.md');
+  for (const backlogItem of [
+    'docs/backlog/continuity-vs001-resumable-agent-work-session.md',
+    'docs/backlog/continuity-vs001a-claude-code-session-confirmation.md',
+  ]) {
+    const workItemPath = join(root, backlogItem);
+    const selectableWorkItem = readFileSync(workItemPath, 'utf8')
+      .replace(/^status: shipped$/m, 'status: active')
+      .replace(/^closed: .*$/m, 'closed: null')
+      .replace(/^validation_gate: .*$/m, 'validation_gate: null');
+    writeFileSync(workItemPath, selectableWorkItem);
+  }
   mkdirSync(join(root, 'docs'), { recursive: true });
   writeFileSync(join(root, 'docs', 'BACKLOG.md'), '# fixture\n');
   return root;

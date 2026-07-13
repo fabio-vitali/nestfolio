@@ -1,0 +1,13 @@
+{
+  "schema_version": 1,
+  "id": "nestfolio-vs001a-bounded-scope",
+  "version": "1",
+  "status": "active",
+  "condition": "VS-001A writes only executor-provenance instrumentation (Claude Code session hooks, provenance validators, deterministic tests), its own canonical Run/Session/Checkpoint/Handoff/Evidence artifacts, its own dogfood effect and evidence, and its own backlog/index records. It does not change Continuity Core semantics, does not migrate another feature family, and does not rerun or rewrite run-vs001.",
+  "rationale": "Close the VS-001 executor-provenance evidence gap (acceptance criteria 4, 7, 8) without letting corrective validation become architecture expansion or unrelated Nestfolio work.",
+  "applicability": "Work Item continuity-vs001a-claude-code-session-confirmation",
+  "evaluation_mode": "deterministic",
+  "severity": "blocking",
+  "owner": "VS-001A",
+  "exception_policy": "No automatic exception. Scope expansion requires a new explicit Scope revision and human authorization."
+}

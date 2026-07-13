@@ -121,6 +121,12 @@
         "id": "scope-continuity-vs001",
         "revision": 1,
         "status": "active"
+      },
+      {
+        "digest": "520e1a94abd13747fbd22edb5773d66da8342bd9d8baa50bf6b7ef1e59e32c3a",
+        "id": "scope-continuity-vs001a",
+        "revision": 1,
+        "status": "active"
       }
     ],
     "sessions": [
@@ -177,6 +183,12 @@
         "id": "continuity-vs001-resumable-agent-work-session",
         "revision": 3,
         "status": "completed"
+      },
+      {
+        "digest": "d92785491468f9175225765e8599e06946ba08b71e9d5012c3db6bd774ee6fb5",
+        "id": "continuity-vs001a-claude-code-session-confirmation",
+        "revision": 1,
+        "status": "selected"
       }
     ],
     "working-sets": [
@@ -185,11 +197,17 @@
         "id": "ws-continuity-vs001",
         "revision": 3,
         "status": "completed"
+      },
+      {
+        "digest": "d27a2df0deb0c241a06cef5d260cef36ca53ccd1e1d0305b1e22196b8f857788",
+        "id": "ws-continuity-vs001a",
+        "revision": 1,
+        "status": "ready"
       }
     ]
   },
   "derived": true,
-  "digest": "a1e4f6872c27de1b74a699e87fcdf3a46aac557bb3d1124a39f4b3bbb0da505a",
-  "rebuilt_at": "2026-07-13T11:21:34.350Z",
+  "digest": "14c51f013d0e0f682be668f3149b4c4f0043e96943d92760b09f2946954cc0ab",
+  "rebuilt_at": "2026-07-13T16:45:45.638Z",
   "schema_version": 1
 }

@@ -1,0 +1,188 @@
+{
+  "schema_version": 1,
+  "id": "continuity-vs001a-claude-code-session-confirmation",
+  "objective": "Prove executor provenance for the accepted VS-001 slice with two genuine Claude Code Sessions on Run run-vs001a. Session 1 (session-vs001a-1) executes exactly one material keyed effect: node runtime/continuity/adapters/claude-code/cli.mjs effect --run-id run-vs001a --session-id session-vs001a-1 --key vs001a-material-effect --path continuity/dogfood/vs001a-effect.txt --content 'VS-001A keyed effect completed exactly once.' — then checkpoints with the exact next action 'Replay effect key vs001a-material-effect to prove deduplication, then validate and complete run-vs001a.' and interrupts to publish the Handoff before the Claude Code session ends. Session 2 (session-vs001a-2) is a separately invoked fresh Claude Code process that is resumed by the SessionStart hook from repository-local state, replays the same effect key/path/content to prove deduplicated: true, then runs validate and complete for run-vs001a.",
+  "dependencies": [],
+  "constraints": [
+    "No change to Continuity Core semantics or architecture boundaries.",
+    "No rerun or rewrite of run-vs001.",
+    "No migration of another feature family and no unrelated Nestfolio work.",
+    "No external writes, hosted control plane, multi-executor parity, or automatic Lesson promotion.",
+    "Claude Code transcripts are never inspected and never authoritative."
+  ],
+  "expected_outputs": [
+    "SessionStart/SessionEnd executor-provenance records under .continuity/executor-sessions/",
+    "VS-001A canonical Run/Session/Checkpoint/Handoff/Evidence artifacts",
+    "adapter-produced execution views for both Sessions",
+    "one completed keyed effect and one deduplicated replay",
+    "criterion-linked Evidence for the three previously unproven VS-001 criteria"
+  ],
+  "shared_completion_boundary": "All deterministic criteria pass with criterion-linked Evidence proving both genuine Claude Code Sessions, the verified Checkpoint/Handoff session boundary, the transcript-free fresh-session resume, and the deduplicated keyed effect; the Run completes revision-safely.",
+  "required_capabilities": [
+    "work-selection",
+    "run-start",
+    "checkpoint",
+    "fresh-session-resume",
+    "validation",
+    "completion",
+    "learning",
+    "nestfolio-backlog-read",
+    "nestfolio-backlog-write",
+    "nestfolio-scope",
+    "nestfolio-validation"
+  ],
+  "scope": {
+    "id": "scope-continuity-vs001a",
+    "repository_identity": {
+      "repository": "nestfolio",
+      "declared_upstream_baseline": "34f7c86d0bea256f2fbe8c0c63ca2b04f924f62f"
+    },
+    "allowed_read_paths": [
+      "runtime/continuity",
+      ".claude/skills",
+      "docs/backlog",
+      "continuity",
+      ".continuity"
+    ],
+    "allowed_write_paths": [
+      "runtime/continuity",
+      "continuity",
+      ".continuity",
+      "docs/backlog/continuity-vs001a-claude-code-session-confirmation.md",
+      "docs/BACKLOG.md"
+    ],
+    "fingerprint_paths": [
+      "runtime/continuity",
+      ".claude/skills/continuity-resumable-work",
+      ".claude/skills/continuity-nestfolio-binding",
+      "continuity/packs",
+      "continuity/bindings",
+      "continuity/dogfood"
+    ],
+    "effect_classes": [
+      "repository-file-write",
+      "canonical-artifact-write",
+      "operational-state-write",
+      "backlog-state-write"
+    ],
+    "exclusions": [
+      "Continuity Core semantics and the accepted VS-001 artifacts (run-vs001 is never rerun or rewritten).",
+      "Existing Nestfolio business applications, services, infrastructure, and domain code.",
+      "Migration of another current-runtime feature family, PX-001, MA-001, and later vertical slices.",
+      "External backlog or CI mutation, external writes, parallel fan-out, multi-executor parity, and automatic Lesson or Guard promotion.",
+      "The two Continuity Skill assets (Pack-locked; VS-001A must not modify them)."
+    ]
+  },
+  "guards": [
+    {
+      "id": "nestfolio-vs001a-bounded-scope",
+      "version": "1",
+      "path": "continuity/bindings/nestfolio/guards/vs001a-scope.json"
+    }
+  ],
+  "decisions": [
+    {
+      "id": "vs001a-accepted-architecture-decisions",
+      "version": "1",
+      "path": "continuity/bindings/nestfolio/decisions/vs001a-accepted-decisions.json"
+    }
+  ],
+  "completion_criteria": [
+    {
+      "id": "vs001a-deterministic-tests",
+      "description": "The session hooks, provenance validator, and bounded Core/store/Pack behavior pass deterministic unit tests.",
+      "required_evidence_type": "test-result",
+      "validator": {
+        "type": "command",
+        "command": [
+          "node",
+          "--test",
+          "runtime/continuity/test/core.test.mjs",
+          "runtime/continuity/test/pack-resolution.test.mjs",
+          "runtime/continuity/test/session-hooks.test.mjs"
+        ]
+      }
+    },
+    {
+      "id": "vs001a-keyed-effect-materialized",
+      "description": "The material keyed effect file exists with the expected content: continuity/dogfood/vs001a-effect.txt containing 'VS-001A keyed effect completed exactly once.'",
+      "required_evidence_type": "repository-file",
+      "validator": {
+        "type": "file",
+        "path": "continuity/dogfood/vs001a-effect.txt",
+        "contains": "VS-001A keyed effect completed exactly once."
+      }
+    },
+    {
+      "id": "actual-adapter-bootstrap",
+      "description": "Genuine Claude Code Session 1 began from a real recorded Claude Code startup and received the adapter-produced start execution view (digest-matched, injected into context by the SessionStart hook).",
+      "required_evidence_type": "executor-provenance-inspection",
+      "validator": {
+        "type": "command",
+        "command": [
+          "node",
+          "runtime/continuity/tools/validate-vs001a-executor-provenance.mjs",
+          "--run-id",
+          "run-vs001a",
+          "--criterion",
+          "actual-adapter-bootstrap"
+        ]
+      }
+    },
+    {
+      "id": "actual-first-session-end",
+      "description": "Genuine Claude Code Session 1 ended (SessionEnd hook recorded the real session id, termination reason, and timestamp) after a verified Checkpoint and a published transcript-independent Handoff.",
+      "required_evidence_type": "executor-provenance-inspection",
+      "validator": {
+        "type": "command",
+        "command": [
+          "node",
+          "runtime/continuity/tools/validate-vs001a-executor-provenance.mjs",
+          "--run-id",
+          "run-vs001a",
+          "--criterion",
+          "actual-first-session-end"
+        ]
+      }
+    },
+    {
+      "id": "actual-fresh-session-resume",
+      "description": "A distinct genuine Claude Code Session 2 (different real Claude Code session id, source=startup, never a transcript resume) resumed the Run from repository-local Continuity state through the adapter-produced resume view.",
+      "required_evidence_type": "executor-provenance-inspection",
+      "validator": {
+        "type": "command",
+        "command": [
+          "node",
+          "runtime/continuity/tools/validate-vs001a-executor-provenance.mjs",
+          "--run-id",
+          "run-vs001a",
+          "--criterion",
+          "actual-fresh-session-resume"
+        ]
+      }
+    },
+    {
+      "id": "effect-deduplication-confirmation",
+      "description": "The second execution of the stable effect key vs001a-material-effect returned deduplicated: true and exactly one completed effect record exists.",
+      "required_evidence_type": "executor-provenance-inspection",
+      "validator": {
+        "type": "command",
+        "command": [
+          "node",
+          "runtime/continuity/tools/validate-vs001a-executor-provenance.mjs",
+          "--run-id",
+          "run-vs001a",
+          "--criterion",
+          "effect-deduplication-confirmation"
+        ]
+      }
+    }
+  ],
+  "required_evidence": [
+    "test result for the deterministic hook/validator/core suites",
+    "repository-file Evidence for the keyed effect",
+    "executor-provenance Evidence for genuine Session 1 bootstrap and end",
+    "executor-provenance Evidence for the distinct transcript-free Session 2 resume",
+    "executor-provenance Evidence for keyed-effect deduplication"
+  ]
+}

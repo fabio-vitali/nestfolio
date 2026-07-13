@@ -5,5 +5,30 @@
   "statusLine": {
     "type": "command",
     "command": "bash /Users/fabiovitali/.claude/statusline-command.sh"
+  },
+  "hooks": {
+    "SessionStart": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node \"${CLAUDE_PROJECT_DIR}/runtime/continuity/adapters/claude-code/hooks/session-start.mjs\"",
+            "timeout": 60,
+            "statusMessage": "Recording Continuity executor provenance..."
+          }
+        ]
+      }
+    ],
+    "SessionEnd": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node \"${CLAUDE_PROJECT_DIR}/runtime/continuity/adapters/claude-code/hooks/session-end.mjs\"",
+            "timeout": 30
+          }
+        ]
+      }
+    ]
   }
 }

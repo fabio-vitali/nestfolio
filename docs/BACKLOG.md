@@ -221,8 +221,7 @@ rollup: core 0/3 done · captured 0/0 done
 
 ## ACTIVE
 
-_(none)_
-
+- [continuity-vs001a-claude-code-session-confirmation](backlog/continuity-vs001a-claude-code-session-confirmation.md) [implementation] — Corrective validation slice authorized by continuity-lab VS-001A. Closes the VS-001 executor-provenance evidence gap (acceptance criteria 4, 7, 8) with two genuine Claude Code Sessions driven by project-local SessionStart/SessionEnd hooks; no architecture expansion, no rerun of run-vs001.
 
 ## QUEUED
 

@@ -1,0 +1,49 @@
+{
+  "allowed_read_paths": [
+    "runtime/continuity",
+    ".claude/skills",
+    "docs/backlog",
+    "continuity",
+    ".continuity"
+  ],
+  "allowed_write_paths": [
+    "runtime/continuity",
+    "continuity",
+    ".continuity",
+    "docs/backlog/continuity-vs001a-claude-code-session-confirmation.md",
+    "docs/BACKLOG.md"
+  ],
+  "digest": "520e1a94abd13747fbd22edb5773d66da8342bd9d8baa50bf6b7ef1e59e32c3a",
+  "effect_classes": [
+    "repository-file-write",
+    "canonical-artifact-write",
+    "operational-state-write",
+    "backlog-state-write"
+  ],
+  "exclusions": [
+    "Continuity Core semantics and the accepted VS-001 artifacts (run-vs001 is never rerun or rewritten).",
+    "Existing Nestfolio business applications, services, infrastructure, and domain code.",
+    "Migration of another current-runtime feature family, PX-001, MA-001, and later vertical slices.",
+    "External backlog or CI mutation, external writes, parallel fan-out, multi-executor parity, and automatic Lesson or Guard promotion.",
+    "The two Continuity Skill assets (Pack-locked; VS-001A must not modify them)."
+  ],
+  "expansion_policy": "explicit-revision-and-authorization",
+  "fingerprint_paths": [
+    "runtime/continuity",
+    ".claude/skills/continuity-resumable-work",
+    ".claude/skills/continuity-nestfolio-binding",
+    "continuity/packs",
+    "continuity/bindings",
+    "continuity/dogfood"
+  ],
+  "id": "scope-continuity-vs001a",
+  "owner": "VS-001",
+  "repository_identity": {
+    "declared_upstream_baseline": "34f7c86d0bea256f2fbe8c0c63ca2b04f924f62f",
+    "repository": "nestfolio"
+  },
+  "revision": 1,
+  "schema_version": 1,
+  "status": "active",
+  "updated_at": "2026-07-13T16:45:45.632Z"
+}

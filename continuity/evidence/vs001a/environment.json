@@ -1,0 +1,20 @@
+{
+  "schema_version": 1,
+  "phase": "vs001a-preparation",
+  "prepared_at": "2026-07-13T16:46:03.255Z",
+  "required_baseline_revision": "34f7c86d0bea256f2fbe8c0c63ca2b04f924f62f",
+  "head_at_preparation": "34f7c86d0bea256f2fbe8c0c63ca2b04f924f62f",
+  "branch": "main",
+  "claude_code_version": "2.1.207 (Claude Code)",
+  "claude_code_path": "/Users/fabiovitali/.local/bin/claude",
+  "node_version": "v24.14.0",
+  "platform": "darwin 25.3.0",
+  "identities": {
+    "work_item": "continuity-vs001a-claude-code-session-confirmation",
+    "working_set": "ws-continuity-vs001a",
+    "run": "run-vs001a",
+    "session_1": "session-vs001a-1",
+    "session_2": "session-vs001a-2",
+    "effect_key": "vs001a-material-effect"
+  }
+}

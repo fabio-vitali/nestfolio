@@ -1,0 +1,22 @@
+{
+  "schema_version": 1,
+  "id": "vs001a-accepted-architecture-decisions",
+  "version": "1",
+  "status": "accepted",
+  "source_repository": "continuity-lab",
+  "decision_ids": [
+    "DR-0012",
+    "DR-0013",
+    "DR-0014",
+    "DR-0015",
+    "DR-0016",
+    "DR-0017",
+    "DR-0018"
+  ],
+  "authorizing_iteration": {
+    "id": "VS-001A",
+    "source": "sessions/VS-001A-claude-code-session-confirmation/context-pack.yaml",
+    "authorized_by": "VS-001 validation report (docs/70-implementation/vs-001-resumable-agent-work-session.md) — sole authorized next iteration"
+  },
+  "effect": "Authorize only the bounded VS-001A executor-provenance path: reuse the existing Claude Code adapter, Packs, Skills, store, and tests; keep repository-local canonical state; record real Claude Code session provenance via project-local hooks; prohibit Core changes, run-vs001 rewrites, feature migration, and automatic learning promotion."
+}
