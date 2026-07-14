@@ -222,3 +222,18 @@ When spawning subagents (Agent/Task tool), the routing block is automatically in
 | `ctx stats`   | Call the `ctx_stats` MCP tool and display the full output verbatim                    |
 | `ctx doctor`  | Call the `ctx_doctor` MCP tool, run the returned shell command, display as checklist  |
 | `ctx upgrade` | Call the `ctx_upgrade` MCP tool, run the returned shell command, display as checklist |
+
+## Continuity Level 1 — `/backlog-next`
+
+This repository has one active Continuity Level 1 Procedure: `nestfolio.backlog-next@1.0.0` in project Pack `nestfolio.level-1@1.0.0`.
+
+For `/backlog-next`, follow the existing Skill at `.claude/skills/backlog-next/SKILL.md`. Its first visible step runs the bounded Level 1 invocation check. Inspect the guarantee card and exact asset lock with:
+
+```bash
+npm run continuity:doctor
+npm run continuity:inspect
+```
+
+Level 1 guarantees only Procedure/Pack identity, the Nestfolio binding, exact SHA-256 asset locking, repository/prerequisite diagnostics, the Claude Code entry point, and structured invocation provenance. It does **not** provide canonical Work or Scope, Context Packs, Sessions/Runs, Checkpoints/Handoffs, Assurance or completion authority, Guards/Waivers, Decisions, Observations, Lessons, or learning promotion.
+
+Disable the target route with `npm run continuity:disable`; direct `/backlog-next` behavior remains available because the current Skill stays in place. Reactivate with `npm run continuity:activate`.

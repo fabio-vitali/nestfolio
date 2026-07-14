@@ -17,7 +17,14 @@
     "deploy": "bash infrastructure/scripts/deploy.sh",
     "destroy": "bash infrastructure/scripts/teardown.sh",
     "cf-smoke": "node tools/probes/cf-smoke.mjs",
-    "check:typed-fixtures": "node tools/check-typed-fixtures.mjs"
+    "check:typed-fixtures": "node tools/check-typed-fixtures.mjs",
+    "continuity:doctor": "node continuity/level-1/cli.mjs doctor",
+    "continuity:inspect": "node continuity/level-1/cli.mjs inspect",
+    "continuity:verify": "node continuity/level-1/cli.mjs verify",
+    "continuity:invoke": "node continuity/level-1/cli.mjs invoke",
+    "continuity:activate": "node continuity/level-1/cli.mjs activate",
+    "continuity:disable": "node continuity/level-1/cli.mjs disable",
+    "test:continuity-level1": "node --test tests/continuity-level-1.test.mjs"
   },
   "dependencies": {
     "@ag-ui/client": "^0.0.47",

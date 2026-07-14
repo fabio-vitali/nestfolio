@@ -1,0 +1,86 @@
+{
+  "schemaVersion": 1,
+  "kind": "continuity.level1.procedure",
+  "identity": {
+    "id": "nestfolio.backlog-next",
+    "version": "1.0.0",
+    "owningPack": "nestfolio.level-1"
+  },
+  "displayName": "Backlog Next",
+  "objective": "Invoke the existing Nestfolio /backlog-next Claude Code Skill through a verified Level 1 boundary without replacing its semantics.",
+  "applicability": {
+    "repository": "nestfolio",
+    "entryPoint": "/backlog-next"
+  },
+  "inputs": {
+    "arguments": "Arguments already accepted by the existing /backlog-next Skill.",
+    "repositoryIdentity": "Repository identity derived from bounded repository markers."
+  },
+  "prerequisites": [
+    {
+      "type": "file",
+      "path": "CLAUDE.md",
+      "remediation": "Restore the repository instructions file."
+    },
+    {
+      "type": "file",
+      "path": "docs/BACKLOG.md",
+      "remediation": "Restore the current Nestfolio backlog index."
+    },
+    {
+      "type": "file",
+      "path": ".claude/skills/backlog-next/SKILL.md",
+      "remediation": "Restore the backlog-next Skill asset from reviewed Git history."
+    },
+    {
+      "type": "capability",
+      "name": "claude-code-repository-skills",
+      "evidence": ["CLAUDE.md", ".claude/skills/backlog-next/SKILL.md"],
+      "remediation": "Run from Claude Code in this repository with repository Skills enabled."
+    }
+  ],
+  "permissions": {
+    "declaredByExecutorAsset": true,
+    "continuityBoundary": [
+      "read locked procedure assets",
+      "read declared repository prerequisites",
+      "emit diagnostics and invocation provenance"
+    ],
+    "notGranted": [
+      "canonical Work mutation",
+      "canonical Run mutation",
+      "completion authority",
+      "Assurance authority",
+      "learning promotion"
+    ]
+  },
+  "behaviorAuthority": {
+    "type": "claude-code-skill",
+    "path": ".claude/skills/backlog-next/SKILL.md",
+    "delegation": "exact-locked-asset"
+  },
+  "expectedOutputs": [
+    "truthful Level 1 guarantee header",
+    "verified Procedure, Pack, repository, and asset identity",
+    "structured invocation provenance",
+    "normal visible output produced by the existing /backlog-next Skill"
+  ],
+  "stopConditions": [
+    "activation is disabled",
+    "a declared prerequisite or Claude Code repository-Skill capability is missing",
+    "an asset is missing or differs from the exact lock",
+    "Procedure identity or asset source is duplicated",
+    "a Level 2-6 authority or completion claim is requested"
+  ],
+  "resultShape": {
+    "status": "ready | blocked",
+    "procedure": "id and version",
+    "pack": "id and version",
+    "repository": "identity and diagnostic",
+    "guarantees": "active Level 1 and explicit Level 2-6 absence",
+    "assetVerification": "paths and SHA-256 digests",
+    "delegation": "Claude Code entry point and arguments",
+    "provenance": "deterministic invocation digest and timestamp"
+  },
+  "guaranteeLevel": 1
+}

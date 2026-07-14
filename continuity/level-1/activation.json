@@ -1,0 +1,8 @@
+{
+  "schemaVersion": 1,
+  "active": true,
+  "adoptionLevel": 1,
+  "pack": "nestfolio.level-1@1.0.0",
+  "procedure": "nestfolio.backlog-next@1.0.0",
+  "lock": "continuity/level-1/pack-lock.json"
+}

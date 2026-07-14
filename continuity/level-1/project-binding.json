@@ -1,0 +1,30 @@
+{
+  "schemaVersion": 1,
+  "kind": "continuity.level1.project-binding",
+  "project": {
+    "id": "nestfolio",
+    "repositoryMarkers": [
+      "package.json",
+      "CLAUDE.md",
+      "docs/BACKLOG.md"
+    ]
+  },
+  "procedure": {
+    "id": "nestfolio.backlog-next",
+    "version": "1.0.0",
+    "entryPoint": "/backlog-next",
+    "skillRoot": ".claude/skills/backlog-next",
+    "primaryAsset": ".claude/skills/backlog-next/SKILL.md"
+  },
+  "adapter": {
+    "id": "claude-code",
+    "mode": "repository-skill",
+    "invocation": "Invoke /backlog-next with the verified arguments after the Level 1 preflight reports ready."
+  },
+  "currentAuthoritiesPreserved": {
+    "backlog": "docs/backlog/*.md and docs/BACKLOG.md under current Nestfolio rules",
+    "checks": "current scripts and checks referenced by the Skill",
+    "runtime": "current Nestfolio runtime and journal",
+    "behavior": ".claude/skills/backlog-next/**"
+  }
+}

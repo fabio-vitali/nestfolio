@@ -1,0 +1,23 @@
+{
+  "schemaVersion": 1,
+  "kind": "continuity.level1.project-pack",
+  "pack": {
+    "id": "nestfolio.level-1",
+    "version": "1.0.0",
+    "displayName": "Nestfolio Level 1 Procedures",
+    "projectSpecific": true
+  },
+  "procedures": [
+    {
+      "id": "nestfolio.backlog-next",
+      "version": "1.0.0",
+      "contract": "continuity/level-1/procedure-contract.json"
+    }
+  ],
+  "assets": {
+    "root": ".claude/skills/backlog-next",
+    "lock": "continuity/level-1/pack-lock.json",
+    "resolutionPolicy": "single-exact-source"
+  },
+  "guaranteeLevel": 1
+}
