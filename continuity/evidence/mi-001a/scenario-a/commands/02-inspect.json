@@ -1,0 +1,12 @@
+{
+  "iteration": "MI-001A",
+  "scenario": "A",
+  "sessionId": "4f27b7f0-7b22-4d90-9d06-2b7fa4532451",
+  "command": "npm run -s continuity:inspect",
+  "cwd": "/Users/fabiovitali/WebstormProjects/nestfolio",
+  "startedUtc": "2026-07-14T16:02:18.509Z",
+  "endedUtc": "2026-07-14T16:02:18.670Z",
+  "exitCode": 1,
+  "stdout": "{\n  \"status\": \"blocked\",\n  \"code\": \"ASSET_DIGEST_MISMATCH\",\n  \"message\": \"Exact asset verification failed before Skill execution.\",\n  \"details\": [\n    {\n      \"code\": \"ASSET_DIGEST_MISMATCH\",\n      \"path\": \".claude/skills/backlog-next/SKILL.md\",\n      \"expected\": {\n        \"path\": \".claude/skills/backlog-next/SKILL.md\",\n        \"sha256\": \"9ff3b13cc3f422c6845c8e49a7662ea51f5f12713f4a610f967463973391fa90\",\n        \"bytes\": 33928\n      },\n      \"actual\": {\n        \"path\": \".claude/skills/backlog-next/SKILL.md\",\n        \"sha256\": \"0de07500cad6a05ee14842edc4375a508d55beb7b318b1a387c0e2b99ff42620\",\n        \"bytes\": 33164\n      }\n    }\n  ],\n  \"remediation\": \"Restore the reviewed asset bytes or regenerate and review a new exact lock.\",\n  \"guarantees\": {\n    \"adoption\": \"Level 1 of 6\",\n    \"active\": [\n      \"one declared Procedure identity and version\",\n      \"one minimal project-specific Pack manifest\",\n      \"one Nestfolio project binding\",\n      \"exact SHA-256 asset lock\",\n      \"repository identity and activation diagnostic\",\n      \"prerequisite and permission preflight\",\n      \"explicit Claude Code entry point\",\n      \"structured invocation result and provenance\",\n      \"fail-closed missing or mismatched assets\"\n    ],\n    \"absent\": {\n      \"level2\": [\n        \"reusable multi-Procedure composition\",\n        \"Pack conflict or dependency solving\"\n      ],\n      \"level3\": [\n        \"canonical Work\",\n        \"Working Set\",\n        \"Scope\",\n        \"completion criteria authority\"\n      ],\n      \"level4\": [\n        \"Context Pack\",\n        \"Formation Trace\",\n        \"context authorization\"\n      ],\n      \"level5\": [\n        \"Session\",\n        \"Run\",\n        \"effects\",\n        \"Checkpoint\",\n        \"Handoff\",\n        \"resume\"\n      ],\n      \"level6\": [\n        \"Assurance Evidence\",\n        \"Guard\",\n        \"Waiver\",\n        \"completion authority\",\n        \"Decision\",\n        \"Observation\",\n        \"Lesson\",\n        \"learning promotion\"\n      ]\n    }\n  }\n}\n",
+  "stderr": ""
+}

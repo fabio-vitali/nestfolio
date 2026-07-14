@@ -1,0 +1,38 @@
+{
+  "capturedUtc": "2026-07-14T16:01:37.372Z",
+  "iteration": "MI-001A",
+  "scenario": "A — active Level 1 boundary (first stage)",
+  "claudeCode": {
+    "sessionId": "4f27b7f0-7b22-4d90-9d06-2b7fa4532451",
+    "version": "2.1.209 (Claude Code)",
+    "executablePath": "/Users/fabiovitali/.local/bin/claude",
+    "invocationChannel": "interactive Claude Code session (repository session in nestfolio working directory)",
+    "model": "claude-fable-5"
+  },
+  "runtime": {
+    "node": "v24.14.0",
+    "npm": "11.9.0",
+    "platform": "darwin 25.3.0"
+  },
+  "repositories": {
+    "continuityLab": {
+      "path": "/Users/fabiovitali/WebstormProjects/continuity-lab",
+      "startingCommit": "b8306295030fd8b4667e96dad4c3556316fa3c0b",
+      "branch": "main",
+      "remote": "origin https://github.com/fabio-vitali/continuity-lab.git",
+      "cleanAtStart": true,
+      "headSubject": "Authorize MI-001A genuine Claude Code confirmation"
+    },
+    "nestfolio": {
+      "path": "/Users/fabiovitali/WebstormProjects/nestfolio",
+      "startingCommit": "b7d597ac5361d3c33b6f44a448373f3f9e79b8dc",
+      "branch": "main",
+      "remote": "origin https://github.com/fabio-vitali/nestfolio",
+      "cleanAtStart": true,
+      "headSubject": "Add Continuity Level 1 backlog-next boundary",
+      "candidateCommitParent": "2b47cddc3e38e26cdde47da38e2d8dc3e862c436",
+      "mi001RecordedSourceRevision": "3aa8f4773955541415f615abd80a0a9702bcb416",
+      "mi001SourceRevisionIsAncestorOfHead": true
+    }
+  }
+}

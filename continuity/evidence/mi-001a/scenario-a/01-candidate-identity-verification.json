@@ -1,0 +1,343 @@
+{
+  "capturedUtc": "2026-07-14T16:01:37.372Z",
+  "required": {
+    "pack": "nestfolio.level-1",
+    "packVersion": "1.0.0",
+    "procedure": "nestfolio.backlog-next",
+    "procedureVersion": "1.0.0",
+    "entryPoint": "/backlog-next",
+    "assetRoot": ".claude/skills/backlog-next",
+    "assetCount": 19,
+    "algorithm": "sha256",
+    "aggregateLockDigest": "7a4061778f9e89e98cc5c4e3c73ca9990ca4a71838f0cd7af245ffd4d2430602",
+    "deliveredActivationState": "active",
+    "level": 1
+  },
+  "identityChecks": [
+    {
+      "name": "pack-manifest.pack.id",
+      "expected": "nestfolio.level-1",
+      "actual": "nestfolio.level-1",
+      "ok": true
+    },
+    {
+      "name": "pack-manifest.pack.version",
+      "expected": "1.0.0",
+      "actual": "1.0.0",
+      "ok": true
+    },
+    {
+      "name": "pack-manifest.guaranteeLevel",
+      "expected": 1,
+      "actual": 1,
+      "ok": true
+    },
+    {
+      "name": "pack-manifest.procedures[0].id",
+      "expected": "nestfolio.backlog-next",
+      "actual": "nestfolio.backlog-next",
+      "ok": true
+    },
+    {
+      "name": "pack-manifest.procedures[0].version",
+      "expected": "1.0.0",
+      "actual": "1.0.0",
+      "ok": true
+    },
+    {
+      "name": "pack-manifest.assets.root",
+      "expected": ".claude/skills/backlog-next",
+      "actual": ".claude/skills/backlog-next",
+      "ok": true
+    },
+    {
+      "name": "procedure-contract.identity.id",
+      "expected": "nestfolio.backlog-next",
+      "actual": "nestfolio.backlog-next",
+      "ok": true
+    },
+    {
+      "name": "procedure-contract.identity.version",
+      "expected": "1.0.0",
+      "actual": "1.0.0",
+      "ok": true
+    },
+    {
+      "name": "procedure-contract.identity.owningPack",
+      "expected": "nestfolio.level-1",
+      "actual": "nestfolio.level-1",
+      "ok": true
+    },
+    {
+      "name": "procedure-contract.applicability.entryPoint",
+      "expected": "/backlog-next",
+      "actual": "/backlog-next",
+      "ok": true
+    },
+    {
+      "name": "procedure-contract.guaranteeLevel",
+      "expected": 1,
+      "actual": 1,
+      "ok": true
+    },
+    {
+      "name": "procedure-contract.behaviorAuthority.path",
+      "expected": ".claude/skills/backlog-next/SKILL.md",
+      "actual": ".claude/skills/backlog-next/SKILL.md",
+      "ok": true
+    },
+    {
+      "name": "project-binding.procedure.id",
+      "expected": "nestfolio.backlog-next",
+      "actual": "nestfolio.backlog-next",
+      "ok": true
+    },
+    {
+      "name": "project-binding.procedure.entryPoint",
+      "expected": "/backlog-next",
+      "actual": "/backlog-next",
+      "ok": true
+    },
+    {
+      "name": "project-binding.procedure.skillRoot",
+      "expected": ".claude/skills/backlog-next",
+      "actual": ".claude/skills/backlog-next",
+      "ok": true
+    },
+    {
+      "name": "activation.active",
+      "expected": true,
+      "actual": true,
+      "ok": true
+    },
+    {
+      "name": "activation.adoptionLevel",
+      "expected": 1,
+      "actual": 1,
+      "ok": true
+    },
+    {
+      "name": "activation.pack",
+      "expected": "nestfolio.level-1@1.0.0",
+      "actual": "nestfolio.level-1@1.0.0",
+      "ok": true
+    },
+    {
+      "name": "activation.procedure",
+      "expected": "nestfolio.backlog-next@1.0.0",
+      "actual": "nestfolio.backlog-next@1.0.0",
+      "ok": true
+    },
+    {
+      "name": "pack-lock.algorithm",
+      "expected": "sha256",
+      "actual": "sha256",
+      "ok": true
+    },
+    {
+      "name": "pack-lock.pack",
+      "expected": "nestfolio.level-1@1.0.0",
+      "actual": "nestfolio.level-1@1.0.0",
+      "ok": true
+    },
+    {
+      "name": "pack-lock.procedure",
+      "expected": "nestfolio.backlog-next@1.0.0",
+      "actual": "nestfolio.backlog-next@1.0.0",
+      "ok": true
+    },
+    {
+      "name": "pack-lock.assetRoot",
+      "expected": ".claude/skills/backlog-next",
+      "actual": ".claude/skills/backlog-next",
+      "ok": true
+    },
+    {
+      "name": "pack-lock.assets.length",
+      "expected": 19,
+      "actual": 19,
+      "ok": true
+    },
+    {
+      "name": "pack-lock.lockDigest",
+      "expected": "7a4061778f9e89e98cc5c4e3c73ca9990ca4a71838f0cd7af245ffd4d2430602",
+      "actual": "7a4061778f9e89e98cc5c4e3c73ca9990ca4a71838f0cd7af245ffd4d2430602",
+      "ok": true
+    },
+    {
+      "name": "recomputed aggregate lock digest (stableJson identity)",
+      "expected": "7a4061778f9e89e98cc5c4e3c73ca9990ca4a71838f0cd7af245ffd4d2430602",
+      "actual": "7a4061778f9e89e98cc5c4e3c73ca9990ca4a71838f0cd7af245ffd4d2430602",
+      "ok": true
+    }
+  ],
+  "assetResults": [
+    {
+      "path": ".claude/skills/backlog-next/LESSONS.md",
+      "expectedSha256": "eea79ec7be3f8370b491b3eb764159b89a8849ca7a45a875602a81de1549c1a3",
+      "actualSha256": "eea79ec7be3f8370b491b3eb764159b89a8849ca7a45a875602a81de1549c1a3",
+      "expectedBytes": 6712,
+      "actualBytes": 6712,
+      "ok": true
+    },
+    {
+      "path": ".claude/skills/backlog-next/SKILL.md",
+      "expectedSha256": "9ff3b13cc3f422c6845c8e49a7662ea51f5f12713f4a610f967463973391fa90",
+      "actualSha256": "0de07500cad6a05ee14842edc4375a508d55beb7b318b1a387c0e2b99ff42620",
+      "expectedBytes": 33928,
+      "actualBytes": 33164,
+      "ok": false
+    },
+    {
+      "path": ".claude/skills/backlog-next/backlog-gate.mjs",
+      "expectedSha256": "adba77597cdfcb67721c9fd06f479adcfc4d34477a74283eae6f5f7cff91a34e",
+      "actualSha256": "adba77597cdfcb67721c9fd06f479adcfc4d34477a74283eae6f5f7cff91a34e",
+      "expectedBytes": 1224,
+      "actualBytes": 1224,
+      "ok": true
+    },
+    {
+      "path": ".claude/skills/backlog-next/decision-log.mjs",
+      "expectedSha256": "b170c4fc0d7e366e56be87c25685cc4edddb350faa217d79f828809958fc7689",
+      "actualSha256": "b170c4fc0d7e366e56be87c25685cc4edddb350faa217d79f828809958fc7689",
+      "expectedBytes": 6023,
+      "actualBytes": 6023,
+      "ok": true
+    },
+    {
+      "path": ".claude/skills/backlog-next/deploy-paths.md",
+      "expectedSha256": "8fe3b751217d61d55f172101ed488d587917034a760b396e1c0302a97941d7ea",
+      "actualSha256": "8fe3b751217d61d55f172101ed488d587917034a760b396e1c0302a97941d7ea",
+      "expectedBytes": 5850,
+      "actualBytes": 5850,
+      "ok": true
+    },
+    {
+      "path": ".claude/skills/backlog-next/detect-deploy-needed.mjs",
+      "expectedSha256": "e79e1e54e838ad253629673b801fe136895282bb95eea561ff63d15a22c73114",
+      "actualSha256": "e79e1e54e838ad253629673b801fe136895282bb95eea561ff63d15a22c73114",
+      "expectedBytes": 11965,
+      "actualBytes": 11965,
+      "ok": true
+    },
+    {
+      "path": ".claude/skills/backlog-next/detect-doc-derivation.mjs",
+      "expectedSha256": "189e657c09c069e5e7044a7bd2e09d1ac332f9bae5c313382fe78459840d40ad",
+      "actualSha256": "189e657c09c069e5e7044a7bd2e09d1ac332f9bae5c313382fe78459840d40ad",
+      "expectedBytes": 9123,
+      "actualBytes": 9123,
+      "ok": true
+    },
+    {
+      "path": ".claude/skills/backlog-next/doc-derivation-paths.md",
+      "expectedSha256": "5eab24578f170273e028e9b986c88d8f15d417077fdb4f62ca8217928aecc852",
+      "actualSha256": "5eab24578f170273e028e9b986c88d8f15d417077fdb4f62ca8217928aecc852",
+      "expectedBytes": 3404,
+      "actualBytes": 3404,
+      "ok": true
+    },
+    {
+      "path": ".claude/skills/backlog-next/postflight.mjs",
+      "expectedSha256": "28238d5933ef2a0e036388214edabd685caa0151bd1e97667a2c1c8055368ca2",
+      "actualSha256": "28238d5933ef2a0e036388214edabd685caa0151bd1e97667a2c1c8055368ca2",
+      "expectedBytes": 16634,
+      "actualBytes": 16634,
+      "ok": true
+    },
+    {
+      "path": ".claude/skills/backlog-next/preflight.mjs",
+      "expectedSha256": "8a8dc0e46916207ba1fa652dcdd736ab9b7ae59e68d4936ce97f78671287e644",
+      "actualSha256": "8a8dc0e46916207ba1fa652dcdd736ab9b7ae59e68d4936ce97f78671287e644",
+      "expectedBytes": 7514,
+      "actualBytes": 7514,
+      "ok": true
+    },
+    {
+      "path": ".claude/skills/backlog-next/test/backlog-gate.test.mjs",
+      "expectedSha256": "8f9e9d2950c963507fc678aeb27d853d0270d422bd9aff19b581968d5e26bf28",
+      "actualSha256": "8f9e9d2950c963507fc678aeb27d853d0270d422bd9aff19b581968d5e26bf28",
+      "expectedBytes": 659,
+      "actualBytes": 659,
+      "ok": true
+    },
+    {
+      "path": ".claude/skills/backlog-next/test/backward-evidence.test.mjs",
+      "expectedSha256": "aba80cf719a060ee3dca24785c5af9c173f29e3e2d44f77ad0f1379cf0a605d9",
+      "actualSha256": "aba80cf719a060ee3dca24785c5af9c173f29e3e2d44f77ad0f1379cf0a605d9",
+      "expectedBytes": 4530,
+      "actualBytes": 4530,
+      "ok": true
+    },
+    {
+      "path": ".claude/skills/backlog-next/test/classify-changes.test.mjs",
+      "expectedSha256": "480d9db8bfa7acf76279729a51eb9c5d60b23c00ff191b0a9f59df5ef1831f47",
+      "actualSha256": "480d9db8bfa7acf76279729a51eb9c5d60b23c00ff191b0a9f59df5ef1831f47",
+      "expectedBytes": 5534,
+      "actualBytes": 5534,
+      "ok": true
+    },
+    {
+      "path": ".claude/skills/backlog-next/test/classify-derivation.test.mjs",
+      "expectedSha256": "11f549ec4418189c61cf01c6e3659c48949294c03edb1b6e500ff914a6f3d684",
+      "actualSha256": "11f549ec4418189c61cf01c6e3659c48949294c03edb1b6e500ff914a6f3d684",
+      "expectedBytes": 5122,
+      "actualBytes": 5122,
+      "ok": true
+    },
+    {
+      "path": ".claude/skills/backlog-next/test/decision-log.test.mjs",
+      "expectedSha256": "7775c5fe7b6747988e82a28340ca61b45bdfd48b08981c2a68b1065fdab6347c",
+      "actualSha256": "7775c5fe7b6747988e82a28340ca61b45bdfd48b08981c2a68b1065fdab6347c",
+      "expectedBytes": 2617,
+      "actualBytes": 2617,
+      "ok": true
+    },
+    {
+      "path": ".claude/skills/backlog-next/test/detect-cli-exit-contract.test.mjs",
+      "expectedSha256": "e46df513317cd13ab5e73ed2a589004483bee2a42cf109bb9ff6daccf71be892",
+      "actualSha256": "e46df513317cd13ab5e73ed2a589004483bee2a42cf109bb9ff6daccf71be892",
+      "expectedBytes": 4762,
+      "actualBytes": 4762,
+      "ok": true
+    },
+    {
+      "path": ".claude/skills/backlog-next/test/detect-deploy-resolve.test.mjs",
+      "expectedSha256": "40983fc33f4d5fe1b8740dc01c4b4c363b9aa28301ee7a01b8cdaafd33e12a52",
+      "actualSha256": "40983fc33f4d5fe1b8740dc01c4b4c363b9aa28301ee7a01b8cdaafd33e12a52",
+      "expectedBytes": 5820,
+      "actualBytes": 5820,
+      "ok": true
+    },
+    {
+      "path": ".claude/skills/backlog-next/test/gate-wiring.test.mjs",
+      "expectedSha256": "1fbadbfc8e514bc17f99a5c06b57407035b34f6aa11bc45a721bd662900bfec6",
+      "actualSha256": "1fbadbfc8e514bc17f99a5c06b57407035b34f6aa11bc45a721bd662900bfec6",
+      "expectedBytes": 960,
+      "actualBytes": 960,
+      "ok": true
+    },
+    {
+      "path": ".claude/skills/backlog-next/test/lane-classification.test.mjs",
+      "expectedSha256": "4aa325929ef4a3d4cdea607a280ef7d16dc403a6d18d47dc780c101c43fd3958",
+      "actualSha256": "4aa325929ef4a3d4cdea607a280ef7d16dc403a6d18d47dc780c101c43fd3958",
+      "expectedBytes": 1507,
+      "actualBytes": 1507,
+      "ok": true
+    }
+  ],
+  "unenumerated": [],
+  "verdict": {
+    "identityFieldChecks": {
+      "total": 26,
+      "failed": 0
+    },
+    "lockedAssets": {
+      "total": 19,
+      "verified": 18,
+      "mismatched": 1
+    },
+    "unenumeratedAssetsUnderRoot": [],
+    "candidateIdentityMatches": false,
+    "ruleApplied": "context-pack.yaml repository_bindings.nestfolio.identity_rule — any mismatch is unconditional FAIL; MI-001A must not repair it"
+  }
+}

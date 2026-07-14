@@ -1,0 +1,90 @@
+{
+  "iteration": "MI-001A",
+  "scenario": "A — active Level 1 boundary",
+  "recordedUtc": "2026-07-14T16:03:47Z",
+  "sessionId": "4f27b7f0-7b22-4d90-9d06-2b7fa4532451",
+  "executor": {
+    "product": "Claude Code",
+    "version": "2.1.209 (Claude Code)",
+    "executablePath": "/Users/fabiovitali/.local/bin/claude",
+    "model": "claude-fable-5",
+    "invocationChannel": "interactive Claude Code repository session in /Users/fabiovitali/WebstormProjects/nestfolio"
+  },
+  "repositories": {
+    "continuityLab": {
+      "startingCommit": "b8306295030fd8b4667e96dad4c3556316fa3c0b",
+      "branch": "main",
+      "remote": "origin https://github.com/fabio-vitali/continuity-lab.git",
+      "cleanAtStart": true,
+      "modifiedDuringScenario": false
+    },
+    "nestfolio": {
+      "startingCommit": "b7d597ac5361d3c33b6f44a448373f3f9e79b8dc",
+      "branch": "main",
+      "remote": "origin https://github.com/fabio-vitali/nestfolio",
+      "cleanAtStart": true,
+      "mi001RecordedSourceRevision": "3aa8f4773955541415f615abd80a0a9702bcb416",
+      "mi001SourceRevisionIsAncestorOfHead": true
+    }
+  },
+  "verdictContribution": {
+    "result": "UNCONDITIONAL_FAIL",
+    "failureClass": "candidate-identity-mismatch (implementation drift in the retained MI-001 candidate)",
+    "ruleApplied": [
+      "MI-001A prompt.md §3: 'Any mismatch is unconditional FAIL. Do not repair it in MI-001A.'",
+      "context-pack.yaml repository_bindings.nestfolio.identity_rule",
+      "context-pack.yaml verdict.fail_rule (no partial credit)"
+    ],
+    "notRepaired": true
+  },
+  "finding": {
+    "summary": "The committed Nestfolio revision b7d597ac does not contain the exact retained MI-001 candidate. The pack lock (19 assets, aggregate digest 7a4061778f9e89e98cc5c4e3c73ca9990ca4a71838f0cd7af245ffd4d2430602) requires .claude/skills/backlog-next/SKILL.md with SHA-256 9ff3b13cc3f422c6845c8e49a7662ea51f5f12713f4a610f967463973391fa90 (33928 bytes) — the MI-001-modified SKILL.md carrying the visible Level 1 preflight section. The delivered SKILL.md has SHA-256 0de07500cad6a05ee14842edc4375a508d55beb7b318b1a387c0e2b99ff42620 (33164 bytes) and contains no Level 1 preflight section.",
+    "evidence": [
+      "Independent verification: 26/26 identity field checks PASS (pack, procedure, binding, activation, lock metadata, independently recomputed aggregate lock digest matches 7a4061...0602); 18/19 locked assets verify; exactly one mismatch (SKILL.md); zero unenumerated assets under the asset root. See 01-candidate-identity-verification.json.",
+      "git diff 2b47cddc..b7d597ac (candidate application commit) contains only 14 of the 15 files in the canonical MI-001 changed-file manifest; the manifest entry 'M .claude/skills/backlog-next/SKILL.md' is absent from the commit.",
+      "The delivered SKILL.md is byte-identical to the MI-001 recorded source revision 3aa8f4773955541415f615abd80a0a9702bcb416 (both 0de07500...4620); no commit touched .claude/skills/backlog-next/** between 3aa8f477 and HEAD. The locked digest 9ff3b13c...fa90 matches neither the source revision nor the delivered tree: the MI-001-modified SKILL.md was never committed to this repository.",
+      "Nestfolio CLAUDE.md § 'Continuity Level 1 — /backlog-next' states the Skill's 'first visible step runs the bounded Level 1 invocation check'; the delivered SKILL.md contains no such section — the same drift observed at the instruction surface.",
+      "Implementation self-check agreement: continuity:doctor, continuity:inspect, continuity:verify, and continuity:invoke -- -- --auto each exit 1 blocked with ASSET_DIGEST_MISMATCH on the same asset, same expected/actual digests (commands/01-doctor.json .. 04-invoke.json)."
+    ],
+    "owningArtifacts": [
+      "nestfolio commit b7d597ac5361d3c33b6f44a448373f3f9e79b8dc — candidate application commit that omitted the SKILL.md modification",
+      "nestfolio continuity/level-1/pack-lock.json — lock entry requiring SKILL.md sha256 9ff3b13c...fa90",
+      "nestfolio .claude/skills/backlog-next/SKILL.md — delivered bytes 0de07500...4620",
+      "nestfolio CLAUDE.md § 'Continuity Level 1 — /backlog-next' — describes the uncommitted preflight section",
+      "continuity-lab docs/70-implementation/mi-001-procedure-first-adoption.md — canonical MI-001 changed-file manifest listing 'M .claude/skills/backlog-next/SKILL.md'",
+      "continuity-lab sessions/MI-001-procedure-first-adoption/session-handoff.md — same manifest",
+      "continuity-lab sessions/MI-001A-genuine-claude-code-invocation-confirmation/context-pack.yaml — required_candidate_identity binding the aggregate digest 7a4061...0602"
+    ]
+  },
+  "genuineInvocationOutcome": {
+    "boundedInvokeCommand": "npm run -s continuity:invoke -- -- --auto",
+    "delegationToBacklogNextProduced": false,
+    "blockedBeforeSkillExecution": true,
+    "blockCode": "ASSET_DIGEST_MISMATCH",
+    "skillInvoked": false,
+    "skillInvocationSkippedReason": "Candidate mismatch is unconditional FAIL per contract; the bounded invocation failed closed before delegation, so Scenario A Skill invocation was not performed and must not be performed against a drifted candidate."
+  },
+  "boundaryStatements": {
+    "behaviorAuthorityUnchanged": ".claude/skills/backlog-next/** was not modified by this session; it remains the executable and instruction behavior authority.",
+    "level1DisableNotPerformed": true,
+    "activationStateAtEnd": "active (untouched)",
+    "noLevel2To6GuaranteeClaimed": true,
+    "noCanonicalRepositoryWorkCompletionClaimed": true,
+    "failClosedBehaviorObserved": "All four Level 1 entry paths blocked with a truthful guarantee card (Level 1 active guarantees, explicit Level 2-6 absence) and explicit remediation, without executing or altering the Skill."
+  },
+  "worktreeChanges": {
+    "permittedOnly": true,
+    "created": [
+      "continuity/evidence/mi-001a/scenario-a/00-preflight-provenance.json",
+      "continuity/evidence/mi-001a/scenario-a/01-candidate-identity-verification.json",
+      "continuity/evidence/mi-001a/scenario-a/02-protected-path-hashes-before.json",
+      "continuity/evidence/mi-001a/scenario-a/03-scenario-a-result.json",
+      "continuity/evidence/mi-001a/scenario-a/commands/01-doctor.json",
+      "continuity/evidence/mi-001a/scenario-a/commands/02-inspect.json",
+      "continuity/evidence/mi-001a/scenario-a/commands/03-verify.json",
+      "continuity/evidence/mi-001a/scenario-a/commands/04-invoke.json"
+    ],
+    "modified": [],
+    "protectedPathsChanged": []
+  }
+}
