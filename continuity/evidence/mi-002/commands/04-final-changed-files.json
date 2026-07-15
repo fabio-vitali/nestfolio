@@ -29,6 +29,23 @@
   ],
   "count": 26,
   "pathsOutsideContract": [],
+  "publicationCorrection": {
+    "baseRevision": "cc4e772f0a74886caebd07cff9b5d69d8f12ab48",
+    "changedFiles": [
+      "continuity/evidence/mi-002/00-repository-bindings.json",
+      "continuity/evidence/mi-002/01-composition-and-preservation.json",
+      "continuity/evidence/mi-002/02-success-scenarios.json",
+      "continuity/evidence/mi-002/04-test-attempts.json",
+      "continuity/evidence/mi-002/05-criterion-matrix-and-verdict.json",
+      "continuity/evidence/mi-002/commands/01-final-level2-tests.json",
+      "continuity/evidence/mi-002/commands/04-final-changed-files.json",
+      "tests/continuity-level-2.test.mjs"
+    ],
+    "count": 8,
+    "iteration": "MI-002-R2",
+    "pathsOutsideContract": [],
+    "result": "pass"
+  },
   "repository": "nestfolio",
   "result": "pass"
 }

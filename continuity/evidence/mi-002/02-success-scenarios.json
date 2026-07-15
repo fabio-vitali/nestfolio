@@ -1,4 +1,11 @@
 {
+  "publicationCorrection": {
+    "immutableRecoverySource": "8f923240b6be1e0373b25b090f6be76139e4b256",
+    "iteration": "MI-002-R2",
+    "scenario": "S08",
+    "result": "pass",
+    "summary": "published C7 rollback reads both recovery files from the exact immutable predecessor, verifies both byte identities before fixture use, restores exact Level 1 bytes, and reapplies the identical Level 2 lock"
+  },
   "schemaVersion": 1,
   "scenarios": [
     {"id": "S01", "name": "exact retained 1.0.1 baseline verified before candidate modification", "result": "pass"},

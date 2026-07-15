@@ -9,5 +9,20 @@
     "compared canonical real paths in the neutral fixture assertion"
   ],
   "finalResult": "pass",
+  "publicationCorrection": {
+    "correction": "bound both isolated C7 recovery reads to immutable revision 8f923240b6be1e0373b25b090f6be76139e4b256 and required exact SHA-256 and byte size before fixture writes",
+    "final": {
+      "fail": 0,
+      "pass": 23,
+      "tests": 23
+    },
+    "iteration": "MI-002-R2",
+    "preEdit": {
+      "diagnostic": "ROLLBACK_RECOVERY_IDENTITY_MISMATCH",
+      "fail": 1,
+      "pass": 22,
+      "tests": 23
+    }
+  },
   "schemaVersion": 1
 }

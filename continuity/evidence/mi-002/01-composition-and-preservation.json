@@ -31,6 +31,36 @@
     "remoteSources": 0,
     "result": "pass"
   },
+  "publicationCorrection": {
+    "correctedC7": {
+      "fail": 0,
+      "pass": 23,
+      "result": "pass",
+      "tests": 23
+    },
+    "immutableRecovery": {
+      "level1Activation": {
+        "bytes": 196,
+        "sha256": "d8d011c6d672cda725f039ddfffb26b9157bb95462538423ac473bb3b37a0650"
+      },
+      "packageJson": {
+        "bytes": 6467,
+        "sha256": "b69da6f561a3ca51b80511efc7cc615412e6e98ba16339f1944218b96e059677"
+      },
+      "sourceRevision": "8f923240b6be1e0373b25b090f6be76139e4b256",
+      "verifiedBeforeFixtureUse": true
+    },
+    "iteration": "MI-002-R2",
+    "preEdit": {
+      "diagnostic": "ROLLBACK_RECOVERY_IDENTITY_MISMATCH",
+      "fail": 1,
+      "failingTest": "C7: isolated rollback restores exact Level 1 bytes and reapply selects the identical lock",
+      "pass": 22,
+      "tests": 23
+    },
+    "productionLevel2Changed": false,
+    "retainedLevel1Changed": false
+  },
   "reusablePack": {
     "asset": {
       "bytes": 851,

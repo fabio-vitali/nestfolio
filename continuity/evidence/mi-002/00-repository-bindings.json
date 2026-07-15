@@ -4,6 +4,20 @@
     "resultAtCapture": "pass-candidate",
     "started": true
   },
+  "publicationCorrection": {
+    "canonicalReadOrder": "pass",
+    "iteration": "MI-002-R2",
+    "publishedNestfolioParent": "8f923240b6be1e0373b25b090f6be76139e4b256",
+    "publishedNestfolioRevision": "cc4e772f0a74886caebd07cff9b5d69d8f12ab48",
+    "repositories": {
+      "continuity-lab": "62f1e2f1ef2838c3ac3e40649526ad39617a81de",
+      "continuity-workspace": "eb990e114973e42af9935379f6b13f34f2e5e3b8",
+      "nestfolio": "cc4e772f0a74886caebd07cff9b5d69d8f12ab48"
+    },
+    "result": "MI-002-R2 UNCONDITIONAL PASS",
+    "singleParentVerified": true,
+    "startBranchesCleanPushedAndRemoteAligned": true
+  },
   "repositories": {
     "continuity-lab": {
       "branch": "main",
@@ -34,6 +48,9 @@
       "before": "absent",
       "changed": false
     },
+    "level3To6StateCreated": false,
+    "networkRequestsByReusableProcedure": [],
+    "repositoryWritesByReusableProcedure": [],
     "selectedBacklogItemExecuted": false,
     "temporaryFixtures": "system temporary directory outside all three repositories",
     "unauthorizedPathsModified": []

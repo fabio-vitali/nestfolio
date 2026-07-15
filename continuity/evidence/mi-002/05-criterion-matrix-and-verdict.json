@@ -9,6 +9,14 @@
     "C7": {"result": "pass", "summary": "CAS activation, comparison, activation history, isolated rollback/reapply, and abandonment boundary preserve Level 1 and create no Level 3-6 state"}
   },
   "conjunctive": true,
+  "publicationCorrection": {
+    "allRequiredValidationPassed": true,
+    "correctedCriterion": "C7",
+    "immutableHistoryPreserved": true,
+    "iteration": "MI-002-R2",
+    "originalMI002ResultPreserved": "UNCONDITIONAL PASS at exact original execution condition",
+    "result": "MI-002-R2 UNCONDITIONAL PASS"
+  },
   "result": "UNCONDITIONAL PASS",
   "schemaVersion": 1
 }

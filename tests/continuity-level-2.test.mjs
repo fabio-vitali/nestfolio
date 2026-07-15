@@ -158,8 +158,13 @@ test('C7: isolated rollback restores exact Level 1 bytes and reapply selects the
   t.after(() => Promise.all([root, recovery, candidate].map((path) => rm(path, { recursive: true, force: true }))));
   const lock = await readLock(root);
   await mkdir(join(recovery, 'continuity/level-1'), { recursive: true });
-  const predecessorPackage = (await execFileAsync('git', ['show', 'HEAD:package.json'], { cwd: REPO, encoding: 'buffer' })).stdout;
-  const predecessorActivation = (await execFileAsync('git', ['show', 'HEAD:continuity/level-1/activation.json'], { cwd: REPO, encoding: 'buffer' })).stdout;
+  const recoverySourceRevision = '8f923240b6be1e0373b25b090f6be76139e4b256';
+  const predecessorPackage = (await execFileAsync('git', ['show', `${recoverySourceRevision}:package.json`], { cwd: REPO, encoding: 'buffer' })).stdout;
+  const predecessorActivation = (await execFileAsync('git', ['show', `${recoverySourceRevision}:continuity/level-1/activation.json`], { cwd: REPO, encoding: 'buffer' })).stdout;
+  assert.equal(predecessorPackage.byteLength, 6467);
+  assert.equal(sha256(predecessorPackage), 'b69da6f561a3ca51b80511efc7cc615412e6e98ba16339f1944218b96e059677');
+  assert.equal(predecessorActivation.byteLength, 196);
+  assert.equal(sha256(predecessorActivation), 'd8d011c6d672cda725f039ddfffb26b9157bb95462538423ac473bb3b37a0650');
   await writeFile(join(recovery, 'package.json'), predecessorPackage);
   await writeFile(join(recovery, 'continuity/level-1/activation.json'), predecessorActivation);
   await cp(join(REPO, 'package.json'), join(candidate, 'package.json'));
