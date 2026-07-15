@@ -1,0 +1,51 @@
+{
+  "schemaVersion": 1,
+  "sequence": 6,
+  "scenario": "A",
+  "startupCommand": "claude --session-id 7c8a48a1-9f31-4dad-b449-3fdbf5993e5a --name MI-001E-A --model fable --effort low --permission-mode dontAsk --tools Bash,Read,Grep,Glob,Skill --allowedTools Bash(npm run -s continuity:invoke -- -- --auto),Bash(npm run -s continuity:doctor),Bash(npm run -s continuity:verify),Read,Grep,Glob,Skill --disallowedTools Edit,Write,NotebookEdit",
+  "workingDirectory": "/Users/fabiovitali/WebstormProjects/nestfolio",
+  "sessionId": "7c8a48a1-9f31-4dad-b449-3fdbf5993e5a",
+  "startupWarnings": [
+    "The variadic --disallowedTools option consumed the intended initial prompt as deny-rule text and emitted non-fatal unknown-tool warnings; the same prompt was then submitted through stdin in the same process before any invocation."
+  ],
+  "stdinMessages": [
+    "MI-001E Scenario A genuine invocation confirmation only. [Bounded execution instruction: run the exact continuity invoke command, then await the exact slash invocation; stop before task work.]",
+    "/backlog-next --auto"
+  ],
+  "exactCommandsObserved": [
+    "npm run -s continuity:invoke -- -- --auto",
+    "npm run -s continuity:doctor && npm run -s continuity:verify",
+    "/backlog-next --auto"
+  ],
+  "exitStatus": 0,
+  "boundedVisibleOutput": {
+    "boundary": {
+      "status": "ready",
+      "pack": "nestfolio.level-1@1.0.1",
+      "procedure": "nestfolio.backlog-next@1.0.1",
+      "delegation": "/backlog-next --auto",
+      "behaviorAuthority": ".claude/skills/backlog-next/SKILL.md",
+      "lockDigest": "376c1d5aff39a1477af1b49362f681d246b721b30c1e73b4f6ede247b0c9ffe4",
+      "invocationDigest": "6133c75e07de52e9f59669c5295cac3ee355312fcd623f415bc2026be253b8f1",
+      "generatedAtUtc": "2026-07-15T12:05:30Z",
+      "levels2To6Absent": true
+    },
+    "skillResult": {
+      "invocation": "/backlog-next --auto",
+      "topRankedQueued": {
+        "id": "e2e-live-suite-exceeds-bedrock-daily-token-budget",
+        "rank": 1,
+        "type": "infra",
+        "status": "queued",
+        "epicPointer": false
+      },
+      "boundedDisposition": "Selection and routing result returned; stopped before adoption or execution.",
+      "repositoryWorkExecuted": false,
+      "repositoryFilesModified": false,
+      "downstreamSkillInvoked": false,
+      "completionClaimed": false,
+      "levels2To6Claimed": false
+    }
+  },
+  "rawTranscriptStored": false
+}

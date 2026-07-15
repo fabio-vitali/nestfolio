@@ -1,0 +1,15 @@
+{
+  "schemaVersion": 1,
+  "sequence": 16,
+  "command": "Compare source and recovery manifests; rm -rf /Users/fabiovitali/WebstormProjects/continuity-workspace/.tmp-mi001e-recovery-20260715T120020Z; verify absence",
+  "startedUtc": "2026-07-15T12:16:23Z",
+  "endedUtc": "2026-07-15T12:16:24Z",
+  "exitStatus": 0,
+  "result": {
+    "sourceManifestDigestSha256": "040e833a600afa588385f63e42af1734ac41d5042e9fd869989342f06e7fe69b",
+    "recoveryManifestDigestSha256": "040e833a600afa588385f63e42af1734ac41d5042e9fd869989342f06e7fe69b",
+    "exactMatchBeforeDeletion": true,
+    "recoveryCopyDeleted": true,
+    "pathAbsentAfterDeletion": true
+  }
+}

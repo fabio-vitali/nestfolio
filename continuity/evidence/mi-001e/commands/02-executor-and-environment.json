@@ -1,0 +1,27 @@
+{
+  "schemaVersion": 1,
+  "sequence": 2,
+  "commands": [
+    "command -v claude",
+    "realpath $(command -v claude)",
+    "shasum -a 256 $(realpath $(command -v claude))",
+    "claude --version",
+    "claude auth status --json",
+    "node --version",
+    "npm --version",
+    "uname -a",
+    "sw_vers"
+  ],
+  "capturedAtUtc": "2026-07-15T12:00:20Z",
+  "boundedResult": {
+    "claudeVersion": "2.1.209 (Claude Code)",
+    "resolvedBinary": "/Users/fabiovitali/.local/share/claude/versions/2.1.209",
+    "binarySha256": "59d2de7f49db2f75d5c33bbb46a6b8f288ad24d40b61e30602a502bb7ddc380c",
+    "authenticated": true,
+    "credentialsTokensEmailAndOrgIdentifiersOmitted": true,
+    "node": "v24.14.0",
+    "npm": "11.9.0",
+    "os": "macOS 26.3 build 25D125"
+  },
+  "exitStatus": 0
+}

@@ -1,0 +1,56 @@
+{
+  "schemaVersion": 1,
+  "iteration": "MI-001E",
+  "executionStartedUtc": "2026-07-15T12:00:20Z",
+  "canonicalAuthorization": {
+    "repository": "continuity-lab",
+    "revision": "9a4fde998a290879138913da03ea9b69b86efbc5",
+    "branch": "main",
+    "headLocalMainUpstreamOriginAndRemoteMainIdentical": true,
+    "cleanBeforeContentInspection": true
+  },
+  "targetBinding": {
+    "repository": "nestfolio",
+    "revision": "c7f9ceaf79d1703769d8175774268924119042f6",
+    "branch": "main",
+    "headLocalMainUpstreamOriginAndRemoteMainIdentical": true,
+    "cleanBeforeContentInspection": true
+  },
+  "executor": {
+    "product": "Claude Code",
+    "version": "2.1.209 (Claude Code)",
+    "executablePath": "/Users/fabiovitali/.local/bin/claude",
+    "resolvedBinary": "/Users/fabiovitali/.local/share/claude/versions/2.1.209",
+    "resolvedBinarySha256": "59d2de7f49db2f75d5c33bbb46a6b8f288ad24d40b61e30602a502bb7ddc380c",
+    "authentication": {
+      "loggedIn": true,
+      "authMethod": "claude.ai",
+      "apiProvider": "firstParty",
+      "subscriptionType": "max",
+      "credentialsOrTokensCaptured": false
+    }
+  },
+  "environment": {
+    "node": "v24.14.0",
+    "npm": "11.9.0",
+    "os": "macOS 26.3 build 25D125",
+    "kernel": "Darwin 25.3.0 arm64"
+  },
+  "recoveryCopy": {
+    "path": "/Users/fabiovitali/WebstormProjects/continuity-workspace/.tmp-mi001e-recovery-20260715T120020Z",
+    "createdBeforeAnyClaudeSession": true,
+    "trackedEntries": 3394,
+    "totalBytes": 26068783,
+    "sourceAndCopyManifestDigestSha256": "040e833a600afa588385f63e42af1734ac41d5042e9fd869989342f06e7fe69b",
+    "sourceCopyExactMatch": true,
+    "disposition": "temporary; deletion required after final restoration verification"
+  },
+  "candidateProvenance": "Newly authored after MI-001C; not recovered, restored, or reconstructed MI-001 output.",
+  "blockedGuarantees": [
+    2,
+    3,
+    4,
+    5,
+    6
+  ]
+}

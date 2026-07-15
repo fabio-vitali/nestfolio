@@ -1,0 +1,119 @@
+{
+  "schemaVersion": 1,
+  "iteration": "MI-001E",
+  "closedAtUtc": "2026-07-15T12:17:30.600Z",
+  "verdict": "MI-001E UNCONDITIONAL FAIL",
+  "singleUnconditionalResult": true,
+  "reasons": [
+    "C3 failed: the fresh genuine direct /backlog-next --auto invocation after disable was blocked by the Skill tree-clean preflight because the contract-required activation mutation and permitted MI-001E evidence made the worktree dirty; no normal visible bounded Skill result was produced.",
+    "Required exact Scenario A Session-start UTC provenance was not machine-captured before startup and is not fabricated or reconstructed.",
+    "Claude Code changed observably from 2.1.209 to 2.1.210 between the two Sessions without an explicit update command; the unrequested automatic executor drift is preserved as an execution defect."
+  ],
+  "criteria": {
+    "C1": {
+      "result": "PASS",
+      "basis": "Genuine Session A traversed the active exact 1.0.1 boundary, invoked /backlog-next --auto, and returned the normal visible bounded selection result without work execution."
+    },
+    "C2": {
+      "result": "PASS",
+      "basis": "19/19 assets and aggregate lock digest independently verified before and after."
+    },
+    "C3": {
+      "result": "FAIL",
+      "basis": "Fresh genuine Session B invoked /backlog-next --auto directly after disable, but Step 0 rejected the expected dirty activation/evidence state before returning a normal selection result."
+    },
+    "C4": {
+      "result": "PASS",
+      "basis": "No Level 2-6 state, guarantee, or completion claim created."
+    },
+    "C5": {
+      "result": "PASS",
+      "basis": "All 3394 tracked files restored byte-exactly; final doctor/inspect/verify pass; Level 1 14/14 and backlog-next 68/68."
+    },
+    "C6": {
+      "result": "PASS",
+      "basis": "Pack, Procedure, binding, lock, activation, executor Sessions, and Skill behavior authority remain observable."
+    },
+    "C7": {
+      "result": "PASS",
+      "basis": "Disable and activation restoration preserved exact protected bytes and Git history."
+    }
+  },
+  "scenarioA": {
+    "sessionId": "7c8a48a1-9f31-4dad-b449-3fdbf5993e5a",
+    "genuine": true,
+    "coreInvocationPassed": true,
+    "provenanceComplete": false
+  },
+  "scenarioB": {
+    "sessionId": "f9a8e67b-7657-4e1b-9db0-6dbcc54ded5e",
+    "genuine": true,
+    "fresh": true,
+    "directInvocationOccurred": true,
+    "normalVisibleResultProduced": false
+  },
+  "sessionsDistinct": true,
+  "candidate": {
+    "pack": "nestfolio.level-1@1.0.1",
+    "procedure": "nestfolio.backlog-next@1.0.1",
+    "behaviorAuthority": ".claude/skills/backlog-next/**",
+    "assetCount": 19,
+    "aggregateLockDigest": "376c1d5aff39a1477af1b49362f681d246b721b30c1e73b4f6ede247b0c9ffe4",
+    "activationAtClosure": "active",
+    "newlyAuthoredNotRecovered": true
+  },
+  "preservation": {
+    "trackedEntries": 3394,
+    "protectedManifestBeforeAndAfterSha256": "3928d7577a72fa0176c30226a600f74936c28f90b33691b3d208bc0b6e09eafc",
+    "changedProtectedEntries": 0,
+    "activationByteExact": true,
+    "recoveryCopyDeleted": true
+  },
+  "prohibitedActions": {
+    "selectedBacklogTaskExecuted": false,
+    "implementationModified": false,
+    "mi001OutputRecoveredOrReconstructed": false,
+    "mi002Authorized": false,
+    "commit": false,
+    "push": false,
+    "level2To6StateCreated": false,
+    "moreThanTwoClaudeSessions": false
+  },
+  "nestfolioChangedFiles": [
+    "continuity/evidence/mi-001e/00-preflight-provenance.json",
+    "continuity/evidence/mi-001e/01-candidate-identity-verification.json",
+    "continuity/evidence/mi-001e/02-protected-path-hashes-before.json",
+    "continuity/evidence/mi-001e/03-scenario-a-active-level1.json",
+    "continuity/evidence/mi-001e/04-scenario-b-direct-disabled.json",
+    "continuity/evidence/mi-001e/05-protected-path-hashes-after.json",
+    "continuity/evidence/mi-001e/06-final-verdict.json",
+    "continuity/evidence/mi-001e/commands/01-repository-bindings.json",
+    "continuity/evidence/mi-001e/commands/02-executor-and-environment.json",
+    "continuity/evidence/mi-001e/commands/03-identity-and-recovery-copy.json",
+    "continuity/evidence/mi-001e/commands/04-initial-diagnostics.json",
+    "continuity/evidence/mi-001e/commands/05-initial-tests.json",
+    "continuity/evidence/mi-001e/commands/06-scenario-a-session.json",
+    "continuity/evidence/mi-001e/commands/07-disable.json",
+    "continuity/evidence/mi-001e/commands/08-disabled-probe.json",
+    "continuity/evidence/mi-001e/commands/09-scenario-b-session.json",
+    "continuity/evidence/mi-001e/commands/10-activate.json",
+    "continuity/evidence/mi-001e/commands/11-final-doctor.json",
+    "continuity/evidence/mi-001e/commands/12-final-inspect.json",
+    "continuity/evidence/mi-001e/commands/13-final-verify.json",
+    "continuity/evidence/mi-001e/commands/14-final-level1-tests.json",
+    "continuity/evidence/mi-001e/commands/15-final-backlog-next-tests.json",
+    "continuity/evidence/mi-001e/commands/16-recovery-copy-deletion.json"
+  ],
+  "nextIteration": {
+    "id": "MI-001E-R1",
+    "name": "Superseding Candidate Genuine Claude Code Invocation Confirmation Correction",
+    "status": "selected-contract-required",
+    "authorized": false,
+    "executed": false
+  },
+  "mi002": {
+    "selected": false,
+    "authorized": false,
+    "executed": false
+  }
+}

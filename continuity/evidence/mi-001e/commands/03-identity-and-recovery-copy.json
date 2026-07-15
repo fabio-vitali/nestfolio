@@ -1,0 +1,19 @@
+{
+  "schemaVersion": 1,
+  "sequence": 3,
+  "commands": [
+    "git archive HEAD | tar -x -C /Users/fabiovitali/WebstormProjects/continuity-workspace/.tmp-mi001e-recovery-20260715T120020Z",
+    "independent Node SHA-256/byte-size/path/count/aggregate verification of all pack-lock assets"
+  ],
+  "result": {
+    "recoveryTrackedEntries": 3394,
+    "recoveryBytes": 26068783,
+    "recoveryManifestDigestSha256": "040e833a600afa588385f63e42af1734ac41d5042e9fd869989342f06e7fe69b",
+    "sourceCopyExact": true,
+    "assetsVerified": "19/19",
+    "aggregateLockDigest": "376c1d5aff39a1477af1b49362f681d246b721b30c1e73b4f6ede247b0c9ffe4",
+    "skillSha256": "e56fd21ae6bb53dfdd2d5d0d239a0200d49d69c82bb171f3336b837a91124cd1",
+    "skillBytes": 34126
+  },
+  "exitStatus": 0
+}

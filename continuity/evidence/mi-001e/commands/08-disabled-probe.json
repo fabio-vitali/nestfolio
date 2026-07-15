@@ -1,0 +1,14 @@
+{
+  "schemaVersion": 1,
+  "sequence": 8,
+  "command": "npm run -s continuity:invoke -- -- --auto",
+  "startedUtc": "2026-07-15T12:12:01Z",
+  "endedUtc": "2026-07-15T12:12:01Z",
+  "exitStatus": 1,
+  "result": {
+    "status": "blocked",
+    "code": "LEVEL1_DISABLED",
+    "message": "Continuity Level 1 activation is disabled. Direct /backlog-next invocation remains available.",
+    "remediation": "Invoke /backlog-next directly or reactivate Level 1."
+  }
+}

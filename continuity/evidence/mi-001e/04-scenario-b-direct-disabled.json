@@ -1,0 +1,104 @@
+{
+  "schemaVersion": 1,
+  "iteration": "MI-001E",
+  "scenario": "B",
+  "id": "direct-current-invocation-after-disable",
+  "result": "FAIL",
+  "baselineBeforeDisable": {
+    "capturedAtUtc": "2026-07-15T12:11:47Z",
+    "trackedEntryCount": 3394,
+    "totalBytes": 26068783,
+    "manifestDigestSha256": "3928d7577a72fa0176c30226a600f74936c28f90b33691b3d208bc0b6e09eafc",
+    "matchesPreflight": true,
+    "evidenceExcludedFromCleanComparison": true
+  },
+  "disable": {
+    "command": "npm run -s continuity:disable",
+    "startedUtc": "2026-07-15T12:11:54Z",
+    "endedUtc": "2026-07-15T12:11:55Z",
+    "exitStatus": 0,
+    "result": {
+      "status": "ok",
+      "active": false,
+      "pack": "nestfolio.level-1@1.0.1",
+      "procedure": "nestfolio.backlog-next@1.0.1"
+    }
+  },
+  "disabledProbe": {
+    "command": "npm run -s continuity:invoke -- -- --auto",
+    "startedUtc": "2026-07-15T12:12:01Z",
+    "endedUtc": "2026-07-15T12:12:01Z",
+    "exitStatus": 1,
+    "result": {
+      "status": "blocked",
+      "code": "LEVEL1_DISABLED",
+      "message": "Continuity Level 1 activation is disabled. Direct /backlog-next invocation remains available.",
+      "remediation": "Invoke /backlog-next directly or reactivate Level 1."
+    }
+  },
+  "executor": {
+    "product": "Claude Code",
+    "sessionId": "f9a8e67b-7657-4e1b-9db0-6dbcc54ded5e",
+    "distinctFromScenarioA": true,
+    "resumedScenarioA": false,
+    "displayName": "MI-001E-B",
+    "model": "Claude Fable 5",
+    "effort": "low",
+    "workingDirectory": "/Users/fabiovitali/WebstormProjects/nestfolio",
+    "startupSource": "separately started fresh interactive Claude Code process",
+    "startupCommand": "claude --session-id f9a8e67b-7657-4e1b-9db0-6dbcc54ded5e --name MI-001E-B --model fable --effort low --permission-mode dontAsk --tools Bash,Read,Grep,Glob,Skill --allowedTools Bash(npm run -s continuity:doctor),Bash(npm run -s continuity:verify),Read,Grep,Glob,Skill",
+    "sessionStartedUtc": "2026-07-15T12:12:17Z",
+    "sessionEndedUtc": "2026-07-15T12:14:18Z",
+    "exitStatus": 0,
+    "observableVersion": "2.1.210 (Claude Code)",
+    "versionDrift": {
+      "preExecutionVersion": "2.1.209 (Claude Code)",
+      "postSessionVersion": "2.1.210 (Claude Code)",
+      "explicitUpdateCommandExecuted": false,
+      "automaticExternalBinaryChangeObserved": true,
+      "postSessionResolvedBinary": "/Users/fabiovitali/.local/share/claude/versions/2.1.210",
+      "postSessionBinarySha256": "1b471d62d1117482689d75447f5e050c640da717a5a3c91e6c13792450f8c662"
+    }
+  },
+  "directInvocation": {
+    "command": "/backlog-next --auto",
+    "kind": "genuine direct repository Skill slash invocation",
+    "result": {
+      "continuityActivationObserved": false,
+      "continuedToExistingSkillProcedureWithoutContinuityGuarantee": true,
+      "step0Preflight": {
+        "status": "blocked",
+        "reason": "working tree dirty",
+        "observedPaths": [
+          "M continuity/level-1/activation.json",
+          "?? continuity/evidence/mi-001e/"
+        ],
+        "instruction": "Do not bypass."
+      },
+      "normalVisibleSelectionResultProduced": false,
+      "backlogItemSelected": false,
+      "repositoryWorkExecuted": false,
+      "repositoryFilesModifiedBySession": false,
+      "otherSkillInvoked": false,
+      "completionClaimed": false,
+      "levels2To6Claimed": false
+    }
+  },
+  "restore": {
+    "command": "npm run -s continuity:activate",
+    "startedUtc": "2026-07-15T12:14:27Z",
+    "endedUtc": "2026-07-15T12:14:28Z",
+    "exitStatus": 0,
+    "result": {
+      "status": "ok",
+      "active": true,
+      "activationSha256": "d8d011c6d672cda725f039ddfffb26b9157bb95462538423ac473bb3b37a0650",
+      "byteExactStartActivationRestored": true
+    }
+  },
+  "behaviorAuthorityUnchanged": true,
+  "skillSha256": "e56fd21ae6bb53dfdd2d5d0d239a0200d49d69c82bb171f3336b837a91124cd1",
+  "scenarioC3Satisfied": false,
+  "failureReason": "The genuine direct Skill invocation did not produce the required normal visible bounded result: its enforced tree-clean preflight rejected the contract-required disabled activation mutation and permitted untracked MI-001E evidence.",
+  "rawTranscriptPersistedAsEvidence": false
+}

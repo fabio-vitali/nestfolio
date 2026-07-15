@@ -1,0 +1,14 @@
+{
+  "schemaVersion": 1,
+  "sequence": 7,
+  "command": "npm run -s continuity:disable",
+  "startedUtc": "2026-07-15T12:11:54Z",
+  "endedUtc": "2026-07-15T12:11:55Z",
+  "exitStatus": 0,
+  "result": {
+    "status": "ok",
+    "active": false,
+    "pack": "nestfolio.level-1@1.0.1",
+    "procedure": "nestfolio.backlog-next@1.0.1"
+  }
+}

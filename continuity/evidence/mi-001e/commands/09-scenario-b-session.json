@@ -1,0 +1,40 @@
+{
+  "schemaVersion": 1,
+  "sequence": 9,
+  "startupCommand": "claude --session-id f9a8e67b-7657-4e1b-9db0-6dbcc54ded5e --name MI-001E-B --model fable --effort low --permission-mode dontAsk --tools Bash,Read,Grep,Glob,Skill --allowedTools Bash(npm run -s continuity:doctor),Bash(npm run -s continuity:verify),Read,Grep,Glob,Skill",
+  "workingDirectory": "/Users/fabiovitali/WebstormProjects/nestfolio",
+  "sessionId": "f9a8e67b-7657-4e1b-9db0-6dbcc54ded5e",
+  "startedUtc": "2026-07-15T12:12:17Z",
+  "endedUtc": "2026-07-15T12:14:18Z",
+  "exitStatus": 0,
+  "stdinMessages": [
+    "MI-001E Scenario B genuine direct-current invocation confirmation only. [Bounded instruction: direct current Skill, stop before task work.]",
+    "/backlog-next --auto"
+  ],
+  "exactCommandsObserved": [
+    "/backlog-next --auto",
+    "npm run -s continuity:doctor 2>&1 | tail -20; echo ---; npm run -s continuity:verify 2>&1 | tail -10",
+    "node .claude/skills/backlog-next/preflight.mjs 2>&1 | tail -30; echo EXIT=$?"
+  ],
+  "boundedVisibleOutput": {
+    "continuityActivationObserved": false,
+    "continuedToExistingSkillProcedureWithoutContinuityGuarantee": true,
+    "step0Preflight": {
+      "status": "blocked",
+      "reason": "working tree dirty",
+      "observedPaths": [
+        "M continuity/level-1/activation.json",
+        "?? continuity/evidence/mi-001e/"
+      ],
+      "instruction": "Do not bypass."
+    },
+    "normalVisibleSelectionResultProduced": false,
+    "backlogItemSelected": false,
+    "repositoryWorkExecuted": false,
+    "repositoryFilesModifiedBySession": false,
+    "otherSkillInvoked": false,
+    "completionClaimed": false,
+    "levels2To6Claimed": false
+  },
+  "rawTranscriptStored": false
+}

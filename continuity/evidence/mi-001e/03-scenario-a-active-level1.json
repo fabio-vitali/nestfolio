@@ -1,0 +1,70 @@
+{
+  "schemaVersion": 1,
+  "iteration": "MI-001E",
+  "scenario": "A",
+  "id": "active-level-1-invocation",
+  "result": "CORE INVOCATION OBSERVED; TIMESTAMP CAPTURE DEFECT RECORDED",
+  "executor": {
+    "product": "Claude Code",
+    "version": "2.1.209 (Claude Code)",
+    "sessionId": "7c8a48a1-9f31-4dad-b449-3fdbf5993e5a",
+    "displayName": "MI-001E-A",
+    "model": "Claude Fable 5",
+    "effort": "low",
+    "workingDirectory": "/Users/fabiovitali/WebstormProjects/nestfolio",
+    "startupSource": "separately started interactive Claude Code process",
+    "startupCommand": "claude --session-id 7c8a48a1-9f31-4dad-b449-3fdbf5993e5a --name MI-001E-A --model fable --effort low --permission-mode dontAsk --tools Bash,Read,Grep,Glob,Skill --allowedTools Bash(npm run -s continuity:invoke -- -- --auto),Bash(npm run -s continuity:doctor),Bash(npm run -s continuity:verify),Read,Grep,Glob,Skill --disallowedTools Edit,Write,NotebookEdit",
+    "exitStatus": 0
+  },
+  "timing": {
+    "sessionStartUtc": null,
+    "sessionStartCapture": "Exact UTC was not machine-captured before process start; the Session began after the 2026-07-15T12:03:22Z test completion and before the 2026-07-15T12:05:30Z boundary result.",
+    "boundaryResultUtc": "2026-07-15T12:05:30Z",
+    "sessionEndObservedNoLaterThanUtc": "2026-07-15T12:07:37Z",
+    "requiredExactStartTimestampSatisfied": false
+  },
+  "invocations": [
+    {
+      "command": "npm run -s continuity:invoke -- -- --auto",
+      "exitStatus": 0,
+      "result": {
+        "status": "ready",
+        "pack": "nestfolio.level-1@1.0.1",
+        "procedure": "nestfolio.backlog-next@1.0.1",
+        "delegation": "/backlog-next --auto",
+        "behaviorAuthority": ".claude/skills/backlog-next/SKILL.md",
+        "lockDigest": "376c1d5aff39a1477af1b49362f681d246b721b30c1e73b4f6ede247b0c9ffe4",
+        "invocationDigest": "6133c75e07de52e9f59669c5295cac3ee355312fcd623f415bc2026be253b8f1",
+        "generatedAtUtc": "2026-07-15T12:05:30Z",
+        "levels2To6Absent": true
+      }
+    },
+    {
+      "command": "/backlog-next --auto",
+      "kind": "genuine repository Skill slash invocation",
+      "result": {
+        "invocation": "/backlog-next --auto",
+        "topRankedQueued": {
+          "id": "e2e-live-suite-exceeds-bedrock-daily-token-budget",
+          "rank": 1,
+          "type": "infra",
+          "status": "queued",
+          "epicPointer": false
+        },
+        "boundedDisposition": "Selection and routing result returned; stopped before adoption or execution.",
+        "repositoryWorkExecuted": false,
+        "repositoryFilesModified": false,
+        "downstreamSkillInvoked": false,
+        "completionClaimed": false,
+        "levels2To6Claimed": false
+      }
+    }
+  ],
+  "behaviorAuthorityUnchanged": true,
+  "activationRemainedActive": true,
+  "protectedMutationObserved": false,
+  "rawTranscriptPersistedAsEvidence": false,
+  "sessionProvenanceGenuine": true,
+  "scenarioEvidenceComplete": false,
+  "incompleteness": "The exact Session-start UTC timestamp required by the contract was not captured before startup."
+}

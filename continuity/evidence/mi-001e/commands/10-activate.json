@@ -1,0 +1,14 @@
+{
+  "schemaVersion": 1,
+  "sequence": 10,
+  "command": "npm run -s continuity:activate",
+  "startedUtc": "2026-07-15T12:14:27Z",
+  "endedUtc": "2026-07-15T12:14:28Z",
+  "exitStatus": 0,
+  "result": {
+    "status": "ok",
+    "active": true,
+    "activationSha256": "d8d011c6d672cda725f039ddfffb26b9157bb95462538423ac473bb3b37a0650",
+    "byteExactStartActivationRestored": true
+  }
+}

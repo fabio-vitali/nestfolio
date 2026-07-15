@@ -1,0 +1,28 @@
+{
+  "schemaVersion": 1,
+  "sequence": 4,
+  "commands": [
+    {
+      "command": "npm run -s continuity:doctor",
+      "startedUtc": "2026-07-15T12:02:59Z",
+      "endedUtc": "2026-07-15T12:03:00Z",
+      "exitStatus": 0,
+      "result": "ready"
+    },
+    {
+      "command": "npm run -s continuity:inspect",
+      "startedUtc": "2026-07-15T12:03:06Z",
+      "endedUtc": "2026-07-15T12:03:07Z",
+      "exitStatus": 0,
+      "result": "ready; one Pack, Procedure, binding; 19 assets"
+    },
+    {
+      "command": "npm run -s continuity:verify",
+      "startedUtc": "2026-07-15T12:03:11Z",
+      "endedUtc": "2026-07-15T12:03:12Z",
+      "exitStatus": 0,
+      "result": "ready; exact lock verified"
+    }
+  ],
+  "captureNote": "An earlier doctor capture wrapper used the zsh-reserved variable name status and exited 1 after doctor itself returned ready; doctor was immediately rerun correctly and passed."
+}
