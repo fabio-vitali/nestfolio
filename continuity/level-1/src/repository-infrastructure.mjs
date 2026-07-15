@@ -78,7 +78,7 @@ async function listFiles(repoRoot, relativeRoot) {
 export async function verifyLock(repoRoot, lock) {
   const failures = [];
   const verified = [];
-  if (!lock || lock.schemaVersion !== 1 || !Array.isArray(lock.assets) || !lock.assetRoot) {
+  if (!lock || lock.schemaVersion !== 1 || lock.algorithm !== 'sha256' || !Array.isArray(lock.assets) || !lock.assetRoot) {
     const error = new Error('Pack lock is missing required schemaVersion, assetRoot, or assets.');
     error.code = 'CORRUPT_LOCK';
     throw error;

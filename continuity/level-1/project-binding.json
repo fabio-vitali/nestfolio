@@ -11,7 +11,7 @@
   },
   "procedure": {
     "id": "nestfolio.backlog-next",
-    "version": "1.0.0",
+    "version": "1.0.1",
     "entryPoint": "/backlog-next",
     "skillRoot": ".claude/skills/backlog-next",
     "primaryAsset": ".claude/skills/backlog-next/SKILL.md"
@@ -21,6 +21,7 @@
     "mode": "repository-skill",
     "invocation": "Invoke /backlog-next with the verified arguments after the Level 1 preflight reports ready."
   },
+  "candidateProvenance": "New MI-001D 1.0.1 candidate authored after MI-001C; not recovered, restored, or reconstructed MI-001 output.",
   "currentAuthoritiesPreserved": {
     "backlog": "docs/backlog/*.md and docs/BACKLOG.md under current Nestfolio rules",
     "checks": "current scripts and checks referenced by the Skill",

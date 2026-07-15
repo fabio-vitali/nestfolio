@@ -3,14 +3,14 @@
   "kind": "continuity.level1.project-pack",
   "pack": {
     "id": "nestfolio.level-1",
-    "version": "1.0.0",
+    "version": "1.0.1",
     "displayName": "Nestfolio Level 1 Procedures",
     "projectSpecific": true
   },
   "procedures": [
     {
       "id": "nestfolio.backlog-next",
-      "version": "1.0.0",
+      "version": "1.0.1",
       "contract": "continuity/level-1/procedure-contract.json"
     }
   ],
@@ -19,5 +19,6 @@
     "lock": "continuity/level-1/pack-lock.json",
     "resolutionPolicy": "single-exact-source"
   },
-  "guaranteeLevel": 1
+  "guaranteeLevel": 1,
+  "candidateProvenance": "New MI-001D 1.0.1 candidate authored after MI-001C; not recovered, restored, or reconstructed MI-001 output."
 }

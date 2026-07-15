@@ -1,0 +1,166 @@
+{
+  "schemaVersion": 1,
+  "iteration": "MI-001D",
+  "capturedAt": "2026-07-15T10:15:44.352Z",
+  "validation": {
+    "identityConsistency": true,
+    "doctorReady": true,
+    "inspectReady": true,
+    "verifyReady": true,
+    "assetCount": 19,
+    "actualAssetCount": 19,
+    "matchingAssets": 19,
+    "aggregateLockDigest": "376c1d5aff39a1477af1b49362f681d246b721b30c1e73b4f6ede247b0c9ffe4",
+    "recomputedAggregateLockDigest": "376c1d5aff39a1477af1b49362f681d246b721b30c1e73b4f6ede247b0c9ffe4",
+    "level1Tests": {
+      "baseline": {
+        "tests": 12,
+        "pass": 8,
+        "fail": 4,
+        "cause": "retained 1.0.0 Skill mismatch"
+      },
+      "final": {
+        "tests": 14,
+        "pass": 14,
+        "fail": 0,
+        "exitStatus": 0
+      }
+    },
+    "backlogNextTests": {
+      "baseline": {
+        "tests": 68,
+        "pass": 68,
+        "fail": 0
+      },
+      "final": {
+        "tests": 68,
+        "pass": 68,
+        "fail": 0,
+        "exitStatus": 0
+      },
+      "worsened": false
+    },
+    "mandatoryFailureCases": [
+      {
+        "id": "retained-1.0.0-skill-mismatch",
+        "passed": true,
+        "observedStatus": "blocked",
+        "observedCode": "ASSET_DIGEST_MISMATCH",
+        "mismatch": {
+          "code": "ASSET_DIGEST_MISMATCH",
+          "path": ".claude/skills/backlog-next/SKILL.md",
+          "expected": {
+            "path": ".claude/skills/backlog-next/SKILL.md",
+            "sha256": "9ff3b13cc3f422c6845c8e49a7662ea51f5f12713f4a610f967463973391fa90",
+            "bytes": 33928
+          },
+          "actual": {
+            "path": ".claude/skills/backlog-next/SKILL.md",
+            "sha256": "0de07500cad6a05ee14842edc4375a508d55beb7b318b1a387c0e2b99ff42620",
+            "bytes": 33164
+          }
+        }
+      },
+      {
+        "id": "missing-primary-asset",
+        "passed": true,
+        "observedStatus": "blocked",
+        "observedCode": "MISSING_PREREQUISITE"
+      },
+      {
+        "id": "locked-asset-digest-mismatch",
+        "passed": true,
+        "observedStatus": "blocked",
+        "observedCode": "ASSET_DIGEST_MISMATCH"
+      },
+      {
+        "id": "locked-asset-byte-size-mismatch",
+        "passed": true,
+        "observedStatus": "blocked",
+        "observedCode": "ASSET_DIGEST_MISMATCH"
+      },
+      {
+        "id": "aggregate-lock-digest-tamper",
+        "passed": true,
+        "observedStatus": "blocked",
+        "observedCode": "LOCK_DIGEST_MISMATCH"
+      },
+      {
+        "id": "missing-repository-prerequisite",
+        "passed": true,
+        "observedStatus": "blocked",
+        "observedCode": "REPOSITORY_IDENTITY_MISMATCH"
+      },
+      {
+        "id": "duplicate-procedure-identity",
+        "passed": true,
+        "observedStatus": "blocked",
+        "observedCode": "DUPLICATE_PROCEDURE_IDENTITY"
+      },
+      {
+        "id": "duplicate-asset-source",
+        "passed": true,
+        "observedStatus": "blocked",
+        "observedCode": "DUPLICATE_ASSET_SOURCE"
+      },
+      {
+        "id": "corrupt-lock",
+        "passed": true,
+        "observedStatus": "blocked",
+        "observedCode": "CORRUPT_OR_MISSING_CONFIGURATION"
+      },
+      {
+        "id": "unenumerated-asset",
+        "passed": true,
+        "observedStatus": "blocked",
+        "observedCode": "UNLOCKED_ASSET"
+      },
+      {
+        "id": "mixed-1.0.0-and-1.0.1-identity",
+        "passed": true,
+        "observedStatus": "blocked",
+        "observedCode": "IDENTITY_MISMATCH"
+      },
+      {
+        "id": "forbidden-level-2-to-6-claim",
+        "passed": true,
+        "observedStatus": "blocked",
+        "observedCode": "FORBIDDEN_HIGHER_LEVEL_CLAIM"
+      },
+      {
+        "id": "disabled-activation",
+        "passed": true,
+        "observedStatus": "blocked",
+        "observedCode": "LEVEL1_DISABLED"
+      }
+    ],
+    "allMandatoryFailuresPassed": true,
+    "isolatedDisableEnablePassed": true,
+    "isolatedRollbackPassed": true,
+    "rollbackProtectedPathCount": 33,
+    "rollbackMismatches": [],
+    "stateConversionOccurred": false,
+    "temporaryCopiesDeleted": true,
+    "level2To6Absent": true,
+    "activationActiveAtEnd": true,
+    "forbiddenInvocationExecuted": false,
+    "originalOutputRecoveryClaimMade": false
+  },
+  "currentChangedPaths": [
+    ".claude/skills/backlog-next/SKILL.md",
+    "CLAUDE.md",
+    "continuity/evidence/mi-001d/",
+    "continuity/level-1/README.md",
+    "continuity/level-1/activation.json",
+    "continuity/level-1/pack-lock.json",
+    "continuity/level-1/pack-manifest.json",
+    "continuity/level-1/procedure-contract.json",
+    "continuity/level-1/project-binding.json",
+    "continuity/level-1/src/application-service.mjs",
+    "continuity/level-1/src/repository-infrastructure.mjs",
+    "tests/continuity-level-1.test.mjs"
+  ],
+  "scopeConfinedToContract": true,
+  "conjunctiveChecksPassed": true,
+  "result": "MI-001D UNCONDITIONAL PASS"
+}

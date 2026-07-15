@@ -24,7 +24,7 @@ export class Level1ApplicationService {
     return { manifest, procedure, binding, lock, activation };
   }
 
-  validateIdentity({ manifest, procedure, binding, lock }) {
+  validateIdentity({ manifest, procedure, binding, lock, activation }) {
     const memberships = manifest?.procedures ?? [];
     const keys = memberships.map((item) => `${item.id}@${item.version}`);
     if (memberships.length !== 1 || new Set(keys).size !== keys.length) {
@@ -33,6 +33,32 @@ export class Level1ApplicationService {
     const expected = `${procedure.identity.id}@${procedure.identity.version}`;
     if (keys[0] !== expected || binding.procedure.id !== procedure.identity.id || binding.procedure.version !== procedure.identity.version) {
       return failure('IDENTITY_MISMATCH', 'Pack, Procedure, and project binding identities do not match.', { packMembership: keys[0], procedure: expected, binding: `${binding.procedure.id}@${binding.procedure.version}` });
+    }
+    const expectedPack = `${manifest.pack.id}@${manifest.pack.version}`;
+    const configuredIdentities = {
+      manifestPack: expectedPack,
+      manifestProcedure: keys[0],
+      procedure: expected,
+      procedureOwningPack: procedure.identity.owningPack,
+      bindingProcedure: `${binding.procedure.id}@${binding.procedure.version}`,
+      lockPack: lock.pack,
+      lockProcedure: lock.procedure,
+      activationPack: activation.pack,
+      activationProcedure: activation.procedure
+    };
+    if (
+      expectedPack !== 'nestfolio.level-1@1.0.1' ||
+      expected !== 'nestfolio.backlog-next@1.0.1' ||
+      procedure.identity.owningPack !== manifest.pack.id ||
+      lock.pack !== expectedPack ||
+      lock.procedure !== expected ||
+      activation.pack !== expectedPack ||
+      activation.procedure !== expected ||
+      activation.adoptionLevel !== 1 ||
+      manifest.guaranteeLevel !== 1 ||
+      procedure.guaranteeLevel !== 1
+    ) {
+      return failure('IDENTITY_MISMATCH', 'Every Level 1 identity surface must resolve only the deliberate 1.0.1 candidate.', configuredIdentities);
     }
     if (manifest.assets.root !== lock.assetRoot || binding.procedure.skillRoot !== lock.assetRoot) {
       return failure('ASSET_ROOT_MISMATCH', 'Pack manifest, project binding, and exact lock do not name the same asset root.', {

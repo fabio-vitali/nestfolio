@@ -3,6 +3,29 @@ name: backlog-next
 description: Workstream router for starting the next backlog item. Picks from docs/BACKLOG.md, classifies complexity (doc-layer / simple / complex), enforces preflight/postflight gates, and routes the closing phase to deploy + true-affected-resolver validation + finishing-a-development-branch. Optional --auto mode auto-resolves decisions unattended (logging each into the workstream file's Decision log, with the same hard floor as the epic orchestrator).
 ---
 
+## Continuity Level 1 preflight — MI-001D 1.0.1
+
+This preflight block was newly authored for the deliberate MI-001D 1.0.1
+supersession. It is not recovered, restored, or inferred from the unavailable
+MI-001 output. The remaining backlog-next procedure below is unchanged.
+
+Before following the procedure, run:
+
+```bash
+npm run -s continuity:doctor
+npm run -s continuity:verify
+```
+
+When activation is `true`, continue only if both commands report the single
+active `nestfolio.level-1@1.0.1` Pack and
+`nestfolio.backlog-next@1.0.1` Procedure, all 19 locked assets verify, and the
+visible card states that Levels 2–6 are absent. Any blocked result stops before
+backlog-next behavior. Do not run `continuity:invoke` from inside this Skill.
+
+When activation is `false` or the target boundary has been removed, continue directly
+with the existing procedure below without claiming a Continuity
+guarantee. The Skill remains the behavior authority in either state.
+
 ## When to invoke
 
 Two sanctioned entry points: a user typing `/backlog-next` (standalone), **or** the `/backlog-next-epic` orchestrator driving this skill in epic-member mode. This skill is deliberately **NOT** `disable-model-invocation` (unlike `/backlog-next-epic`) — that key was removed on purpose so the orchestrator can invoke it via the Skill tool, which loads this SKILL.md **inline into the orchestrator's own context** (not a detached subagent; that inline-execution model is what the seam, the E4.5 checkpoint, and the parked Tier-2 subagent-isolation item all reason about). Outside those two paths, do not auto-fire it: the Step-1 active-in-flight guard + the epic-member guard below are the runtime backstops against a stray invocation.

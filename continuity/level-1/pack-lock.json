@@ -2,8 +2,8 @@
   "schemaVersion": 1,
   "kind": "continuity.level1.pack-lock",
   "algorithm": "sha256",
-  "pack": "nestfolio.level-1@1.0.0",
-  "procedure": "nestfolio.backlog-next@1.0.0",
+  "pack": "nestfolio.level-1@1.0.1",
+  "procedure": "nestfolio.backlog-next@1.0.1",
   "assetRoot": ".claude/skills/backlog-next",
   "assets": [
     {
@@ -13,8 +13,8 @@
     },
     {
       "path": ".claude/skills/backlog-next/SKILL.md",
-      "sha256": "9ff3b13cc3f422c6845c8e49a7662ea51f5f12713f4a610f967463973391fa90",
-      "bytes": 33928
+      "sha256": "e56fd21ae6bb53dfdd2d5d0d239a0200d49d69c82bb171f3336b837a91124cd1",
+      "bytes": 34126
     },
     {
       "path": ".claude/skills/backlog-next/backlog-gate.mjs",
@@ -102,5 +102,5 @@
       "bytes": 1507
     }
   ],
-  "lockDigest": "7a4061778f9e89e98cc5c4e3c73ca9990ca4a71838f0cd7af245ffd4d2430602"
+  "lockDigest": "376c1d5aff39a1477af1b49362f681d246b721b30c1e73b4f6ede247b0c9ffe4"
 }

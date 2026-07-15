@@ -3,11 +3,11 @@
   "kind": "continuity.level1.procedure",
   "identity": {
     "id": "nestfolio.backlog-next",
-    "version": "1.0.0",
+    "version": "1.0.1",
     "owningPack": "nestfolio.level-1"
   },
   "displayName": "Backlog Next",
-  "objective": "Invoke the existing Nestfolio /backlog-next Claude Code Skill through a verified Level 1 boundary without replacing its semantics.",
+  "objective": "Expose the existing Nestfolio /backlog-next Claude Code Skill through the newly authored MI-001D 1.0.1 Level 1 boundary without replacing its semantics or claiming recovery of MI-001 output.",
   "applicability": {
     "repository": "nestfolio",
     "entryPoint": "/backlog-next"
@@ -82,5 +82,6 @@
     "delegation": "Claude Code entry point and arguments",
     "provenance": "deterministic invocation digest and timestamp"
   },
-  "guaranteeLevel": 1
+  "guaranteeLevel": 1,
+  "candidateProvenance": "New MI-001D 1.0.1 candidate authored after MI-001C; not recovered, restored, or reconstructed MI-001 output."
 }

@@ -1,0 +1,18 @@
+{
+  "command": [
+    "node",
+    "/tmp/mi001d-skill-compare.mjs",
+    "/Users/fabiovitali/WebstormProjects/nestfolio",
+    "63ad0b2da2dfb2192d24e73a9224b65654deadb7"
+  ],
+  "commandDisplay": "node /tmp/mi001d-skill-compare.mjs /Users/fabiovitali/WebstormProjects/nestfolio 63ad0b2da2dfb2192d24e73a9224b65654deadb7",
+  "cwd": "/Users/fabiovitali/WebstormProjects/nestfolio",
+  "startedAt": "2026-07-15T10:15:17.903Z",
+  "endedAt": "2026-07-15T10:15:17.962Z",
+  "exitStatus": 0,
+  "signal": null,
+  "stdout": "{\n  \"sourceRevision\": \"63ad0b2da2dfb2192d24e73a9224b65654deadb7\",\n  \"path\": \".claude/skills/backlog-next/SKILL.md\",\n  \"originalSha256\": \"0de07500cad6a05ee14842edc4375a508d55beb7b318b1a387c0e2b99ff42620\",\n  \"originalBytes\": 33164,\n  \"finalSha256\": \"e56fd21ae6bb53dfdd2d5d0d239a0200d49d69c82bb171f3336b837a91124cd1\",\n  \"finalBytes\": 34126,\n  \"authoredBlockStartByte\": 486,\n  \"authoredBlockBytes\": 962,\n  \"remainderAfterRemovingAuthoredBlockSha256\": \"0de07500cad6a05ee14842edc4375a508d55beb7b318b1a387c0e2b99ff42620\",\n  \"remainderAfterRemovingAuthoredBlockBytes\": 33164,\n  \"existingSkillBytesPreservedOutsideAuthoredBlock\": true,\n  \"noRecoveryClaim\": true\n}\n",
+  "stderr": "",
+  "stdoutSha256": "c61072b1166543765116d6aaa7c03cb1c1018af12a0e747a8776cb953765c730",
+  "stderrSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+}

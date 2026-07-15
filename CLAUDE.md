@@ -225,9 +225,9 @@ When spawning subagents (Agent/Task tool), the routing block is automatically in
 
 ## Continuity Level 1 — `/backlog-next`
 
-This repository has one active Continuity Level 1 Procedure: `nestfolio.backlog-next@1.0.0` in project Pack `nestfolio.level-1@1.0.0`.
+This repository has one active Continuity Level 1 Procedure: `nestfolio.backlog-next@1.0.1` in project Pack `nestfolio.level-1@1.0.1`.
 
-For `/backlog-next`, follow the existing Skill at `.claude/skills/backlog-next/SKILL.md`. Its first visible step runs the bounded Level 1 invocation check. Inspect the guarantee card and exact asset lock with:
+For `/backlog-next`, follow the existing Skill at `.claude/skills/backlog-next/SKILL.md`. Its newly authored MI-001D 1.0.1 preflight is not recovered MI-001 output; it verifies the bounded Level 1 identity before the unchanged backlog-next procedure. Inspect the guarantee card and exact asset lock with:
 
 ```bash
 npm run continuity:doctor

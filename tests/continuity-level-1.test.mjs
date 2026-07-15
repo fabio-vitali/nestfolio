@@ -46,7 +46,9 @@ test('C1/C2/C4/C6: inspect exposes one Level 1 Procedure and a complete exact lo
   assert.equal(result.status, 'ready');
   assert.equal(result.guarantees.adoption, 'Level 1 of 6');
   assert.equal(result.pack.id, 'nestfolio.level-1');
+  assert.equal(result.pack.version, '1.0.1');
   assert.equal(result.procedure.identity.id, 'nestfolio.backlog-next');
+  assert.equal(result.procedure.identity.version, '1.0.1');
   assert.equal(result.binding.procedure.entryPoint, '/backlog-next');
   assert.equal(result.guarantees.absent.level6.includes('completion authority'), true);
   const actual = (await walk(join(REPO, '.claude/skills/backlog-next')))
@@ -110,6 +112,33 @@ test('duplicate asset source fails activation preflight', async (t) => {
   assert.equal(result.code, 'DUPLICATE_ASSET_SOURCE');
 });
 
+test('mixed 1.0.0 and 1.0.1 identity fails closed', async (t) => {
+  const root = await fixture(); t.after(() => rm(root, { recursive: true, force: true }));
+  await mutateJson(root, 'continuity/level-1/activation.json', (activation) => {
+    activation.procedure = 'nestfolio.backlog-next@1.0.0';
+  });
+  const result = await new Level1ApplicationService(root).preflight();
+  assert.equal(result.status, 'blocked');
+  assert.equal(result.code, 'IDENTITY_MISMATCH');
+});
+
+test('locked byte-size mismatch fails closed even with a coherent aggregate digest', async (t) => {
+  const root = await fixture(); t.after(() => rm(root, { recursive: true, force: true }));
+  await mutateJson(root, 'continuity/level-1/pack-lock.json', (lock) => {
+    lock.assets[0].bytes += 1;
+  });
+  const lock = JSON.parse(await readFile(join(root, 'continuity/level-1/pack-lock.json'), 'utf8'));
+  const { createHash } = await import('node:crypto');
+  const { stableJson } = await import('../continuity/level-1/src/core.mjs');
+  lock.lockDigest = createHash('sha256').update(stableJson({
+    pack: lock.pack, procedure: lock.procedure, algorithm: lock.algorithm, assets: lock.assets
+  })).digest('hex');
+  await writeFile(join(root, 'continuity/level-1/pack-lock.json'), `${JSON.stringify(lock, null, 2)}\n`);
+  const result = await new Level1ApplicationService(root).preflight();
+  assert.equal(result.status, 'blocked');
+  assert.equal(result.code, 'ASSET_DIGEST_MISMATCH');
+});
+
 
 test('an unenumerated file under the Skill root fails closed', async (t) => {
   const root = await fixture(); t.after(() => rm(root, { recursive: true, force: true }));
@@ -129,10 +158,12 @@ test('tampered aggregate lock digest fails closed', async (t) => {
   assert.equal(result.code, 'LOCK_DIGEST_MISMATCH');
 });
 
-test('forbidden higher-level claim is rejected', async () => {
-  const result = await new Level1ApplicationService(REPO).invoke([], { claim: 'completion' });
-  assert.equal(result.status, 'blocked');
-  assert.equal(result.code, 'FORBIDDEN_HIGHER_LEVEL_CLAIM');
+test('representative Level 2-6 authority and completion claims are rejected', async () => {
+  for (const claim of ['work', 'context-pack', 'run', 'completion', 'lesson']) {
+    const result = await new Level1ApplicationService(REPO).preflight({ claim });
+    assert.equal(result.status, 'blocked');
+    assert.equal(result.code, 'FORBIDDEN_HIGHER_LEVEL_CLAIM');
+  }
 });
 
 test('corrupt lock fails closed', async (t) => {

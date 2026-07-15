@@ -1,6 +1,11 @@
 # Continuity Level 1 — Nestfolio backlog-next
 
-This boundary exposes exactly one project-specific Procedure, `nestfolio.backlog-next`, while the existing `.claude/skills/backlog-next/**` files remain the behavior authority.
+This boundary exposes exactly one project-specific Procedure,
+`nestfolio.backlog-next@1.0.1`, from Pack `nestfolio.level-1@1.0.1`, while
+`.claude/skills/backlog-next/**` remains the behavior authority. Version 1.0.1
+is a new candidate deliberately authored after MI-001C; it is not recovered,
+restored, or reconstructed MI-001 output. The invalid retained 1.0.0 identity
+remains a historical Git fact and is not relabeled as valid.
 
 Commands:
 

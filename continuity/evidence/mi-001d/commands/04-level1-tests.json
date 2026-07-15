@@ -1,0 +1,17 @@
+{
+  "command": [
+    "node",
+    "--test",
+    "tests/continuity-level-1.test.mjs"
+  ],
+  "commandDisplay": "node --test tests/continuity-level-1.test.mjs",
+  "cwd": "/Users/fabiovitali/WebstormProjects/nestfolio",
+  "startedAt": "2026-07-15T10:12:35.075Z",
+  "endedAt": "2026-07-15T10:12:35.394Z",
+  "exitStatus": 0,
+  "signal": null,
+  "stdout": "✔ C1/C2/C4/C6: inspect exposes one Level 1 Procedure and a complete exact lock (11.605083ms)\n✔ C1/C6: invoke returns bounded Claude Code delegation and non-canonical provenance (5.654542ms)\n✔ missing primary Skill asset fails closed (21.8165ms)\n✔ locked asset digest mismatch fails before delegation (21.172375ms)\n✔ missing declared prerequisite fails with remediation (17.937417ms)\n✔ duplicate Procedure id/version fails activation preflight (18.85975ms)\n✔ duplicate asset source fails activation preflight (17.2685ms)\n✔ mixed 1.0.0 and 1.0.1 identity fails closed (17.870125ms)\n✔ locked byte-size mismatch fails closed even with a coherent aggregate digest (21.037916ms)\n✔ an unenumerated file under the Skill root fails closed (19.522583ms)\n✔ tampered aggregate lock digest fails closed (19.994041ms)\n✔ representative Level 2-6 authority and completion claims are rejected (0.286084ms)\n✔ corrupt lock fails closed (16.607792ms)\n✔ C3/C7: disable leaves direct current Skill discoverable and target removable (21.365542ms)\nℹ tests 14\nℹ suites 0\nℹ pass 14\nℹ fail 0\nℹ cancelled 0\nℹ skipped 0\nℹ todo 0\nℹ duration_ms 281.606333\n",
+  "stderr": "",
+  "stdoutSha256": "dd5b3b71839fcfc81ad0b95fcc8fb879997b597234397ec1b934a3d773bdc60d",
+  "stderrSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+}
