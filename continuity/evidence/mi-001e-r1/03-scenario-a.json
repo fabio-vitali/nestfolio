@@ -1,0 +1,81 @@
+{
+  "schemaVersion": 1,
+  "iteration": "MI-001E-R1",
+  "scenario": "A",
+  "startup": {
+    "executablePath": "/Users/fabiovitali/.local/bin/claude",
+    "arguments": [
+      "--print",
+      "--output-format",
+      "json",
+      "--session-id",
+      "98496f9a-8d01-44e4-a60f-00d8e8e6a471",
+      "--name",
+      "MI-001E-R1-A",
+      "--model",
+      "fable",
+      "--effort",
+      "low",
+      "--permission-mode",
+      "dontAsk",
+      "--tools",
+      "Bash,Read,Grep,Glob,Skill",
+      "--allowedTools",
+      "Bash,Read,Grep,Glob,Skill",
+      "--disallowedTools",
+      "Edit,Write,NotebookEdit",
+      "--no-session-persistence"
+    ],
+    "workingDirectory": "/Users/fabiovitali/WebstormProjects/nestfolio",
+    "promptSha256": "f384e3e766468067b9b35ae039fed0eea7d45dd84ce64c6bb426d02dc452f077",
+    "fullPromptStored": false
+  },
+  "sessionId": "98496f9a-8d01-44e4-a60f-00d8e8e6a471",
+  "genuineClaudeCodeProcess": true,
+  "freshProcess": true,
+  "processInterval": {
+    "startedUtc": "2026-07-15T12:55:12.343Z",
+    "endedUtc": "2026-07-15T12:56:18.748Z",
+    "exitStatus": 0,
+    "signal": null
+  },
+  "exactNonNullMachineCapturedInterval": true,
+  "executorBeforeLaunch": {
+    "executablePath": "/Users/fabiovitali/.local/bin/claude",
+    "resolvedBinary": "/Users/fabiovitali/.local/share/claude/versions/2.1.210",
+    "resolvedBinarySha256": "1b471d62d1117482689d75447f5e050c640da717a5a3c91e6c13792450f8c662",
+    "version": "2.1.210 (Claude Code)",
+    "authenticated": true,
+    "authMethod": "claude.ai",
+    "apiProvider": "firstParty",
+    "subscriptionType": "max",
+    "credentialsTokensEmailAndOrgIdentifiersOmitted": true
+  },
+  "executorAfterExit": {
+    "executablePath": "/Users/fabiovitali/.local/bin/claude",
+    "resolvedBinary": "/Users/fabiovitali/.local/share/claude/versions/2.1.210",
+    "resolvedBinarySha256": "1b471d62d1117482689d75447f5e050c640da717a5a3c91e6c13792450f8c662",
+    "version": "2.1.210 (Claude Code)",
+    "authenticated": true,
+    "authMethod": "claude.ai",
+    "apiProvider": "firstParty",
+    "subscriptionType": "max",
+    "credentialsTokensEmailAndOrgIdentifiersOmitted": true
+  },
+  "executorDrift": false,
+  "cliResult": {
+    "type": "result",
+    "subtype": "success",
+    "isError": false,
+    "durationMs": 65776,
+    "numTurns": 9,
+    "sessionId": "98496f9a-8d01-44e4-a60f-00d8e8e6a471",
+    "sessionIdentityMatchesWrapper": true,
+    "models": [
+      "claude-fable-5"
+    ],
+    "boundedVisibleResult": "MI-001E-R1 Scenario A bounded run complete. Results:\n\n**Continuity boundary (`continuity:invoke -- --auto`):** status `ready`, delegating exactly to `/backlog-next --auto` — pack `nestfolio.level-1@1.0.1`, procedure `nestfolio.backlog-next@1.0.1`, entry point `/backlog-next`, lock digest `376c1d5a…c9ffe4`, invocation digest `6133c75e…b8f1` (2026-07-15T12:55:20Z, not persisted as canonical state).\n\n**Skill invocation (`/backlog-next --auto`):**\n- MI-001D 1.0.1 preflight: `continuity:doctor` and `continuity:verify` both `ready` — single active Pack/Procedure at 1.0.1, all 19 locked assets SHA-256 verified with zero failures, Levels 2–6 explicitly absent.\n- Step 0: `preflight.mjs` passed — tree clean, `main` = `origin/main`, backlog lint green, no stale worktrees.\n- Step 1 deterministic selection: ACTIVE is empty, so the pick is the top-ranked QUEUED item:\n  - **Selected item:** `e2e-live-suite-exceeds-bedrock-daily-token-budget`\n  - **Rank:** 1 · **Type:** `infra` · **Status:** `queued`\n  - **Epic routing fact:** no `epic:` pointer and not `type: epic` — neither redirect nor epic-member guard fires; it would be worked standalone.\n  - Under `--auto` this pick would launch without confirmation (deterministic rule-6 rank), but this run stops here by design.\n\n**Boundary confirmation:** stopped before adoption. No selected item was executed, no status change, no worktree or branch created, no downstream skill invoked, and no repository file was modified (only read-only commands were run). No completion is claimed."
+  },
+  "fullPromptStored": false,
+  "rawTranscriptStored": false
+}

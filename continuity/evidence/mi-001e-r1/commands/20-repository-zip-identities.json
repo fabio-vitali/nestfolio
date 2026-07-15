@@ -1,0 +1,30 @@
+{
+  "schemaVersion": 1,
+  "iteration": "MI-001E-R1",
+  "capturedAtUtc": "2026-07-15T13:12:12Z",
+  "archiveTimestampUtc": "20260715T131147Z",
+  "integrityTool": "unzip -tq",
+  "archives": [
+    {
+      "repository": "continuity-lab",
+      "path": "/Users/fabiovitali/WebstormProjects/continuity-workspace/output/MI-001E-R1/continuity-lab-MI-001E-R1-unconditional-pass-20260715T131147Z.zip",
+      "baseRevision": "1113a670a638ac9e946eeb31fcc373bb8187bb8e",
+      "entries": 110,
+      "bytes": 424452,
+      "integrity": "PASS",
+      "sha256": "b5e7d80f3b7d8584481c4fcca68b839d7adee790957d53a7e4fba07b263751c6"
+    },
+    {
+      "repository": "nestfolio",
+      "path": "/Users/fabiovitali/WebstormProjects/continuity-workspace/output/MI-001E-R1/nestfolio-MI-001E-R1-unconditional-pass-20260715T131147Z.zip",
+      "baseRevision": "c5a54d04fe1d88e36fd6e466b62ae1e4d468d87a",
+      "entries": 3454,
+      "bytes": 11808703,
+      "integrity": "PASS",
+      "sha256": "2d5851adc2d3aa8ff865d8b48f5483f639ebac272f651294ae0c987dd635ea8a"
+    }
+  ],
+  "identityRecordExcludedFromArchiveSnapshots": true,
+  "exclusionReason": "Embedding an archive digest inside the archive it hashes is self-referential.",
+  "commitOrPushPerformed": false
+}

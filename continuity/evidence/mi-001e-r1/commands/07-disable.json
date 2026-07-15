@@ -1,0 +1,13 @@
+{
+  "schemaVersion": 1,
+  "iteration": "MI-001E-R1",
+  "sequence": 7,
+  "command": "npm run -s continuity:disable",
+  "workingDirectory": "/Users/fabiovitali/WebstormProjects/nestfolio",
+  "startedUtc": "2026-07-15T12:57:44.636Z",
+  "endedUtc": "2026-07-15T12:57:44.830Z",
+  "exitStatus": 0,
+  "signal": null,
+  "stdout": "{\n  \"status\": \"ok\",\n  \"activation\": {\n    \"schemaVersion\": 1,\n    \"active\": false,\n    \"adoptionLevel\": 1,\n    \"pack\": \"nestfolio.level-1@1.0.1\",\n    \"procedure\": \"nestfolio.backlog-next@1.0.1\",\n    \"lock\": \"continuity/level-1/pack-lock.json\"\n  },\n  \"guarantees\": {\n    \"adoption\": \"Level 1 of 6\",\n    \"active\": [\n      \"one declared Procedure identity and version\",\n      \"one minimal project-specific Pack manifest\",\n      \"one Nestfolio project binding\",\n      \"exact SHA-256 asset lock\",\n      \"repository identity and activation diagnostic\",\n      \"prerequisite and permission preflight\",\n      \"explicit Claude Code entry point\",\n      \"structured invocation result and provenance\",\n      \"fail-closed missing or mismatched assets\"\n    ],\n    \"absent\": {\n      \"level2\": [\n        \"reusable multi-Procedure composition\",\n        \"Pack conflict or dependency solving\"\n      ],\n      \"level3\": [\n        \"canonical Work\",\n        \"Working Set\",\n        \"Scope\",\n        \"completion criteria authority\"\n      ],\n      \"level4\": [\n        \"Context Pack\",\n        \"Formation Trace\",\n        \"context authorization\"\n      ],\n      \"level5\": [\n        \"Session\",\n        \"Run\",\n        \"effects\",\n        \"Checkpoint\",\n        \"Handoff\",\n        \"resume\"\n      ],\n      \"level6\": [\n        \"Assurance Evidence\",\n        \"Guard\",\n        \"Waiver\",\n        \"completion authority\",\n        \"Decision\",\n        \"Observation\",\n        \"Lesson\",\n        \"learning promotion\"\n      ]\n    }\n  }\n}\n",
+  "stderr": ""
+}

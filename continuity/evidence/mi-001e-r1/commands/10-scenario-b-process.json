@@ -1,0 +1,65 @@
+{
+  "schemaVersion": 1,
+  "iteration": "MI-001E-R1",
+  "scenario": "B",
+  "startup": {
+    "executablePath": "/Users/fabiovitali/.local/bin/claude",
+    "arguments": [
+      "--print",
+      "--output-format",
+      "json",
+      "--session-id",
+      "7581a042-6dcd-4430-8225-5aba036ee023",
+      "--name",
+      "MI-001E-R1-B",
+      "--model",
+      "fable",
+      "--effort",
+      "low",
+      "--permission-mode",
+      "dontAsk",
+      "--tools",
+      "Bash,Read,Grep,Glob,Skill",
+      "--allowedTools",
+      "Bash,Read,Grep,Glob,Skill",
+      "--disallowedTools",
+      "Edit,Write,NotebookEdit",
+      "--no-session-persistence"
+    ],
+    "workingDirectory": "/Users/fabiovitali/WebstormProjects/nestfolio",
+    "promptSha256": "76ed822ff2c2014f50d683bcdd23dd49529107d996538af6a8af3801bf93ac27",
+    "fullPromptStored": false
+  },
+  "sessionId": "7581a042-6dcd-4430-8225-5aba036ee023",
+  "processInterval": {
+    "startedUtc": "2026-07-15T12:59:01.103Z",
+    "endedUtc": "2026-07-15T12:59:50.528Z",
+    "exitStatus": 0,
+    "signal": null
+  },
+  "executorBeforeLaunch": {
+    "executablePath": "/Users/fabiovitali/.local/bin/claude",
+    "resolvedBinary": "/Users/fabiovitali/.local/share/claude/versions/2.1.210",
+    "resolvedBinarySha256": "1b471d62d1117482689d75447f5e050c640da717a5a3c91e6c13792450f8c662",
+    "version": "2.1.210 (Claude Code)",
+    "authenticated": true,
+    "authMethod": "claude.ai",
+    "apiProvider": "firstParty",
+    "subscriptionType": "max",
+    "credentialsTokensEmailAndOrgIdentifiersOmitted": true
+  },
+  "executorAfterExit": {
+    "executablePath": "/Users/fabiovitali/.local/bin/claude",
+    "resolvedBinary": "/Users/fabiovitali/.local/share/claude/versions/2.1.210",
+    "resolvedBinarySha256": "1b471d62d1117482689d75447f5e050c640da717a5a3c91e6c13792450f8c662",
+    "version": "2.1.210 (Claude Code)",
+    "authenticated": true,
+    "authMethod": "claude.ai",
+    "apiProvider": "firstParty",
+    "subscriptionType": "max",
+    "credentialsTokensEmailAndOrgIdentifiersOmitted": true
+  },
+  "executorDrift": false,
+  "rawCaptureTemporaryPath": "/Users/fabiovitali/WebstormProjects/continuity-workspace/.tmp-mi001e-r1-20260715T125148Z/scenario-b-raw.json",
+  "rawTranscriptStoredAsEvidence": false
+}

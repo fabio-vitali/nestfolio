@@ -1,0 +1,16 @@
+{
+  "schemaVersion": 1,
+  "iteration": "MI-001E-R1",
+  "capturedAtUtc": "2026-07-15T12:54:05.145Z",
+  "executor": {
+    "executablePath": "/Users/fabiovitali/.local/bin/claude",
+    "resolvedBinary": "/Users/fabiovitali/.local/share/claude/versions/2.1.210",
+    "resolvedBinarySha256": "1b471d62d1117482689d75447f5e050c640da717a5a3c91e6c13792450f8c662",
+    "version": "2.1.210 (Claude Code)",
+    "authenticated": true,
+    "authMethod": "claude.ai",
+    "apiProvider": "firstParty",
+    "subscriptionType": "max",
+    "credentialsTokensEmailAndOrgIdentifiersOmitted": true
+  }
+}

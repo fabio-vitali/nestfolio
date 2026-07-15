@@ -1,0 +1,81 @@
+{
+  "schemaVersion": 1,
+  "iteration": "MI-001E-R1",
+  "scenario": "B",
+  "startup": {
+    "executablePath": "/Users/fabiovitali/.local/bin/claude",
+    "arguments": [
+      "--print",
+      "--output-format",
+      "json",
+      "--session-id",
+      "7581a042-6dcd-4430-8225-5aba036ee023",
+      "--name",
+      "MI-001E-R1-B",
+      "--model",
+      "fable",
+      "--effort",
+      "low",
+      "--permission-mode",
+      "dontAsk",
+      "--tools",
+      "Bash,Read,Grep,Glob,Skill",
+      "--allowedTools",
+      "Bash,Read,Grep,Glob,Skill",
+      "--disallowedTools",
+      "Edit,Write,NotebookEdit",
+      "--no-session-persistence"
+    ],
+    "workingDirectory": "/Users/fabiovitali/WebstormProjects/nestfolio",
+    "promptSha256": "76ed822ff2c2014f50d683bcdd23dd49529107d996538af6a8af3801bf93ac27",
+    "fullPromptStored": false
+  },
+  "sessionId": "7581a042-6dcd-4430-8225-5aba036ee023",
+  "genuineClaudeCodeProcess": true,
+  "freshProcess": true,
+  "processInterval": {
+    "startedUtc": "2026-07-15T12:59:01.103Z",
+    "endedUtc": "2026-07-15T12:59:50.528Z",
+    "exitStatus": 0,
+    "signal": null
+  },
+  "exactNonNullMachineCapturedInterval": true,
+  "executorBeforeLaunch": {
+    "executablePath": "/Users/fabiovitali/.local/bin/claude",
+    "resolvedBinary": "/Users/fabiovitali/.local/share/claude/versions/2.1.210",
+    "resolvedBinarySha256": "1b471d62d1117482689d75447f5e050c640da717a5a3c91e6c13792450f8c662",
+    "version": "2.1.210 (Claude Code)",
+    "authenticated": true,
+    "authMethod": "claude.ai",
+    "apiProvider": "firstParty",
+    "subscriptionType": "max",
+    "credentialsTokensEmailAndOrgIdentifiersOmitted": true
+  },
+  "executorAfterExit": {
+    "executablePath": "/Users/fabiovitali/.local/bin/claude",
+    "resolvedBinary": "/Users/fabiovitali/.local/share/claude/versions/2.1.210",
+    "resolvedBinarySha256": "1b471d62d1117482689d75447f5e050c640da717a5a3c91e6c13792450f8c662",
+    "version": "2.1.210 (Claude Code)",
+    "authenticated": true,
+    "authMethod": "claude.ai",
+    "apiProvider": "firstParty",
+    "subscriptionType": "max",
+    "credentialsTokensEmailAndOrgIdentifiersOmitted": true
+  },
+  "executorDrift": false,
+  "cliResult": {
+    "type": "result",
+    "subtype": "success",
+    "isError": false,
+    "durationMs": 48785,
+    "numTurns": 8,
+    "sessionId": "7581a042-6dcd-4430-8225-5aba036ee023",
+    "sessionIdentityMatchesWrapper": true,
+    "models": [
+      "claude-fable-5"
+    ],
+    "boundedVisibleResult": "MI-001E-R1 Scenario B bounded evidence run complete. Stopping here as instructed — before adoption, worktree creation, or any execution.\n\n**Step 0 — Preflight: PASS.** `preflight.mjs` reported tree clean, local `main` == `origin/main`, backlog checks green, no stale worktrees. The skill's own continuity preflight ran first: `continuity:doctor` and `continuity:verify` both report `status: ready` with activation `active: false` (Pack `nestfolio.level-1@1.0.1`, Procedure `nestfolio.backlog-next@1.0.1`, all 19 locked assets verified, lock digest `376c1d5a…`). Per the skill's disabled-activation branch, I continued directly with the Skill as behavior authority, claiming **no Continuity guarantee**.\n\n**Step 1 — Deterministic selection (`--auto` pick rule):**\n- No non-epic `status: active` item exists (ACTIVE section: none; the only active file is the epic `runtime-self-hosting-debt`, which a bare `/backlog-next` does not touch).\n- Top-ranked QUEUED item selected: **`e2e-live-suite-exceeds-bedrock-daily-token-budget`** — `rank: 1`, `type: infra`, `status: queued`.\n- Epic routing facts: it is not `type: epic` and carries **no `epic:` pointer**, so neither the epic redirect nor the epic-member guard fires — it would be worked standalone. (Options at the top of QUEUED for the decision-log entry would have been ranks 1–3: this item, `e2e-fixtures-test-stale-detail-envelope-assertion`, `circuit-breaker-lifecycle-e2e-breaker-stuck-open`.)\n\n**Containment confirmations, explicitly:**\n- The current repository Skill `/backlog-next` remained **directly available and was invoked directly** while Continuity Level 1 activation was disabled; `continuity:invoke` was not used and no other Skill was invoked.\n- The selected item was **not adopted, promoted, or executed**; no status change, no worktree or branch created, no downstream skill invoked, no deploy or test run.\n- **No repository file was modified** — all operations were read-only (doctor/verify diagnostics, preflight checks, backlog reads); the working tree remains clean.\n- No completion of the backlog item is claimed; this was selection/routing evidence only."
+  },
+  "fullPromptStored": false,
+  "rawTranscriptStored": false
+}

@@ -1,0 +1,47 @@
+{
+  "schemaVersion": 1,
+  "iteration": "MI-001E-R1",
+  "executionStartedUtc": "2026-07-15T12:54:05.145Z",
+  "canonicalAuthorization": {
+    "repository": "continuity-lab",
+    "revision": "1113a670a638ac9e946eeb31fcc373bb8187bb8e",
+    "branch": "main",
+    "cleanAndRemoteAlignedBeforeExecution": true
+  },
+  "targetBinding": {
+    "repository": "nestfolio",
+    "revision": "c5a54d04fe1d88e36fd6e466b62ae1e4d468d87a",
+    "branch": "main",
+    "cleanAndRemoteAlignedBeforeExecution": true,
+    "parentRevision": "c7f9ceaf79d1703769d8175774268924119042f6",
+    "parentDeltaOnlyMi001eEvidence": true
+  },
+  "executor": {
+    "executablePath": "/Users/fabiovitali/.local/bin/claude",
+    "resolvedBinary": "/Users/fabiovitali/.local/share/claude/versions/2.1.210",
+    "resolvedBinarySha256": "1b471d62d1117482689d75447f5e050c640da717a5a3c91e6c13792450f8c662",
+    "version": "2.1.210 (Claude Code)",
+    "authenticated": true,
+    "authMethod": "claude.ai",
+    "apiProvider": "firstParty",
+    "subscriptionType": "max",
+    "credentialsTokensEmailAndOrgIdentifiersOmitted": true
+  },
+  "recoveryCopy": {
+    "externalDuringExecution": true,
+    "trackedEntries": 3417,
+    "allTrackedFilesMatch": true,
+    "indexMatch": true,
+    "activationIncludedAndMatched": true,
+    "deletedAfterExactRestoration": true
+  },
+  "evidenceSpool": {
+    "path": "/Users/fabiovitali/WebstormProjects/continuity-workspace/.tmp-mi001e-r1-20260715T125148Z/spool",
+    "outsideContinuityLab": true,
+    "outsideNestfolio": true,
+    "noR1EvidenceInEitherRepositoryDuringBothSessions": true,
+    "rawTranscriptsExcludedAndDeleted": true
+  },
+  "immutableCandidateProvenance": "Newly authored MI-001D 1.0.1 candidate; not recovered or reconstructed MI-001 output.",
+  "levels2To6Absent": true
+}

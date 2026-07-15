@@ -1,0 +1,13 @@
+{
+  "schemaVersion": 1,
+  "iteration": "MI-001E-R1",
+  "sequence": 16,
+  "command": "node --test tests/continuity-level-1.test.mjs",
+  "workingDirectory": "/Users/fabiovitali/WebstormProjects/nestfolio",
+  "startedUtc": "2026-07-15T13:01:46.238Z",
+  "endedUtc": "2026-07-15T13:01:46.589Z",
+  "exitStatus": 0,
+  "signal": null,
+  "stdout": "✔ C1/C2/C4/C6: inspect exposes one Level 1 Procedure and a complete exact lock (10.968166ms)\n✔ C1/C6: invoke returns bounded Claude Code delegation and non-canonical provenance (5.893417ms)\n✔ missing primary Skill asset fails closed (20.734083ms)\n✔ locked asset digest mismatch fails before delegation (21.122625ms)\n✔ missing declared prerequisite fails with remediation (16.856208ms)\n✔ duplicate Procedure id/version fails activation preflight (18.179333ms)\n✔ duplicate asset source fails activation preflight (17.372875ms)\n✔ mixed 1.0.0 and 1.0.1 identity fails closed (17.982959ms)\n✔ locked byte-size mismatch fails closed even with a coherent aggregate digest (20.955208ms)\n✔ an unenumerated file under the Skill root fails closed (19.975875ms)\n✔ tampered aggregate lock digest fails closed (18.976333ms)\n✔ representative Level 2-6 authority and completion claims are rejected (0.230209ms)\n✔ corrupt lock fails closed (17.198208ms)\n✔ C3/C7: disable leaves direct current Skill discoverable and target removable (21.533917ms)\nℹ tests 14\nℹ suites 0\nℹ pass 14\nℹ fail 0\nℹ cancelled 0\nℹ skipped 0\nℹ todo 0\nℹ duration_ms 278.472917\n",
+  "stderr": ""
+}

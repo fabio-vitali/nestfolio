@@ -1,0 +1,186 @@
+{
+  "schemaVersion": 1,
+  "iteration": "MI-001E-R1",
+  "capturedAtUtc": "2026-07-15T13:06:07.874Z",
+  "spoolPath": "/Users/fabiovitali/WebstormProjects/continuity-workspace/.tmp-mi001e-r1-20260715T125148Z/spool",
+  "outsideBothRepositories": true,
+  "jsonFilesExcludingThisManifest": 35,
+  "aggregateManifestSha256": "b08c14da79e3abaea9cbe8c43c111e70f8243ee4a486916217fb2a37df7efde7",
+  "files": [
+    {
+      "path": "00-preflight-provenance.json",
+      "sha256": "bdee09192b8672d37cec5bfb71173b7824d600f781638a900e0f1dee3b1c51c2",
+      "bytes": 1776
+    },
+    {
+      "path": "01-candidate-and-index-verification.json",
+      "sha256": "d75103bde916e06af4e275f77f4fd2188223455d1f5ffe783fbcc89f108d2452",
+      "bytes": 16811
+    },
+    {
+      "path": "02-protected-path-hashes-before.json",
+      "sha256": "d2ba87206083553301b1d64d7e2daf876ebf9fc6b3d1f447a12c52792026c2cb",
+      "bytes": 651748
+    },
+    {
+      "path": "03-scenario-a.json",
+      "sha256": "3dfcc88709c0d6de693f73274692a563a9d348005649553dc07859a40591185d",
+      "bytes": 4109
+    },
+    {
+      "path": "04-scenario-b.json",
+      "sha256": "25c839af17477f50a8e9412111946f2c624d38baf1431feca2dc14867c221ccc",
+      "bytes": 4708
+    },
+    {
+      "path": "05-protected-path-hashes-after.json",
+      "sha256": "f110e1c0ee5b9653ecd442c6b670df21570c07d4a4c44a237d1c4865ec5c2078",
+      "bytes": 651765
+    },
+    {
+      "path": "06-final-verdict.json",
+      "sha256": "1cbace09ea020bc47c4bbc511f43e489646144c28db112ba5cfeedc1f234c957",
+      "bytes": 3042
+    },
+    {
+      "path": "commands/01-repository-bindings.json",
+      "sha256": "3de56bf29eec6de3b50c4ddf13f83f72339808cbf10cf56ae6d118e2a8341e60",
+      "bytes": 751
+    },
+    {
+      "path": "commands/01b-continuity-lab-binding.json",
+      "sha256": "7658c4de79905d53fb014e269a5bcb6c22ca9f0e394067da18808f6c79f0d954",
+      "bytes": 1129
+    },
+    {
+      "path": "commands/02-executor-before.json",
+      "sha256": "02c143d5112617a4c492ce58e7ea5962f1e4a4289f5c2ac7ec9e2293a9003b4d",
+      "bytes": 582
+    },
+    {
+      "path": "commands/03-recovery-copy-verification.json",
+      "sha256": "a4c32983a50044e5d3ef1557400fc402cf2bf643c3ac6d2bdbcba970053f0648",
+      "bytes": 1177226
+    },
+    {
+      "path": "commands/04a-initial-doctor.json",
+      "sha256": "85bb9bb0171bb95cd8997bbb8c64810e761cf0394d7e2a9db9d3184068f362e4",
+      "bytes": 2516
+    },
+    {
+      "path": "commands/04b-initial-inspect.json",
+      "sha256": "36fbbd435c08cdf756fea2cc30f9c1e048ede047fa675acace8976095de25864",
+      "bytes": 12048
+    },
+    {
+      "path": "commands/04c-initial-verify.json",
+      "sha256": "4b245925fdf91e4878fecd761e6746705ef918ffcc259356d05b8b0cc038526f",
+      "bytes": 17338
+    },
+    {
+      "path": "commands/05a-initial-level1-tests.json",
+      "sha256": "6e2db64b318f321a4a536dfd6d3e5bc1ccb25a68d209d3e35d0b03a4ba10c84d",
+      "bytes": 1549
+    },
+    {
+      "path": "commands/05b-initial-backlog-next-tests.json",
+      "sha256": "04da8fc6b33b1d5e1b182ab29f2ea596421be6c0c7fa7aa78cc8939a87960bda",
+      "bytes": 6420
+    },
+    {
+      "path": "commands/06-scenario-a-process.json",
+      "sha256": "739b135af103d2f11cef1af04fc6875097574f3af1439736c67bbcc622d5aa0c",
+      "bytes": 2250
+    },
+    {
+      "path": "commands/06b-pre-scenario-b-manifest.json",
+      "sha256": "22048fe30f30f14a8fd6f4b878e296037cf71cf3b7bcfca5419aea169f8bbc6d",
+      "bytes": 651756
+    },
+    {
+      "path": "commands/07-disable.json",
+      "sha256": "1cc9eadc5e49a3d900351ce46224c29c57bc07d1d0b91a6609fb1524b69a2fb9",
+      "bytes": 1999
+    },
+    {
+      "path": "commands/08-disabled-probe.json",
+      "sha256": "e466c6da5217490ee324beaa522aee3614a521f893cc13022130fe4505af3edb",
+      "bytes": 1987
+    },
+    {
+      "path": "commands/09-set-skip-worktree.json",
+      "sha256": "1c127a0ed8385b24cf02faf04344fd4c15aea119184393ff04b1079fff74a1c9",
+      "bytes": 381
+    },
+    {
+      "path": "commands/09b-disabled-containment-manifest.json",
+      "sha256": "1e955064872d7040be510e3ead664ce7fe51af357527f58a642869be8c1005e0",
+      "bytes": 651810
+    },
+    {
+      "path": "commands/10-scenario-b-process.json",
+      "sha256": "e0ae335e0627062953f889a139d2fe937ea3da5e43be26fcd08533a41b125860",
+      "bytes": 2250
+    },
+    {
+      "path": "commands/11-clear-skip-worktree.json",
+      "sha256": "6fccd026486546cec7ba7637573f449935412653ef188c0ab541f60e9ee5aea3",
+      "bytes": 385
+    },
+    {
+      "path": "commands/11b-post-clear-disabled-manifest.json",
+      "sha256": "1fca04df311d46884a8abe16bf561a0b077407368fd362763efaeb61b2f68e77",
+      "bytes": 651761
+    },
+    {
+      "path": "commands/12-activate.json",
+      "sha256": "59a69d7b09d2c0bf7f03991ec48519a18d71c707f1f6f2bd8ecbbc38978272de",
+      "bytes": 2000
+    },
+    {
+      "path": "commands/13a-final-doctor.json",
+      "sha256": "b4f5af93e2b3e07f016da4828a6d98c6fa03ebe53f1ae86bb81fa5989cef3e3e",
+      "bytes": 2517
+    },
+    {
+      "path": "commands/13b-final-inspect.json",
+      "sha256": "55b4f954ab948418ade8d0467cb1033ee7400c4cede0452f8d085062f077fd75",
+      "bytes": 12049
+    },
+    {
+      "path": "commands/13c-final-verify.json",
+      "sha256": "f54d2d6acdd763f80d87b13cecae26c2ca0ccb6cbb501b9799c4b8f108dd153b",
+      "bytes": 17339
+    },
+    {
+      "path": "commands/14-final-level1-tests.json",
+      "sha256": "5863790b1bda98cd54a931522067ca9420883ca7c4e3454e673b0868221ab844",
+      "bytes": 1556
+    },
+    {
+      "path": "commands/15-final-backlog-next-tests.json",
+      "sha256": "8b79f5945761837c04ebc39491e612b0393d32aa423f39c6c28d28951944e5bd",
+      "bytes": 6433
+    },
+    {
+      "path": "commands/15b-pre-index-restore-manifest.json",
+      "sha256": "1bd047199cdbd1ea3e74311c97ece31bc0d5e977cb923227ea82dff9db6358a9",
+      "bytes": 651765
+    },
+    {
+      "path": "commands/16-exact-index-recovery.json",
+      "sha256": "103b289413019b269bc7506542ad332e9da4fb33bdd5fc12496542548be96dff",
+      "bytes": 432
+    },
+    {
+      "path": "commands/17-recovery-copy-deletion.json",
+      "sha256": "aa456714864ab0c5be50ddcd4da10bab0bda12129ee791cde3d04ca9e4421a34",
+      "bytes": 530
+    },
+    {
+      "path": "commands/19-final-changed-files.json",
+      "sha256": "ac0d82de89f70953ea27d0d4fe1f5d69f3b0ca7234033df62a20c8597e43ce9d",
+      "bytes": 2984
+    }
+  ]
+}

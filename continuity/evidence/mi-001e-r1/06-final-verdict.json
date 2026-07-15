@@ -1,0 +1,87 @@
+{
+  "schemaVersion": 1,
+  "iteration": "MI-001E-R1",
+  "closedAtUtc": "2026-07-15T13:05:01.283Z",
+  "verdict": "MI-001E-R1 UNCONDITIONAL PASS",
+  "singleUnconditionalResult": true,
+  "criteria": {
+    "C1": {
+      "result": "PASS",
+      "basis": "Fresh genuine Session A has an exact machine-captured interval, traversed active 1.0.1, invoked /backlog-next --auto, and returned a normal bounded selection without execution."
+    },
+    "C2": {
+      "result": "PASS",
+      "basis": "All 19 assets and the aggregate lock independently matched before and after."
+    },
+    "C3": {
+      "result": "PASS",
+      "basis": "Fresh genuine Session B directly invoked /backlog-next --auto while disabled under the exact one-path containment and returned a normal bounded selection without execution."
+    },
+    "C4": {
+      "result": "PASS",
+      "basis": "No Level 2-6 state, guarantee, or repository-work completion was created or claimed."
+    },
+    "C5": {
+      "result": "PASS",
+      "basis": "Current content, diagnostics, Skill behavior, Level 1 14/14, and backlog-next 68/68 remained unchanged."
+    },
+    "C6": {
+      "result": "PASS",
+      "basis": "Procedure, Pack, binding, lock, activation, executor, containment, and behavior authority are observable and unambiguous."
+    },
+    "C7": {
+      "result": "PASS",
+      "basis": "Disable, single-path containment, clearing, activation restore, protected bytes, index bytes/flags, and Git history were restored exactly."
+    }
+  },
+  "sessions": {
+    "exactlyTwo": true,
+    "distinct": true,
+    "scenarioA": {
+      "sessionId": "98496f9a-8d01-44e4-a60f-00d8e8e6a471",
+      "processInterval": {
+        "startedUtc": "2026-07-15T12:55:12.343Z",
+        "endedUtc": "2026-07-15T12:56:18.748Z",
+        "exitStatus": 0,
+        "signal": null
+      }
+    },
+    "scenarioB": {
+      "sessionId": "7581a042-6dcd-4430-8225-5aba036ee023",
+      "processInterval": {
+        "startedUtc": "2026-07-15T12:59:01.103Z",
+        "endedUtc": "2026-07-15T12:59:50.528Z",
+        "exitStatus": 0,
+        "signal": null
+      }
+    },
+    "executorDrift": false
+  },
+  "preservation": {
+    "trackedEntries": 3417,
+    "trackedManifestBeforeAndAfterSha256": "9a1d6f03f30e8dd0f7e9963266d8e59e6e712a7167a666eb613f1868ae7873c8",
+    "changedProtectedEntries": 0,
+    "activationByteExact": true,
+    "indexByteExact": true,
+    "indexFlagsExact": true,
+    "recoveryCopyDeleted": true
+  },
+  "prohibitedActions": {
+    "selectedBacklogTaskExecuted": false,
+    "implementationModified": false,
+    "candidateOrSkillModified": false,
+    "mi001OutputRecoveredOrReconstructed": false,
+    "mi002Authorized": false,
+    "commit": false,
+    "push": false,
+    "level2To6StateCreated": false,
+    "moreThanTwoClaudeSessions": false
+  },
+  "finalNestfolioScope": "Only deterministic JSON evidence under continuity/evidence/mi-001e-r1/** may be present.",
+  "nextIteration": {
+    "id": "MI-002",
+    "status": "selected-contract-required",
+    "authorized": false,
+    "executed": false
+  }
+}
