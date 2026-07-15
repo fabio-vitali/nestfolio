@@ -1,0 +1,8 @@
+{
+  "command": "node --test tests/continuity-level-1.test.mjs",
+  "exitCode": 0,
+  "fail": 0,
+  "pass": 14,
+  "result": "pass",
+  "tests": 14
+}

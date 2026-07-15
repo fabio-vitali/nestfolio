@@ -1,0 +1,14 @@
+{
+  "criteria": {
+    "C1": {"result": "pass", "summary": "exact two-Pack/two-Procedure deterministic composed resolution with one mapping per identity and no override"},
+    "C2": {"result": "pass", "summary": "all selected declarations, permissions, compatibility fields, digests, sizes, and aggregate lock self-validate before and after activation"},
+    "C3": {"result": "pass", "summary": "generic repository status is read-only, project-semantic-free, network-free, and schema-identical in bound and neutral repositories"},
+    "C4": {"result": "pass", "summary": "all mandatory conflict, source, digest, capability, permission, compatibility, deprecation, CAS, interruption, separation, and forbidden-claim fixtures fail closed"},
+    "C5": {"result": "pass", "summary": "retained 1.0.1 Pack, Procedure, 19 assets, Level 1 tests, backlog-next tests, and direct behavior mapping remain exact"},
+    "C6": {"result": "pass", "summary": "Level 2, Pack, binding, adapter, Git, route, active guarantees, and absent guarantees are observable"},
+    "C7": {"result": "pass", "summary": "CAS activation, comparison, activation history, isolated rollback/reapply, and abandonment boundary preserve Level 1 and create no Level 3-6 state"}
+  },
+  "conjunctive": true,
+  "result": "UNCONDITIONAL PASS",
+  "schemaVersion": 1
+}

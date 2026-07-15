@@ -1,0 +1,33 @@
+{
+  "class": "reusable-engineering-pack",
+  "compatibility": {
+    "adoptionLevels": [2],
+    "deprecated": false,
+    "executorFamilies": ["claude-code"],
+    "requiredCapabilities": ["git-read-metadata", "local-process-execution"],
+    "supersededBy": null
+  },
+  "identity": {
+    "id": "continuity.repository-tools",
+    "version": "1.0.0"
+  },
+  "kind": "continuity.pack-manifest",
+  "permissions": {
+    "network": "forbidden",
+    "reads": ["git-repository-metadata"],
+    "writes": []
+  },
+  "procedures": [
+    {
+      "contract": "continuity/level-2/packs/continuity.repository-tools/1.0.0/procedures/continuity.repository-status.json",
+      "id": "continuity.repository-status",
+      "version": "1.0.0"
+    }
+  ],
+  "schemaVersion": 1,
+  "selfValidation": {
+    "assetCardinality": 1,
+    "exactSourcesOnly": true,
+    "networkLookup": "forbidden"
+  }
+}

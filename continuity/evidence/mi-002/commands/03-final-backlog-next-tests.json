@@ -1,0 +1,8 @@
+{
+  "command": "node --test .claude/skills/backlog-next/test/*.test.mjs",
+  "exitCode": 0,
+  "fail": 0,
+  "pass": 68,
+  "result": "pass",
+  "tests": 68
+}

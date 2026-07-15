@@ -1,0 +1,12 @@
+{
+  "activatedAt": "2026-07-15T16:31:40.957Z",
+  "activeLevel": 2,
+  "activeLock": {
+    "aggregateDigest": "73bbb7c9199a79e00208115f1f7ba469be7e42e1bd20d1d72bfc726ac048df26",
+    "path": "continuity/level-2/packs.lock.json"
+  },
+  "candidateLock": "continuity/level-2/packs.lock.json",
+  "revision": 1,
+  "route": "level-2",
+  "schemaVersion": 1
+}

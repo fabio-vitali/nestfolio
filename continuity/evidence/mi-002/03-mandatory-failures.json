@@ -1,0 +1,25 @@
+{
+  "schemaVersion": 1,
+  "scenarios": [
+    {"code": "DUPLICATE_PACK_IDENTITY", "name": "duplicate Pack identity with divergent declaration", "result": "pass-failed-closed"},
+    {"code": "DUPLICATE_PROCEDURE_IDENTITY", "name": "duplicate Procedure identity with divergent specification", "result": "pass-failed-closed"},
+    {"codes": ["COMPETING_ENTRY_POINT", "MULTIPLE_ASSET_RESOLUTION"], "name": "competing Procedure entry point or asset-path claim", "result": "pass-failed-closed"},
+    {"codes": ["MISSING_SOURCE", "MISSING_DECLARED_PREREQUISITE"], "name": "missing manifest, Procedure specification, executor asset, or prerequisite", "result": "pass-failed-closed"},
+    {"code": "SOURCE_DIGEST_MISMATCH", "name": "individual digest or byte-size drift", "result": "pass-failed-closed"},
+    {"code": "AGGREGATE_LOCK_DIGEST_MISMATCH", "name": "aggregate lock digest tamper", "result": "pass-failed-closed"},
+    {"code": "UNENUMERATED_OR_MULTIPLY_SOURCED_ASSET", "name": "unenumerated or multiply sourced asset", "result": "pass-failed-closed"},
+    {"codes": ["UNSUPPORTED_EXECUTOR", "UNSUPPORTED_ADOPTION_LEVEL"], "name": "unsupported executor or adoption-level compatibility", "result": "pass-failed-closed"},
+    {"code": "MISSING_REQUIRED_CAPABILITY", "name": "missing required capability", "result": "pass-failed-closed"},
+    {"code": "UNDECLARED_OR_WIDENED_PERMISSION", "name": "undeclared or widened permission", "result": "pass-failed-closed"},
+    {"code": "NEWLY_SELECTED_DEPRECATED_PACK", "name": "newly selected deprecated Pack", "result": "pass-failed-closed"},
+    {"code": "STALE_PREDECESSOR_LOCK_DIGEST", "name": "stale expected predecessor lock digest", "result": "pass-failed-closed"},
+    {"code": "ATOMIC_REPLACEMENT_INTERRUPTED", "name": "interrupted or partial lock replacement", "priorLockRemainedAuthoritative": true, "result": "pass-failed-closed"},
+    {"code": "PROHIBITED_PROJECT_SEMANTIC", "name": "reusable Pack reference to prohibited project semantic or path", "result": "pass-failed-closed"},
+    {"code": "FORBIDDEN_HIGHER_LEVEL_CLAIM", "claims": ["work", "context-pack", "run", "assurance", "learning", "completion", "registry", "remote-source"], "name": "attempted higher-level or broader authority claim", "result": "pass-failed-closed"}
+  ],
+  "temporaryFixtureDisposition": {
+    "createdOutsideRepositories": true,
+    "deletedByTestCleanup": true,
+    "repositoryMutation": false
+  }
+}

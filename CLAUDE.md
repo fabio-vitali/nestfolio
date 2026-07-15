@@ -237,3 +237,27 @@ npm run continuity:inspect
 Level 1 guarantees only Procedure/Pack identity, the Nestfolio binding, exact SHA-256 asset locking, repository/prerequisite diagnostics, the Claude Code entry point, and structured invocation provenance. It does **not** provide canonical Work or Scope, Context Packs, Sessions/Runs, Checkpoints/Handoffs, Assurance or completion authority, Guards/Waivers, Decisions, Observations, Lessons, or learning promotion.
 
 Disable the target route with `npm run continuity:disable`; direct `/backlog-next` behavior remains available because the current Skill stays in place. Reactivate with `npm run continuity:activate`.
+
+## Continuity Level 2 — composed local Packs
+
+The active Level 2 target composes the immutable Level 1 project Pack with
+`continuity.repository-tools@1.0.0`. Its sole reusable Procedure is the
+read-only `continuity.repository-status@1.0.0`, mapped to
+`/continuity-repository-status` and resolved only through the exact local
+workspace lock.
+
+Inspect, verify, resolve, compare, and run the composed target with:
+
+```bash
+npm run continuity:pack:list
+npm run continuity:pack:verify
+npm run continuity:pack:resolve
+npm run continuity:procedure:compare
+npm run continuity:procedure:run -- continuity.repository-status@1.0.0 --repo=.
+```
+
+Level 2 guarantees exact two-Pack/two-Procedure resolution, manifest/spec/asset
+digests, compatibility and permission checks, conflict blocking, self-validation,
+CAS activation history, comparison, and exact Level 1 rollback. It adds no Work,
+Scope, Context, Run, Assurance, completion, or learning authority. Direct
+`/backlog-next` behavior and its 19 immutable assets remain unchanged.

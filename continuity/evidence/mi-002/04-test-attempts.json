@@ -1,0 +1,13 @@
+{
+  "attempts": [
+    {"fail": 2, "pass": 21, "reason": "repository metadata field shadowed the top-level structured success discriminator", "tests": 23},
+    {"fail": 1, "pass": 22, "reason": "neutral fixture assertion compared macOS alias and canonical real paths", "tests": 23},
+    {"fail": 0, "pass": 23, "reason": null, "tests": 23}
+  ],
+  "corrections": [
+    "renamed the nested Git status value to repositoryStatus",
+    "compared canonical real paths in the neutral fixture assertion"
+  ],
+  "finalResult": "pass",
+  "schemaVersion": 1
+}

@@ -1,0 +1,67 @@
+{
+  "activation": {
+    "activeLevel": 2,
+    "activeLockAggregate": "73bbb7c9199a79e00208115f1f7ba469be7e42e1bd20d1d72bfc726ac048df26",
+    "activationFile": {
+      "bytes": 349,
+      "sha256": "af6fc7d570cb0fdcaf24dfb797432daa97aa196f15be07d5f6ff515f99dbfb70"
+    },
+    "historyFile": {
+      "bytes": 256,
+      "sha256": "512034d03e0d989fcba1cfcf154e142c25e854336970463dcdee32659b8176cb"
+    },
+    "predecessorAggregate": "376c1d5aff39a1477af1b49362f681d246b721b30c1e73b4f6ede247b0c9ffe4",
+    "result": "pass"
+  },
+  "composedLock": {
+    "aggregateAlgorithm": "sha256 over compact canonical JSON with sorted object keys, excluding the aggregate object",
+    "aggregateDigest": "73bbb7c9199a79e00208115f1f7ba469be7e42e1bd20d1d72bfc726ac048df26",
+    "bytes": 9880,
+    "fileSha256": "0d0e6b52eb5aab3957d51abb432b5baa4c4911880151de8c96a9e4f7c90bb63c",
+    "overrides": 0,
+    "packs": [
+      "continuity.repository-tools@1.0.0",
+      "nestfolio.level-1@1.0.1"
+    ],
+    "procedures": [
+      "continuity.repository-status@1.0.0",
+      "nestfolio.backlog-next@1.0.1"
+    ],
+    "registries": 0,
+    "remoteSources": 0,
+    "result": "pass"
+  },
+  "reusablePack": {
+    "asset": {
+      "bytes": 851,
+      "path": ".claude/skills/continuity-repository-status/SKILL.md",
+      "sha256": "a0a4741ea9422129a916a457b1fe9f4b9e9781fde735fa430f1760dcc504541e"
+    },
+    "manifest": {
+      "bytes": 867,
+      "sha256": "439799dbc8f3ef1d44c178d8d85eaa339a229c76a84d42281c44b80f2061ae19"
+    },
+    "network": "forbidden",
+    "projectSemanticFindings": [],
+    "procedureSpec": {
+      "bytes": 1555,
+      "sha256": "75c4185cef2ed609bababe0cd35b7dc01d853d053679569164ac7ce84fd65057"
+    },
+    "repositoryWrites": []
+  },
+  "retainedLevel1": {
+    "activationSha256": "d8d011c6d672cda725f039ddfffb26b9157bb95462538423ac473bb3b37a0650",
+    "afterDiff": "empty",
+    "assetCount": 19,
+    "beforeAndAfterIdentityExact": true,
+    "lockDigest": "376c1d5aff39a1477af1b49362f681d246b721b30c1e73b4f6ede247b0c9ffe4",
+    "pack": "nestfolio.level-1@1.0.1",
+    "procedure": "nestfolio.backlog-next@1.0.1",
+    "skill": {
+      "bytes": 34126,
+      "sha256": "e56fd21ae6bb53dfdd2d5d0d239a0200d49d69c82bb171f3336b837a91124cd1"
+    },
+    "testSha256": "e08f981817e5c6b18f25e51900200e99723a60b90a423ee600c90684041ad19d"
+  },
+  "schemaVersion": 1
+}

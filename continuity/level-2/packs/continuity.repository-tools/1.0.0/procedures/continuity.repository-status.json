@@ -1,0 +1,31 @@
+{
+  "applicability": "Any local Git working tree supplied explicitly by path.",
+  "behaviorAuthority": {
+    "path": ".claude/skills/continuity-repository-status/SKILL.md",
+    "type": "claude-code-skill"
+  },
+  "entryPoint": "/continuity-repository-status",
+  "expectedResult": {
+    "failure": "typed blocked result",
+    "schema": "continuity.repository-status.result@1",
+    "success": "exact package and procedure identity plus bounded repository metadata and path status"
+  },
+  "identity": {
+    "id": "continuity.repository-status",
+    "owningPack": "continuity.repository-tools",
+    "version": "1.0.0"
+  },
+  "inputs": [{"name": "repositoryWorkingDirectory", "required": true, "type": "local-directory-path"}],
+  "kind": "continuity.procedure-specification",
+  "objective": "Report bounded read-only Git repository identity and status facts for human or agent inspection without selecting or completing development activity or mutating repository state.",
+  "permissions": {
+    "network": "forbidden",
+    "reads": ["git-repository-metadata"],
+    "writes": []
+  },
+  "prerequisites": ["local Git executable", "explicit local repository working directory"],
+  "reads": ["repository root", "HEAD object identity", "branch or detached-head state", "configured locally resolvable upstream", "ahead and behind counts", "tracked, untracked, staged, and unstaged status path names"],
+  "requiredCapabilities": ["git-read-metadata", "local-process-execution"],
+  "schemaVersion": 1,
+  "sideEffects": {"networkRequests": [], "repositoryWrites": []}
+}

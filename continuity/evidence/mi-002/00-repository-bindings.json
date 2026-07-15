@@ -1,0 +1,42 @@
+{
+  "execution": {
+    "instructionReceived": true,
+    "resultAtCapture": "pass-candidate",
+    "started": true
+  },
+  "repositories": {
+    "continuity-lab": {
+      "branch": "main",
+      "cleanAtStart": true,
+      "head": "ef9b14cfbb352e1672a17d9b4d1c19dbb97d32d3",
+      "originMain": "ef9b14cfbb352e1672a17d9b4d1c19dbb97d32d3",
+      "upstream": "origin/main"
+    },
+    "continuity-workspace": {
+      "branch": "main",
+      "cleanAtStart": true,
+      "head": "eb990e114973e42af9935379f6b13f34f2e5e3b8",
+      "originMain": "eb990e114973e42af9935379f6b13f34f2e5e3b8",
+      "upstream": "origin/main"
+    },
+    "nestfolio": {
+      "branch": "main",
+      "cleanAtStart": true,
+      "head": "8f923240b6be1e0373b25b090f6be76139e4b256",
+      "originMain": "8f923240b6be1e0373b25b090f6be76139e4b256",
+      "upstream": "origin/main"
+    }
+  },
+  "scope": {
+    "dependenciesInstalled": false,
+    "packageLock": {
+      "after": "absent",
+      "before": "absent",
+      "changed": false
+    },
+    "selectedBacklogItemExecuted": false,
+    "temporaryFixtures": "system temporary directory outside all three repositories",
+    "unauthorizedPathsModified": []
+  },
+  "schemaVersion": 1
+}

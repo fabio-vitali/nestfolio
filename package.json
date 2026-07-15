@@ -24,6 +24,12 @@
     "continuity:invoke": "node continuity/level-1/cli.mjs invoke",
     "continuity:activate": "node continuity/level-1/cli.mjs activate",
     "continuity:disable": "node continuity/level-1/cli.mjs disable",
+    "continuity:pack:list": "node continuity/level-2/cli.mjs pack-list",
+    "continuity:pack:install": "node continuity/level-2/cli.mjs pack-install",
+    "continuity:pack:resolve": "node continuity/level-2/cli.mjs pack-resolve",
+    "continuity:pack:verify": "node continuity/level-2/cli.mjs pack-verify",
+    "continuity:procedure:compare": "node continuity/level-2/cli.mjs procedure-compare",
+    "continuity:procedure:run": "node continuity/level-2/cli.mjs procedure-run",
     "test:continuity-level1": "node --test tests/continuity-level-1.test.mjs"
   },
   "dependencies": {

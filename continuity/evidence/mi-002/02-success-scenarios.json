@@ -1,0 +1,15 @@
+{
+  "schemaVersion": 1,
+  "scenarios": [
+    {"id": "S01", "name": "exact retained 1.0.1 baseline verified before candidate modification", "result": "pass"},
+    {"id": "S02", "name": "both selected Packs self-validate independently and the composed lock validates", "result": "pass"},
+    {"id": "S03", "name": "both exact Procedure identities resolve repeatedly to byte-identical ordered results", "result": "pass", "resolutionDigest": "2cd3311e0988c70ce9bc820add83a7e8a5f67f132c35bdbd8d5f11726ea3a527"},
+    {"id": "S04", "name": "repository-status runs through the active resolved adapter against the bound repository", "result": "pass", "repositoryWrites": [], "networkRequests": []},
+    {"id": "S05", "name": "repository-status runs against a neutral temporary Git fixture without project configuration", "result": "pass", "sameSchema": true, "repositoryWrites": [], "networkRequests": []},
+    {"id": "S06", "name": "retained Level 1 and active Level 2 locks compare with exact permissions and assets", "result": "pass"},
+    {"id": "S07", "name": "Level 2 activates atomically from the exact predecessor and every target package entry point routes through the Level 2 CLI", "result": "pass"},
+    {"id": "S08", "name": "isolated rollback restores exact predecessor package and Level 1 activation bytes and reapply selects the identical Level 2 lock", "result": "pass"},
+    {"id": "S09", "name": "direct project Procedure behavior authority and 19 assets remain exact while composed mapping resolves the same primary asset", "result": "pass"},
+    {"id": "S10", "name": "Level 2 active guarantees and Level 3-6 deliberate absences are displayed", "result": "pass"}
+  ]
+}
