@@ -1,0 +1,50 @@
+{
+  "criteria": [
+    {
+      "evidence": "three-repo bindings exact and clean (00-repository-bindings.json); 507 logical-path sessions closed with contiguous coverage and whole-path SHA-256 proofs; one explicit human selection verified as an exact single eligible-tuple match (02-selection-scope-and-route.json)",
+      "id": "C1",
+      "requirement": "exact repository bindings, segmented canonical complete-read proof, and explicit human selection authority",
+      "result": "pass"
+    },
+    {
+      "evidence": "462 sources considered, 98 eligible, typed rationale per entry, byte-identical rebuilds across three derivations (01-candidate-discovery.json; candidates.json sha256 1c292f2f21c9226e4074cab0645323f959374618916a660fc01117c0f08f5f12)",
+      "id": "C2",
+      "requirement": "deterministic complete candidate derivation with exact inclusion and exclusion rationale",
+      "result": "pass"
+    },
+    {
+      "evidence": "verify=ready; referential and digest consistency asserted by S4/S5/S7; work-brief rebuild byte-identical (03-success-scenarios.json; 02-selection-scope-and-route.json artifact digests)",
+      "id": "C3",
+      "requirement": "internally exact WorkSelection, Work, Working Set, Scope, criteria, and Work Brief",
+      "result": "pass"
+    },
+    {
+      "evidence": "F1-F12 all fail-closed with the exact diagnostic, exit code 1, fixtures outside all repositories removed with absence proof (04-mandatory-failures.json; suite run 23/23 in commands/01-level3-tests.json)",
+      "id": "C4",
+      "requirement": "every mandatory failure blocks with the exact typed diagnostic",
+      "result": "pass"
+    },
+    {
+      "evidence": "git status shows no tracked mutation; pinned lower-level digests unchanged (S9/S10); suites 23/23, 14/14, 68/68 (commands/02..04); package-lock absent; final manifest recorded in commands/05-final-changed-files.json",
+      "id": "C5",
+      "requirement": "current backlog, all pre-existing bytes, MI-002, Level 2, Level 1, dependencies, and direct paths remain exact",
+      "result": "pass"
+    },
+    {
+      "evidence": "route.json declares explicit level-3 authority, owning command family, no Run store, and no-conflict result; planning authority remains docs/backlog; absent Level 4-6 guarantees stated in work.json and work-brief.json",
+      "id": "C6",
+      "requirement": "planning, local execution, route, Git, Procedure, and absent-guarantee authority is observable and unambiguous",
+      "result": "pass"
+    },
+    {
+      "evidence": "candidates and work-brief rebuild byte-identically; isolated return/cancel preserved source tuple and history and disabled the route (05-preservation-and-rollback.json); all fixtures cleaned with absence proof; final manifest contains exactly the twenty-two contracted additions (commands/05-final-changed-files.json)",
+      "id": "C7",
+      "requirement": "deterministic rebuild, source-preserving return and cancel, cleanup, and exact final manifest pass with no Level 4-6 authority",
+      "result": "pass"
+    }
+  ],
+  "iteration": "MI-003-R2",
+  "recorded_utc": "2026-07-16T15:47:44.440Z",
+  "verdict": "UNCONDITIONAL PASS",
+  "verdict_rule": "conjunctive-unconditional-single-result: C1-C7, S1-S10, F1-F12, every precondition, path and segment proof, validation, preservation, rollback, cleanup, and exact-manifest requirement passed conjunctively; no prohibited action occurred; no commit or push was performed"
+}

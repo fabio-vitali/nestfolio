@@ -1,0 +1,61 @@
+{
+  "criteria": [
+    "investigation determines whether the dashboard recent-activity feed is expected to show an awaiting-confirmation item and whether it currently surfaces one via DECISION_PACKET_CREATED or the DecisionPacket update CDC",
+    "if a real gap is confirmed, the signal is sourced from the DecisionPacket AWAITING_CONFIRMATION status via the existing row CDC (an investor-adpt-forwarded DecisionPacket-status event or a dashboard-bff projection on the existing decision row), never from the removed dead event",
+    "dashboard-bff unit and integration suites remain green and the removed USER_CONFIRMATION_REQUESTED handler is not reintroduced"
+  ],
+  "dependency_facts": {
+    "epic": "bff-read-model-semantic-gaps",
+    "epic_role": "core",
+    "hard_dependencies": []
+  },
+  "digest": {
+    "candidates_projection_sha256": "1c292f2f21c9226e4074cab0645323f959374618916a660fc01117c0f08f5f12",
+    "source_sha256": "b656733991c96c4275d11e9a9f2bff7f5ac72cdd298cbc68a4b94b6799dc742d"
+  },
+  "excluded_paths": [
+    "docs/backlog/** (planning authority; no write-back from Level 3)",
+    "continuity/level-1/**",
+    "continuity/level-2/**",
+    "continuity/evidence/mi-002/**",
+    "package.json",
+    "package-lock.json"
+  ],
+  "immutable_paths": [
+    "every pre-existing tracked byte of the Nestfolio repository at the pinned source revision"
+  ],
+  "include_paths": [
+    "services/investor/dashboard-bff/** (activity-feed read model, handlers, tests, service card)",
+    "services/investor/investor-adpt/** (only if the chosen sourcing forwards a DecisionPacket-status event cross-domain)",
+    "services/advisory/decision-workflow-ctrl/src/service.stack.ts (read-only reference for the DecisionPacket CDC contract)"
+  ],
+  "non_goals": [
+    "reintroducing the removed USER_CONFIRMATION_REQUESTED event or its dead handler",
+    "building a generic incident/confirmation lifecycle",
+    "changing the L2 confirmation UX beyond the activity feed",
+    "producer-side DecisionPacket changes beyond what the chosen sourcing strictly requires"
+  ],
+  "outputs": [
+    "recorded investigation result: expected versus actual recent-activity behavior for L2 AWAITING_CONFIRMATION decisions",
+    "if the gap is real: a dashboard-bff read-model change sourcing the awaiting-confirmation activity item from DecisionPacket status CDC",
+    "tests covering the new projection path plus updated service card and backlog record on ship"
+  ],
+  "permitted_effects": [
+    "dashboard-bff read-model projection/subscription changes within include paths",
+    "test additions for the new projection path",
+    "service card and backlog record updates on ship"
+  ],
+  "prohibited_effects": [
+    "no mutation of any excluded or immutable path",
+    "no backlog write-back from Level 3",
+    "no dependency or package.json change",
+    "no Level 4-6 state creation"
+  ],
+  "scope_version": 1,
+  "source_identity": "dashboard-bff-awaiting-confirmation-activity-gap",
+  "source_revision": "fd5e58b35e665fa5fa0db3c2c31ea5561442f9b6",
+  "validation_requirements": [
+    "dashboard-bff unit and integration suites green",
+    "activity-feed behavior verified against the real DecisionPacket CDC emission per the project's validate-against-real-emission discipline"
+  ]
+}

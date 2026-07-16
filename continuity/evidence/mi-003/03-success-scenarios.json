@@ -1,0 +1,97 @@
+{
+  "scenarios": [
+    {
+      "evidence": {
+        "candidates_sha256": "1c292f2f21c9226e4074cab0645323f959374618916a660fc01117c0f08f5f12"
+      },
+      "id": "S1",
+      "requirement": "exact source inventory and deterministic candidate rebuild produce byte-identical candidates.json",
+      "result": "pass"
+    },
+    {
+      "evidence": {
+        "considered": 462,
+        "typed_rationales": true
+      },
+      "id": "S2",
+      "requirement": "every included and excluded source entry has a typed rationale and exact source identity",
+      "result": "pass"
+    },
+    {
+      "evidence": {
+        "candidate_digest": "e26a574b118652ac06a17c6f482163a549ef94752b08782a6d661c445d1ed494",
+        "matches": 1
+      },
+      "id": "S3",
+      "requirement": "one explicit human selection matches exactly one eligible candidate",
+      "result": "pass"
+    },
+    {
+      "evidence": {
+        "verify": "ready"
+      },
+      "id": "S4",
+      "requirement": "WorkSelection, Work, Working Set, and Scope are internally referentially and digest consistent",
+      "result": "pass"
+    },
+    {
+      "evidence": {
+        "scope_sha256": "db7a45278e8f4a270552e3ae1db3695b70e07d1624b27bcdc28f6417883a5ad6"
+      },
+      "id": "S5",
+      "requirement": "Scope states exact includes, exclusions, outputs, criteria, Evidence requirements, and prohibited effects",
+      "result": "pass"
+    },
+    {
+      "evidence": {
+        "route_sha256": "0ed84d148428125c0700969921d03fefb914819333d4848d4b262193f1c13d11"
+      },
+      "id": "S6",
+      "requirement": "route identifies one target Level 3 local authority while current backlog remains planning authority",
+      "result": "pass"
+    },
+    {
+      "evidence": {
+        "work_brief_sha256": "dc50b59f42a72de0bee1b36c888596e8a19a347fb37559237a3a90272f9e60da"
+      },
+      "id": "S7",
+      "requirement": "Work Brief rebuild is byte-identical and truthfully states absent Level 4-6 guarantees",
+      "result": "pass"
+    },
+    {
+      "evidence": {
+        "proofs": 2
+      },
+      "id": "S8",
+      "requirement": "isolated return and cancel transitions preserve source and target history and disable the target route",
+      "result": "pass"
+    },
+    {
+      "evidence": {
+        "backlog_next": "68/68",
+        "level1": "14/14",
+        "level2": "23/23"
+      },
+      "id": "S9",
+      "requirement": "Level 2, retained Level 1, and backlog-next test suites remain exact",
+      "result": "pass"
+    },
+    {
+      "evidence": {
+        "tracked_tree_at_start": "0c892c53e83f588ee358c76fb9d6b52117717fa1"
+      },
+      "id": "S10",
+      "requirement": "final source backlog, package, dependencies, lower levels, MI-002 evidence, Git index, and all pre-existing tracked bytes remain unchanged",
+      "result": "pass"
+    }
+  ],
+  "test_reference": {
+    "command_record_sha256_of_stdout": "f1d388dc58b5a3b597cecfcfc72a3782ad54e2859f00682d97c6027fadc27084",
+    "parsed": {
+      "fail": 0,
+      "pass": 23,
+      "tests": 23
+    },
+    "suite": "tests/continuity-level-3.test.mjs"
+  }
+}

@@ -1,0 +1,45 @@
+{
+  "artifact_digests": {
+    "candidates.json": "1c292f2f21c9226e4074cab0645323f959374618916a660fc01117c0f08f5f12",
+    "route.json": "0ed84d148428125c0700969921d03fefb914819333d4848d4b262193f1c13d11",
+    "scope.json": "db7a45278e8f4a270552e3ae1db3695b70e07d1624b27bcdc28f6417883a5ad6",
+    "work-brief.json": "dc50b59f42a72de0bee1b36c888596e8a19a347fb37559237a3a90272f9e60da",
+    "work-selection.json": "b01555e1ec65b4f232d008c82d7d2a22e0b94ac5a0b0a43410397f8638a1848c",
+    "work.json": "b23812bb0999f962856556516945bf82297642140f808d24cdd52e9341381936",
+    "working-set.json": "e24fe112a6947d1959a2f4fa6d0083e34ea1a2614347487eaba747bcaab64b97"
+  },
+  "human_selection": {
+    "actor": "fabio.vitali (human program owner)",
+    "actor_statement": "vai con dashboard-bff-awaiting-confirmation-activity-gap",
+    "candidate_digest": "e26a574b118652ac06a17c6f482163a549ef94752b08782a6d661c445d1ed494",
+    "selected_at": "2026-07-16T15:40:54.694Z",
+    "selection_method": "Explicit human message naming the unique stable source-local identity of one presented eligible candidate tuple after candidate review; the executor verified an exact single match of the full tuple (source path, identity, revision, SHA-256) against the candidate projection and recomputed the source digest live at the pinned revision.",
+    "selection_revision": 1,
+    "source_tuple": {
+      "byte_count": 2016,
+      "source_blob_sha1": "9651fe15c77a91e900d11c95839073f80f516b9b",
+      "source_local_identity": "dashboard-bff-awaiting-confirmation-activity-gap",
+      "source_path": "docs/backlog/dashboard-bff-awaiting-confirmation-activity-gap.md",
+      "source_revision": "fd5e58b35e665fa5fa0db3c2c31ea5561442f9b6",
+      "source_sha256": "b656733991c96c4275d11e9a9f2bff7f5ac72cdd298cbc68a4b94b6799dc742d"
+    }
+  },
+  "route_activation": {
+    "authority_level": "level-3",
+    "no_conflict_result": "no-conflict",
+    "owning_command_family": "continuity-work",
+    "run_store": null,
+    "state": "active"
+  },
+  "scope_summary": {
+    "scope_version": 1,
+    "source_identity": "dashboard-bff-awaiting-confirmation-activity-gap",
+    "source_revision": "fd5e58b35e665fa5fa0db3c2c31ea5561442f9b6"
+  },
+  "verification": {
+    "eligible": true,
+    "exact_matches_in_projection": 1,
+    "live_digest_recompute_equal": true,
+    "statement": "the recorded tuple matched exactly one eligible candidate; the source digest was recomputed live from the pinned revision and equals the recorded SHA-256"
+  }
+}

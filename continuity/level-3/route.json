@@ -1,0 +1,34 @@
+{
+  "active": true,
+  "actor_statement": "vai con dashboard-bff-awaiting-confirmation-activity-gap",
+  "authority_declared": true,
+  "authority_level": "level-3",
+  "no_conflict": {
+    "current_route_active": false,
+    "lease_conflicts": [],
+    "result": "no-conflict",
+    "target_route_preexisting": false
+  },
+  "owning_command_family": "continuity-work",
+  "planning_authority": "docs/backlog remains the planning authority for content and status; this route owns only the immutable local execution representation",
+  "rationale": "Explicit human selection (selection_revision 1) authorizes only this Level 3 representation and route; the selected effort is never executed here.",
+  "reactivation_requires": null,
+  "rollback_boundary": "Remove only newly created MI-003 Level 3 paths on execution failure; return/cancel transitions disable the target route while preserving the source tuple and all immutable target revisions; reactivation requires a new explicit selection revision.",
+  "route_target": {
+    "selection_revision": 1,
+    "source_revision": "fd5e58b35e665fa5fa0db3c2c31ea5561442f9b6",
+    "source_sha256": "b656733991c96c4275d11e9a9f2bff7f5ac72cdd298cbc68a4b94b6799dc742d",
+    "work_identity": "dashboard-bff-awaiting-confirmation-activity-gap"
+  },
+  "run_store": null,
+  "state": "active",
+  "transition_time": "2026-07-16T15:40:54.694Z",
+  "transitions": [
+    {
+      "actor_statement": "vai con dashboard-bff-awaiting-confirmation-activity-gap",
+      "at": "2026-07-16T15:40:54.694Z",
+      "from_state": null,
+      "kind": "activate"
+    }
+  ]
+}

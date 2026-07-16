@@ -1,0 +1,152 @@
+{
+  "$id": "nestfolio.continuity.level3.work-artifacts",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$defs": {
+    "candidates": {
+      "type": "object",
+      "required": [
+        "algorithm_identity",
+        "algorithm_rules",
+        "considered_count",
+        "eligible_count",
+        "entries",
+        "source_revision",
+        "source_root"
+      ],
+      "properties": {
+        "algorithm_identity": { "const": "mi003-r2-candidate-projection@1" },
+        "entries": { "items": { "$ref": "#/$defs/candidateEntry" }, "type": "array" }
+      }
+    },
+    "candidateEntry": {
+      "type": "object",
+      "required": [
+        "byte_count",
+        "declared_status",
+        "declared_type",
+        "dependency_disposition",
+        "eligibility",
+        "id_matches_filename",
+        "rank_inputs",
+        "rationale_type",
+        "source_blob_sha1",
+        "source_local_identity",
+        "source_path",
+        "source_revision",
+        "source_sha256"
+      ]
+    },
+    "workSelection": {
+      "type": "object",
+      "required": [
+        "accepted_target_route",
+        "actor",
+        "actor_statement",
+        "candidate_digest",
+        "candidates_projection_sha256",
+        "expected_source_revision",
+        "rationale",
+        "rollback_boundary",
+        "selected_at",
+        "selection_method",
+        "selection_revision",
+        "source_tuple"
+      ]
+    },
+    "sourceTuple": {
+      "type": "object",
+      "required": [
+        "byte_count",
+        "source_blob_sha1",
+        "source_local_identity",
+        "source_path",
+        "source_revision",
+        "source_sha256"
+      ]
+    },
+    "work": {
+      "type": "object",
+      "required": [
+        "absent_guarantees",
+        "criteria",
+        "dependency",
+        "evidence_requirements",
+        "identity",
+        "objective",
+        "outputs",
+        "procedure_references",
+        "source",
+        "status"
+      ],
+      "properties": {
+        "status": { "enum": ["represented", "returned", "cancelled"] }
+      }
+    },
+    "workingSet": {
+      "type": "object",
+      "required": ["count", "epic_orchestration", "work"],
+      "properties": {
+        "count": { "const": 1 },
+        "epic_orchestration": { "const": false }
+      }
+    },
+    "scope": {
+      "type": "object",
+      "required": [
+        "criteria",
+        "dependency_facts",
+        "digest",
+        "excluded_paths",
+        "immutable_paths",
+        "include_paths",
+        "non_goals",
+        "outputs",
+        "permitted_effects",
+        "prohibited_effects",
+        "scope_version",
+        "source_identity",
+        "source_revision",
+        "validation_requirements"
+      ]
+    },
+    "route": {
+      "type": "object",
+      "required": [
+        "active",
+        "actor_statement",
+        "authority_declared",
+        "authority_level",
+        "no_conflict",
+        "owning_command_family",
+        "planning_authority",
+        "rationale",
+        "reactivation_requires",
+        "rollback_boundary",
+        "route_target",
+        "run_store",
+        "state",
+        "transition_time",
+        "transitions"
+      ],
+      "properties": {
+        "authority_level": { "const": "level-3" },
+        "run_store": { "const": null }
+      }
+    },
+    "workBrief": {
+      "type": "object",
+      "required": [
+        "absent_guarantees",
+        "artifact_digests",
+        "criteria",
+        "disclaimer",
+        "procedure_references",
+        "route",
+        "source_authorities",
+        "work",
+        "working_set"
+      ]
+    }
+  },
+  "description": "Shapes of the seven MI-003 Level 3 Work artifacts. Serialization contract: canonical JSON with recursively sorted object keys, UTF-8, two-space indentation, one LF terminator. The artifacts are a bounded local execution representation only: no Level 4-6 authority, no Run store, no Epic orchestration, no execution authorization for the selected backlog effort."
+}

@@ -1,0 +1,91 @@
+{
+  "before_write_baseline": {
+    "candidate_projection": {
+      "path": "/private/tmp/claude-501/-Users-fabiovitali-WebstormProjects-continuity-workspace/c5c6b9e6-9e8c-43e7-a230-f624d49788e6/scratchpad/mi-003-r2-candidate-projection.json",
+      "sha256": "1c292f2f21c9226e4074cab0645323f959374618916a660fc01117c0f08f5f12"
+    },
+    "create_paths_absent": 22,
+    "lower_level_digests": {
+      ".claude/skills/backlog-next/SKILL.md": "e56fd21ae6bb53dfdd2d5d0d239a0200d49d69c82bb171f3336b837a91124cd1",
+      "continuity/level-1/pack-lock.json": "701caacfce402077dd77659669768759a6c6d4613a94e6abb8e68248f44a8da9",
+      "continuity/level-2/packs.lock.json": "0d0e6b52eb5aab3957d51abb432b5baa4c4911880151de8c96a9e4f7c90bb63c",
+      "package.json": "07b935ab66c83752ebffdeea942a57abac598b18c568b39c027534c6edd2357c",
+      "tests/continuity-level-1.test.mjs": "e08f981817e5c6b18f25e51900200e99723a60b90a423ee600c90684041ad19d",
+      "tests/continuity-level-2.test.mjs": "00ac0c226790763408fe1bbc9b186e8fd75e4ef37bdfd2f5a17dd192e68c6e1a"
+    },
+    "mi002_evidence_tree": "9b104679fa00b61710071e1bbe6f92b31da7b81b",
+    "nestfolio": {
+      "branch": "main",
+      "clean": true,
+      "head": "fd5e58b35e665fa5fa0db3c2c31ea5561442f9b6",
+      "local_origin_main": "fd5e58b35e665fa5fa0db3c2c31ea5561442f9b6",
+      "remote_main": "fd5e58b35e665fa5fa0db3c2c31ea5561442f9b6",
+      "upstream": "fd5e58b35e665fa5fa0db3c2c31ea5561442f9b6"
+    },
+    "observed_utc": "2026-07-16T15:36:07.950Z",
+    "package_lock_absent": true,
+    "recovery_ledger": {
+      "path": "/private/tmp/claude-501/-Users-fabiovitali-WebstormProjects-continuity-workspace/c5c6b9e6-9e8c-43e7-a230-f624d49788e6/scratchpad/mi-003-r2-read-ledger.tsv",
+      "sha256": "fcbd332efbcf67cc7c7a053c55c47df4c9b8934850a446788c9ef17657b23b19"
+    },
+    "tracked_tree": "0c892c53e83f588ee358c76fb9d6b52117717fa1"
+  },
+  "external_recovery_ledger": {
+    "path": "/private/tmp/claude-501/-Users-fabiovitali-WebstormProjects-continuity-workspace/c5c6b9e6-9e8c-43e7-a230-f624d49788e6/scratchpad/mi-003-r2-read-ledger.tsv",
+    "sha256": "fcbd332efbcf67cc7c7a053c55c47df4c9b8934850a446788c9ef17657b23b19"
+  },
+  "real_route_untouched": true,
+  "rollback_proofs": [
+    {
+      "after": {
+        "active": false,
+        "reactivation_requires": "new-explicit-selection-revision",
+        "route_target": {
+          "selection_revision": 1,
+          "source_revision": "fd5e58b35e665fa5fa0db3c2c31ea5561442f9b6",
+          "source_sha256": "b656733991c96c4275d11e9a9f2bff7f5ac72cdd298cbc68a4b94b6799dc742d",
+          "work_identity": "dashboard-bff-awaiting-confirmation-activity-gap"
+        },
+        "state": "returned",
+        "transitions": 2
+      },
+      "before": {
+        "route_sha256": "0ed84d148428125c0700969921d03fefb914819333d4848d4b262193f1c13d11",
+        "selection_sha256": "b01555e1ec65b4f232d008c82d7d2a22e0b94ac5a0b0a43410397f8638a1848c",
+        "work_sha256": "b23812bb0999f962856556516945bf82297642140f808d24cdd52e9341381936"
+      },
+      "cleanup_absent": true,
+      "kind": "return",
+      "preserved": {
+        "selection_sha256_unchanged": true,
+        "work_sha256_unchanged": true
+      }
+    },
+    {
+      "after": {
+        "active": false,
+        "reactivation_requires": "new-explicit-selection-revision",
+        "route_target": {
+          "selection_revision": 1,
+          "source_revision": "fd5e58b35e665fa5fa0db3c2c31ea5561442f9b6",
+          "source_sha256": "b656733991c96c4275d11e9a9f2bff7f5ac72cdd298cbc68a4b94b6799dc742d",
+          "work_identity": "dashboard-bff-awaiting-confirmation-activity-gap"
+        },
+        "state": "cancelled",
+        "transitions": 2
+      },
+      "before": {
+        "route_sha256": "0ed84d148428125c0700969921d03fefb914819333d4848d4b262193f1c13d11",
+        "selection_sha256": "b01555e1ec65b4f232d008c82d7d2a22e0b94ac5a0b0a43410397f8638a1848c",
+        "work_sha256": "b23812bb0999f962856556516945bf82297642140f808d24cdd52e9341381936"
+      },
+      "cleanup_absent": true,
+      "kind": "cancel",
+      "preserved": {
+        "selection_sha256_unchanged": true,
+        "work_sha256_unchanged": true
+      }
+    }
+  ],
+  "statement": "return and cancel were exercised only in isolated temporary copies outside all repositories; each preserved the original source tuple and immutable target revisions, disabled target routing, requires a new explicit selection revision before reactivation, and left the real backlog source and current route untouched"
+}

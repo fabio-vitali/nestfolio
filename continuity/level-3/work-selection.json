@@ -1,0 +1,21 @@
+{
+  "accepted_target_route": "continuity/level-3/route.json",
+  "actor": "fabio.vitali (human program owner)",
+  "actor_statement": "vai con dashboard-bff-awaiting-confirmation-activity-gap",
+  "candidate_digest": "e26a574b118652ac06a17c6f482163a549ef94752b08782a6d661c445d1ed494",
+  "candidates_projection_sha256": "1c292f2f21c9226e4074cab0645323f959374618916a660fc01117c0f08f5f12",
+  "expected_source_revision": "fd5e58b35e665fa5fa0db3c2c31ea5561442f9b6",
+  "rationale": "User-selected BFF-focused effort chosen as an architecture-pattern adherence testbed for a future, separately authorized execution. Explicit human selection supplies the parking-promotion authority; the effort has no unresolved hard dependency (epic membership is a soft pointer: theme-epic members drain as standalone workstreams).",
+  "rollback_boundary": "Remove only newly created MI-003 Level 3 paths on execution failure; return/cancel transitions disable the target route while preserving the source tuple and all immutable target revisions; reactivation requires a new explicit selection revision.",
+  "selected_at": "2026-07-16T15:40:54.694Z",
+  "selection_method": "Explicit human message naming the unique stable source-local identity of one presented eligible candidate tuple after candidate review; the executor verified an exact single match of the full tuple (source path, identity, revision, SHA-256) against the candidate projection and recomputed the source digest live at the pinned revision.",
+  "selection_revision": 1,
+  "source_tuple": {
+    "byte_count": 2016,
+    "source_blob_sha1": "9651fe15c77a91e900d11c95839073f80f516b9b",
+    "source_local_identity": "dashboard-bff-awaiting-confirmation-activity-gap",
+    "source_path": "docs/backlog/dashboard-bff-awaiting-confirmation-activity-gap.md",
+    "source_revision": "fd5e58b35e665fa5fa0db3c2c31ea5561442f9b6",
+    "source_sha256": "b656733991c96c4275d11e9a9f2bff7f5ac72cdd298cbc68a4b94b6799dc742d"
+  }
+}

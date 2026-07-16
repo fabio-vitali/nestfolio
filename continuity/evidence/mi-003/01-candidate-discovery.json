@@ -1,0 +1,39 @@
+{
+  "algorithm_identity": "mi003-r2-candidate-projection@1",
+  "algorithm_rules": [
+    "R1 missing/unparseable frontmatter id or status -> EXCLUDED_AMBIGUOUS_MAPPING (F5)",
+    "R2 type==epic -> EXCLUDED_EPIC_ORCHESTRATION (working_set: no Epic orchestration)",
+    "R3 status==shipped -> EXCLUDED_TERMINAL_SHIPPED",
+    "R4 status==dropped -> EXCLUDED_TERMINAL_DROPPED",
+    "R5 status==active -> EXCLUDED_ACTIVE_ROUTE_CONFLICT (F4)",
+    "R6 status==blocked -> EXCLUDED_HARD_DEPENDENCY_BLOCKED (F2)",
+    "R7 status==queued -> eligible INCLUDED_OPEN_QUEUED",
+    "R8 status==parking -> eligible INCLUDED_OPEN_PARKING (explicit human selection supplies promotion authority; F2 re-checked at selection)",
+    "R9 any other status -> EXCLUDED_AMBIGUOUS_MAPPING (F5)",
+    "ORDER first matching rule wins; entries sorted bytewise by source_path; no timestamp participates in derivation or ordering"
+  ],
+  "candidates_projection_sha256": "1c292f2f21c9226e4074cab0645323f959374618916a660fc01117c0f08f5f12",
+  "considered_count": 462,
+  "determinism_proof": {
+    "cli_rebuild_digests": [
+      "1c292f2f21c9226e4074cab0645323f959374618916a660fc01117c0f08f5f12",
+      "1c292f2f21c9226e4074cab0645323f959374618916a660fc01117c0f08f5f12"
+    ],
+    "independent_derivation_digest": "1c292f2f21c9226e4074cab0645323f959374618916a660fc01117c0f08f5f12",
+    "statement": "two CLI rebuilds and one independent pre-selection derivation produced byte-identical output; no timestamp participates in derivation or ordering"
+  },
+  "eligible_count": 98,
+  "inventory_statement": "continuity/level-3/candidates.json records every considered source path with blob SHA-1 and whole-content SHA-256 at the exact source revision; no unrelated source content is copied into evidence",
+  "rationale_histogram": {
+    "EXCLUDED_EPIC_ORCHESTRATION": 50,
+    "EXCLUDED_TERMINAL_DROPPED": 43,
+    "EXCLUDED_TERMINAL_SHIPPED": 271,
+    "INCLUDED_OPEN_PARKING": 95,
+    "INCLUDED_OPEN_QUEUED": 3
+  },
+  "read_ledger_crosscheck": {
+    "compared_entries": 462,
+    "mismatches": 0
+  },
+  "source_revision": "fd5e58b35e665fa5fa0db3c2c31ea5561442f9b6"
+}

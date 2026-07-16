@@ -1,0 +1,53 @@
+{
+  "absent_guarantees": [
+    "no Level 4 authority: no Context Pack, Formation Trace, Session, Run, Checkpoint, or Handoff",
+    "no Level 5 authority: no Assurance Plan, Evidence authority, Guard, or Waiver",
+    "no Level 6 authority: no Decision, Observation, Lesson, Change Proposal, or learning promotion",
+    "no completion claim for the selected backlog effort",
+    "no registry, remote-source, or universal-ranking authority",
+    "no Epic orchestration and no automatic source write-back or bidirectional synchronization"
+  ],
+  "criteria": [
+    "investigation determines whether the dashboard recent-activity feed is expected to show an awaiting-confirmation item and whether it currently surfaces one via DECISION_PACKET_CREATED or the DecisionPacket update CDC",
+    "if a real gap is confirmed, the signal is sourced from the DecisionPacket AWAITING_CONFIRMATION status via the existing row CDC (an investor-adpt-forwarded DecisionPacket-status event or a dashboard-bff projection on the existing decision row), never from the removed dead event",
+    "dashboard-bff unit and integration suites remain green and the removed USER_CONFIRMATION_REQUESTED handler is not reintroduced"
+  ],
+  "dependency": {
+    "epic_membership": {
+      "disposition": "soft pointer only; theme-epic members drain as standalone workstreams, so membership is not a hard dependency",
+      "epic": "bff-read-model-semantic-gaps",
+      "epic_role": "core"
+    },
+    "hard_dependencies": []
+  },
+  "evidence_requirements": [
+    "investigation notes recorded in the backlog item body",
+    "unit/integration coverage for the activity projection path exercised against the real DecisionPacket CDC shape",
+    "validation gate recorded in the backlog frontmatter on ship"
+  ],
+  "identity": "dashboard-bff-awaiting-confirmation-activity-gap",
+  "objective": "Determine whether dashboard-bff's recent-activity feed should and does surface an awaiting-confirmation item for L2 decisions, and, if a real gap exists, source that signal from the DecisionPacket AWAITING_CONFIRMATION status via the existing CDC path rather than the removed dead event.",
+  "outputs": [
+    "recorded investigation result: expected versus actual recent-activity behavior for L2 AWAITING_CONFIRMATION decisions",
+    "if the gap is real: a dashboard-bff read-model change sourcing the awaiting-confirmation activity item from DecisionPacket status CDC",
+    "tests covering the new projection path plus updated service card and backlog record on ship"
+  ],
+  "procedure_references": [
+    "docs/backlog discipline (planning authority; status/rank owned by the backlog, never by Level 3)",
+    ".claude/skills/backlog-next/SKILL.md (the standard workstream driver for the future, separately authorized execution)"
+  ],
+  "source": {
+    "declared_rank": null,
+    "declared_status": "parking",
+    "declared_type": "bug",
+    "rank_inputs": {
+      "declared_rank": null
+    },
+    "source_blob_sha1": "9651fe15c77a91e900d11c95839073f80f516b9b",
+    "source_local_identity": "dashboard-bff-awaiting-confirmation-activity-gap",
+    "source_path": "docs/backlog/dashboard-bff-awaiting-confirmation-activity-gap.md",
+    "source_revision": "fd5e58b35e665fa5fa0db3c2c31ea5561442f9b6",
+    "source_sha256": "b656733991c96c4275d11e9a9f2bff7f5ac72cdd298cbc68a4b94b6799dc742d"
+  },
+  "status": "represented"
+}

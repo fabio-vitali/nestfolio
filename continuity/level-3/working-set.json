@@ -1,0 +1,9 @@
+{
+  "count": 1,
+  "epic_orchestration": false,
+  "work": {
+    "identity": "dashboard-bff-awaiting-confirmation-activity-gap",
+    "selection_revision": 1,
+    "source_revision": "fd5e58b35e665fa5fa0db3c2c31ea5561442f9b6"
+  }
+}

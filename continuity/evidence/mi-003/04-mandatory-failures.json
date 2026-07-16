@@ -1,0 +1,105 @@
+{
+  "records": [
+    {
+      "cleanup_absent": true,
+      "exit_code": 1,
+      "expected_diagnostic": "STALE_WORK_SOURCE",
+      "fixture_digest": "4515db962a5951efaaf288c69e14508643539030531e5304b1999866de29d72e",
+      "id": "F1",
+      "observed_diagnostic": "STALE_WORK_SOURCE"
+    },
+    {
+      "cleanup_absent": true,
+      "exit_code": 1,
+      "expected_diagnostic": "HARD_DEPENDENCY_UNRESOLVED",
+      "fixture_digest": "b27972df6d7e603b5210b449eb515080e70bd5f1faf4a21e6864b68d94231d5f",
+      "id": "F2",
+      "observed_diagnostic": "HARD_DEPENDENCY_UNRESOLVED"
+    },
+    {
+      "cleanup_absent": true,
+      "exit_code": 1,
+      "expected_diagnostic": "CANDIDATE_PROJECTION_INVALID",
+      "fixture_digest": "b23812bb0999f962856556516945bf82297642140f808d24cdd52e9341381936",
+      "id": "F3",
+      "observed_diagnostic": "CANDIDATE_PROJECTION_INVALID"
+    },
+    {
+      "cleanup_absent": true,
+      "exit_code": 1,
+      "expected_diagnostic": "DUAL_ROUTE_CONFLICT",
+      "fixture_digest": "b23812bb0999f962856556516945bf82297642140f808d24cdd52e9341381936",
+      "id": "F4",
+      "observed_diagnostic": "DUAL_ROUTE_CONFLICT"
+    },
+    {
+      "cleanup_absent": true,
+      "exit_code": 1,
+      "expected_diagnostic": "AMBIGUOUS_WORK_MAPPING",
+      "fixture_digest": "7de8b1cea84c2ada80b1d222cfd1fae73609e41758504c635a4691eb44b11b7f",
+      "id": "F5",
+      "observed_diagnostic": "AMBIGUOUS_WORK_MAPPING"
+    },
+    {
+      "cleanup_absent": true,
+      "exit_code": 1,
+      "expected_diagnostic": "SELECTION_AUTHORITY_MISSING",
+      "fixture_digest": "b23812bb0999f962856556516945bf82297642140f808d24cdd52e9341381936",
+      "id": "F6",
+      "observed_diagnostic": "SELECTION_AUTHORITY_MISSING"
+    },
+    {
+      "cleanup_absent": true,
+      "exit_code": 1,
+      "expected_diagnostic": "INVALID_OR_UNBOUNDED_SCOPE",
+      "fixture_digest": "b23812bb0999f962856556516945bf82297642140f808d24cdd52e9341381936",
+      "id": "F7",
+      "observed_diagnostic": "INVALID_OR_UNBOUNDED_SCOPE"
+    },
+    {
+      "cleanup_absent": true,
+      "exit_code": 1,
+      "expected_diagnostic": "INCOMPLETE_WORK_CONTRACT",
+      "fixture_digest": "4d455daf6776dc9c39ac54429e2ee545a77c99b70c90e1c5867bfab658478e9f",
+      "id": "F8",
+      "observed_diagnostic": "INCOMPLETE_WORK_CONTRACT"
+    },
+    {
+      "cleanup_absent": true,
+      "exit_code": 1,
+      "expected_diagnostic": "ROUTE_AUTHORITY_INVALID",
+      "fixture_digest": "b23812bb0999f962856556516945bf82297642140f808d24cdd52e9341381936",
+      "id": "F9",
+      "observed_diagnostic": "ROUTE_AUTHORITY_INVALID"
+    },
+    {
+      "cleanup_absent": true,
+      "exit_code": 1,
+      "expected_diagnostic": "SOURCE_MUTATION_PROHIBITED",
+      "fixture_digest": "b23812bb0999f962856556516945bf82297642140f808d24cdd52e9341381936",
+      "id": "F10",
+      "observed_diagnostic": "SOURCE_MUTATION_PROHIBITED"
+    },
+    {
+      "cleanup_absent": true,
+      "exit_code": 1,
+      "expected_diagnostic": "WORK_EXECUTION_PROHIBITED",
+      "fixture_digest": "30df173aaeae36deb04107f74af5f865e21e87fcf977aca16a308ad5a1111fe8",
+      "id": "F11",
+      "observed_diagnostic": "WORK_EXECUTION_PROHIBITED"
+    },
+    {
+      "cleanup_absent": true,
+      "exit_code": 1,
+      "expected_diagnostic": "FORBIDDEN_HIGHER_LEVEL_CLAIM",
+      "fixture_digest": "b23812bb0999f962856556516945bf82297642140f808d24cdd52e9341381936",
+      "id": "F12",
+      "observed_diagnostic": "FORBIDDEN_HIGHER_LEVEL_CLAIM"
+    }
+  ],
+  "statement": "every mandatory failure scenario blocked fail-closed with the exact typed diagnostic; each fixture lived outside all repositories and was removed with an absence proof",
+  "test_reference": {
+    "command_record": "continuity/evidence/mi-003/commands/01-level3-tests.json",
+    "suite": "tests/continuity-level-3.test.mjs"
+  }
+}

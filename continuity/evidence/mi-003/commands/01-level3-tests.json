@@ -1,0 +1,19 @@
+{
+  "argv": [
+    "node",
+    "--test",
+    "tests/continuity-level-3.test.mjs"
+  ],
+  "cwd_role": "nestfolio-repository-root",
+  "ended_utc": "2026-07-16T15:43:46.650Z",
+  "exit_code": 0,
+  "parsed_result": {
+    "fail": 0,
+    "pass": 23,
+    "tests": 23
+  },
+  "result": "pass",
+  "started_utc": "2026-07-16T15:43:32.086Z",
+  "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+  "stdout_sha256": "f1d388dc58b5a3b597cecfcfc72a3782ad54e2859f00682d97c6027fadc27084"
+}

@@ -1,0 +1,19 @@
+{
+  "argv": [
+    "bash",
+    "-c",
+    "node --test .claude/skills/backlog-next/test/*.test.mjs"
+  ],
+  "cwd_role": "nestfolio-repository-root",
+  "ended_utc": "2026-07-16T15:44:05.745Z",
+  "exit_code": 0,
+  "parsed_result": {
+    "fail": 0,
+    "pass": 68,
+    "tests": 68
+  },
+  "result": "pass",
+  "started_utc": "2026-07-16T15:44:05.520Z",
+  "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+  "stdout_sha256": "7ce4179305e80cce71d3b1ae5cabe9902aef15a5ca36a64188dfb97e3bf96053"
+}
