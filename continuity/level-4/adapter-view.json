@@ -1,0 +1,147 @@
+{
+  "authorized_context_pack": {
+    "identity": "nestfolio.context.dashboard-bff-awaiting-confirmation-activity-gap",
+    "sha256": "e58c9bc1978d6799cccda96c2520ea1f7f41ab8b88e8a055ff968cd7b8ce15c1",
+    "version": 1
+  },
+  "delivery_provenance": {
+    "deliverer": "continuity/level-4/bin/continuity-context.mjs adapter-view",
+    "derived": "deterministic projection of the authorized Context Pack; rebuildable byte-identically; carries no authority of its own",
+    "derived_from_sha256": "e58c9bc1978d6799cccda96c2520ea1f7f41ab8b88e8a055ff968cd7b8ce15c1"
+  },
+  "executor_receives": {
+    "absent_guarantees": [
+      "no Level 5 authority: no Session, Run, effect record, lease, Checkpoint, Handoff, or transcript-independent resume",
+      "no Level 6 authority: no Assurance Plan, Evidence authority, Guard, Waiver, completion transition, Decision, Observation, Lesson, or learning promotion",
+      "no execution authorization for the selected backlog effort: authorization covers only the Level 4 context authority and its digest-matched adapter view",
+      "no deterministic auto-authorization policy exists, may be created, or may be exercised (DR-0020: explicit human authorization only)",
+      "no registry, remote-source, external-write, or bidirectional-synchronization authority"
+    ],
+    "backlog_source_text": "---\nid: dashboard-bff-awaiting-confirmation-activity-gap\nstatus: parking\ntype: bug\nreferences: []\nout_of_scope: []\nspec: null\nplan: null\ntopic_memory: []\nvalidation_gate: null\nnotes: \"dashboard-bff recent-activity may be missing an 'awaiting confirmation' feed item. The dead USER_CONFIRMATION_REQUESTED handler (removed by incident-escalation-path-b 2026-06-15) was its only producer; since the Task-1.5 taskToken redesign no event fires, so an L2 decision entering AWAITING_CONFIRMATION may not surface in the activity feed. Surfaced 2026-06-15.\"\nepic: bff-read-model-semantic-gaps\nepic_role: core\n---\n\n# dashboard-bff recent-activity: no \"awaiting confirmation\" item\n\n## Evidence\n\n`incident-escalation-path-b` removed `dashboard-bff`'s `USER_CONFIRMATION_REQUESTED` →\n`recentActivity` handler because the event has had no producer since the Task-1.5 taskToken\nredesign (decision-workflow SF writes the taskToken onto the DecisionPacket, `status=AWAITING_CONFIRMATION`,\ninstead of emitting an event). The handler was unreachable dead code, so removing it changed no\nruntime behavior — but it confirms there is no live path feeding an \"awaiting confirmation\"\nsignal into the dashboard recent-activity feed.\n\n`DECISION_PACKET_CREATED` still feeds the feed (new decisions appear), but the specific L2\n\"awaiting your confirmation\" sub-state may never surface as its own activity row.\n\n## Done (investigate first)\n\n1. Confirm whether the dashboard recent-activity feed is actually expected to show an\n   \"awaiting confirmation\" item, and whether it currently does (via DECISION_PACKET_CREATED or\n   the DecisionPacket update CDC).\n2. If it's a real gap: source the signal from the DecisionPacket `AWAITING_CONFIRMATION` status\n   (the row CDC the advisory pipeline already writes) rather than a dead event — e.g. an\n   investor-adpt-forwarded DecisionPacket-status event or a dashboard-bff projection on the\n   existing decision row.\n\nPromote when hardening the dashboard activity feed or the L2 confirmation UX.\n",
+    "bindings": {
+      "candidates_projection": {
+        "sha256": "1c292f2f21c9226e4074cab0645323f959374618916a660fc01117c0f08f5f12"
+      },
+      "level_1_lock": {
+        "aggregate_digest": "376c1d5aff39a1477af1b49362f681d246b721b30c1e73b4f6ede247b0c9ffe4",
+        "path": "continuity/level-1/pack-lock.json",
+        "sha256": "701caacfce402077dd77659669768759a6c6d4613a94e6abb8e68248f44a8da9"
+      },
+      "level_2_lock": {
+        "aggregate_digest": "73bbb7c9199a79e00208115f1f7ba469be7e42e1bd20d1d72bfc726ac048df26",
+        "path": "continuity/level-2/packs.lock.json",
+        "sha256": "0d0e6b52eb5aab3957d51abb432b5baa4c4911880151de8c96a9e4f7c90bb63c"
+      },
+      "package_json": {
+        "path": "package.json",
+        "sha256": "07b935ab66c83752ebffdeea942a57abac598b18c568b39c027534c6edd2357c"
+      },
+      "repository": {
+        "remote_role": "origin/main equals HEAD at the bound revision",
+        "revision": "b9d7264082322e09cfd233819b79f128ef912e31"
+      },
+      "route": {
+        "sha256": "0ed84d148428125c0700969921d03fefb914819333d4848d4b262193f1c13d11",
+        "state": "active",
+        "target": {
+          "selection_revision": 1,
+          "source_revision": "fd5e58b35e665fa5fa0db3c2c31ea5561442f9b6",
+          "source_sha256": "b656733991c96c4275d11e9a9f2bff7f5ac72cdd298cbc68a4b94b6799dc742d",
+          "work_identity": "dashboard-bff-awaiting-confirmation-activity-gap"
+        }
+      },
+      "scope": {
+        "scope_version": 1,
+        "sha256": "db7a45278e8f4a270552e3ae1db3695b70e07d1624b27bcdc28f6417883a5ad6"
+      },
+      "work": {
+        "identity": "dashboard-bff-awaiting-confirmation-activity-gap",
+        "sha256": "b23812bb0999f962856556516945bf82297642140f808d24cdd52e9341381936",
+        "status": "represented"
+      },
+      "work_brief": {
+        "sha256": "dc50b59f42a72de0bee1b36c888596e8a19a347fb37559237a3a90272f9e60da"
+      },
+      "work_selection": {
+        "selection_revision": 1,
+        "sha256": "b01555e1ec65b4f232d008c82d7d2a22e0b94ac5a0b0a43410397f8638a1848c"
+      },
+      "working_set": {
+        "count": 1,
+        "sha256": "e24fe112a6947d1959a2f4fa6d0083e34ea1a2614347487eaba747bcaab64b97"
+      }
+    },
+    "criteria": [
+      "investigation determines whether the dashboard recent-activity feed is expected to show an awaiting-confirmation item and whether it currently surfaces one via DECISION_PACKET_CREATED or the DecisionPacket update CDC",
+      "if a real gap is confirmed, the signal is sourced from the DecisionPacket AWAITING_CONFIRMATION status via the existing row CDC (an investor-adpt-forwarded DecisionPacket-status event or a dashboard-bff projection on the existing decision row), never from the removed dead event",
+      "dashboard-bff unit and integration suites remain green and the removed USER_CONFIRMATION_REQUESTED handler is not reintroduced"
+    ],
+    "evidence_requirements": [
+      "investigation notes recorded in the backlog item body",
+      "unit/integration coverage for the activity projection path exercised against the real DecisionPacket CDC shape",
+      "validation gate recorded in the backlog frontmatter on ship"
+    ],
+    "execution_instruction_boundary": {
+      "instruction": "This Context Pack is execution INPUT only. The selected effort dashboard-bff-awaiting-confirmation-activity-gap is implemented only under a separate explicit authorization, driven by the standard backlog-next workstream procedure; MI-004 never starts it.",
+      "objective": "Determine whether dashboard-bff's recent-activity feed should and does surface an awaiting-confirmation item for L2 decisions, and, if a real gap exists, source that signal from the DecisionPacket AWAITING_CONFIRMATION status via the existing CDC path rather than the removed dead event.",
+      "out_of_scope": [
+        "reintroducing the removed USER_CONFIRMATION_REQUESTED event or its dead handler",
+        "building a generic incident/confirmation lifecycle",
+        "changing the L2 confirmation UX beyond the activity feed",
+        "producer-side DecisionPacket changes beyond what the chosen sourcing strictly requires"
+      ]
+    },
+    "objective": "Determine whether dashboard-bff's recent-activity feed should and does surface an awaiting-confirmation item for L2 decisions, and, if a real gap exists, source that signal from the DecisionPacket AWAITING_CONFIRMATION status via the existing CDC path rather than the removed dead event.",
+    "outputs": [
+      "recorded investigation result: expected versus actual recent-activity behavior for L2 AWAITING_CONFIRMATION decisions",
+      "if the gap is real: a dashboard-bff read-model change sourcing the awaiting-confirmation activity item from DecisionPacket status CDC",
+      "tests covering the new projection path plus updated service card and backlog record on ship"
+    ],
+    "scope": {
+      "excluded_paths": [
+        "docs/backlog/** (planning authority; no write-back from Level 3)",
+        "continuity/level-1/**",
+        "continuity/level-2/**",
+        "continuity/evidence/mi-002/**",
+        "package.json",
+        "package-lock.json"
+      ],
+      "immutable_paths": [
+        "every pre-existing tracked byte of the Nestfolio repository at the pinned source revision"
+      ],
+      "include_paths": [
+        "services/investor/dashboard-bff/** (activity-feed read model, handlers, tests, service card)",
+        "services/investor/investor-adpt/** (only if the chosen sourcing forwards a DecisionPacket-status event cross-domain)",
+        "services/advisory/decision-workflow-ctrl/src/service.stack.ts (read-only reference for the DecisionPacket CDC contract)"
+      ],
+      "non_goals": [
+        "reintroducing the removed USER_CONFIRMATION_REQUESTED event or its dead handler",
+        "building a generic incident/confirmation lifecycle",
+        "changing the L2 confirmation UX beyond the activity feed",
+        "producer-side DecisionPacket changes beyond what the chosen sourcing strictly requires"
+      ],
+      "permitted_effects": [
+        "dashboard-bff read-model projection/subscription changes within include paths",
+        "test additions for the new projection path",
+        "service card and backlog record updates on ship"
+      ],
+      "prohibited_effects": [
+        "no mutation of any excluded or immutable path",
+        "no backlog write-back from Level 3",
+        "no dependency or package.json change",
+        "no Level 4-6 state creation"
+      ],
+      "validation_requirements": [
+        "dashboard-bff unit and integration suites green",
+        "activity-feed behavior verified against the real DecisionPacket CDC emission per the project's validate-against-real-emission discipline"
+      ]
+    }
+  },
+  "kind": "continuity.level4.adapter-view",
+  "omitted_inspect_only": [
+    "continuity/level-3/candidates.json (full projection; digest-bound)",
+    "lower-level tooling, locks, tests, and behavior assets (digest-bound)",
+    "immutable MI-002/MI-003 evidence (provenance only)"
+  ],
+  "schema_version": 1
+}

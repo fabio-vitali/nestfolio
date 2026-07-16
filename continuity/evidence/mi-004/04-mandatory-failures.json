@@ -1,0 +1,102 @@
+{
+  "fixture_policy": "each mandatory failure is built in an isolated temporary directory outside every repository, observed, and removed with an absence proof",
+  "results": [
+    {
+      "cleanup_absent": true,
+      "exit_code": 1,
+      "expected_diagnostic": "STALE_CONTEXT_DEPENDENCY",
+      "fixture_digest": "e58c9bc1978d6799cccda96c2520ea1f7f41ab8b88e8a055ff968cd7b8ce15c1",
+      "id": "F1",
+      "observed_diagnostic": "STALE_CONTEXT_DEPENDENCY"
+    },
+    {
+      "cleanup_absent": true,
+      "exit_code": 1,
+      "expected_diagnostic": "CONTEXT_SOURCE_UNAVAILABLE",
+      "fixture_digest": "e58c9bc1978d6799cccda96c2520ea1f7f41ab8b88e8a055ff968cd7b8ce15c1",
+      "id": "F2",
+      "observed_diagnostic": "CONTEXT_SOURCE_UNAVAILABLE"
+    },
+    {
+      "cleanup_absent": true,
+      "exit_code": 1,
+      "expected_diagnostic": "CONTEXT_CONTRADICTION_UNRESOLVED",
+      "fixture_digest": "e58c9bc1978d6799cccda96c2520ea1f7f41ab8b88e8a055ff968cd7b8ce15c1",
+      "id": "F3",
+      "observed_diagnostic": "CONTEXT_CONTRADICTION_UNRESOLVED"
+    },
+    {
+      "cleanup_absent": true,
+      "exit_code": 1,
+      "expected_diagnostic": "CONTEXT_INPUT_CORRUPT",
+      "fixture_digest": "f3d1aaf725567f97cbd6ce491a7b25ab4c6bcdd325d621b5d59293d958a29159",
+      "id": "F4",
+      "observed_diagnostic": "CONTEXT_INPUT_CORRUPT"
+    },
+    {
+      "cleanup_absent": true,
+      "exit_code": 1,
+      "expected_diagnostic": "CONTEXT_DELIVERY_UNBOUNDED",
+      "fixture_digest": "0ba78e668d5cbfc016243f673717fbfe484e8481b606cdf18db78a3c97453521",
+      "id": "F5",
+      "observed_diagnostic": "CONTEXT_DELIVERY_UNBOUNDED"
+    },
+    {
+      "cleanup_absent": true,
+      "exit_code": 1,
+      "expected_diagnostic": "CONTEXT_AUTHORIZATION_MISSING",
+      "fixture_digest": "e58c9bc1978d6799cccda96c2520ea1f7f41ab8b88e8a055ff968cd7b8ce15c1",
+      "id": "F6",
+      "observed_diagnostic": "CONTEXT_AUTHORIZATION_MISSING"
+    },
+    {
+      "cleanup_absent": true,
+      "exit_code": 1,
+      "expected_diagnostic": "UNAUTHORIZED_CONTEXT_DELIVERY",
+      "fixture_digest": "e58c9bc1978d6799cccda96c2520ea1f7f41ab8b88e8a055ff968cd7b8ce15c1",
+      "id": "F7",
+      "observed_diagnostic": "UNAUTHORIZED_CONTEXT_DELIVERY"
+    },
+    {
+      "cleanup_absent": true,
+      "exit_code": 1,
+      "expected_diagnostic": "CONTEXT_DELIVERY_MISMATCH",
+      "fixture_digest": "e58c9bc1978d6799cccda96c2520ea1f7f41ab8b88e8a055ff968cd7b8ce15c1",
+      "id": "F8",
+      "observed_diagnostic": "CONTEXT_DELIVERY_MISMATCH"
+    },
+    {
+      "cleanup_absent": true,
+      "exit_code": 1,
+      "expected_diagnostic": "CONTEXT_IMMUTABILITY_VIOLATION",
+      "fixture_digest": "e58c9bc1978d6799cccda96c2520ea1f7f41ab8b88e8a055ff968cd7b8ce15c1",
+      "id": "F9",
+      "observed_diagnostic": "CONTEXT_IMMUTABILITY_VIOLATION"
+    },
+    {
+      "cleanup_absent": true,
+      "exit_code": 1,
+      "expected_diagnostic": "SOURCE_MUTATION_PROHIBITED",
+      "fixture_digest": "e58c9bc1978d6799cccda96c2520ea1f7f41ab8b88e8a055ff968cd7b8ce15c1",
+      "id": "F10",
+      "observed_diagnostic": "SOURCE_MUTATION_PROHIBITED"
+    },
+    {
+      "cleanup_absent": true,
+      "exit_code": 1,
+      "expected_diagnostic": "WORK_EXECUTION_PROHIBITED",
+      "fixture_digest": "e58c9bc1978d6799cccda96c2520ea1f7f41ab8b88e8a055ff968cd7b8ce15c1",
+      "id": "F11",
+      "observed_diagnostic": "WORK_EXECUTION_PROHIBITED"
+    },
+    {
+      "cleanup_absent": true,
+      "exit_code": 1,
+      "expected_diagnostic": "FORBIDDEN_HIGHER_LEVEL_CLAIM",
+      "fixture_digest": "e58c9bc1978d6799cccda96c2520ea1f7f41ab8b88e8a055ff968cd7b8ce15c1",
+      "id": "F12",
+      "observed_diagnostic": "FORBIDDEN_HIGHER_LEVEL_CLAIM"
+    }
+  ],
+  "verdict": "all twelve block fail-closed with the exact typed diagnostic"
+}

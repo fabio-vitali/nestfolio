@@ -1,0 +1,59 @@
+{
+  "scenarios": [
+    {
+      "id": "S1",
+      "proof": "formation rebuilds byte-identically; pack e58c9bc1978d6799cccda96c2520ea1f7f41ab8b88e8a055ff968cd7b8ce15c1, trace 8c05453897a28efc0abc43c143c4657175c7bfed167cf774d783b409b6c94911",
+      "result": "pass"
+    },
+    {
+      "id": "S2",
+      "proof": "70 considered sources, each with typed disposition, owner, exact revision, and SHA-256",
+      "result": "pass"
+    },
+    {
+      "id": "S3",
+      "proof": "validation-result c526b961fe50c53eed3b89d792f1d0bde28e790b12f5d53a7f715362add5d9d3: valid, 18 rules across structural/scope/lock/capability/contradiction/completeness on the exact candidate digest",
+      "result": "pass"
+    },
+    {
+      "id": "S4",
+      "proof": "exactly one explicit human authorization (e58c9bc1978d6799cccda96c2520ea1f7f41ab8b88e8a055ff968cd7b8ce15c1) recorded immutably at 2026-07-16T18:50:36.000Z",
+      "result": "pass"
+    },
+    {
+      "id": "S5",
+      "proof": "isolated rejection fixture preserves the non-authorized candidate with rationale and blocks delivery (test S5)",
+      "result": "pass"
+    },
+    {
+      "id": "S6",
+      "proof": "isolated revocation fixture disables delivery and returns the effort to Level 3, preserving all versions (test S6)",
+      "result": "pass"
+    },
+    {
+      "id": "S7",
+      "proof": "adapter view rebuilds byte-identically (9062458c02bf4ac816cbd7d72af3f1ed3c0e91246217dc83811afc4bedbbe838), digest-matches the authorized pack, and states absent Level 5-6 guarantees",
+      "result": "pass"
+    },
+    {
+      "id": "S8",
+      "proof": "isolated staleness fixture names the exact changed dependency and blocks delivery (test S8)",
+      "result": "pass"
+    },
+    {
+      "id": "S9",
+      "proof": "Level 3, Level 2, retained Level 1, and backlog-next identities pinned and re-verified byte-exact (test S9)",
+      "result": "pass"
+    },
+    {
+      "id": "S10",
+      "proof": "git status shows no tracked mutation; additions confined to the permitted 22-path create set (test S10)",
+      "result": "pass"
+    }
+  ],
+  "suite": {
+    "fail": 0,
+    "pass": 23,
+    "tests": 23
+  }
+}

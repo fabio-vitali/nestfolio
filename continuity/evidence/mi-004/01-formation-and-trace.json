@@ -1,0 +1,37 @@
+{
+  "candidate": {
+    "identity": "nestfolio.context.dashboard-bff-awaiting-confirmation-activity-gap",
+    "sha256": "e58c9bc1978d6799cccda96c2520ea1f7f41ab8b88e8a055ff968cd7b8ce15c1",
+    "version": 1
+  },
+  "context_recipe_sha256": "1b8f7e70477f48de8a821ba6c66991c1d9841adaff34b0055033681ffa5d0365",
+  "deterministic_rebuild": {
+    "derivations": 3,
+    "pack_sha256_each": [
+      "e58c9bc1978d6799cccda96c2520ea1f7f41ab8b88e8a055ff968cd7b8ce15c1",
+      "e58c9bc1978d6799cccda96c2520ea1f7f41ab8b88e8a055ff968cd7b8ce15c1",
+      "e58c9bc1978d6799cccda96c2520ea1f7f41ab8b88e8a055ff968cd7b8ce15c1"
+    ],
+    "result": "byte-identical across three derivations at formation time and re-proven by S1",
+    "trace_sha256_each": [
+      "8c05453897a28efc0abc43c143c4657175c7bfed167cf774d783b409b6c94911",
+      "8c05453897a28efc0abc43c143c4657175c7bfed167cf774d783b409b6c94911",
+      "8c05453897a28efc0abc43c143c4657175c7bfed167cf774d783b409b6c94911"
+    ]
+  },
+  "formation_algorithm": "mi004-context-formation@1",
+  "formation_trace_sha256": "8c05453897a28efc0abc43c143c4657175c7bfed167cf774d783b409b6c94911",
+  "pipeline": "DR-0011 explicit context formation pipeline (12 recorded stages)",
+  "source_ledger_summary": {
+    "by_disposition": {
+      "excluded": 22,
+      "included-delivered": 7,
+      "included-referenced": 3,
+      "inspect-only": 38
+    },
+    "contradictions": 0,
+    "gaps": 2,
+    "pending_decisions": 0,
+    "total_considered": 70
+  }
+}

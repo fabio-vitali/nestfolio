@@ -1,0 +1,52 @@
+{
+  "criteria": [
+    {
+      "id": "C1",
+      "proof": "49 canonical logical-path sessions closed in exact contract order after all three Git gates; exactly one explicit human authorization matched the validated identity, version, and digest",
+      "result": "pass",
+      "statement": "exact repository bindings, segmented canonical complete-read proof, and explicit human authorization authority"
+    },
+    {
+      "id": "C2",
+      "proof": "DR-0011 pipeline with 12 recorded stages; 70-entry source and exclusion ledger; three byte-identical derivations (pack e58c9bc1978d6799cccda96c2520ea1f7f41ab8b88e8a055ff968cd7b8ce15c1)",
+      "result": "pass",
+      "statement": "explicit reproducible DR-0011 formation with complete source and exclusion ledger and deterministic rebuild"
+    },
+    {
+      "id": "C3",
+      "proof": "recipe, formation trace, context pack, validation result, authorization record, and adapter view are internally digest-consistent and schema-shaped",
+      "result": "pass",
+      "statement": "internally exact recipe, Formation Trace, Context Pack, validation result, authorization record, and adapter view"
+    },
+    {
+      "id": "C4",
+      "proof": "F1-F12 each block fail-closed with the exact typed diagnostic in isolated fixtures removed with absence proof",
+      "result": "pass",
+      "statement": "every mandatory failure blocks with the exact typed diagnostic"
+    },
+    {
+      "id": "C5",
+      "proof": "tracked tree identity unchanged from start; pinned lower-level digests re-verified exact; git status shows only permitted untracked additions",
+      "result": "pass",
+      "statement": "backlog source, Level 3 artifacts, all pre-existing bytes, MI-002/MI-003 evidence, lower levels, dependencies, and direct paths remain exact"
+    },
+    {
+      "id": "C6",
+      "proof": "formation, validation, authorization, delivery, route, Git, and absent-guarantee authority are observable through the six Level 4 artifacts and the status command",
+      "result": "pass",
+      "statement": "formation, validation, authorization, delivery, route, Git, and absent-guarantee authority is observable and unambiguous"
+    },
+    {
+      "id": "C7",
+      "proof": "deterministic rebuilds (pack, trace, adapter view); source-preserving rejection, revocation, and staleness fixtures with downgrade to Level 3; fixture cleanup with absence proofs; exact 22-addition manifest; no Level 5-6 authority",
+      "result": "pass",
+      "statement": "deterministic rebuild, source-preserving rejection, revocation, staleness, and downgrade, cleanup, and exact final manifest pass with no Level 5-6 authority"
+    }
+  ],
+  "immutable_historical_disposition": "MI-002-R2 PASS, MI-003 FAIL, MI-003-R1 FAIL, and MI-003-R2 PASS stand as four separate immutable results; MI-004 repairs, relabels, re-grades, merges, or reinterprets none of them",
+  "verdict": {
+    "result": "UNCONDITIONAL PASS",
+    "rule": "conjunctive-unconditional-single-result",
+    "scope": "MI-004 — Authorized Context Introduction execution at Nestfolio b9d7264082322e09cfd233819b79f128ef912e31 under continuity-lab contract revision 757112e7060252eccafe40f9178771b0adc67d17"
+  }
+}

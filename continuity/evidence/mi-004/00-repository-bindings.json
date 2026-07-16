@@ -1,0 +1,756 @@
+{
+  "bindings": {
+    "continuity-lab": {
+      "branch": "main",
+      "clean_at_start": true,
+      "head": "757112e7060252eccafe40f9178771b0adc67d17",
+      "local_origin_main": "757112e7060252eccafe40f9178771b0adc67d17",
+      "remote_main": "757112e7060252eccafe40f9178771b0adc67d17",
+      "upstream": "757112e7060252eccafe40f9178771b0adc67d17"
+    },
+    "continuity-workspace": {
+      "branch": "main",
+      "clean_at_start": true,
+      "head": "56e10aa92429a8ae793463d1cd1c7ad9542e7f64",
+      "local_origin_main": "56e10aa92429a8ae793463d1cd1c7ad9542e7f64",
+      "remote_main": "56e10aa92429a8ae793463d1cd1c7ad9542e7f64",
+      "upstream": "56e10aa92429a8ae793463d1cd1c7ad9542e7f64"
+    },
+    "nestfolio": {
+      "branch": "main",
+      "clean_at_start": true,
+      "head": "b9d7264082322e09cfd233819b79f128ef912e31",
+      "local_origin_main": "b9d7264082322e09cfd233819b79f128ef912e31",
+      "remote_main": "b9d7264082322e09cfd233819b79f128ef912e31",
+      "upstream": "b9d7264082322e09cfd233819b79f128ef912e31"
+    }
+  },
+  "canonical_read_protocol": {
+    "external_ledger": {
+      "path_outside_repositories": "/private/tmp/claude-501/-Users-fabiovitali-WebstormProjects-continuity-workspace/29e96640-6e95-4486-b48c-7ef83f1fd265/scratchpad/mi-004/recovery-ledger.txt",
+      "sha256": "3c30d91d4528b9f59a332d49f0980e6265649a3a9b493f4eb8b1de13a60a9dc3"
+    },
+    "ordering": "exact MI-004 Context Pack order; one logical-path session at a time; never batched, parallelized, interleaved, reordered, skipped, or substituted; continuity/level-1/**, level-2/**, and level-3/** expanded bytewise at their listed positions",
+    "path_count": 49,
+    "per_path": [
+      {
+        "byte_count": 39717,
+        "channel_completeness": "full requested range presented with no truncation, clipping, omission, elision, or persisted-to-file substitution",
+        "chunk_plan": [
+          "1-548"
+        ],
+        "contiguous_coverage": "1-548",
+        "logical_lines": 548,
+        "repo": "continuity-lab",
+        "result": "CLOSED",
+        "source_blob_sha1": "818e5d83d176180d28abbcc6857dd3e67adb65bb",
+        "source_path": "docs/90-state/program-state.md",
+        "whole_path_sha256": "c5926c18e3c5d5c12e34e61d9bc6f020ccc9a48a60e5a4d4bc012d1edae9b8e6"
+      },
+      {
+        "byte_count": 37151,
+        "channel_completeness": "full requested range presented with no truncation, clipping, omission, elision, or persisted-to-file substitution",
+        "chunk_plan": [
+          "1-621"
+        ],
+        "contiguous_coverage": "1-621",
+        "logical_lines": 621,
+        "repo": "continuity-lab",
+        "result": "CLOSED",
+        "source_blob_sha1": "6954bf9083169fb10e45b27fbe394843c7b971f5",
+        "source_path": "sessions/MI-004-authorized-context-introduction/context-pack.yaml",
+        "whole_path_sha256": "9aadb065699e56bc2d11cf90ce74ec7fc5002864cdf44a8c6ae6375810464ece"
+      },
+      {
+        "byte_count": 5465,
+        "channel_completeness": "full requested range presented with no truncation, clipping, omission, elision, or persisted-to-file substitution",
+        "chunk_plan": [
+          "1-99"
+        ],
+        "contiguous_coverage": "1-99",
+        "logical_lines": 99,
+        "repo": "continuity-lab",
+        "result": "CLOSED",
+        "source_blob_sha1": "414eb4ca43f15b280b2c3913449913ff34513012",
+        "source_path": "sessions/MI-004-authorized-context-introduction/prompt.md",
+        "whole_path_sha256": "100e7f8940723b4dfc62e700d4eed6b991786871f2b1f4ffdd94aee980f01a95"
+      },
+      {
+        "byte_count": 3956,
+        "channel_completeness": "full requested range presented with no truncation, clipping, omission, elision, or persisted-to-file substitution",
+        "chunk_plan": [
+          "1-92"
+        ],
+        "contiguous_coverage": "1-92",
+        "logical_lines": 92,
+        "repo": "continuity-lab",
+        "result": "CLOSED",
+        "source_blob_sha1": "2215326283b6ad63531656811af94815d3421f02",
+        "source_path": "docs/70-implementation/mi-003-r2-bounded-local-work-and-scope-segmented-canonical-complete-read-correction-retry.md",
+        "whole_path_sha256": "7a196cee795512773ffc1ff8a1f83dcce29e00962d9e8ac7393c1eb6031e8349"
+      },
+      {
+        "byte_count": 2782,
+        "channel_completeness": "full requested range presented with no truncation, clipping, omission, elision, or persisted-to-file substitution",
+        "chunk_plan": [
+          "1-63"
+        ],
+        "contiguous_coverage": "1-63",
+        "logical_lines": 63,
+        "repo": "continuity-lab",
+        "result": "CLOSED",
+        "source_blob_sha1": "cad090b7bb260f9bafff8bfdc6dc4d0db6d5eebb",
+        "source_path": "sessions/MI-003-R2-bounded-local-work-and-scope-segmented-canonical-complete-read-correction-retry/session-handoff.md",
+        "whole_path_sha256": "cc685cb48ce9c1f8125a2132c9599e71655f725d752ac5775a3eaa1eaed8ea71"
+      },
+      {
+        "byte_count": 1182,
+        "channel_completeness": "full requested range presented with no truncation, clipping, omission, elision, or persisted-to-file substitution",
+        "chunk_plan": [
+          "1-23"
+        ],
+        "contiguous_coverage": "1-23",
+        "logical_lines": 23,
+        "repo": "continuity-lab",
+        "result": "CLOSED",
+        "source_blob_sha1": "bdc06f1990a87f7fa88f0e9653bd753dca4c2122",
+        "source_path": "sessions/MI-003-R2-bounded-local-work-and-scope-segmented-canonical-complete-read-correction-retry/execution-changed-files.txt",
+        "whole_path_sha256": "756e6e355c9c1f1e83f1ec4073209873f49374d6b3962f7aa4e6b6b9436c9530"
+      },
+      {
+        "byte_count": 96246,
+        "channel_completeness": "full requested range presented with no truncation, clipping, omission, elision, or persisted-to-file substitution",
+        "chunk_plan": [
+          "1-230",
+          "231-460",
+          "461-690",
+          "691-920"
+        ],
+        "contiguous_coverage": "1-230,231-460,461-690,691-920",
+        "logical_lines": 920,
+        "repo": "continuity-lab",
+        "result": "CLOSED",
+        "source_blob_sha1": "09ba208546caf888b5c9f91b212fef46f11f7c59",
+        "source_path": "docs/60-migration/migration-plan.md",
+        "whole_path_sha256": "727207ea3993f356c2ccf967c42a96a986b0ba7b9eec11ac9b422d8b48d88118"
+      },
+      {
+        "byte_count": 81628,
+        "channel_completeness": "full requested range presented with no truncation, clipping, omission, elision, or persisted-to-file substitution",
+        "chunk_plan": [
+          "1-320",
+          "321-640",
+          "641-960",
+          "961-1278"
+        ],
+        "contiguous_coverage": "1-320,321-640,641-960,961-1278",
+        "logical_lines": 1278,
+        "repo": "continuity-lab",
+        "result": "CLOSED",
+        "source_blob_sha1": "da5819085f7cc5a9df9dc3e187dfc6fa2dd470b7",
+        "source_path": "docs/40-product-experience/product-experience.md",
+        "whole_path_sha256": "392a92f51f87fc5309b2c637a59eb491e9d3740fcbb5d1439904a1c4ab382382"
+      },
+      {
+        "byte_count": 3992,
+        "channel_completeness": "full requested range presented with no truncation, clipping, omission, elision, or persisted-to-file substitution",
+        "chunk_plan": [
+          "1-99"
+        ],
+        "contiguous_coverage": "1-99",
+        "logical_lines": 99,
+        "repo": "continuity-lab",
+        "result": "CLOSED",
+        "source_blob_sha1": "f1cb286c5a017fb918028541c27ceed36f8bb565",
+        "source_path": "decisions/DR-0011-explicit-context-formation-pipeline.md",
+        "whole_path_sha256": "d20c344fd2d08269166846561234402acf3396e6b0d4d456da6729fb8ad0f549"
+      },
+      {
+        "byte_count": 4290,
+        "channel_completeness": "full requested range presented with no truncation, clipping, omission, elision, or persisted-to-file substitution",
+        "chunk_plan": [
+          "1-108"
+        ],
+        "contiguous_coverage": "1-108",
+        "logical_lines": 108,
+        "repo": "continuity-lab",
+        "result": "CLOSED",
+        "source_blob_sha1": "2a3c64bd3ba701f664c9fe7885d70ada054a3563",
+        "source_path": "decisions/DR-0019-cumulative-adoption-with-explicit-guarantee-levels.md",
+        "whole_path_sha256": "3b9be6c020f8e75c421746fb15e65d38e4b245f6bd80a25c50491611d9483f4e"
+      },
+      {
+        "byte_count": 3863,
+        "channel_completeness": "full requested range presented with no truncation, clipping, omission, elision, or persisted-to-file substitution",
+        "chunk_plan": [
+          "1-94"
+        ],
+        "contiguous_coverage": "1-94",
+        "logical_lines": 94,
+        "repo": "continuity-lab",
+        "result": "CLOSED",
+        "source_blob_sha1": "3934bd30161e2e22539b187bb1990b54ba88933c",
+        "source_path": "decisions/DR-0020-explicit-human-context-authorization-by-default.md",
+        "whole_path_sha256": "34dff9dabe3ae60b3084c7323c5101b9d1c57989e230cffbef21abe4d38387a2"
+      },
+      {
+        "byte_count": 5621,
+        "channel_completeness": "full requested range presented with no truncation, clipping, omission, elision, or persisted-to-file substitution",
+        "chunk_plan": [
+          "1-118"
+        ],
+        "contiguous_coverage": "1-118",
+        "logical_lines": 118,
+        "repo": "continuity-lab",
+        "result": "CLOSED",
+        "source_blob_sha1": "cd631a0d6c376265b1bb84f3d2861e3f2be5c304",
+        "source_path": "decisions/DR-0023-cumulative-strangler-migration-by-guarantee-level.md",
+        "whole_path_sha256": "ef68f2d082ac3619695ff6040c93daf97bac04cb13dbc8ddd7db6681e6c6e9b1"
+      },
+      {
+        "byte_count": 6945,
+        "channel_completeness": "full requested range presented with no truncation, clipping, omission, elision, or persisted-to-file substitution",
+        "chunk_plan": [
+          "1-189"
+        ],
+        "contiguous_coverage": "1-189",
+        "logical_lines": 189,
+        "repo": "nestfolio",
+        "result": "CLOSED",
+        "source_blob_sha1": "1a7fdb141769c38b7e3bdc03184da112d2be7b67",
+        "source_path": "package.json",
+        "whole_path_sha256": "07b935ab66c83752ebffdeea942a57abac598b18c568b39c027534c6edd2357c"
+      },
+      {
+        "byte_count": 34126,
+        "channel_completeness": "full requested range presented with no truncation, clipping, omission, elision, or persisted-to-file substitution",
+        "chunk_plan": [
+          "1-344"
+        ],
+        "contiguous_coverage": "1-344",
+        "logical_lines": 344,
+        "repo": "nestfolio",
+        "result": "CLOSED",
+        "source_blob_sha1": "0cb2611dcb03bc600e708883358c812afc8e71cf",
+        "source_path": ".claude/skills/backlog-next/SKILL.md",
+        "whole_path_sha256": "e56fd21ae6bb53dfdd2d5d0d239a0200d49d69c82bb171f3336b837a91124cd1"
+      },
+      {
+        "byte_count": 1147,
+        "channel_completeness": "full requested range presented with no truncation, clipping, omission, elision, or persisted-to-file substitution",
+        "chunk_plan": [
+          "1-23"
+        ],
+        "contiguous_coverage": "1-23",
+        "logical_lines": 23,
+        "repo": "nestfolio",
+        "result": "CLOSED",
+        "source_blob_sha1": "9f2e68618bd07e5c1f398adcaf4d0ee8adbc6ead",
+        "source_path": "continuity/level-1/README.md",
+        "whole_path_sha256": "9343854b415ddf798f9081535ca8d94073746e27fc7a7a900ca14ea01f83ed5c"
+      },
+      {
+        "byte_count": 196,
+        "channel_completeness": "full requested range presented with no truncation, clipping, omission, elision, or persisted-to-file substitution",
+        "chunk_plan": [
+          "1-8"
+        ],
+        "contiguous_coverage": "1-8",
+        "logical_lines": 8,
+        "repo": "nestfolio",
+        "result": "CLOSED",
+        "source_blob_sha1": "f43b9f3bd00cce5f4e5b4c0259bc29e6ba8892fc",
+        "source_path": "continuity/level-1/activation.json",
+        "whole_path_sha256": "d8d011c6d672cda725f039ddfffb26b9157bb95462538423ac473bb3b37a0650"
+      },
+      {
+        "byte_count": 1496,
+        "channel_completeness": "full requested range presented with no truncation, clipping, omission, elision, or persisted-to-file substitution",
+        "chunk_plan": [
+          "1-35"
+        ],
+        "contiguous_coverage": "1-35",
+        "logical_lines": 35,
+        "repo": "nestfolio",
+        "result": "CLOSED",
+        "source_blob_sha1": "8ac73c236624624e9aa6dc3388fcf66fb335c530",
+        "source_path": "continuity/level-1/cli.mjs",
+        "whole_path_sha256": "fdc297c886580d25cd62f9c83a3865e5c718855a2342b4d36c78fbad29c44a5e"
+      },
+      {
+        "byte_count": 3862,
+        "channel_completeness": "full requested range presented with no truncation, clipping, omission, elision, or persisted-to-file substitution",
+        "chunk_plan": [
+          "1-106"
+        ],
+        "contiguous_coverage": "1-106",
+        "logical_lines": 106,
+        "repo": "nestfolio",
+        "result": "CLOSED",
+        "source_blob_sha1": "03c3960a950aeb26b79788fe1ebdad940d631ec7",
+        "source_path": "continuity/level-1/pack-lock.json",
+        "whole_path_sha256": "701caacfce402077dd77659669768759a6c6d4613a94e6abb8e68248f44a8da9"
+      },
+      {
+        "byte_count": 699,
+        "channel_completeness": "full requested range presented with no truncation, clipping, omission, elision, or persisted-to-file substitution",
+        "chunk_plan": [
+          "1-24"
+        ],
+        "contiguous_coverage": "1-24",
+        "logical_lines": 24,
+        "repo": "nestfolio",
+        "result": "CLOSED",
+        "source_blob_sha1": "c6b7b2a885ccf90632218eeb444e99f305666d95",
+        "source_path": "continuity/level-1/pack-manifest.json",
+        "whole_path_sha256": "2501b33806ee6c7dfd8986ba3d04480634ac24b480c13e81a9cbb89b54b0544b"
+      },
+      {
+        "byte_count": 3130,
+        "channel_completeness": "full requested range presented with no truncation, clipping, omission, elision, or persisted-to-file substitution",
+        "chunk_plan": [
+          "1-87"
+        ],
+        "contiguous_coverage": "1-87",
+        "logical_lines": 87,
+        "repo": "nestfolio",
+        "result": "CLOSED",
+        "source_blob_sha1": "6a91b1ee84ef7c2de58f199c89396b016d53fcaf",
+        "source_path": "continuity/level-1/procedure-contract.json",
+        "whole_path_sha256": "776f1e5655a9d0c2973e2d0cf76fe323d3ddb945106c31fdcd4610da9f9c3f66"
+      },
+      {
+        "byte_count": 1062,
+        "channel_completeness": "full requested range presented with no truncation, clipping, omission, elision, or persisted-to-file substitution",
+        "chunk_plan": [
+          "1-31"
+        ],
+        "contiguous_coverage": "1-31",
+        "logical_lines": 31,
+        "repo": "nestfolio",
+        "result": "CLOSED",
+        "source_blob_sha1": "570143c60b8bdd76463a7c7778d8a185d7b2757f",
+        "source_path": "continuity/level-1/project-binding.json",
+        "whole_path_sha256": "dc66414f0f2e2be9cb4661b14fd0e1e401d956a64572809da615e58c2a554139"
+      },
+      {
+        "byte_count": 8109,
+        "channel_completeness": "full requested range presented with no truncation, clipping, omission, elision, or persisted-to-file substitution",
+        "chunk_plan": [
+          "1-183"
+        ],
+        "contiguous_coverage": "1-183",
+        "logical_lines": 183,
+        "repo": "nestfolio",
+        "result": "CLOSED",
+        "source_blob_sha1": "4aac48d0e5a65ae331dafa653ebb4b388226d21d",
+        "source_path": "continuity/level-1/src/application-service.mjs",
+        "whole_path_sha256": "dd19ddaeb5b0fceca74f18e04a370eb53d6b84f9bf2f82fe13c5d8817f7f80b3"
+      },
+      {
+        "byte_count": 1299,
+        "channel_completeness": "full requested range presented with no truncation, clipping, omission, elision, or persisted-to-file substitution",
+        "chunk_plan": [
+          "1-32"
+        ],
+        "contiguous_coverage": "1-32",
+        "logical_lines": 32,
+        "repo": "nestfolio",
+        "result": "CLOSED",
+        "source_blob_sha1": "67bd8b9224e03b0b780e33796203f82bc5ffe935",
+        "source_path": "continuity/level-1/src/claude-code-adapter.mjs",
+        "whole_path_sha256": "0038104da7d10af5ccfffb68bd58cbfb66096b8a5939eeff3f2f1954d006fb20"
+      },
+      {
+        "byte_count": 2355,
+        "channel_completeness": "full requested range presented with no truncation, clipping, omission, elision, or persisted-to-file substitution",
+        "chunk_plan": [
+          "1-59"
+        ],
+        "contiguous_coverage": "1-59",
+        "logical_lines": 59,
+        "repo": "nestfolio",
+        "result": "CLOSED",
+        "source_blob_sha1": "00b520e2ee55a7d33d576d7fb70baa00c1a82bb8",
+        "source_path": "continuity/level-1/src/core.mjs",
+        "whole_path_sha256": "ba86d1b5fe90645d7fbde049491c7309503ddde56d3b16195a7d89219ecd1fa1"
+      },
+      {
+        "byte_count": 5319,
+        "channel_completeness": "full requested range presented with no truncation, clipping, omission, elision, or persisted-to-file substitution",
+        "chunk_plan": [
+          "1-140"
+        ],
+        "contiguous_coverage": "1-140",
+        "logical_lines": 140,
+        "repo": "nestfolio",
+        "result": "CLOSED",
+        "source_blob_sha1": "86c8e3789920a977781c4f11a312ebc4de1918cb",
+        "source_path": "continuity/level-1/src/repository-infrastructure.mjs",
+        "whole_path_sha256": "c3383ef465c1b0f28b38492b59062f33a51e46dc5ac2c57bc87abdbdd5caff2f"
+      },
+      {
+        "byte_count": 1164,
+        "channel_completeness": "full requested range presented with no truncation, clipping, omission, elision, or persisted-to-file substitution",
+        "chunk_plan": [
+          "1-23"
+        ],
+        "contiguous_coverage": "1-23",
+        "logical_lines": 23,
+        "repo": "nestfolio",
+        "result": "CLOSED",
+        "source_blob_sha1": "8306ac7dea0257e92cf64e2e68f9d6dc2df779ba",
+        "source_path": "continuity/level-2/README.md",
+        "whole_path_sha256": "4056209b3405ad2452ce4e22c2522c58c9950c5c309c14c6caac5616b1fcfaf7"
+      },
+      {
+        "byte_count": 256,
+        "channel_completeness": "full requested range presented with no truncation, clipping, omission, elision, or persisted-to-file substitution",
+        "chunk_plan": [
+          "1-1"
+        ],
+        "contiguous_coverage": "1-1",
+        "logical_lines": 1,
+        "repo": "nestfolio",
+        "result": "CLOSED",
+        "source_blob_sha1": "f257874c8854ead61862c59d699ad3777589776c",
+        "source_path": "continuity/level-2/activation-history.ndjson",
+        "whole_path_sha256": "512034d03e0d989fcba1cfcf154e142c25e854336970463dcdee32659b8176cb"
+      },
+      {
+        "byte_count": 349,
+        "channel_completeness": "full requested range presented with no truncation, clipping, omission, elision, or persisted-to-file substitution",
+        "chunk_plan": [
+          "1-12"
+        ],
+        "contiguous_coverage": "1-12",
+        "logical_lines": 12,
+        "repo": "nestfolio",
+        "result": "CLOSED",
+        "source_blob_sha1": "5db71eb7ff60cb32801ec7a20e688dfc965ae933",
+        "source_path": "continuity/level-2/activation.json",
+        "whole_path_sha256": "af6fc7d570cb0fdcaf24dfb797432daa97aa196f15be07d5f6ff515f99dbfb70"
+      },
+      {
+        "byte_count": 1856,
+        "channel_completeness": "full requested range presented with no truncation, clipping, omission, elision, or persisted-to-file substitution",
+        "chunk_plan": [
+          "1-37"
+        ],
+        "contiguous_coverage": "1-37",
+        "logical_lines": 37,
+        "repo": "nestfolio",
+        "result": "CLOSED",
+        "source_blob_sha1": "e8af5bc940f25a892faa8f901787df46a5310a56",
+        "source_path": "continuity/level-2/cli.mjs",
+        "whole_path_sha256": "0e857c7413d94ae0cbf159c04e6ff1112f8882f4db3481f73ca9e2f42dbb79c7"
+      },
+      {
+        "byte_count": 9880,
+        "channel_completeness": "full requested range presented with no truncation, clipping, omission, elision, or persisted-to-file substitution",
+        "chunk_plan": [
+          "1-284"
+        ],
+        "contiguous_coverage": "1-284",
+        "logical_lines": 284,
+        "repo": "nestfolio",
+        "result": "CLOSED",
+        "source_blob_sha1": "db34925248121f3bf43910285d2fa3ce6246e9ad",
+        "source_path": "continuity/level-2/packs.lock.json",
+        "whole_path_sha256": "0d0e6b52eb5aab3957d51abb432b5baa4c4911880151de8c96a9e4f7c90bb63c"
+      },
+      {
+        "byte_count": 867,
+        "channel_completeness": "full requested range presented with no truncation, clipping, omission, elision, or persisted-to-file substitution",
+        "chunk_plan": [
+          "1-33"
+        ],
+        "contiguous_coverage": "1-33",
+        "logical_lines": 33,
+        "repo": "nestfolio",
+        "result": "CLOSED",
+        "source_blob_sha1": "a7ad09deb964c1a8749d15fde73226d408c55dda",
+        "source_path": "continuity/level-2/packs/continuity.repository-tools/1.0.0/pack-manifest.json",
+        "whole_path_sha256": "439799dbc8f3ef1d44c178d8d85eaa339a229c76a84d42281c44b80f2061ae19"
+      },
+      {
+        "byte_count": 1555,
+        "channel_completeness": "full requested range presented with no truncation, clipping, omission, elision, or persisted-to-file substitution",
+        "chunk_plan": [
+          "1-31"
+        ],
+        "contiguous_coverage": "1-31",
+        "logical_lines": 31,
+        "repo": "nestfolio",
+        "result": "CLOSED",
+        "source_blob_sha1": "eef4bbdece733cdade1c8618df19752bc5760745",
+        "source_path": "continuity/level-2/packs/continuity.repository-tools/1.0.0/procedures/continuity.repository-status.json",
+        "whole_path_sha256": "75c4185cef2ed609bababe0cd35b7dc01d853d053679569164ac7ce84fd65057"
+      },
+      {
+        "byte_count": 10787,
+        "channel_completeness": "full requested range presented with no truncation, clipping, omission, elision, or persisted-to-file substitution",
+        "chunk_plan": [
+          "1-263"
+        ],
+        "contiguous_coverage": "1-263",
+        "logical_lines": 263,
+        "repo": "nestfolio",
+        "result": "CLOSED",
+        "source_blob_sha1": "32b5c0304dbc965d2a7464424afd2faa14b00fca",
+        "source_path": "continuity/level-2/src/application-service.mjs",
+        "whole_path_sha256": "ad2e58bb3425d3b72196e0afce6078fa7501074fe5090df566b9a7fc55603c22"
+      },
+      {
+        "byte_count": 4225,
+        "channel_completeness": "full requested range presented with no truncation, clipping, omission, elision, or persisted-to-file substitution",
+        "chunk_plan": [
+          "1-105"
+        ],
+        "contiguous_coverage": "1-105",
+        "logical_lines": 105,
+        "repo": "nestfolio",
+        "result": "CLOSED",
+        "source_blob_sha1": "b0f2e43fe71dcb6eed091d48b533e9f0c6399840",
+        "source_path": "continuity/level-2/src/core.mjs",
+        "whole_path_sha256": "fcf171439d883ac38ce66e22367e1d33236d239e3aa60c3a702c5c8776ead3fc"
+      },
+      {
+        "byte_count": 2625,
+        "channel_completeness": "full requested range presented with no truncation, clipping, omission, elision, or persisted-to-file substitution",
+        "chunk_plan": [
+          "1-72"
+        ],
+        "contiguous_coverage": "1-72",
+        "logical_lines": 72,
+        "repo": "nestfolio",
+        "result": "CLOSED",
+        "source_blob_sha1": "2020389e000d2e9d911a08f4980f394306da580e",
+        "source_path": "continuity/level-2/src/git-repository-adapter.mjs",
+        "whole_path_sha256": "ed84e1998fd51bd1bf3f37db88a320eb2669e52ffe3cd40bce27b34e74e70dbd"
+      },
+      {
+        "byte_count": 14440,
+        "channel_completeness": "full requested range presented with no truncation, clipping, omission, elision, or persisted-to-file substitution",
+        "chunk_plan": [
+          "1-168"
+        ],
+        "contiguous_coverage": "1-168",
+        "logical_lines": 168,
+        "repo": "nestfolio",
+        "result": "CLOSED",
+        "source_blob_sha1": "e9eb57e7b1cd1d32d3bcd26c426d860944fc6dd3",
+        "source_path": "continuity/level-2/src/pack-validator.mjs",
+        "whole_path_sha256": "fd375fddac0069ed5dbd7a23172bbe48eac3bb4438697ef6b78674be53e204a2"
+      },
+      {
+        "byte_count": 4364,
+        "channel_completeness": "full requested range presented with no truncation, clipping, omission, elision, or persisted-to-file substitution",
+        "chunk_plan": [
+          "1-113"
+        ],
+        "contiguous_coverage": "1-113",
+        "logical_lines": 113,
+        "repo": "nestfolio",
+        "result": "CLOSED",
+        "source_blob_sha1": "9fe37121ea928a981f6b0cb1d53045c9a8b1af1b",
+        "source_path": "continuity/level-2/src/repository-infrastructure.mjs",
+        "whole_path_sha256": "28b8d3c9847913a66247527d44486a08b8d3fe0db9fbda084f40ae82268a15c6"
+      },
+      {
+        "byte_count": 25113,
+        "channel_completeness": "full requested range presented with no truncation, clipping, omission, elision, or persisted-to-file substitution",
+        "chunk_plan": [
+          "1-330",
+          "331-642"
+        ],
+        "contiguous_coverage": "1-330,331-642",
+        "logical_lines": 642,
+        "repo": "nestfolio",
+        "result": "CLOSED",
+        "source_blob_sha1": "e66925837840dfa7e7df9790e979c1daf6f32e2b",
+        "source_path": "continuity/level-3/bin/continuity-work.mjs",
+        "whole_path_sha256": "f1f515f8c50d428cf14249a2fb027c0ce2d8b3c99c95a209540918bc54060cbe"
+      },
+      {
+        "byte_count": 355248,
+        "channel_completeness": "full requested range presented with no truncation, clipping, omission, elision, or persisted-to-file substitution",
+        "chunk_plan": [
+          "1-1200",
+          "1201-2400",
+          "2401-3600",
+          "3601-4800",
+          "4801-6000",
+          "6001-7200",
+          "7201-8400",
+          "8401-9261"
+        ],
+        "contiguous_coverage": "1-1200,1201-2400,2401-3600,3601-4800,4801-6000,6001-7200,7201-8400,8401-9261",
+        "logical_lines": 9261,
+        "recovery": "the initial 1-2000 chunk request was refused by the file-read tool with an explicit oversized-response error and zero content consumed (CANONICAL_SEGMENT_INCOMPLETE); recovery re-read restarted at line 1 with smaller forward-contiguous chunks within the same open logical-path session",
+        "repo": "nestfolio",
+        "result": "CLOSED",
+        "source_blob_sha1": "1d8a40f8ab8551fe39628d9454c15c126883d346",
+        "source_path": "continuity/level-3/candidates.json",
+        "whole_path_sha256": "1c292f2f21c9226e4074cab0645323f959374618916a660fc01117c0f08f5f12"
+      },
+      {
+        "byte_count": 1580,
+        "channel_completeness": "full requested range presented with no truncation, clipping, omission, elision, or persisted-to-file substitution",
+        "chunk_plan": [
+          "1-34"
+        ],
+        "contiguous_coverage": "1-34",
+        "logical_lines": 34,
+        "repo": "nestfolio",
+        "result": "CLOSED",
+        "source_blob_sha1": "1c27c886d5dc3c26edd89dbaf0cf0f07ded34a15",
+        "source_path": "continuity/level-3/route.json",
+        "whole_path_sha256": "0ed84d148428125c0700969921d03fefb914819333d4848d4b262193f1c13d11"
+      },
+      {
+        "byte_count": 3983,
+        "channel_completeness": "full requested range presented with no truncation, clipping, omission, elision, or persisted-to-file substitution",
+        "chunk_plan": [
+          "1-152"
+        ],
+        "contiguous_coverage": "1-152",
+        "logical_lines": 152,
+        "repo": "nestfolio",
+        "result": "CLOSED",
+        "source_blob_sha1": "9517535c96bdc42295616b27b80c49708529ed4a",
+        "source_path": "continuity/level-3/schema/work-artifacts.schema.json",
+        "whole_path_sha256": "898c3568ea0e6c9d89e34edfb9569c903240c8a491ef0aca97d96f40d288f3c5"
+      },
+      {
+        "byte_count": 3267,
+        "channel_completeness": "full requested range presented with no truncation, clipping, omission, elision, or persisted-to-file substitution",
+        "chunk_plan": [
+          "1-61"
+        ],
+        "contiguous_coverage": "1-61",
+        "logical_lines": 61,
+        "repo": "nestfolio",
+        "result": "CLOSED",
+        "source_blob_sha1": "ba169a84c53233fc195a95f5a3a9b9e5c1ba812f",
+        "source_path": "continuity/level-3/scope.json",
+        "whole_path_sha256": "db7a45278e8f4a270552e3ae1db3695b70e07d1624b27bcdc28f6417883a5ad6"
+      },
+      {
+        "byte_count": 3998,
+        "channel_completeness": "full requested range presented with no truncation, clipping, omission, elision, or persisted-to-file substitution",
+        "chunk_plan": [
+          "1-64"
+        ],
+        "contiguous_coverage": "1-64",
+        "logical_lines": 64,
+        "repo": "nestfolio",
+        "result": "CLOSED",
+        "source_blob_sha1": "0c2d3feaca0a23af08192caec91becdada4c4ace",
+        "source_path": "continuity/level-3/work-brief.json",
+        "whole_path_sha256": "dc50b59f42a72de0bee1b36c888596e8a19a347fb37559237a3a90272f9e60da"
+      },
+      {
+        "byte_count": 1956,
+        "channel_completeness": "full requested range presented with no truncation, clipping, omission, elision, or persisted-to-file substitution",
+        "chunk_plan": [
+          "1-21"
+        ],
+        "contiguous_coverage": "1-21",
+        "logical_lines": 21,
+        "repo": "nestfolio",
+        "result": "CLOSED",
+        "source_blob_sha1": "09fac693fb9a7ff561116e8835d7a5da44608ce5",
+        "source_path": "continuity/level-3/work-selection.json",
+        "whole_path_sha256": "b01555e1ec65b4f232d008c82d7d2a22e0b94ac5a0b0a43410397f8638a1848c"
+      },
+      {
+        "byte_count": 3372,
+        "channel_completeness": "full requested range presented with no truncation, clipping, omission, elision, or persisted-to-file substitution",
+        "chunk_plan": [
+          "1-53"
+        ],
+        "contiguous_coverage": "1-53",
+        "logical_lines": 53,
+        "repo": "nestfolio",
+        "result": "CLOSED",
+        "source_blob_sha1": "77dd39f73139a85f27812e0fd158699755f3393e",
+        "source_path": "continuity/level-3/work.json",
+        "whole_path_sha256": "b23812bb0999f962856556516945bf82297642140f808d24cdd52e9341381936"
+      },
+      {
+        "byte_count": 228,
+        "channel_completeness": "full requested range presented with no truncation, clipping, omission, elision, or persisted-to-file substitution",
+        "chunk_plan": [
+          "1-9"
+        ],
+        "contiguous_coverage": "1-9",
+        "logical_lines": 9,
+        "repo": "nestfolio",
+        "result": "CLOSED",
+        "source_blob_sha1": "9dff7841bcd7021a20a1b5441f6777294f495470",
+        "source_path": "continuity/level-3/working-set.json",
+        "whole_path_sha256": "e24fe112a6947d1959a2f4fa6d0083e34ea1a2614347487eaba747bcaab64b97"
+      },
+      {
+        "byte_count": 11095,
+        "channel_completeness": "full requested range presented with no truncation, clipping, omission, elision, or persisted-to-file substitution",
+        "chunk_plan": [
+          "1-254"
+        ],
+        "contiguous_coverage": "1-254",
+        "logical_lines": 254,
+        "repo": "nestfolio",
+        "result": "CLOSED",
+        "source_blob_sha1": "672f3ceffd3a8f859695a8175d46bab62091f769",
+        "source_path": "tests/continuity-level-3.test.mjs",
+        "whole_path_sha256": "b6fd45d09da9c2c27ff4cf80a51b05f3efecb8340e1441f5405211734c4be500"
+      },
+      {
+        "byte_count": 316925,
+        "channel_completeness": "full requested range presented with no truncation, clipping, omission, elision, or persisted-to-file substitution",
+        "chunk_plan": [
+          "1-1200",
+          "1201-2400",
+          "2401-3600",
+          "3601-4800",
+          "4801-6000",
+          "6001-7146"
+        ],
+        "contiguous_coverage": "1-1200,1201-2400,2401-3600,3601-4800,4801-6000,6001-7146",
+        "logical_lines": 7146,
+        "repo": "nestfolio",
+        "result": "CLOSED",
+        "source_blob_sha1": "f632b93c3db6ff2c373f65f185195777fd09443e",
+        "source_path": "continuity/evidence/mi-003/00-repository-bindings.json",
+        "whole_path_sha256": "bafeab4603753d08572fe1b32251495a0e72e9295c13c9447231f6edeefc056b"
+      },
+      {
+        "byte_count": 2016,
+        "channel_completeness": "full requested range presented with no truncation, clipping, omission, elision, or persisted-to-file substitution",
+        "chunk_plan": [
+          "1-40"
+        ],
+        "contiguous_coverage": "1-40",
+        "logical_lines": 40,
+        "repo": "nestfolio",
+        "result": "CLOSED",
+        "source_blob_sha1": "9651fe15c77a91e900d11c95839073f80f516b9b",
+        "source_path": "docs/backlog/dashboard-bff-awaiting-confirmation-activity-gap.md",
+        "whole_path_sha256": "b656733991c96c4275d11e9a9f2bff7f5ac72cdd298cbc68a4b94b6799dc742d"
+      }
+    ]
+  },
+  "contract_identity": {
+    "continuity-lab_contract_revision": "757112e7060252eccafe40f9178771b0adc67d17",
+    "contract_parent": "5519ea78b7a093678c2ed87a6c310b20363e28b6",
+    "contract_subject": "Authorize MI-004 authorized context introduction"
+  },
+  "expected": {
+    "continuity-lab": "757112e7060252eccafe40f9178771b0adc67d17",
+    "continuity-workspace": "56e10aa92429a8ae793463d1cd1c7ad9542e7f64",
+    "nestfolio": "b9d7264082322e09cfd233819b79f128ef912e31"
+  },
+  "observed_utc": "2026-07-16T19:43:15.437Z",
+  "program_state_first": "continuity-lab docs/90-state/program-state.md was opened as the first logical repository path and remained the sole addressed path until its complete-read proof closed (identity, contiguous coverage, and whole-path SHA-256 verified before any other path was touched)."
+}

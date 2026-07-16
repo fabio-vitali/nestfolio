@@ -1,0 +1,116 @@
+{
+  "$id": "nestfolio.continuity.level4.context-artifacts",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$defs": {
+    "contextRecipe": {
+      "type": "object",
+      "required": [
+        "authorization_policy",
+        "bound_inputs",
+        "delivery_boundary",
+        "exclusion_policy",
+        "formation_algorithm",
+        "kind",
+        "read_only_source_scope",
+        "schema_version",
+        "selected_effort"
+      ],
+      "properties": {
+        "formation_algorithm": { "const": "mi004-context-formation@1" },
+        "kind": { "const": "continuity.level4.context-recipe" }
+      }
+    },
+    "formationTrace": {
+      "type": "object",
+      "required": [
+        "candidate",
+        "considered_sources",
+        "formation_algorithm",
+        "kind",
+        "pipeline",
+        "schema_version",
+        "stages",
+        "uncertainty"
+      ],
+      "properties": {
+        "formation_algorithm": { "const": "mi004-context-formation@1" },
+        "kind": { "const": "continuity.level4.formation-trace" },
+        "considered_sources": { "items": { "$ref": "#/$defs/sourceEntry" }, "type": "array" }
+      }
+    },
+    "sourceEntry": {
+      "type": "object",
+      "required": [
+        "byte_count",
+        "disposition",
+        "freshness",
+        "owner",
+        "reason",
+        "slice_boundary",
+        "source_blob_sha1",
+        "source_path",
+        "source_revision",
+        "source_sha256"
+      ],
+      "properties": {
+        "disposition": { "enum": ["included-delivered", "included-referenced", "inspect-only", "excluded"] }
+      }
+    },
+    "contextPack": {
+      "type": "object",
+      "required": [
+        "absent_guarantees",
+        "authorization",
+        "bindings",
+        "delivery_boundary",
+        "execution_instruction_boundary",
+        "formation_algorithm",
+        "identity",
+        "kind",
+        "schema_version",
+        "source_ledger",
+        "source_tuple",
+        "uncertainty",
+        "version"
+      ],
+      "properties": {
+        "kind": { "const": "continuity.level4.context-pack" },
+        "authorization": {
+          "type": "object",
+          "properties": { "carries_execution_authorization": { "const": false } }
+        }
+      }
+    },
+    "validationResult": {
+      "type": "object",
+      "required": ["candidate", "kind", "result", "rule_count", "rules", "schema_version"],
+      "properties": {
+        "kind": { "const": "continuity.level4.validation-result" },
+        "result": { "enum": ["valid", "invalid"] }
+      }
+    },
+    "authorizationRecord": {
+      "type": "object",
+      "required": ["actor", "actor_statement", "kind", "schema_version", "status"],
+      "properties": {
+        "kind": { "const": "continuity.level4.authorization-record" },
+        "status": { "enum": ["authorized", "rejected", "revoked"] }
+      }
+    },
+    "adapterView": {
+      "type": "object",
+      "required": [
+        "authorized_context_pack",
+        "delivery_provenance",
+        "executor_receives",
+        "kind",
+        "omitted_inspect_only",
+        "schema_version"
+      ],
+      "properties": {
+        "kind": { "const": "continuity.level4.adapter-view" }
+      }
+    }
+  },
+  "description": "Shapes of the six MI-004 Level 4 Context Formation artifacts. Serialization contract: canonical JSON with recursively sorted object keys, UTF-8, two-space indentation, one LF terminator. The artifacts are bounded context authority only: no Level 5-6 state, no Run store, no auto-authorization policy, and no execution authorization for the selected backlog effort."
+}

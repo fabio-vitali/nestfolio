@@ -1,0 +1,42 @@
+{
+  "argv": [
+    "git",
+    "status",
+    "--porcelain",
+    "-uall"
+  ],
+  "cwd_role": "nestfolio repository root",
+  "end_utc": "2026-07-16T19:43:20.698Z",
+  "exit_code": 0,
+  "parsed_result": {
+    "additions": [
+      "continuity/evidence/mi-004/00-repository-bindings.json",
+      "continuity/evidence/mi-004/01-formation-and-trace.json",
+      "continuity/evidence/mi-004/02-validation-and-authorization.json",
+      "continuity/evidence/mi-004/03-success-scenarios.json",
+      "continuity/evidence/mi-004/04-mandatory-failures.json",
+      "continuity/evidence/mi-004/05-preservation-and-rollback.json",
+      "continuity/evidence/mi-004/06-criterion-matrix-and-verdict.json",
+      "continuity/evidence/mi-004/commands/01-level4-tests.json",
+      "continuity/evidence/mi-004/commands/02-level3-tests.json",
+      "continuity/evidence/mi-004/commands/03-level2-tests.json",
+      "continuity/evidence/mi-004/commands/04-level1-tests.json",
+      "continuity/evidence/mi-004/commands/05-backlog-next-tests.json",
+      "continuity/evidence/mi-004/commands/06-final-changed-files.json",
+      "continuity/level-4/adapter-view.json",
+      "continuity/level-4/authorization-record.json",
+      "continuity/level-4/bin/continuity-context.mjs",
+      "continuity/level-4/context-pack.json",
+      "continuity/level-4/context-recipe.json",
+      "continuity/level-4/formation-trace.json",
+      "continuity/level-4/schema/context-artifacts.schema.json",
+      "continuity/level-4/validation-result.json",
+      "tests/continuity-level-4.test.mjs"
+    ],
+    "all_untracked": true,
+    "line_count": 22
+  },
+  "start_utc": "2026-07-16T19:43:20.647Z",
+  "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+  "stdout_sha256": "e26c84979046f8ec8914d844fc947705c9931d7b672e25dc81558f149ffdf055"
+}

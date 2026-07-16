@@ -1,0 +1,961 @@
+{
+  "absent_guarantees": [
+    "no Level 5 authority: no Session, Run, effect record, lease, Checkpoint, Handoff, or transcript-independent resume",
+    "no Level 6 authority: no Assurance Plan, Evidence authority, Guard, Waiver, completion transition, Decision, Observation, Lesson, or learning promotion",
+    "no execution authorization for the selected backlog effort: authorization covers only the Level 4 context authority and its digest-matched adapter view",
+    "no deterministic auto-authorization policy exists, may be created, or may be exercised (DR-0020: explicit human authorization only)",
+    "no registry, remote-source, external-write, or bidirectional-synchronization authority"
+  ],
+  "authorization": {
+    "carries_execution_authorization": false,
+    "policy": "explicit-human-only (DR-0020); a formed or validated version is not executable and not deliverable until one exact human authorization matches this identity, version, and digest"
+  },
+  "bindings": {
+    "candidates_projection": {
+      "sha256": "1c292f2f21c9226e4074cab0645323f959374618916a660fc01117c0f08f5f12"
+    },
+    "level_1_lock": {
+      "aggregate_digest": "376c1d5aff39a1477af1b49362f681d246b721b30c1e73b4f6ede247b0c9ffe4",
+      "path": "continuity/level-1/pack-lock.json",
+      "sha256": "701caacfce402077dd77659669768759a6c6d4613a94e6abb8e68248f44a8da9"
+    },
+    "level_2_lock": {
+      "aggregate_digest": "73bbb7c9199a79e00208115f1f7ba469be7e42e1bd20d1d72bfc726ac048df26",
+      "path": "continuity/level-2/packs.lock.json",
+      "sha256": "0d0e6b52eb5aab3957d51abb432b5baa4c4911880151de8c96a9e4f7c90bb63c"
+    },
+    "package_json": {
+      "path": "package.json",
+      "sha256": "07b935ab66c83752ebffdeea942a57abac598b18c568b39c027534c6edd2357c"
+    },
+    "repository": {
+      "remote_role": "origin/main equals HEAD at the bound revision",
+      "revision": "b9d7264082322e09cfd233819b79f128ef912e31"
+    },
+    "route": {
+      "sha256": "0ed84d148428125c0700969921d03fefb914819333d4848d4b262193f1c13d11",
+      "state": "active",
+      "target": {
+        "selection_revision": 1,
+        "source_revision": "fd5e58b35e665fa5fa0db3c2c31ea5561442f9b6",
+        "source_sha256": "b656733991c96c4275d11e9a9f2bff7f5ac72cdd298cbc68a4b94b6799dc742d",
+        "work_identity": "dashboard-bff-awaiting-confirmation-activity-gap"
+      }
+    },
+    "scope": {
+      "scope_version": 1,
+      "sha256": "db7a45278e8f4a270552e3ae1db3695b70e07d1624b27bcdc28f6417883a5ad6"
+    },
+    "work": {
+      "identity": "dashboard-bff-awaiting-confirmation-activity-gap",
+      "sha256": "b23812bb0999f962856556516945bf82297642140f808d24cdd52e9341381936",
+      "status": "represented"
+    },
+    "work_brief": {
+      "sha256": "dc50b59f42a72de0bee1b36c888596e8a19a347fb37559237a3a90272f9e60da"
+    },
+    "work_selection": {
+      "selection_revision": 1,
+      "sha256": "b01555e1ec65b4f232d008c82d7d2a22e0b94ac5a0b0a43410397f8638a1848c"
+    },
+    "working_set": {
+      "count": 1,
+      "sha256": "e24fe112a6947d1959a2f4fa6d0083e34ea1a2614347487eaba747bcaab64b97"
+    }
+  },
+  "delivery_boundary": {
+    "delivered": [
+      "the full backlog source text of the selected effort",
+      "objective, outputs, criteria, evidence requirements, and validation requirements from the Level 3 Work and Scope",
+      "scope include/excluded/immutable paths, non-goals, permitted and prohibited effects",
+      "route target, binding digests, and the absent-guarantee statement"
+    ],
+    "omitted_inspect_only": [
+      "continuity/level-3/candidates.json (full projection; digest-bound)",
+      "lower-level tooling, locks, tests, and behavior assets (digest-bound)",
+      "immutable MI-002/MI-003 evidence (provenance only)"
+    ],
+    "rule": "required material fits the bounded delivery; scope, criteria, required evidence, and the exact objective are never omitted"
+  },
+  "execution_instruction_boundary": {
+    "instruction": "This Context Pack is execution INPUT only. The selected effort dashboard-bff-awaiting-confirmation-activity-gap is implemented only under a separate explicit authorization, driven by the standard backlog-next workstream procedure; MI-004 never starts it.",
+    "objective": "Determine whether dashboard-bff's recent-activity feed should and does surface an awaiting-confirmation item for L2 decisions, and, if a real gap exists, source that signal from the DecisionPacket AWAITING_CONFIRMATION status via the existing CDC path rather than the removed dead event.",
+    "out_of_scope": [
+      "reintroducing the removed USER_CONFIRMATION_REQUESTED event or its dead handler",
+      "building a generic incident/confirmation lifecycle",
+      "changing the L2 confirmation UX beyond the activity feed",
+      "producer-side DecisionPacket changes beyond what the chosen sourcing strictly requires"
+    ]
+  },
+  "formation_algorithm": "mi004-context-formation@1",
+  "identity": "nestfolio.context.dashboard-bff-awaiting-confirmation-activity-gap",
+  "kind": "continuity.level4.context-pack",
+  "schema_version": 1,
+  "source_ledger": [
+    {
+      "byte_count": 34126,
+      "disposition": "inspect-only",
+      "freshness": "exact-at-bound-revision",
+      "owner": "nestfolio (committed tracked byte at the bound revision; read-only input)",
+      "reason": "procedure reference for the future separately authorized execution; not delivered as context",
+      "slice_boundary": "digest-reference",
+      "source_blob_sha1": "0cb2611dcb03bc600e708883358c812afc8e71cf",
+      "source_path": ".claude/skills/backlog-next/SKILL.md",
+      "source_revision": "b9d7264082322e09cfd233819b79f128ef912e31",
+      "source_sha256": "e56fd21ae6bb53dfdd2d5d0d239a0200d49d69c82bb171f3336b837a91124cd1"
+    },
+    {
+      "byte_count": 659,
+      "disposition": "inspect-only",
+      "freshness": "exact-at-bound-revision",
+      "owner": "nestfolio (committed tracked byte at the bound revision; read-only input)",
+      "reason": "lower-level authority surface; bound by digest, excluded from delivery",
+      "slice_boundary": "digest-reference",
+      "source_blob_sha1": "e4788f83e653b322876d12c6ca06c066d40d373e",
+      "source_path": ".claude/skills/backlog-next/test/backlog-gate.test.mjs",
+      "source_revision": "b9d7264082322e09cfd233819b79f128ef912e31",
+      "source_sha256": "8f9e9d2950c963507fc678aeb27d853d0270d422bd9aff19b581968d5e26bf28"
+    },
+    {
+      "byte_count": 4530,
+      "disposition": "inspect-only",
+      "freshness": "exact-at-bound-revision",
+      "owner": "nestfolio (committed tracked byte at the bound revision; read-only input)",
+      "reason": "lower-level authority surface; bound by digest, excluded from delivery",
+      "slice_boundary": "digest-reference",
+      "source_blob_sha1": "80dc2d79b4799e4c65264c5cc7c427107aed7d11",
+      "source_path": ".claude/skills/backlog-next/test/backward-evidence.test.mjs",
+      "source_revision": "b9d7264082322e09cfd233819b79f128ef912e31",
+      "source_sha256": "aba80cf719a060ee3dca24785c5af9c173f29e3e2d44f77ad0f1379cf0a605d9"
+    },
+    {
+      "byte_count": 5534,
+      "disposition": "inspect-only",
+      "freshness": "exact-at-bound-revision",
+      "owner": "nestfolio (committed tracked byte at the bound revision; read-only input)",
+      "reason": "lower-level authority surface; bound by digest, excluded from delivery",
+      "slice_boundary": "digest-reference",
+      "source_blob_sha1": "9de02fbcb90617b024d451fe338c23491b265ec2",
+      "source_path": ".claude/skills/backlog-next/test/classify-changes.test.mjs",
+      "source_revision": "b9d7264082322e09cfd233819b79f128ef912e31",
+      "source_sha256": "480d9db8bfa7acf76279729a51eb9c5d60b23c00ff191b0a9f59df5ef1831f47"
+    },
+    {
+      "byte_count": 5122,
+      "disposition": "inspect-only",
+      "freshness": "exact-at-bound-revision",
+      "owner": "nestfolio (committed tracked byte at the bound revision; read-only input)",
+      "reason": "lower-level authority surface; bound by digest, excluded from delivery",
+      "slice_boundary": "digest-reference",
+      "source_blob_sha1": "c70695b536df8f14602d90a85b1981ecabcdbfed",
+      "source_path": ".claude/skills/backlog-next/test/classify-derivation.test.mjs",
+      "source_revision": "b9d7264082322e09cfd233819b79f128ef912e31",
+      "source_sha256": "11f549ec4418189c61cf01c6e3659c48949294c03edb1b6e500ff914a6f3d684"
+    },
+    {
+      "byte_count": 2617,
+      "disposition": "inspect-only",
+      "freshness": "exact-at-bound-revision",
+      "owner": "nestfolio (committed tracked byte at the bound revision; read-only input)",
+      "reason": "lower-level authority surface; bound by digest, excluded from delivery",
+      "slice_boundary": "digest-reference",
+      "source_blob_sha1": "4c403bb7931bf91bbf546661861ff246015dba11",
+      "source_path": ".claude/skills/backlog-next/test/decision-log.test.mjs",
+      "source_revision": "b9d7264082322e09cfd233819b79f128ef912e31",
+      "source_sha256": "7775c5fe7b6747988e82a28340ca61b45bdfd48b08981c2a68b1065fdab6347c"
+    },
+    {
+      "byte_count": 4762,
+      "disposition": "inspect-only",
+      "freshness": "exact-at-bound-revision",
+      "owner": "nestfolio (committed tracked byte at the bound revision; read-only input)",
+      "reason": "lower-level authority surface; bound by digest, excluded from delivery",
+      "slice_boundary": "digest-reference",
+      "source_blob_sha1": "0338ee6789869c76ad5e8145c9a0525a937d4003",
+      "source_path": ".claude/skills/backlog-next/test/detect-cli-exit-contract.test.mjs",
+      "source_revision": "b9d7264082322e09cfd233819b79f128ef912e31",
+      "source_sha256": "e46df513317cd13ab5e73ed2a589004483bee2a42cf109bb9ff6daccf71be892"
+    },
+    {
+      "byte_count": 5820,
+      "disposition": "inspect-only",
+      "freshness": "exact-at-bound-revision",
+      "owner": "nestfolio (committed tracked byte at the bound revision; read-only input)",
+      "reason": "lower-level authority surface; bound by digest, excluded from delivery",
+      "slice_boundary": "digest-reference",
+      "source_blob_sha1": "cb0c6e9b3f2e8633779e914b487620ec145e2d2d",
+      "source_path": ".claude/skills/backlog-next/test/detect-deploy-resolve.test.mjs",
+      "source_revision": "b9d7264082322e09cfd233819b79f128ef912e31",
+      "source_sha256": "40983fc33f4d5fe1b8740dc01c4b4c363b9aa28301ee7a01b8cdaafd33e12a52"
+    },
+    {
+      "byte_count": 960,
+      "disposition": "inspect-only",
+      "freshness": "exact-at-bound-revision",
+      "owner": "nestfolio (committed tracked byte at the bound revision; read-only input)",
+      "reason": "lower-level authority surface; bound by digest, excluded from delivery",
+      "slice_boundary": "digest-reference",
+      "source_blob_sha1": "2c89614f197d220dad3312a47a14934489a2b854",
+      "source_path": ".claude/skills/backlog-next/test/gate-wiring.test.mjs",
+      "source_revision": "b9d7264082322e09cfd233819b79f128ef912e31",
+      "source_sha256": "1fbadbfc8e514bc17f99a5c06b57407035b34f6aa11bc45a721bd662900bfec6"
+    },
+    {
+      "byte_count": 1507,
+      "disposition": "inspect-only",
+      "freshness": "exact-at-bound-revision",
+      "owner": "nestfolio (committed tracked byte at the bound revision; read-only input)",
+      "reason": "lower-level authority surface; bound by digest, excluded from delivery",
+      "slice_boundary": "digest-reference",
+      "source_blob_sha1": "bee219226100e2d19ca6448715fbcbbcca68bcb5",
+      "source_path": ".claude/skills/backlog-next/test/lane-classification.test.mjs",
+      "source_revision": "b9d7264082322e09cfd233819b79f128ef912e31",
+      "source_sha256": "4aa325929ef4a3d4cdea607a280ef7d16dc403a6d18d47dc780c101c43fd3958"
+    },
+    {
+      "byte_count": 24184,
+      "disposition": "inspect-only",
+      "freshness": "exact-at-bound-revision",
+      "owner": "nestfolio (committed tracked byte at the bound revision; read-only input)",
+      "reason": "repository instructions remain harness-injected environment, not canonical context",
+      "slice_boundary": "digest-reference",
+      "source_blob_sha1": "c31299dcd301a89da9fce4eb5d342d83e918b162",
+      "source_path": "CLAUDE.md",
+      "source_revision": "b9d7264082322e09cfd233819b79f128ef912e31",
+      "source_sha256": "c6c8b43dbe80922efc3df7c3dc9b209ce84b35c940b0f10e18f82213a6edc1ef"
+    },
+    {
+      "byte_count": 1944,
+      "disposition": "excluded",
+      "freshness": "exact-at-bound-revision",
+      "owner": "nestfolio (committed tracked byte at the bound revision; read-only input)",
+      "reason": "immutable historical evidence; provenance only, never execution context",
+      "slice_boundary": "digest-reference",
+      "source_blob_sha1": "d6c1d3632bc2eb9b1eacd638fbca586973b71f1f",
+      "source_path": "continuity/evidence/mi-002/00-repository-bindings.json",
+      "source_revision": "b9d7264082322e09cfd233819b79f128ef912e31",
+      "source_sha256": "7eed0bad96db449d956378e1fef93a758149a9b8bfcb7af451003666c7a31e33"
+    },
+    {
+      "byte_count": 3262,
+      "disposition": "excluded",
+      "freshness": "exact-at-bound-revision",
+      "owner": "nestfolio (committed tracked byte at the bound revision; read-only input)",
+      "reason": "immutable historical evidence; provenance only, never execution context",
+      "slice_boundary": "digest-reference",
+      "source_blob_sha1": "ad0c98be506b0c344ab3702add3f30c2abd08a77",
+      "source_path": "continuity/evidence/mi-002/01-composition-and-preservation.json",
+      "source_revision": "b9d7264082322e09cfd233819b79f128ef912e31",
+      "source_sha256": "ea188195dac3621afda2a4141e710f8029edab19df2ca3d4f733d706433ff565"
+    },
+    {
+      "byte_count": 2088,
+      "disposition": "excluded",
+      "freshness": "exact-at-bound-revision",
+      "owner": "nestfolio (committed tracked byte at the bound revision; read-only input)",
+      "reason": "immutable historical evidence; provenance only, never execution context",
+      "slice_boundary": "digest-reference",
+      "source_blob_sha1": "c6244ba6fdeaaa19f994f45d4700e3cb9860f1a5",
+      "source_path": "continuity/evidence/mi-002/02-success-scenarios.json",
+      "source_revision": "b9d7264082322e09cfd233819b79f128ef912e31",
+      "source_sha256": "1199db3f8852e3e07240d2fa84847a9e83b909ab39a4d6174b353bf155032550"
+    },
+    {
+      "byte_count": 2436,
+      "disposition": "excluded",
+      "freshness": "exact-at-bound-revision",
+      "owner": "nestfolio (committed tracked byte at the bound revision; read-only input)",
+      "reason": "immutable historical evidence; provenance only, never execution context",
+      "slice_boundary": "digest-reference",
+      "source_blob_sha1": "bf52d55a95c445f27902b4410d3ba3638a055acd",
+      "source_path": "continuity/evidence/mi-002/03-mandatory-failures.json",
+      "source_revision": "b9d7264082322e09cfd233819b79f128ef912e31",
+      "source_sha256": "4a7c8d9b12df9f58db9cc4ede19d32e58760bd55acd4921cb2bc774e28db7a3f"
+    },
+    {
+      "byte_count": 1007,
+      "disposition": "excluded",
+      "freshness": "exact-at-bound-revision",
+      "owner": "nestfolio (committed tracked byte at the bound revision; read-only input)",
+      "reason": "immutable historical evidence; provenance only, never execution context",
+      "slice_boundary": "digest-reference",
+      "source_blob_sha1": "1f4b7f918adbae9bab041f80d21e47e3241ac4d1",
+      "source_path": "continuity/evidence/mi-002/04-test-attempts.json",
+      "source_revision": "b9d7264082322e09cfd233819b79f128ef912e31",
+      "source_sha256": "27805d2bc7f1f664e7c3b780754349d6a828ffba749c86d2653ce2f4eb9f8eb5"
+    },
+    {
+      "byte_count": 1638,
+      "disposition": "excluded",
+      "freshness": "exact-at-bound-revision",
+      "owner": "nestfolio (committed tracked byte at the bound revision; read-only input)",
+      "reason": "immutable historical evidence; provenance only, never execution context",
+      "slice_boundary": "digest-reference",
+      "source_blob_sha1": "1965127056d31ebc63d59b21e9151d90b8f6e169",
+      "source_path": "continuity/evidence/mi-002/05-criterion-matrix-and-verdict.json",
+      "source_revision": "b9d7264082322e09cfd233819b79f128ef912e31",
+      "source_sha256": "d94a0535d96cb13cb469e6e3297d0bb50a553d6b583c6665b01e97b9d56e1555"
+    },
+    {
+      "byte_count": 360,
+      "disposition": "excluded",
+      "freshness": "exact-at-bound-revision",
+      "owner": "nestfolio (committed tracked byte at the bound revision; read-only input)",
+      "reason": "immutable historical evidence; provenance only, never execution context",
+      "slice_boundary": "digest-reference",
+      "source_blob_sha1": "900edf76460fd5169c76d338cad0971ae557378d",
+      "source_path": "continuity/evidence/mi-002/commands/01-final-level2-tests.json",
+      "source_revision": "b9d7264082322e09cfd233819b79f128ef912e31",
+      "source_sha256": "661a2b55af20ac4f03dd5859cb816c8f10347298034f8529fdc038ad13036676"
+    },
+    {
+      "byte_count": 144,
+      "disposition": "excluded",
+      "freshness": "exact-at-bound-revision",
+      "owner": "nestfolio (committed tracked byte at the bound revision; read-only input)",
+      "reason": "immutable historical evidence; provenance only, never execution context",
+      "slice_boundary": "digest-reference",
+      "source_blob_sha1": "90d37de90f39facc1de7e5945c68b469b74426f9",
+      "source_path": "continuity/evidence/mi-002/commands/02-final-level1-tests.json",
+      "source_revision": "b9d7264082322e09cfd233819b79f128ef912e31",
+      "source_sha256": "cc71af0066aabb671ae25c10f28e62c456dbfddcfc626f06993dc141bff7830a"
+    },
+    {
+      "byte_count": 154,
+      "disposition": "excluded",
+      "freshness": "exact-at-bound-revision",
+      "owner": "nestfolio (committed tracked byte at the bound revision; read-only input)",
+      "reason": "immutable historical evidence; provenance only, never execution context",
+      "slice_boundary": "digest-reference",
+      "source_blob_sha1": "c70a02b033ee4b1a65c77acb3ee16a81459204cf",
+      "source_path": "continuity/evidence/mi-002/commands/03-final-backlog-next-tests.json",
+      "source_revision": "b9d7264082322e09cfd233819b79f128ef912e31",
+      "source_sha256": "a95c920dad8d2b86644a4889082dc6d3a0f12dd7c09d199eb76eab52f26384f2"
+    },
+    {
+      "byte_count": 2331,
+      "disposition": "excluded",
+      "freshness": "exact-at-bound-revision",
+      "owner": "nestfolio (committed tracked byte at the bound revision; read-only input)",
+      "reason": "immutable historical evidence; provenance only, never execution context",
+      "slice_boundary": "digest-reference",
+      "source_blob_sha1": "f7cd8a2dea24012d78568a29d25bfc8bce84fb50",
+      "source_path": "continuity/evidence/mi-002/commands/04-final-changed-files.json",
+      "source_revision": "b9d7264082322e09cfd233819b79f128ef912e31",
+      "source_sha256": "872e63b1d1c1461e55cf07cf1a1714602636242f6c5654061912a84d75851ce0"
+    },
+    {
+      "byte_count": 316925,
+      "disposition": "excluded",
+      "freshness": "exact-at-bound-revision",
+      "owner": "nestfolio (committed tracked byte at the bound revision; read-only input)",
+      "reason": "immutable historical evidence; provenance only, never execution context",
+      "slice_boundary": "digest-reference",
+      "source_blob_sha1": "f632b93c3db6ff2c373f65f185195777fd09443e",
+      "source_path": "continuity/evidence/mi-003/00-repository-bindings.json",
+      "source_revision": "b9d7264082322e09cfd233819b79f128ef912e31",
+      "source_sha256": "bafeab4603753d08572fe1b32251495a0e72e9295c13c9447231f6edeefc056b"
+    },
+    {
+      "byte_count": 2122,
+      "disposition": "excluded",
+      "freshness": "exact-at-bound-revision",
+      "owner": "nestfolio (committed tracked byte at the bound revision; read-only input)",
+      "reason": "immutable historical evidence; provenance only, never execution context",
+      "slice_boundary": "digest-reference",
+      "source_blob_sha1": "913c325bce5c84612448f2d4f9533d1df0234c61",
+      "source_path": "continuity/evidence/mi-003/01-candidate-discovery.json",
+      "source_revision": "b9d7264082322e09cfd233819b79f128ef912e31",
+      "source_sha256": "360761100195c5ba4f60b19e6fb724e09a642b385d94994963c7eb6e042bfdd0"
+    },
+    {
+      "byte_count": 2492,
+      "disposition": "excluded",
+      "freshness": "exact-at-bound-revision",
+      "owner": "nestfolio (committed tracked byte at the bound revision; read-only input)",
+      "reason": "immutable historical evidence; provenance only, never execution context",
+      "slice_boundary": "digest-reference",
+      "source_blob_sha1": "293ded94987a609c10046f653fb1bb2d4fdd973c",
+      "source_path": "continuity/evidence/mi-003/02-selection-scope-and-route.json",
+      "source_revision": "b9d7264082322e09cfd233819b79f128ef912e31",
+      "source_sha256": "f26502cf9ec86713495948ca83621492e0e94df4976447b17275807cb93b4d48"
+    },
+    {
+      "byte_count": 3068,
+      "disposition": "excluded",
+      "freshness": "exact-at-bound-revision",
+      "owner": "nestfolio (committed tracked byte at the bound revision; read-only input)",
+      "reason": "immutable historical evidence; provenance only, never execution context",
+      "slice_boundary": "digest-reference",
+      "source_blob_sha1": "4985a7a8074196030bdebf628e8e5d13b5b86171",
+      "source_path": "continuity/evidence/mi-003/03-success-scenarios.json",
+      "source_revision": "b9d7264082322e09cfd233819b79f128ef912e31",
+      "source_sha256": "bc74767d688f4d96357517125be9943ac6f2eb2ab3dce24e8205d1ff1c58fed3"
+    },
+    {
+      "byte_count": 3831,
+      "disposition": "excluded",
+      "freshness": "exact-at-bound-revision",
+      "owner": "nestfolio (committed tracked byte at the bound revision; read-only input)",
+      "reason": "immutable historical evidence; provenance only, never execution context",
+      "slice_boundary": "digest-reference",
+      "source_blob_sha1": "8ac73056d872ec8be9a4de51ff585560b03d6075",
+      "source_path": "continuity/evidence/mi-003/04-mandatory-failures.json",
+      "source_revision": "b9d7264082322e09cfd233819b79f128ef912e31",
+      "source_sha256": "66ec5afdabd5b3058e083787b944131f3c0f78abffe040bd065479725ff62d86"
+    },
+    {
+      "byte_count": 4512,
+      "disposition": "excluded",
+      "freshness": "exact-at-bound-revision",
+      "owner": "nestfolio (committed tracked byte at the bound revision; read-only input)",
+      "reason": "immutable historical evidence; provenance only, never execution context",
+      "slice_boundary": "digest-reference",
+      "source_blob_sha1": "a0f48f5b8151e567514edca9ce0f2caf50f7729d",
+      "source_path": "continuity/evidence/mi-003/05-preservation-and-rollback.json",
+      "source_revision": "b9d7264082322e09cfd233819b79f128ef912e31",
+      "source_sha256": "ddeaf09d1f131c7e3dd9340c1967700f20e2aefc410816e7cc8e0f6856bc1aa0"
+    },
+    {
+      "byte_count": 3448,
+      "disposition": "excluded",
+      "freshness": "exact-at-bound-revision",
+      "owner": "nestfolio (committed tracked byte at the bound revision; read-only input)",
+      "reason": "immutable historical evidence; provenance only, never execution context",
+      "slice_boundary": "digest-reference",
+      "source_blob_sha1": "7640c439488c0defc88ca39c2d71e10c597d5e02",
+      "source_path": "continuity/evidence/mi-003/06-criterion-matrix-and-verdict.json",
+      "source_revision": "b9d7264082322e09cfd233819b79f128ef912e31",
+      "source_sha256": "31e303e22de378a9ccbcd4df7c46263ddeac6b9eaa4a84c6205defd277ae4d88"
+    },
+    {
+      "byte_count": 502,
+      "disposition": "excluded",
+      "freshness": "exact-at-bound-revision",
+      "owner": "nestfolio (committed tracked byte at the bound revision; read-only input)",
+      "reason": "immutable historical evidence; provenance only, never execution context",
+      "slice_boundary": "digest-reference",
+      "source_blob_sha1": "5872cc57ddc6bee6bac4a8bc8cfed7ba1a1c580e",
+      "source_path": "continuity/evidence/mi-003/commands/01-level3-tests.json",
+      "source_revision": "b9d7264082322e09cfd233819b79f128ef912e31",
+      "source_sha256": "5b6013d560929ea60399a61feef6d29ca501a3bfff587e2803136f3f1bdff124"
+    },
+    {
+      "byte_count": 502,
+      "disposition": "excluded",
+      "freshness": "exact-at-bound-revision",
+      "owner": "nestfolio (committed tracked byte at the bound revision; read-only input)",
+      "reason": "immutable historical evidence; provenance only, never execution context",
+      "slice_boundary": "digest-reference",
+      "source_blob_sha1": "a10b70f059e744d10614e749476131d654ad201e",
+      "source_path": "continuity/evidence/mi-003/commands/02-level2-tests.json",
+      "source_revision": "b9d7264082322e09cfd233819b79f128ef912e31",
+      "source_sha256": "029dea0b57d0fd0a4b227085d1e65f81cdff1a98a2ab896027c4244f2516b53f"
+    },
+    {
+      "byte_count": 502,
+      "disposition": "excluded",
+      "freshness": "exact-at-bound-revision",
+      "owner": "nestfolio (committed tracked byte at the bound revision; read-only input)",
+      "reason": "immutable historical evidence; provenance only, never execution context",
+      "slice_boundary": "digest-reference",
+      "source_blob_sha1": "9cc79fedb9fb9eb33dad1b4f007c30dda2ff5d1f",
+      "source_path": "continuity/evidence/mi-003/commands/03-level1-tests.json",
+      "source_revision": "b9d7264082322e09cfd233819b79f128ef912e31",
+      "source_sha256": "a5d821af0f0f13d5b553bd488821bfa91d80c14006fe4637d0acbb5ed1dbe792"
+    },
+    {
+      "byte_count": 520,
+      "disposition": "excluded",
+      "freshness": "exact-at-bound-revision",
+      "owner": "nestfolio (committed tracked byte at the bound revision; read-only input)",
+      "reason": "immutable historical evidence; provenance only, never execution context",
+      "slice_boundary": "digest-reference",
+      "source_blob_sha1": "e50bc5d2d1c1f23113c500a6ddd31195c09fa44d",
+      "source_path": "continuity/evidence/mi-003/commands/04-backlog-next-tests.json",
+      "source_revision": "b9d7264082322e09cfd233819b79f128ef912e31",
+      "source_sha256": "df9d5acd5f62de68d075900128572791ead4adb2c4a2a3e0b2ef4a59b3fc8558"
+    },
+    {
+      "byte_count": 1825,
+      "disposition": "excluded",
+      "freshness": "exact-at-bound-revision",
+      "owner": "nestfolio (committed tracked byte at the bound revision; read-only input)",
+      "reason": "immutable historical evidence; provenance only, never execution context",
+      "slice_boundary": "digest-reference",
+      "source_blob_sha1": "458b68353f8eea86b3fdc51047b4211c055b7e35",
+      "source_path": "continuity/evidence/mi-003/commands/05-final-changed-files.json",
+      "source_revision": "b9d7264082322e09cfd233819b79f128ef912e31",
+      "source_sha256": "3d800465c39d908811e3ec6178c4b0f7439bc9fdfafc4ae7049b2a8ab527c8f4"
+    },
+    {
+      "byte_count": 1147,
+      "disposition": "inspect-only",
+      "freshness": "exact-at-bound-revision",
+      "owner": "nestfolio (committed tracked byte at the bound revision; read-only input)",
+      "reason": "lower-level authority surface; bound by digest, excluded from delivery",
+      "slice_boundary": "digest-reference",
+      "source_blob_sha1": "9f2e68618bd07e5c1f398adcaf4d0ee8adbc6ead",
+      "source_path": "continuity/level-1/README.md",
+      "source_revision": "b9d7264082322e09cfd233819b79f128ef912e31",
+      "source_sha256": "9343854b415ddf798f9081535ca8d94073746e27fc7a7a900ca14ea01f83ed5c"
+    },
+    {
+      "byte_count": 196,
+      "disposition": "inspect-only",
+      "freshness": "exact-at-bound-revision",
+      "owner": "nestfolio (committed tracked byte at the bound revision; read-only input)",
+      "reason": "lower-level authority surface; bound by digest, excluded from delivery",
+      "slice_boundary": "digest-reference",
+      "source_blob_sha1": "f43b9f3bd00cce5f4e5b4c0259bc29e6ba8892fc",
+      "source_path": "continuity/level-1/activation.json",
+      "source_revision": "b9d7264082322e09cfd233819b79f128ef912e31",
+      "source_sha256": "d8d011c6d672cda725f039ddfffb26b9157bb95462538423ac473bb3b37a0650"
+    },
+    {
+      "byte_count": 1496,
+      "disposition": "inspect-only",
+      "freshness": "exact-at-bound-revision",
+      "owner": "nestfolio (committed tracked byte at the bound revision; read-only input)",
+      "reason": "lower-level authority surface; bound by digest, excluded from delivery",
+      "slice_boundary": "digest-reference",
+      "source_blob_sha1": "8ac73c236624624e9aa6dc3388fcf66fb335c530",
+      "source_path": "continuity/level-1/cli.mjs",
+      "source_revision": "b9d7264082322e09cfd233819b79f128ef912e31",
+      "source_sha256": "fdc297c886580d25cd62f9c83a3865e5c718855a2342b4d36c78fbad29c44a5e"
+    },
+    {
+      "byte_count": 3862,
+      "disposition": "included-referenced",
+      "freshness": "exact-at-bound-revision",
+      "owner": "nestfolio (committed tracked byte at the bound revision; read-only input)",
+      "reason": "retained Level 1 lock identity binds the behavior-asset authority",
+      "slice_boundary": "identity-and-digest",
+      "source_blob_sha1": "03c3960a950aeb26b79788fe1ebdad940d631ec7",
+      "source_path": "continuity/level-1/pack-lock.json",
+      "source_revision": "b9d7264082322e09cfd233819b79f128ef912e31",
+      "source_sha256": "701caacfce402077dd77659669768759a6c6d4613a94e6abb8e68248f44a8da9"
+    },
+    {
+      "byte_count": 699,
+      "disposition": "inspect-only",
+      "freshness": "exact-at-bound-revision",
+      "owner": "nestfolio (committed tracked byte at the bound revision; read-only input)",
+      "reason": "lower-level authority surface; bound by digest, excluded from delivery",
+      "slice_boundary": "digest-reference",
+      "source_blob_sha1": "c6b7b2a885ccf90632218eeb444e99f305666d95",
+      "source_path": "continuity/level-1/pack-manifest.json",
+      "source_revision": "b9d7264082322e09cfd233819b79f128ef912e31",
+      "source_sha256": "2501b33806ee6c7dfd8986ba3d04480634ac24b480c13e81a9cbb89b54b0544b"
+    },
+    {
+      "byte_count": 3130,
+      "disposition": "inspect-only",
+      "freshness": "exact-at-bound-revision",
+      "owner": "nestfolio (committed tracked byte at the bound revision; read-only input)",
+      "reason": "lower-level authority surface; bound by digest, excluded from delivery",
+      "slice_boundary": "digest-reference",
+      "source_blob_sha1": "6a91b1ee84ef7c2de58f199c89396b016d53fcaf",
+      "source_path": "continuity/level-1/procedure-contract.json",
+      "source_revision": "b9d7264082322e09cfd233819b79f128ef912e31",
+      "source_sha256": "776f1e5655a9d0c2973e2d0cf76fe323d3ddb945106c31fdcd4610da9f9c3f66"
+    },
+    {
+      "byte_count": 1062,
+      "disposition": "inspect-only",
+      "freshness": "exact-at-bound-revision",
+      "owner": "nestfolio (committed tracked byte at the bound revision; read-only input)",
+      "reason": "lower-level authority surface; bound by digest, excluded from delivery",
+      "slice_boundary": "digest-reference",
+      "source_blob_sha1": "570143c60b8bdd76463a7c7778d8a185d7b2757f",
+      "source_path": "continuity/level-1/project-binding.json",
+      "source_revision": "b9d7264082322e09cfd233819b79f128ef912e31",
+      "source_sha256": "dc66414f0f2e2be9cb4661b14fd0e1e401d956a64572809da615e58c2a554139"
+    },
+    {
+      "byte_count": 8109,
+      "disposition": "inspect-only",
+      "freshness": "exact-at-bound-revision",
+      "owner": "nestfolio (committed tracked byte at the bound revision; read-only input)",
+      "reason": "lower-level authority surface; bound by digest, excluded from delivery",
+      "slice_boundary": "digest-reference",
+      "source_blob_sha1": "4aac48d0e5a65ae331dafa653ebb4b388226d21d",
+      "source_path": "continuity/level-1/src/application-service.mjs",
+      "source_revision": "b9d7264082322e09cfd233819b79f128ef912e31",
+      "source_sha256": "dd19ddaeb5b0fceca74f18e04a370eb53d6b84f9bf2f82fe13c5d8817f7f80b3"
+    },
+    {
+      "byte_count": 1299,
+      "disposition": "inspect-only",
+      "freshness": "exact-at-bound-revision",
+      "owner": "nestfolio (committed tracked byte at the bound revision; read-only input)",
+      "reason": "lower-level authority surface; bound by digest, excluded from delivery",
+      "slice_boundary": "digest-reference",
+      "source_blob_sha1": "67bd8b9224e03b0b780e33796203f82bc5ffe935",
+      "source_path": "continuity/level-1/src/claude-code-adapter.mjs",
+      "source_revision": "b9d7264082322e09cfd233819b79f128ef912e31",
+      "source_sha256": "0038104da7d10af5ccfffb68bd58cbfb66096b8a5939eeff3f2f1954d006fb20"
+    },
+    {
+      "byte_count": 2355,
+      "disposition": "inspect-only",
+      "freshness": "exact-at-bound-revision",
+      "owner": "nestfolio (committed tracked byte at the bound revision; read-only input)",
+      "reason": "lower-level authority surface; bound by digest, excluded from delivery",
+      "slice_boundary": "digest-reference",
+      "source_blob_sha1": "00b520e2ee55a7d33d576d7fb70baa00c1a82bb8",
+      "source_path": "continuity/level-1/src/core.mjs",
+      "source_revision": "b9d7264082322e09cfd233819b79f128ef912e31",
+      "source_sha256": "ba86d1b5fe90645d7fbde049491c7309503ddde56d3b16195a7d89219ecd1fa1"
+    },
+    {
+      "byte_count": 5319,
+      "disposition": "inspect-only",
+      "freshness": "exact-at-bound-revision",
+      "owner": "nestfolio (committed tracked byte at the bound revision; read-only input)",
+      "reason": "lower-level authority surface; bound by digest, excluded from delivery",
+      "slice_boundary": "digest-reference",
+      "source_blob_sha1": "86c8e3789920a977781c4f11a312ebc4de1918cb",
+      "source_path": "continuity/level-1/src/repository-infrastructure.mjs",
+      "source_revision": "b9d7264082322e09cfd233819b79f128ef912e31",
+      "source_sha256": "c3383ef465c1b0f28b38492b59062f33a51e46dc5ac2c57bc87abdbdd5caff2f"
+    },
+    {
+      "byte_count": 1164,
+      "disposition": "inspect-only",
+      "freshness": "exact-at-bound-revision",
+      "owner": "nestfolio (committed tracked byte at the bound revision; read-only input)",
+      "reason": "lower-level authority surface; bound by digest, excluded from delivery",
+      "slice_boundary": "digest-reference",
+      "source_blob_sha1": "8306ac7dea0257e92cf64e2e68f9d6dc2df779ba",
+      "source_path": "continuity/level-2/README.md",
+      "source_revision": "b9d7264082322e09cfd233819b79f128ef912e31",
+      "source_sha256": "4056209b3405ad2452ce4e22c2522c58c9950c5c309c14c6caac5616b1fcfaf7"
+    },
+    {
+      "byte_count": 256,
+      "disposition": "inspect-only",
+      "freshness": "exact-at-bound-revision",
+      "owner": "nestfolio (committed tracked byte at the bound revision; read-only input)",
+      "reason": "lower-level authority surface; bound by digest, excluded from delivery",
+      "slice_boundary": "digest-reference",
+      "source_blob_sha1": "f257874c8854ead61862c59d699ad3777589776c",
+      "source_path": "continuity/level-2/activation-history.ndjson",
+      "source_revision": "b9d7264082322e09cfd233819b79f128ef912e31",
+      "source_sha256": "512034d03e0d989fcba1cfcf154e142c25e854336970463dcdee32659b8176cb"
+    },
+    {
+      "byte_count": 349,
+      "disposition": "inspect-only",
+      "freshness": "exact-at-bound-revision",
+      "owner": "nestfolio (committed tracked byte at the bound revision; read-only input)",
+      "reason": "lower-level authority surface; bound by digest, excluded from delivery",
+      "slice_boundary": "digest-reference",
+      "source_blob_sha1": "5db71eb7ff60cb32801ec7a20e688dfc965ae933",
+      "source_path": "continuity/level-2/activation.json",
+      "source_revision": "b9d7264082322e09cfd233819b79f128ef912e31",
+      "source_sha256": "af6fc7d570cb0fdcaf24dfb797432daa97aa196f15be07d5f6ff515f99dbfb70"
+    },
+    {
+      "byte_count": 1856,
+      "disposition": "inspect-only",
+      "freshness": "exact-at-bound-revision",
+      "owner": "nestfolio (committed tracked byte at the bound revision; read-only input)",
+      "reason": "lower-level authority surface; bound by digest, excluded from delivery",
+      "slice_boundary": "digest-reference",
+      "source_blob_sha1": "e8af5bc940f25a892faa8f901787df46a5310a56",
+      "source_path": "continuity/level-2/cli.mjs",
+      "source_revision": "b9d7264082322e09cfd233819b79f128ef912e31",
+      "source_sha256": "0e857c7413d94ae0cbf159c04e6ff1112f8882f4db3481f73ca9e2f42dbb79c7"
+    },
+    {
+      "byte_count": 9880,
+      "disposition": "included-referenced",
+      "freshness": "exact-at-bound-revision",
+      "owner": "nestfolio (committed tracked byte at the bound revision; read-only input)",
+      "reason": "exact Level 2 composed-lock identity binds the procedure resolution authority",
+      "slice_boundary": "identity-and-digest",
+      "source_blob_sha1": "db34925248121f3bf43910285d2fa3ce6246e9ad",
+      "source_path": "continuity/level-2/packs.lock.json",
+      "source_revision": "b9d7264082322e09cfd233819b79f128ef912e31",
+      "source_sha256": "0d0e6b52eb5aab3957d51abb432b5baa4c4911880151de8c96a9e4f7c90bb63c"
+    },
+    {
+      "byte_count": 867,
+      "disposition": "inspect-only",
+      "freshness": "exact-at-bound-revision",
+      "owner": "nestfolio (committed tracked byte at the bound revision; read-only input)",
+      "reason": "lower-level authority surface; bound by digest, excluded from delivery",
+      "slice_boundary": "digest-reference",
+      "source_blob_sha1": "a7ad09deb964c1a8749d15fde73226d408c55dda",
+      "source_path": "continuity/level-2/packs/continuity.repository-tools/1.0.0/pack-manifest.json",
+      "source_revision": "b9d7264082322e09cfd233819b79f128ef912e31",
+      "source_sha256": "439799dbc8f3ef1d44c178d8d85eaa339a229c76a84d42281c44b80f2061ae19"
+    },
+    {
+      "byte_count": 1555,
+      "disposition": "inspect-only",
+      "freshness": "exact-at-bound-revision",
+      "owner": "nestfolio (committed tracked byte at the bound revision; read-only input)",
+      "reason": "lower-level authority surface; bound by digest, excluded from delivery",
+      "slice_boundary": "digest-reference",
+      "source_blob_sha1": "eef4bbdece733cdade1c8618df19752bc5760745",
+      "source_path": "continuity/level-2/packs/continuity.repository-tools/1.0.0/procedures/continuity.repository-status.json",
+      "source_revision": "b9d7264082322e09cfd233819b79f128ef912e31",
+      "source_sha256": "75c4185cef2ed609bababe0cd35b7dc01d853d053679569164ac7ce84fd65057"
+    },
+    {
+      "byte_count": 10787,
+      "disposition": "inspect-only",
+      "freshness": "exact-at-bound-revision",
+      "owner": "nestfolio (committed tracked byte at the bound revision; read-only input)",
+      "reason": "lower-level authority surface; bound by digest, excluded from delivery",
+      "slice_boundary": "digest-reference",
+      "source_blob_sha1": "32b5c0304dbc965d2a7464424afd2faa14b00fca",
+      "source_path": "continuity/level-2/src/application-service.mjs",
+      "source_revision": "b9d7264082322e09cfd233819b79f128ef912e31",
+      "source_sha256": "ad2e58bb3425d3b72196e0afce6078fa7501074fe5090df566b9a7fc55603c22"
+    },
+    {
+      "byte_count": 4225,
+      "disposition": "inspect-only",
+      "freshness": "exact-at-bound-revision",
+      "owner": "nestfolio (committed tracked byte at the bound revision; read-only input)",
+      "reason": "lower-level authority surface; bound by digest, excluded from delivery",
+      "slice_boundary": "digest-reference",
+      "source_blob_sha1": "b0f2e43fe71dcb6eed091d48b533e9f0c6399840",
+      "source_path": "continuity/level-2/src/core.mjs",
+      "source_revision": "b9d7264082322e09cfd233819b79f128ef912e31",
+      "source_sha256": "fcf171439d883ac38ce66e22367e1d33236d239e3aa60c3a702c5c8776ead3fc"
+    },
+    {
+      "byte_count": 2625,
+      "disposition": "inspect-only",
+      "freshness": "exact-at-bound-revision",
+      "owner": "nestfolio (committed tracked byte at the bound revision; read-only input)",
+      "reason": "lower-level authority surface; bound by digest, excluded from delivery",
+      "slice_boundary": "digest-reference",
+      "source_blob_sha1": "2020389e000d2e9d911a08f4980f394306da580e",
+      "source_path": "continuity/level-2/src/git-repository-adapter.mjs",
+      "source_revision": "b9d7264082322e09cfd233819b79f128ef912e31",
+      "source_sha256": "ed84e1998fd51bd1bf3f37db88a320eb2669e52ffe3cd40bce27b34e74e70dbd"
+    },
+    {
+      "byte_count": 14440,
+      "disposition": "inspect-only",
+      "freshness": "exact-at-bound-revision",
+      "owner": "nestfolio (committed tracked byte at the bound revision; read-only input)",
+      "reason": "lower-level authority surface; bound by digest, excluded from delivery",
+      "slice_boundary": "digest-reference",
+      "source_blob_sha1": "e9eb57e7b1cd1d32d3bcd26c426d860944fc6dd3",
+      "source_path": "continuity/level-2/src/pack-validator.mjs",
+      "source_revision": "b9d7264082322e09cfd233819b79f128ef912e31",
+      "source_sha256": "fd375fddac0069ed5dbd7a23172bbe48eac3bb4438697ef6b78674be53e204a2"
+    },
+    {
+      "byte_count": 4364,
+      "disposition": "inspect-only",
+      "freshness": "exact-at-bound-revision",
+      "owner": "nestfolio (committed tracked byte at the bound revision; read-only input)",
+      "reason": "lower-level authority surface; bound by digest, excluded from delivery",
+      "slice_boundary": "digest-reference",
+      "source_blob_sha1": "9fe37121ea928a981f6b0cb1d53045c9a8b1af1b",
+      "source_path": "continuity/level-2/src/repository-infrastructure.mjs",
+      "source_revision": "b9d7264082322e09cfd233819b79f128ef912e31",
+      "source_sha256": "28b8d3c9847913a66247527d44486a08b8d3fe0db9fbda084f40ae82268a15c6"
+    },
+    {
+      "byte_count": 25113,
+      "disposition": "inspect-only",
+      "freshness": "exact-at-bound-revision",
+      "owner": "nestfolio (committed tracked byte at the bound revision; read-only input)",
+      "reason": "Level 3 tooling; not execution context",
+      "slice_boundary": "digest-reference",
+      "source_blob_sha1": "e66925837840dfa7e7df9790e979c1daf6f32e2b",
+      "source_path": "continuity/level-3/bin/continuity-work.mjs",
+      "source_revision": "b9d7264082322e09cfd233819b79f128ef912e31",
+      "source_sha256": "f1f515f8c50d428cf14249a2fb027c0ce2d8b3c99c95a209540918bc54060cbe"
+    },
+    {
+      "byte_count": 355248,
+      "disposition": "inspect-only",
+      "freshness": "exact-at-bound-revision",
+      "owner": "nestfolio (committed tracked byte at the bound revision; read-only input)",
+      "reason": "full 462-entry projection exceeds the bounded delivery; bound by digest, inspectable on demand",
+      "slice_boundary": "digest-reference",
+      "source_blob_sha1": "1d8a40f8ab8551fe39628d9454c15c126883d346",
+      "source_path": "continuity/level-3/candidates.json",
+      "source_revision": "b9d7264082322e09cfd233819b79f128ef912e31",
+      "source_sha256": "1c292f2f21c9226e4074cab0645323f959374618916a660fc01117c0f08f5f12"
+    },
+    {
+      "byte_count": 1580,
+      "disposition": "included-delivered",
+      "freshness": "exact-at-bound-revision",
+      "owner": "nestfolio (committed tracked byte at the bound revision; read-only input)",
+      "reason": "Level 3 execution representation bound into the pack; semantic fields delivered with exact digest",
+      "slice_boundary": "whole-file",
+      "source_blob_sha1": "1c27c886d5dc3c26edd89dbaf0cf0f07ded34a15",
+      "source_path": "continuity/level-3/route.json",
+      "source_revision": "b9d7264082322e09cfd233819b79f128ef912e31",
+      "source_sha256": "0ed84d148428125c0700969921d03fefb914819333d4848d4b262193f1c13d11"
+    },
+    {
+      "byte_count": 3983,
+      "disposition": "inspect-only",
+      "freshness": "exact-at-bound-revision",
+      "owner": "nestfolio (committed tracked byte at the bound revision; read-only input)",
+      "reason": "Level 3 schema; not execution context",
+      "slice_boundary": "digest-reference",
+      "source_blob_sha1": "9517535c96bdc42295616b27b80c49708529ed4a",
+      "source_path": "continuity/level-3/schema/work-artifacts.schema.json",
+      "source_revision": "b9d7264082322e09cfd233819b79f128ef912e31",
+      "source_sha256": "898c3568ea0e6c9d89e34edfb9569c903240c8a491ef0aca97d96f40d288f3c5"
+    },
+    {
+      "byte_count": 3267,
+      "disposition": "included-delivered",
+      "freshness": "exact-at-bound-revision",
+      "owner": "nestfolio (committed tracked byte at the bound revision; read-only input)",
+      "reason": "Level 3 execution representation bound into the pack; semantic fields delivered with exact digest",
+      "slice_boundary": "whole-file",
+      "source_blob_sha1": "ba169a84c53233fc195a95f5a3a9b9e5c1ba812f",
+      "source_path": "continuity/level-3/scope.json",
+      "source_revision": "b9d7264082322e09cfd233819b79f128ef912e31",
+      "source_sha256": "db7a45278e8f4a270552e3ae1db3695b70e07d1624b27bcdc28f6417883a5ad6"
+    },
+    {
+      "byte_count": 3998,
+      "disposition": "included-delivered",
+      "freshness": "exact-at-bound-revision",
+      "owner": "nestfolio (committed tracked byte at the bound revision; read-only input)",
+      "reason": "Level 3 execution representation bound into the pack; semantic fields delivered with exact digest",
+      "slice_boundary": "whole-file",
+      "source_blob_sha1": "0c2d3feaca0a23af08192caec91becdada4c4ace",
+      "source_path": "continuity/level-3/work-brief.json",
+      "source_revision": "b9d7264082322e09cfd233819b79f128ef912e31",
+      "source_sha256": "dc50b59f42a72de0bee1b36c888596e8a19a347fb37559237a3a90272f9e60da"
+    },
+    {
+      "byte_count": 1956,
+      "disposition": "included-delivered",
+      "freshness": "exact-at-bound-revision",
+      "owner": "nestfolio (committed tracked byte at the bound revision; read-only input)",
+      "reason": "Level 3 execution representation bound into the pack; semantic fields delivered with exact digest",
+      "slice_boundary": "whole-file",
+      "source_blob_sha1": "09fac693fb9a7ff561116e8835d7a5da44608ce5",
+      "source_path": "continuity/level-3/work-selection.json",
+      "source_revision": "b9d7264082322e09cfd233819b79f128ef912e31",
+      "source_sha256": "b01555e1ec65b4f232d008c82d7d2a22e0b94ac5a0b0a43410397f8638a1848c"
+    },
+    {
+      "byte_count": 3372,
+      "disposition": "included-delivered",
+      "freshness": "exact-at-bound-revision",
+      "owner": "nestfolio (committed tracked byte at the bound revision; read-only input)",
+      "reason": "Level 3 execution representation bound into the pack; semantic fields delivered with exact digest",
+      "slice_boundary": "whole-file",
+      "source_blob_sha1": "77dd39f73139a85f27812e0fd158699755f3393e",
+      "source_path": "continuity/level-3/work.json",
+      "source_revision": "b9d7264082322e09cfd233819b79f128ef912e31",
+      "source_sha256": "b23812bb0999f962856556516945bf82297642140f808d24cdd52e9341381936"
+    },
+    {
+      "byte_count": 228,
+      "disposition": "included-delivered",
+      "freshness": "exact-at-bound-revision",
+      "owner": "nestfolio (committed tracked byte at the bound revision; read-only input)",
+      "reason": "Level 3 execution representation bound into the pack; semantic fields delivered with exact digest",
+      "slice_boundary": "whole-file",
+      "source_blob_sha1": "9dff7841bcd7021a20a1b5441f6777294f495470",
+      "source_path": "continuity/level-3/working-set.json",
+      "source_revision": "b9d7264082322e09cfd233819b79f128ef912e31",
+      "source_sha256": "e24fe112a6947d1959a2f4fa6d0083e34ea1a2614347487eaba747bcaab64b97"
+    },
+    {
+      "byte_count": 2016,
+      "disposition": "included-delivered",
+      "freshness": "exact-at-bound-revision",
+      "owner": "nestfolio (committed tracked byte at the bound revision; read-only input)",
+      "reason": "primary planning source of the selected effort; full text delivered",
+      "slice_boundary": "whole-file",
+      "source_blob_sha1": "9651fe15c77a91e900d11c95839073f80f516b9b",
+      "source_path": "docs/backlog/dashboard-bff-awaiting-confirmation-activity-gap.md",
+      "source_revision": "b9d7264082322e09cfd233819b79f128ef912e31",
+      "source_sha256": "b656733991c96c4275d11e9a9f2bff7f5ac72cdd298cbc68a4b94b6799dc742d"
+    },
+    {
+      "byte_count": 6945,
+      "disposition": "included-referenced",
+      "freshness": "exact-at-bound-revision",
+      "owner": "nestfolio (committed tracked byte at the bound revision; read-only input)",
+      "reason": "activation-route integrity anchor recorded in the Level 2 lock",
+      "slice_boundary": "identity-and-digest",
+      "source_blob_sha1": "1a7fdb141769c38b7e3bdc03184da112d2be7b67",
+      "source_path": "package.json",
+      "source_revision": "b9d7264082322e09cfd233819b79f128ef912e31",
+      "source_sha256": "07b935ab66c83752ebffdeea942a57abac598b18c568b39c027534c6edd2357c"
+    },
+    {
+      "byte_count": 9248,
+      "disposition": "inspect-only",
+      "freshness": "exact-at-bound-revision",
+      "owner": "nestfolio (committed tracked byte at the bound revision; read-only input)",
+      "reason": "lower-level regression suite; validation input, not execution context",
+      "slice_boundary": "digest-reference",
+      "source_blob_sha1": "de3a4faf9160c763d1b833cae1fe6e0e64c5bf37",
+      "source_path": "tests/continuity-level-1.test.mjs",
+      "source_revision": "b9d7264082322e09cfd233819b79f128ef912e31",
+      "source_sha256": "e08f981817e5c6b18f25e51900200e99723a60b90a423ee600c90684041ad19d"
+    },
+    {
+      "byte_count": 17768,
+      "disposition": "inspect-only",
+      "freshness": "exact-at-bound-revision",
+      "owner": "nestfolio (committed tracked byte at the bound revision; read-only input)",
+      "reason": "lower-level regression suite; validation input, not execution context",
+      "slice_boundary": "digest-reference",
+      "source_blob_sha1": "f266b6501d9de4c0fe3bbde3fffa1621d46d886c",
+      "source_path": "tests/continuity-level-2.test.mjs",
+      "source_revision": "b9d7264082322e09cfd233819b79f128ef912e31",
+      "source_sha256": "00ac0c226790763408fe1bbc9b186e8fd75e4ef37bdfd2f5a17dd192e68c6e1a"
+    },
+    {
+      "byte_count": 11095,
+      "disposition": "inspect-only",
+      "freshness": "exact-at-bound-revision",
+      "owner": "nestfolio (committed tracked byte at the bound revision; read-only input)",
+      "reason": "lower-level regression suite; validation input, not execution context",
+      "slice_boundary": "digest-reference",
+      "source_blob_sha1": "672f3ceffd3a8f859695a8175d46bab62091f769",
+      "source_path": "tests/continuity-level-3.test.mjs",
+      "source_revision": "b9d7264082322e09cfd233819b79f128ef912e31",
+      "source_sha256": "b6fd45d09da9c2c27ff4cf80a51b05f3efecb8340e1441f5405211734c4be500"
+    }
+  ],
+  "source_tuple": {
+    "byte_count": 2016,
+    "source_blob_sha1": "9651fe15c77a91e900d11c95839073f80f516b9b",
+    "source_local_identity": "dashboard-bff-awaiting-confirmation-activity-gap",
+    "source_path": "docs/backlog/dashboard-bff-awaiting-confirmation-activity-gap.md",
+    "source_revision": "fd5e58b35e665fa5fa0db3c2c31ea5561442f9b6",
+    "source_sha256": "b656733991c96c4275d11e9a9f2bff7f5ac72cdd298cbc68a4b94b6799dc742d"
+  },
+  "uncertainty": {
+    "contradictions": [],
+    "gaps": [
+      {
+        "blocks": "nothing before execution; the first contracted execution step resolves it",
+        "description": "investigation-first unknown: whether the dashboard recent-activity feed is expected to surface an awaiting-confirmation item, and whether it currently does via DECISION_PACKET_CREATED or the DecisionPacket update CDC",
+        "kind": "known-unknown"
+      },
+      {
+        "blocks": "nothing; the backlog declares no rank and Level 3 selection already resolved priority by explicit human statement",
+        "description": "the backlog source declares no rank (declared_rank null); ranking inputs are deliberately absent",
+        "kind": "omission"
+      }
+    ],
+    "pending_decisions": []
+  },
+  "version": 1
+}

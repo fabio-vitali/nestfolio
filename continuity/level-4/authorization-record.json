@@ -1,0 +1,16 @@
+{
+  "actor": "fabio.vitali (human program owner)",
+  "actor_statement": "Autorizzo il Context Pack nestfolio.context.dashboard-bff-awaiting-confirmation-activity-gap versione 1 con SHA-256 e58c9bc1978d6799cccda96c2520ea1f7f41ab8b88e8a055ff968cd7b8ce15c1.",
+  "authorized": {
+    "identity": "nestfolio.context.dashboard-bff-awaiting-confirmation-activity-gap",
+    "sha256": "e58c9bc1978d6799cccda96c2520ea1f7f41ab8b88e8a055ff968cd7b8ce15c1",
+    "version": 1
+  },
+  "authorized_at_utc": "2026-07-16T18:50:36.000Z",
+  "kind": "continuity.level4.authorization-record",
+  "match_verification": "tuple identity, version, and sha256 each compared equal to the validated candidate before recording",
+  "permitted_scope_of_use": "Level 4 context authority and digest-matched adapter-view delivery for the bound effort only; never execution of the selected effort; never Level 5-6 state",
+  "rollback_boundary": "revocation or supersession disables delivery and returns the effort to Level 3; all versions and this record are preserved",
+  "schema_version": 1,
+  "status": "authorized"
+}

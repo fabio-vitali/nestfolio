@@ -1,0 +1,27 @@
+{
+  "argv": [
+    "node",
+    "--test",
+    ".claude/skills/backlog-next/test/backlog-gate.test.mjs",
+    ".claude/skills/backlog-next/test/backward-evidence.test.mjs",
+    ".claude/skills/backlog-next/test/classify-changes.test.mjs",
+    ".claude/skills/backlog-next/test/classify-derivation.test.mjs",
+    ".claude/skills/backlog-next/test/decision-log.test.mjs",
+    ".claude/skills/backlog-next/test/detect-cli-exit-contract.test.mjs",
+    ".claude/skills/backlog-next/test/detect-deploy-resolve.test.mjs",
+    ".claude/skills/backlog-next/test/gate-wiring.test.mjs",
+    ".claude/skills/backlog-next/test/lane-classification.test.mjs"
+  ],
+  "cwd_role": "nestfolio repository root",
+  "end_utc": "2026-07-16T18:41:03.000Z",
+  "exit_code": 0,
+  "parsed_result": {
+    "fail": 0,
+    "pass": 68,
+    "tests": 68
+  },
+  "phase": "pre-mutation required precondition and contracted regression run (Skill not invoked)",
+  "start_utc": "2026-07-16T18:41:03.000Z",
+  "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+  "stdout_sha256": "451021197b53c060d2a04006881d8ff1845ef4639c6c7c8a3caa971a416a707c"
+}

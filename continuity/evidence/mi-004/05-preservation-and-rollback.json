@@ -1,0 +1,43 @@
+{
+  "before_write": {
+    "create_path_absence": "all 22 permitted MI-004 create paths verified absent before any write",
+    "critical_digests_recorded": {
+      ".claude/skills/backlog-next/SKILL.md": "e56fd21ae6bb53dfdd2d5d0d239a0200d49d69c82bb171f3336b837a91124cd1",
+      "continuity/level-1/pack-lock.json": "701caacfce402077dd77659669768759a6c6d4613a94e6abb8e68248f44a8da9",
+      "continuity/level-2/packs.lock.json": "0d0e6b52eb5aab3957d51abb432b5baa4c4911880151de8c96a9e4f7c90bb63c",
+      "continuity/level-3/candidates.json": "1c292f2f21c9226e4074cab0645323f959374618916a660fc01117c0f08f5f12",
+      "continuity/level-3/route.json": "0ed84d148428125c0700969921d03fefb914819333d4848d4b262193f1c13d11",
+      "continuity/level-3/scope.json": "db7a45278e8f4a270552e3ae1db3695b70e07d1624b27bcdc28f6417883a5ad6",
+      "continuity/level-3/work.json": "b23812bb0999f962856556516945bf82297642140f808d24cdd52e9341381936",
+      "docs/backlog/dashboard-bff-awaiting-confirmation-activity-gap.md": "b656733991c96c4275d11e9a9f2bff7f5ac72cdd298cbc68a4b94b6799dc742d",
+      "package.json": "07b935ab66c83752ebffdeea942a57abac598b18c568b39c027534c6edd2357c"
+    },
+    "external_recovery_ledger": {
+      "path_outside_repositories": "/private/tmp/claude-501/-Users-fabiovitali-WebstormProjects-continuity-workspace/29e96640-6e95-4486-b48c-7ef83f1fd265/scratchpad/mi-004/recovery-ledger.txt",
+      "sha256": "3c30d91d4528b9f59a332d49f0980e6265649a3a9b493f4eb8b1de13a60a9dc3"
+    },
+    "tracked_tree_identity_at_start": "bd2a95fb965b3e28849c6070b74638d34fe1c393"
+  },
+  "execution_failure_policy": "on any actual post-mutation failure: remove only newly created MI-004 paths, verify the tracked tree equals the start identity, retain diagnostics outside all repositories, close as UNCONDITIONAL FAIL through the exact continuity-lab execution-closure scope; never retain partial Level 4 authority",
+  "preservation_now": {
+    "critical_digests_reverified": {
+      ".claude/skills/backlog-next/SKILL.md": "exact",
+      "continuity/level-1/pack-lock.json": "exact",
+      "continuity/level-2/packs.lock.json": "exact",
+      "continuity/level-3/candidates.json": "exact",
+      "continuity/level-3/route.json": "exact",
+      "continuity/level-3/scope.json": "exact",
+      "continuity/level-3/work.json": "exact",
+      "docs/backlog/dashboard-bff-awaiting-confirmation-activity-gap.md": "exact",
+      "package.json": "exact"
+    },
+    "tracked_tree_identity_now": "bd2a95fb965b3e28849c6070b74638d34fe1c393",
+    "tracked_tree_unchanged": true
+  },
+  "success_rollback_proof": {
+    "real_state": "the real repository authorization remains authorized and the real Level 3 route remains active; no real Level 3 artifact or backlog source was mutated",
+    "rejection": "isolated fixture: explicit non-authorization disposition preserves the candidate and rationale; delivery blocked (S5/F7)",
+    "revocation": "isolated fixture: authorized version revoked, delivery disabled, effort returns to Level 3, all versions preserved (S6)",
+    "staleness": "isolated fixture: changed dependency digest names the exact dependency and blocks delivery (S8/F1)"
+  }
+}

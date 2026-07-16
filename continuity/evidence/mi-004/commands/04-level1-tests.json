@@ -1,0 +1,19 @@
+{
+  "argv": [
+    "node",
+    "--test",
+    "tests/continuity-level-1.test.mjs"
+  ],
+  "cwd_role": "nestfolio repository root",
+  "end_utc": "2026-07-16T18:40:31.000Z",
+  "exit_code": 0,
+  "parsed_result": {
+    "fail": 0,
+    "pass": 14,
+    "tests": 14
+  },
+  "phase": "pre-mutation required precondition and contracted regression run",
+  "start_utc": "2026-07-16T18:40:31.000Z",
+  "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+  "stdout_sha256": "080edfb0e20b5261e3aadf1cd45c2430dccdbe77cea24bc68c210c65c4204491"
+}

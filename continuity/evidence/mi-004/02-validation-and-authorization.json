@@ -1,0 +1,118 @@
+{
+  "authorization": {
+    "actor": "fabio.vitali (human program owner)",
+    "authorization_record_sha256": "a23ec489098ba487ac27da2f1ae8c8752916a462517bae553ead7f4e062221cc",
+    "authorized_at_utc": "2026-07-16T18:50:36.000Z",
+    "exact_human_statement": "Autorizzo il Context Pack nestfolio.context.dashboard-bff-awaiting-confirmation-activity-gap versione 1 con SHA-256 e58c9bc1978d6799cccda96c2520ea1f7f41ab8b88e8a055ff968cd7b8ce15c1.",
+    "match_verification": "tuple identity, version, and sha256 each compared equal to the validated candidate before recording",
+    "status": "authorized",
+    "tuple": {
+      "identity": "nestfolio.context.dashboard-bff-awaiting-confirmation-activity-gap",
+      "sha256": "e58c9bc1978d6799cccda96c2520ea1f7f41ab8b88e8a055ff968cd7b8ce15c1",
+      "version": 1
+    },
+    "tuple_cardinality": 1
+  },
+  "validation": {
+    "result": "valid",
+    "rule_count": 18,
+    "rules": [
+      {
+        "detail": "file bytes equal the canonical re-serialization",
+        "id": "structural.canonical-serialization",
+        "result": "pass"
+      },
+      {
+        "detail": "all required pack fields present",
+        "id": "structural.required-fields",
+        "result": "pass"
+      },
+      {
+        "detail": "exact identity, version, and kind",
+        "id": "structural.identity",
+        "result": "pass"
+      },
+      {
+        "detail": "pack binds the exact Level 3 scope digest",
+        "id": "scope.digest-binding",
+        "result": "pass"
+      },
+      {
+        "detail": "scope and work bind the same selected effort",
+        "id": "scope.effort-binding",
+        "result": "pass"
+      },
+      {
+        "detail": "include paths do not appear among excluded or immutable paths",
+        "id": "scope.no-include-exclude-contradiction",
+        "result": "pass"
+      },
+      {
+        "detail": "exact Level 2 composed-lock bytes and aggregate digest",
+        "id": "lock.level2-aggregate",
+        "result": "pass"
+      },
+      {
+        "detail": "exact retained Level 1 lock bytes",
+        "id": "lock.level1-lock",
+        "result": "pass"
+      },
+      {
+        "detail": "package.json digest equals the reviewed Level 2 activation-route anchor",
+        "id": "lock.package-anchor",
+        "result": "pass"
+      },
+      {
+        "detail": "bound executor family is claude-code",
+        "id": "capability.executor-family",
+        "result": "pass"
+      },
+      {
+        "detail": "no registry or remote source capability is required or claimed",
+        "id": "capability.local-only",
+        "result": "pass"
+      },
+      {
+        "detail": "no unresolved contradiction is recorded",
+        "id": "contradiction.none-unresolved",
+        "result": "pass"
+      },
+      {
+        "detail": "work, scope, and pack agree on the exact source digest",
+        "id": "contradiction.source-tuple-agreement",
+        "result": "pass"
+      },
+      {
+        "detail": "the bound backlog source is byte-identical at its pinned revision",
+        "id": "completeness.source-exact-at-pinned-revision",
+        "result": "pass"
+      },
+      {
+        "detail": "every ledger entry carries digest, disposition, reason, and revision",
+        "id": "completeness.ledger-typed",
+        "result": "pass"
+      },
+      {
+        "detail": "absent Level 5-6 guarantees are stated truthfully",
+        "id": "completeness.absent-guarantees",
+        "result": "pass"
+      },
+      {
+        "detail": "the pack claims no higher-level authority",
+        "id": "completeness.no-forbidden-claim",
+        "result": "pass"
+      },
+      {
+        "detail": "delivery boundary is explicit and bounded with recorded omissions",
+        "id": "completeness.delivery-bounded",
+        "result": "pass"
+      }
+    ],
+    "validated_candidate": {
+      "identity": "nestfolio.context.dashboard-bff-awaiting-confirmation-activity-gap",
+      "sha256": "e58c9bc1978d6799cccda96c2520ea1f7f41ab8b88e8a055ff968cd7b8ce15c1",
+      "version": 1
+    },
+    "validation_result_sha256": "c526b961fe50c53eed3b89d792f1d0bde28e790b12f5d53a7f715362add5d9d3"
+  }
+}
