@@ -1,0 +1,49 @@
+{
+  "argv": [
+    "node",
+    "--test",
+    "tests/continuity-level-3.test.mjs"
+  ],
+  "cwd_role": "isolated-committed-validation-copy",
+  "end_utc": "2026-07-17T15:49:05.050Z",
+  "exit_code": 0,
+  "iteration": "SE-001-R3",
+  "kind": "continuity.se001.command-record",
+  "parsed_result": {
+    "fail": 0,
+    "pass": 23,
+    "tests": 23
+  },
+  "pre_mutation_counterpart": {
+    "argv": [
+      "node",
+      "--test",
+      "tests/continuity-level-3.test.mjs"
+    ],
+    "cwd_role": "nestfolio",
+    "end_utc": "2026-07-17T12:20:20.997Z",
+    "exit_code": 0,
+    "parsed_result": {
+      "fail": 0,
+      "pass": 23,
+      "tests": 23
+    },
+    "start_utc": "2026-07-17T12:20:06.389Z",
+    "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "stdout_sha256": "27e49384822cf87c7450c683383318299cb95e387384aa6ba336fa80650b63ed"
+  },
+  "start_utc": "2026-07-17T15:48:50.196Z",
+  "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+  "stdout_sha256": "946cca563183f6648dceda04bd51fd41f4e02c24d65168da121d3838886c1f8a",
+  "validation_environment": {
+    "checked_out_revision": "89ef74ee32740d30b2ddc7f0eb69f24a1374eea6",
+    "copy_location": "/private/tmp/claude-501/-Users-fabiovitali-WebstormProjects-continuity-workspace/4128c7c7-3785-40a5-a4d0-5237b968d9da/scratchpad/committed-validation-copy (outside all three repositories)",
+    "copy_method": "git clone of the local Nestfolio repository",
+    "copy_status_before_runs": "clean (git status --porcelain -uall empty)",
+    "per_path_delta_digest_equality_with_working_tree": "11/11 equal (manifest ad5e94bce046332200da8dc3409b6ebb6082aace5a4221239c3b4afee60bd986)",
+    "removal": "copy removed after recording; see cleanup-proof.txt",
+    "throwaway_commit": "1b1415e7a4fab0180fb94d0839c75fe697bcffcd",
+    "throwaway_commit_parent": "89ef74ee32740d30b2ddc7f0eb69f24a1374eea6",
+    "throwaway_commit_paths": 11
+  }
+}

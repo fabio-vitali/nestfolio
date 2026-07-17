@@ -35,6 +35,14 @@ describe('InvestorAdptStack', () => {
     });
   });
 
+  it('forwards DECISION_PACKET_UPDATED from advisory bus (awaiting-confirmation sourcing)', () => {
+    template.hasResourceProperties('AWS::Events::Rule', {
+      EventPattern: Match.objectLike({
+        'detail-type': Match.arrayWith(['DECISION_PACKET_UPDATED']),
+      }),
+    });
+  });
+
   it('ingests from execution bus', () => {
     template.hasResourceProperties('AWS::Events::Rule', {
       EventPattern: Match.objectLike({

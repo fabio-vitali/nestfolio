@@ -1,0 +1,114 @@
+{
+  "gap_fail_before": {
+    "argv": [
+      "node",
+      "node_modules/jest/bin/jest.js",
+      "--config",
+      "services/investor/dashboard-bff/jest.config.js",
+      "--runTestsByPath",
+      "services/investor/dashboard-bff/test/unit/handlers/awaiting-confirmation-activity-gap.test.ts"
+    ],
+    "cwd_role": "isolated-start-revision-copy",
+    "end_utc": "2026-07-17T15:44:20.876Z",
+    "exit_code": 1,
+    "fixture_sha256": "c3724e16986a1751330ea02040b4716619beada67b0c12e7cefc5f6e574ec5f0",
+    "parsed_result": {
+      "fail": 3,
+      "failing_assertion": "DECISION_PACKET_UPDATED handler absent",
+      "pass": 0,
+      "tests": 3
+    },
+    "start_utc": "2026-07-17T15:44:12.674Z",
+    "stderr_sha256": "d583047867c0d059b160c90d4561c682e4543c96c32da127179f8d188602bd49",
+    "stdout_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+  },
+  "gap_pass_after": {
+    "argv": [
+      "node",
+      "node_modules/jest/bin/jest.js",
+      "--config",
+      "services/investor/dashboard-bff/jest.config.js",
+      "--runTestsByPath",
+      "services/investor/dashboard-bff/test/unit/handlers/awaiting-confirmation-activity-gap.test.ts"
+    ],
+    "cwd_role": "nestfolio-working-tree",
+    "end_utc": "2026-07-17T15:45:28.270Z",
+    "exit_code": 0,
+    "parsed_result": {
+      "pass": 3,
+      "tests": 3
+    },
+    "start_utc": "2026-07-17T15:45:22.693Z",
+    "stderr_sha256": "0b6dabfcd7e0090c5e1bd2559f281e0128eedc6118c98e166978df29cd7889d3",
+    "stdout_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+  },
+  "iteration": "SE-001-R3",
+  "kind": "continuity.se001.command-record",
+  "project_validation": {
+    "check_typed_fixtures": {
+      "argv": [
+        "node",
+        "tools/check-typed-fixtures.mjs"
+      ],
+      "cwd_role": "nestfolio-working-tree",
+      "end_utc": "2026-07-17T15:46:01.660Z",
+      "exit_code": 0,
+      "parsed_result": {},
+      "start_utc": "2026-07-17T15:46:01.490Z",
+      "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "stdout_sha256": "154a80e8e8b736bcef1c87bc75fdcb61c0571b56639fe5f65bc0479f6794b974"
+    },
+    "dashboard_bff_typecheck": {
+      "argv": [
+        "npx",
+        "tsc",
+        "--noEmit",
+        "-p",
+        "services/investor/dashboard-bff/tsconfig.type-test.json"
+      ],
+      "cwd_role": "nestfolio-working-tree",
+      "end_utc": "2026-07-17T15:46:01.458Z",
+      "exit_code": 0,
+      "parsed_result": {},
+      "start_utc": "2026-07-17T15:45:59.900Z",
+      "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "stdout_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "dashboard_bff_unit": {
+      "argv": [
+        "node",
+        "node_modules/jest/bin/jest.js",
+        "--config",
+        "services/investor/dashboard-bff/jest.config.js"
+      ],
+      "cwd_role": "nestfolio-working-tree",
+      "end_utc": "2026-07-17T15:45:50.418Z",
+      "exit_code": 0,
+      "parsed_result": {
+        "pass": 70,
+        "tests": 70
+      },
+      "start_utc": "2026-07-17T15:45:41.973Z",
+      "stderr_sha256": "4b82f3f83309329f17fc1a2df6aeee206cc59b56a527c04cf087cffdffc6b614",
+      "stdout_sha256": "07d47c2a20a5adf3813bd27bc92b09b2325c65d4a109b1ea7d4c879987e83307"
+    },
+    "investor_adpt_unit": {
+      "argv": [
+        "node",
+        "node_modules/jest/bin/jest.js",
+        "--config",
+        "services/investor/investor-adpt/jest.config.js"
+      ],
+      "cwd_role": "nestfolio-working-tree",
+      "end_utc": "2026-07-17T15:45:53.875Z",
+      "exit_code": 0,
+      "parsed_result": {
+        "pass": 14,
+        "tests": 14
+      },
+      "start_utc": "2026-07-17T15:45:50.454Z",
+      "stderr_sha256": "c22bf782b1a41b42dd05814e39e41d7076973c33d94987ddaa7af5b4fa76e7f5",
+      "stdout_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    }
+  }
+}

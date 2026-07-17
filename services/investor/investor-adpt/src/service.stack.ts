@@ -37,6 +37,7 @@ export class InvestorAdptStack extends ServiceStack {
     });
     const fromAdvisoryEvents = [
       InvestorIngestEventTypes.DECISION_PACKET_CREATED,
+      InvestorIngestEventTypes.DECISION_PACKET_UPDATED,
       InvestorIngestEventTypes.EXPLANATION_GENERATED,
       InvestorIngestEventTypes.DECISION_APPROVED,
       InvestorIngestEventTypes.DECISION_BLOCKED,

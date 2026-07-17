@@ -24,6 +24,9 @@ export const InvestorCrossDomainEventTypes = {
 export const InvestorIngestEventTypes = {
   // From Advisory
   DECISION_PACKET_CREATED: eventName('DECISION_PACKET_CREATED'),
+  // DecisionPacket row CDC modify — dashboard-bff projects the
+  // AWAITING_CONFIRMATION status into the activity feed.
+  DECISION_PACKET_UPDATED: eventName('DECISION_PACKET_UPDATED'),
   EXPLANATION_GENERATED: eventName('EXPLANATION_GENERATED'),
   DECISION_APPROVED: eventName('DECISION_APPROVED'),
   DECISION_BLOCKED: eventName('DECISION_BLOCKED'),

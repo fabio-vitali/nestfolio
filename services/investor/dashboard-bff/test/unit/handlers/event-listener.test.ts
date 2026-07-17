@@ -5,10 +5,10 @@ import { InvestorBffEventTypes } from '@nestfolio/investor-bff/events';
 import { InvestorIngestEventTypes } from '@nestfolio/investor-adpt/domain';
 
 describe('dashboard-bff event-listener', () => {
-  it('should export handlers for all 12 event types', () => {
+  it('should export handlers for all 13 event types', () => {
     const handlers = createHandlers();
 
-    expect(Object.keys(handlers)).toHaveLength(12);
+    expect(Object.keys(handlers)).toHaveLength(13);
 
     // Ledger events
     expect(handlers).toHaveProperty(LedgerCrossDomainEventTypes.BALANCE_UPDATED);
@@ -24,6 +24,12 @@ describe('dashboard-bff event-listener', () => {
     // AdvisoryStatus is projected from advisory-bff's authoritative announcement
     // (forwarded advisory→investor by investor-adpt, Task 4.1).
     expect(handlers).toHaveProperty(InvestorIngestEventTypes.ADVISORY_STATUS_UPDATED);
+
+    // Awaiting-confirmation activity is projected from the DecisionPacket row
+    // CDC status (forwarded advisory→investor by investor-adpt), never from the
+    // removed dead USER_CONFIRMATION_REQUESTED event.
+    expect(handlers).toHaveProperty(InvestorIngestEventTypes.DECISION_PACKET_UPDATED);
+    expect(handlers).not.toHaveProperty('USER_CONFIRMATION_REQUESTED');
 
     // Investor-bff events (collapsed: composite InvestorProfile row)
     expect(handlers).toHaveProperty(InvestorBffEventTypes.INVESTOR_PROFILE_CREATED);

@@ -1,0 +1,31 @@
+{
+  "bindings": {
+    "continuity-lab": {
+      "branch": "main",
+      "clean_at_execution_start": true,
+      "head": "9c65574116536cb7e556f83be1ff8cdbc2165618",
+      "role": "published SE-001-R3 contract revision (same-session execution per DR-0024 aggregated phases)"
+    },
+    "continuity-workspace": {
+      "branch": "main",
+      "clean_at_execution_start": true,
+      "head": "384d4b7d2deb0bd78cc74557340ab07f46790f4a",
+      "role": "control workspace; immutable during execution"
+    },
+    "nestfolio": {
+      "branch": "main",
+      "clean_at_execution_start": true,
+      "head": "89ef74ee32740d30b2ddc7f0eb69f24a1374eea6",
+      "parent": "a760d6f41ff14491d5b008a7f13234ba0221bcec",
+      "role": "exact contracted start revision (MI-004-R1 published correction)"
+    }
+  },
+  "contract": {
+    "path": "sessions/SE-001-R3-selected-effort-execution-dashboard-bff-awaiting-confirmation-activity-gap/context-pack.yaml",
+    "published_revision": "9c65574116536cb7e556f83be1ff8cdbc2165618",
+    "regime": "DR-0024 lightened development process; aggregated phases; same-session execution"
+  },
+  "iteration": "SE-001-R3",
+  "kind": "continuity.se001.repository-bindings",
+  "observed_utc": "2026-07-17T12:19:19Z"
+}

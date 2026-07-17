@@ -9,6 +9,7 @@ import { portfolioSummary } from '../transforms/portfolio-summary';
 import { positionSnapshot } from '../transforms/position-snapshot';
 import { recentActivity } from '../transforms/recent-activity';
 import { advisoryStatus } from '../transforms/advisory-status';
+import { awaitingConfirmationActivity } from '../transforms/awaiting-confirmation-activity';
 import { investorSnapshot } from '../transforms/investor-snapshot';
 import { timeTravelAvailability } from '../transforms/time-travel-availability';
 
@@ -38,6 +39,12 @@ export function createHandlers() {
     // announced aggregate (forwarded advisory→investor by investor-adpt, Task 4.1).
     [InvestorIngestEventTypes.ADVISORY_STATUS_UPDATED]: (payload: EventPayload, ctx: EventContext) =>
       advisoryStatus(toUow(payload, ctx)),
+    // DecisionPacket row CDC (forwarded advisory→investor by investor-adpt):
+    // status-filtered awaiting-confirmation activity projection — one Activity
+    // row per decision entering AWAITING_CONFIRMATION. Sourced from the packet
+    // status, never the removed dead USER_CONFIRMATION_REQUESTED event.
+    [InvestorIngestEventTypes.DECISION_PACKET_UPDATED]: (payload: EventPayload, ctx: EventContext) =>
+      awaitingConfirmationActivity(toUow(payload, ctx)),
     [LedgerCrossDomainEventTypes.LEDGER_ENTRY_RECORDED]: (payload: EventPayload, ctx: EventContext) =>
       timeTravelAvailability(toUow(payload, ctx)),
     [InvestorBffEventTypes.INVESTOR_PROFILE_CREATED]: (payload: EventPayload, ctx: EventContext) =>

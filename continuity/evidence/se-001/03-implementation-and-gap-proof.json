@@ -1,0 +1,152 @@
+{
+  "changed_paths": [
+    {
+      "after_byte_count": 10543,
+      "after_sha256": "14c61b990ceba46de9076ece5d65d5fa38924f9ccb502c41034b82cb4fd8ab16",
+      "before_byte_count": 9832,
+      "before_sha256": "f513357f9d4bca5047d2eb3742dac9783349347e311f9d63adae2710f72a3234",
+      "kind": "modified",
+      "mapped_completion_criterion": "crit-2-sanctioned-sourcing",
+      "path": "services/investor/dashboard-bff/CLAUDE.md"
+    },
+    {
+      "after_byte_count": 3865,
+      "after_sha256": "7b5b489b599dc6e1c75d6825c2860f47396f69984ef328fc7816deb5d619429a",
+      "before_byte_count": 3298,
+      "before_sha256": "39a0bba86334ae315c48f93388f6e4aa3a5a1482d29a8071a11a518fb94c2dcf",
+      "kind": "modified",
+      "mapped_completion_criterion": "crit-2-sanctioned-sourcing",
+      "path": "services/investor/dashboard-bff/src/handlers/event-listener.ts"
+    },
+    {
+      "after_byte_count": 2828,
+      "after_sha256": "f8636c98e491f9a7a303a026dd8455ff2837b3d0d6c86f74838bd071eb482a2e",
+      "before_byte_count": 2600,
+      "before_sha256": "9de7bcd3bab723e2a6dfc603b800e2d4c6d8b4ac4188b88cdaf0381a16a20316",
+      "kind": "modified",
+      "mapped_completion_criterion": "crit-2-sanctioned-sourcing",
+      "path": "services/investor/dashboard-bff/src/service.stack.ts"
+    },
+    {
+      "after_byte_count": 2649,
+      "after_sha256": "464d8740080b0d66993719644cf0bbe20c5a740b0a374e2200e6f7371a696edc",
+      "before_byte_count": 2272,
+      "before_sha256": "aba9716f3fef5b7d3bce2be3f5a0582f7b738a994fd6b38628857f4cd84aa3cb",
+      "kind": "modified",
+      "mapped_completion_criterion": "crit-3-suites-green-no-reintroduction",
+      "path": "services/investor/dashboard-bff/test/unit/handlers/event-listener.test.ts"
+    },
+    {
+      "after_byte_count": 4641,
+      "after_sha256": "956280559f14fc510b7578f6eca11a1fb746e51d23816c2e84c25880bba724d1",
+      "before_byte_count": 4591,
+      "before_sha256": "2283848062bbfa22cf888e1291a35eba22da396e79f6c04130865480c250756c",
+      "kind": "modified",
+      "mapped_completion_criterion": "crit-2-sanctioned-sourcing",
+      "path": "services/investor/investor-adpt/CLAUDE.md"
+    },
+    {
+      "after_byte_count": 2789,
+      "after_sha256": "c895462e0850b166e4e4f429cef3f141a6036034cc5c37b5c58d37c764504a3e",
+      "before_byte_count": 2600,
+      "before_sha256": "ae929600caa80383bbacd8b18ad19b5f26bb531093bc12bffee1c8b58049acd3",
+      "kind": "modified",
+      "mapped_completion_criterion": "crit-2-sanctioned-sourcing",
+      "path": "services/investor/investor-adpt/src/domain/events.ts"
+    },
+    {
+      "after_byte_count": 6095,
+      "after_sha256": "56ced3fd2f88d459d29ee9185bdaccc614b675261ad5b6007e0638fa19f0bb52",
+      "before_byte_count": 6039,
+      "before_sha256": "e5ec1afb5b28bd81a0bbb730339c10a1d6cdf26d02f3c48b7087d51bb6a4a1e1",
+      "kind": "modified",
+      "mapped_completion_criterion": "crit-2-sanctioned-sourcing",
+      "path": "services/investor/investor-adpt/src/service.stack.ts"
+    },
+    {
+      "after_byte_count": 2297,
+      "after_sha256": "a22b1403d24b71288be3f8139ded8f4d14b78a84c4b7087a1cc556646597d1ad",
+      "before_byte_count": 2006,
+      "before_sha256": "bcbbd4ae1d9ffc750a6f1664d7216d86bda54f97d483d012b2c0eb839d7b3fac",
+      "kind": "modified",
+      "mapped_completion_criterion": "crit-2-sanctioned-sourcing",
+      "path": "services/investor/investor-adpt/test/unit/service.stack.test.ts"
+    },
+    {
+      "after_byte_count": 1938,
+      "after_sha256": "f261113db7bf81fa9feb78ced4a43d26e5607ca623acefaac63f0e16f8ef3c2a",
+      "kind": "created",
+      "mapped_completion_criterion": "crit-2-sanctioned-sourcing",
+      "path": "services/investor/dashboard-bff/src/transforms/awaiting-confirmation-activity.ts"
+    },
+    {
+      "after_byte_count": 3994,
+      "after_sha256": "c3724e16986a1751330ea02040b4716619beada67b0c12e7cefc5f6e574ec5f0",
+      "kind": "created",
+      "mapped_completion_criterion": "crit-1-gap-demonstration",
+      "path": "services/investor/dashboard-bff/test/unit/handlers/awaiting-confirmation-activity-gap.test.ts"
+    },
+    {
+      "after_byte_count": 3193,
+      "after_sha256": "a2203511920c20903fc80086ecdf5c6ef963a60fc894c2f88bcf370da2580a66",
+      "kind": "created",
+      "mapped_completion_criterion": "crit-3-suites-green-no-reintroduction",
+      "path": "services/investor/dashboard-bff/test/unit/transforms/awaiting-confirmation-activity.test.ts"
+    }
+  ],
+  "completion_criteria": {
+    "crit-1-gap-demonstration": "investigation determines whether the dashboard recent-activity feed is expected to show an awaiting-confirmation item and whether it currently surfaces one via DECISION_PACKET_CREATED or the DecisionPacket update CDC",
+    "crit-2-sanctioned-sourcing": "if a real gap is confirmed, the signal is sourced from the DecisionPacket AWAITING_CONFIRMATION status via the existing row CDC (an investor-adpt-forwarded DecisionPacket-status event or a dashboard-bff projection on the existing decision row), never from the removed dead event",
+    "crit-3-suites-green-no-reintroduction": "dashboard-bff unit and integration suites remain green and the removed USER_CONFIRMATION_REQUESTED handler is not reintroduced"
+  },
+  "gap_proof": {
+    "fail_before": {
+      "argv": [
+        "node",
+        "node_modules/jest/bin/jest.js",
+        "--config",
+        "services/investor/dashboard-bff/jest.config.js",
+        "--runTestsByPath",
+        "services/investor/dashboard-bff/test/unit/handlers/awaiting-confirmation-activity-gap.test.ts"
+      ],
+      "cwd_role": "isolated-start-revision-copy",
+      "end_utc": "2026-07-17T15:44:20.876Z",
+      "exit_code": 1,
+      "fixture_sha256": "c3724e16986a1751330ea02040b4716619beada67b0c12e7cefc5f6e574ec5f0",
+      "parsed_result": {
+        "fail": 3,
+        "failing_assertion": "DECISION_PACKET_UPDATED handler absent",
+        "pass": 0,
+        "tests": 3
+      },
+      "start_utc": "2026-07-17T15:44:12.674Z",
+      "stderr_sha256": "d583047867c0d059b160c90d4561c682e4543c96c32da127179f8d188602bd49",
+      "stdout_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "pass_after": {
+      "argv": [
+        "node",
+        "node_modules/jest/bin/jest.js",
+        "--config",
+        "services/investor/dashboard-bff/jest.config.js",
+        "--runTestsByPath",
+        "services/investor/dashboard-bff/test/unit/handlers/awaiting-confirmation-activity-gap.test.ts"
+      ],
+      "cwd_role": "nestfolio-working-tree",
+      "end_utc": "2026-07-17T15:45:28.270Z",
+      "exit_code": 0,
+      "parsed_result": {
+        "pass": 3,
+        "tests": 3
+      },
+      "start_utc": "2026-07-17T15:45:22.693Z",
+      "stderr_sha256": "0b6dabfcd7e0090c5e1bd2559f281e0128eedc6118c98e166978df29cd7889d3",
+      "stdout_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "validation_fixture_sha256": "c3724e16986a1751330ea02040b4716619beada67b0c12e7cefc5f6e574ec5f0"
+  },
+  "iteration": "SE-001-R3",
+  "kind": "continuity.se001.implementation-and-gap-proof",
+  "planning_input": "retained SE-001-R2 ledger (read-only): failure-diagnosis.md and implementation-delta-bytes/ with manifest sha256 ad5e94bce046332200da8dc3409b6ebb6082aace5a4221239c3b4afee60bd986; every binding re-verified fail-closed from the digest-matched deliveries",
+  "sourcing": "first sanctioned option of the bound Scope: investor-adpt forwards DECISION_PACKET_UPDATED advisory->investor; dashboard-bff adds the status-filtered projection awaiting-confirmation-activity.ts recording one awaiting-confirmation Activity row per decision, keyed Activity#awaiting-confirmation#<decisionId>"
+}

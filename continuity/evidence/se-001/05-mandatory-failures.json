@@ -1,0 +1,71 @@
+{
+  "iteration": "SE-001-R3",
+  "kind": "continuity.se001.mandatory-failures",
+  "results": {
+    "F1": {
+      "expected_diagnostic": "STALE_CONTEXT_DEPENDENCY",
+      "fixture_proof": "Level 4 suite test 'F1: blocks fail-closed with the exact typed diagnostic' passed in the pre-mutation working-tree run (commands: pre-01-level4, 23/23) and in the isolated committed validation copy (commands/01-level4-tests.json, 23/23); each run executes the F1 fixture in an isolated temporary copy, asserts observed==expected diagnostic, exit 1, and fixture removal with absence proof",
+      "result": "fails-closed-with-exact-diagnostic"
+    },
+    "F10": {
+      "executor_conduct": "no Skill, /backlog-next, or continuity:invoke was invoked; all suites ran via direct node/jest invocations recorded in commands/",
+      "expected_diagnostic": "EXECUTOR_DELEGATION_PROHIBITED",
+      "fixture_proof": "Level 4 suite test 'F10: blocks fail-closed with the exact typed diagnostic' passed in the pre-mutation working-tree run (commands: pre-01-level4, 23/23) and in the isolated committed validation copy (commands/01-level4-tests.json, 23/23); each run executes the F10 fixture in an isolated temporary copy, asserts observed==expected diagnostic, exit 1, and fixture removal with absence proof",
+      "result": "fails-closed-with-exact-diagnostic"
+    },
+    "F11": {
+      "executor_conduct": "no Session, Run, Checkpoint, Handoff, Assurance, completion, Decision, Learning, or Level 5-6 state was created or claimed",
+      "expected_diagnostic": "FORBIDDEN_HIGHER_LEVEL_CLAIM",
+      "fixture_proof": "Level 4 suite test 'F11: blocks fail-closed with the exact typed diagnostic' passed in the pre-mutation working-tree run (commands: pre-01-level4, 23/23) and in the isolated committed validation copy (commands/01-level4-tests.json, 23/23); each run executes the F11 fixture in an isolated temporary copy, asserts observed==expected diagnostic, exit 1, and fixture removal with absence proof",
+      "result": "fails-closed-with-exact-diagnostic"
+    },
+    "F12": {
+      "executor_conduct": "the final manifest contains exactly the 11 boundary paths and 15 evidence paths (commands/07)",
+      "expected_diagnostic": "MANIFEST_SCOPE_MISMATCH",
+      "fixture_proof": "Level 4 suite test 'F12: blocks fail-closed with the exact typed diagnostic' passed in the pre-mutation working-tree run (commands: pre-01-level4, 23/23) and in the isolated committed validation copy (commands/01-level4-tests.json, 23/23); each run executes the F12 fixture in an isolated temporary copy, asserts observed==expected diagnostic, exit 1, and fixture removal with absence proof",
+      "result": "fails-closed-with-exact-diagnostic"
+    },
+    "F2": {
+      "expected_diagnostic": "CONTEXT_SOURCE_UNAVAILABLE",
+      "fixture_proof": "Level 4 suite test 'F2: blocks fail-closed with the exact typed diagnostic' passed in the pre-mutation working-tree run (commands: pre-01-level4, 23/23) and in the isolated committed validation copy (commands/01-level4-tests.json, 23/23); each run executes the F2 fixture in an isolated temporary copy, asserts observed==expected diagnostic, exit 1, and fixture removal with absence proof",
+      "result": "fails-closed-with-exact-diagnostic"
+    },
+    "F3": {
+      "expected_diagnostic": "UNAUTHORIZED_CONTEXT_DELIVERY",
+      "fixture_proof": "Level 4 suite test 'F3: blocks fail-closed with the exact typed diagnostic' passed in the pre-mutation working-tree run (commands: pre-01-level4, 23/23) and in the isolated committed validation copy (commands/01-level4-tests.json, 23/23); each run executes the F3 fixture in an isolated temporary copy, asserts observed==expected diagnostic, exit 1, and fixture removal with absence proof",
+      "result": "fails-closed-with-exact-diagnostic"
+    },
+    "F4": {
+      "expected_diagnostic": "CONTEXT_DELIVERY_MISMATCH",
+      "fixture_proof": "Level 4 suite test 'F4: blocks fail-closed with the exact typed diagnostic' passed in the pre-mutation working-tree run (commands: pre-01-level4, 23/23) and in the isolated committed validation copy (commands/01-level4-tests.json, 23/23); each run executes the F4 fixture in an isolated temporary copy, asserts observed==expected diagnostic, exit 1, and fixture removal with absence proof",
+      "result": "fails-closed-with-exact-diagnostic"
+    },
+    "F5": {
+      "expected_diagnostic": "SCOPE_BOUNDARY_UNRESOLVED",
+      "fixture_proof": "Level 4 suite test 'F5: blocks fail-closed with the exact typed diagnostic' passed in the pre-mutation working-tree run (commands: pre-01-level4, 23/23) and in the isolated committed validation copy (commands/01-level4-tests.json, 23/23); each run executes the F5 fixture in an isolated temporary copy, asserts observed==expected diagnostic, exit 1, and fixture removal with absence proof",
+      "result": "fails-closed-with-exact-diagnostic"
+    },
+    "F6": {
+      "executor_conduct": "no mutation outside the frozen boundary and evidence set occurred (see S7 immutability comparison)",
+      "expected_diagnostic": "SCOPE_BOUNDARY_VIOLATION",
+      "fixture_proof": "Level 4 suite test 'F6: blocks fail-closed with the exact typed diagnostic' passed in the pre-mutation working-tree run (commands: pre-01-level4, 23/23) and in the isolated committed validation copy (commands/01-level4-tests.json, 23/23); each run executes the F6 fixture in an isolated temporary copy, asserts observed==expected diagnostic, exit 1, and fixture removal with absence proof",
+      "result": "fails-closed-with-exact-diagnostic"
+    },
+    "F7": {
+      "expected_diagnostic": "CONTEXT_IMMUTABILITY_VIOLATION",
+      "fixture_proof": "Level 4 suite test 'F7: blocks fail-closed with the exact typed diagnostic' passed in the pre-mutation working-tree run (commands: pre-01-level4, 23/23) and in the isolated committed validation copy (commands/01-level4-tests.json, 23/23); each run executes the F7 fixture in an isolated temporary copy, asserts observed==expected diagnostic, exit 1, and fixture removal with absence proof",
+      "result": "fails-closed-with-exact-diagnostic"
+    },
+    "F8": {
+      "expected_diagnostic": "SOURCE_MUTATION_PROHIBITED",
+      "fixture_proof": "Level 4 suite test 'F8: blocks fail-closed with the exact typed diagnostic' passed in the pre-mutation working-tree run (commands: pre-01-level4, 23/23) and in the isolated committed validation copy (commands/01-level4-tests.json, 23/23); each run executes the F8 fixture in an isolated temporary copy, asserts observed==expected diagnostic, exit 1, and fixture removal with absence proof",
+      "result": "fails-closed-with-exact-diagnostic"
+    },
+    "F9": {
+      "executor_conduct": "no dependency operation occurred; package.json byte-identical; package-lock.json absent throughout",
+      "expected_diagnostic": "DEPENDENCY_OPERATION_PROHIBITED",
+      "fixture_proof": "Level 4 suite test 'F9: blocks fail-closed with the exact typed diagnostic' passed in the pre-mutation working-tree run (commands: pre-01-level4, 23/23) and in the isolated committed validation copy (commands/01-level4-tests.json, 23/23); each run executes the F9 fixture in an isolated temporary copy, asserts observed==expected diagnostic, exit 1, and fixture removal with absence proof",
+      "result": "fails-closed-with-exact-diagnostic"
+    }
+  }
+}

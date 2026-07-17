@@ -1,0 +1,64 @@
+{
+  "corrected_validation_environment_note": "per the published SE-001-R3 contract, the post-implementation Level 4 and Level 3 suite runs executed in the isolated committed validation copy (throwaway commit on the exact start revision, outside all repositories, removed with absence proof); Level 2, retained Level 1, and backlog-next ran in the real working tree",
+  "criteria": {
+    "C1": {
+      "criterion": "session gates pass and digest-matched authorized-context delivery authority verified fail-closed",
+      "evidence": [
+        "00-repository-bindings.json",
+        "01-context-delivery.json"
+      ],
+      "result": "pass"
+    },
+    "C2": {
+      "criterion": "deterministic frozen writable boundary with three-derivation rebuild and complete pre-mutation preservation ledger",
+      "evidence": [
+        "02-writable-boundary.json",
+        "06-preservation-and-rollback.json"
+      ],
+      "result": "pass"
+    },
+    "C3": {
+      "criterion": "implementation satisfies every bound completion criterion with recorded fail-before/pass-after gap proof",
+      "evidence": [
+        "03-implementation-and-gap-proof.json",
+        "commands/06-gap-and-project-validation.json"
+      ],
+      "result": "pass"
+    },
+    "C4": {
+      "criterion": "every mandatory failure blocks with the exact typed diagnostic",
+      "evidence": [
+        "05-mandatory-failures.json"
+      ],
+      "result": "pass"
+    },
+    "C5": {
+      "criterion": "backlog source, Level 1-4 artifacts, MI evidence, dependencies, and every pre-existing byte outside the boundary remain exact",
+      "evidence": [
+        "06-preservation-and-rollback.json outside_boundary_immutability"
+      ],
+      "result": "pass"
+    },
+    "C6": {
+      "criterion": "authority, route, active Level 4 guarantee, and absent Level 5-6 state observable, truthful, unambiguous",
+      "evidence": [
+        "01-context-delivery.json level3_route and adapter-view absent-guarantees statement"
+      ],
+      "result": "pass",
+      "statement": "Level 4 is the active guarantee level; Level 5-6 guarantees (resumable Runs, Evidence-bound completion, Assurance, Learning) are absent; implementing the selected effort is not a Continuity-trusted completion claim; no canonical artifact records any completion state change"
+    },
+    "C7": {
+      "criterion": "deterministic rebuilds, source-preserving return and cancel proofs, cleanup including the removed isolated committed validation copy, exact final manifest, and the uncommitted unstaged delta with recorded SHA-256 manifest",
+      "evidence": [
+        "02-writable-boundary.json",
+        "06-preservation-and-rollback.json",
+        "commands/07-final-changed-files.json"
+      ],
+      "result": "pass"
+    }
+  },
+  "iteration": "SE-001-R3",
+  "kind": "continuity.se001.criterion-matrix-and-verdict",
+  "verdict": "UNCONDITIONAL PASS",
+  "verdict_rule": "conjunctive-unconditional-single-result over C1-C7, S1-S10, F1-F12, every precondition, validation, preservation, rollback, cleanup, and exact-manifest requirement"
+}

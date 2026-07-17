@@ -37,6 +37,9 @@ export class DashboardBffStack extends ServiceStack {
         // announcement (forwarded advisory→investor by investor-adpt, Task 4.1)
         // instead of accumulated from disparate trigger events.
         InvestorIngestEventTypes.ADVISORY_STATUS_UPDATED,
+        // DecisionPacket row CDC (forwarded advisory→investor by investor-adpt):
+        // awaiting-confirmation activity projection on status=AWAITING_CONFIRMATION.
+        InvestorIngestEventTypes.DECISION_PACKET_UPDATED,
       ],
     });
 

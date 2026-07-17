@@ -1,0 +1,123 @@
+{
+  "algorithm": "se001-writable-boundary@1",
+  "considered_declarations": [
+    {
+      "annotation": "activity-feed read model, handlers, tests, service card",
+      "declaration": "services/investor/dashboard-bff/** (activity-feed read model, handlers, tests, service card)",
+      "disposition": "writable",
+      "pattern": "services/investor/dashboard-bff/**",
+      "source_artifact": "continuity/level-3/scope.json",
+      "source_sha256": "db7a45278e8f4a270552e3ae1db3695b70e07d1624b27bcdc28f6417883a5ad6"
+    },
+    {
+      "annotation": "only if the chosen sourcing forwards a DecisionPacket-status event cross-domain",
+      "declaration": "services/investor/investor-adpt/** (only if the chosen sourcing forwards a DecisionPacket-status event cross-domain)",
+      "disposition": "writable-conditional-met",
+      "pattern": "services/investor/investor-adpt/**",
+      "source_artifact": "continuity/level-3/scope.json",
+      "source_sha256": "db7a45278e8f4a270552e3ae1db3695b70e07d1624b27bcdc28f6417883a5ad6"
+    },
+    {
+      "annotation": "read-only reference for the DecisionPacket CDC contract",
+      "declaration": "services/advisory/decision-workflow-ctrl/src/service.stack.ts (read-only reference for the DecisionPacket CDC contract)",
+      "disposition": "read-only-reference",
+      "pattern": "services/advisory/decision-workflow-ctrl/src/service.stack.ts",
+      "source_artifact": "continuity/level-3/scope.json",
+      "source_sha256": "db7a45278e8f4a270552e3ae1db3695b70e07d1624b27bcdc28f6417883a5ad6"
+    }
+  ],
+  "counts": {
+    "existing": 60,
+    "to_be_created": 3
+  },
+  "derivation_rebuild_digests": [
+    "67eed30f53a84b0ad950145d2e73758b731634a5a3e38da63b607e5dc1dc2ff1",
+    "67eed30f53a84b0ad950145d2e73758b731634a5a3e38da63b607e5dc1dc2ff1",
+    "67eed30f53a84b0ad950145d2e73758b731634a5a3e38da63b607e5dc1dc2ff1"
+  ],
+  "existing_paths": [
+    "services/investor/dashboard-bff/CLAUDE.md",
+    "services/investor/dashboard-bff/README.md",
+    "services/investor/dashboard-bff/jest.config.js",
+    "services/investor/dashboard-bff/jest.integration.config.js",
+    "services/investor/dashboard-bff/project.json",
+    "services/investor/dashboard-bff/src/graphql/js-function/get-dashboard.fn.js",
+    "services/investor/dashboard-bff/src/graphql/js-function/get-position-snapshots.fn.js",
+    "services/investor/dashboard-bff/src/graphql/js-function/get-recent-activity.fn.js",
+    "services/investor/dashboard-bff/src/graphql/js-function/get-simulation-summary.fn.js",
+    "services/investor/dashboard-bff/src/graphql/js-function/get-time-travel-availability.fn.js",
+    "services/investor/dashboard-bff/src/graphql/js-function/publish-activity-update.fn.js",
+    "services/investor/dashboard-bff/src/graphql/js-function/publish-dashboard-update.fn.js",
+    "services/investor/dashboard-bff/src/graphql/js-function/publish-position-update.fn.js",
+    "services/investor/dashboard-bff/src/graphql/js-function/utils/check-auth.fn.js",
+    "services/investor/dashboard-bff/src/handlers/dashboard-publisher.ts",
+    "services/investor/dashboard-bff/src/handlers/event-listener.ts",
+    "services/investor/dashboard-bff/src/main.ts",
+    "services/investor/dashboard-bff/src/read-model-ownership.ts",
+    "services/investor/dashboard-bff/src/repositories/dashboard.repository.ts",
+    "services/investor/dashboard-bff/src/schema.graphql",
+    "services/investor/dashboard-bff/src/service.stack.ts",
+    "services/investor/dashboard-bff/src/transforms/advisory-status.ts",
+    "services/investor/dashboard-bff/src/transforms/investor-snapshot.ts",
+    "services/investor/dashboard-bff/src/transforms/portfolio-summary.ts",
+    "services/investor/dashboard-bff/src/transforms/position-snapshot.ts",
+    "services/investor/dashboard-bff/src/transforms/recent-activity.ts",
+    "services/investor/dashboard-bff/src/transforms/time-travel-availability.ts",
+    "services/investor/dashboard-bff/test/integration/dashboard-bff.integration.test.ts",
+    "services/investor/dashboard-bff/test/integration/read-model-projection.integration.test.ts",
+    "services/investor/dashboard-bff/test/types/read-model-ownership.type-test.ts",
+    "services/investor/dashboard-bff/test/unit/graphql/__mocks__/appsync-utils-dynamodb.ts",
+    "services/investor/dashboard-bff/test/unit/graphql/__mocks__/appsync-utils.ts",
+    "services/investor/dashboard-bff/test/unit/graphql/get-position-snapshots.test.ts",
+    "services/investor/dashboard-bff/test/unit/handlers/dashboard-publisher.test.ts",
+    "services/investor/dashboard-bff/test/unit/handlers/event-listener.test.ts",
+    "services/investor/dashboard-bff/test/unit/repositories/dashboard.repository.test.ts",
+    "services/investor/dashboard-bff/test/unit/service.stack.test.ts",
+    "services/investor/dashboard-bff/test/unit/transforms/advisory-status.test.ts",
+    "services/investor/dashboard-bff/test/unit/transforms/investor-snapshot.test.ts",
+    "services/investor/dashboard-bff/test/unit/transforms/portfolio-summary.test.ts",
+    "services/investor/dashboard-bff/test/unit/transforms/position-snapshot.test.ts",
+    "services/investor/dashboard-bff/test/unit/transforms/recent-activity.test.ts",
+    "services/investor/dashboard-bff/test/unit/transforms/time-travel-availability.test.ts",
+    "services/investor/dashboard-bff/tsconfig.json",
+    "services/investor/dashboard-bff/tsconfig.lib.json",
+    "services/investor/dashboard-bff/tsconfig.spec.json",
+    "services/investor/dashboard-bff/tsconfig.type-test.json",
+    "services/investor/investor-adpt/CLAUDE.md",
+    "services/investor/investor-adpt/README.md",
+    "services/investor/investor-adpt/jest.config.js",
+    "services/investor/investor-adpt/project.json",
+    "services/investor/investor-adpt/src/domain/contracts.ts",
+    "services/investor/investor-adpt/src/domain/events.ts",
+    "services/investor/investor-adpt/src/domain/index.ts",
+    "services/investor/investor-adpt/src/main.ts",
+    "services/investor/investor-adpt/src/service.stack.ts",
+    "services/investor/investor-adpt/test/unit/domain/contracts.test.ts",
+    "services/investor/investor-adpt/test/unit/service.stack.test.ts",
+    "services/investor/investor-adpt/tsconfig.json",
+    "services/investor/investor-adpt/tsconfig.spec.json"
+  ],
+  "frozen_before_first_mutation": true,
+  "frozen_boundary_sha256": "67eed30f53a84b0ad950145d2e73758b731634a5a3e38da63b607e5dc1dc2ff1",
+  "inputs": {
+    "scope_json_sha256": "db7a45278e8f4a270552e3ae1db3695b70e07d1624b27bcdc28f6417883a5ad6",
+    "tracked_listing_sha256": "780c68337cdc1adef46ddd830178d62c24e618a77b8c9c5a7bed4e26a9cf07c1",
+    "working_set_json_sha256": "e24fe112a6947d1959a2f4fa6d0083e34ea1a2614347487eaba747bcaab64b97"
+  },
+  "iteration": "SE-001-R3",
+  "kind": "continuity.se001.writable-boundary",
+  "parameters": {
+    "planned_create_paths": [
+      "services/investor/dashboard-bff/src/transforms/awaiting-confirmation-activity.ts",
+      "services/investor/dashboard-bff/test/unit/handlers/awaiting-confirmation-activity-gap.test.ts",
+      "services/investor/dashboard-bff/test/unit/transforms/awaiting-confirmation-activity.test.ts"
+    ],
+    "sourcing": "investor-adpt-forwarded-decision-packet-status-event"
+  },
+  "rebuilds_byte_identical": true,
+  "to_be_created_paths": [
+    "services/investor/dashboard-bff/src/transforms/awaiting-confirmation-activity.ts",
+    "services/investor/dashboard-bff/test/unit/handlers/awaiting-confirmation-activity-gap.test.ts",
+    "services/investor/dashboard-bff/test/unit/transforms/awaiting-confirmation-activity.test.ts"
+  ]
+}

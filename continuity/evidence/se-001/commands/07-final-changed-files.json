@@ -1,0 +1,40 @@
+{
+  "close_state": "uncommitted and unstaged; publication separately authorized with the exact subject 'Publish SE-001 selected effort implementation and evidence'",
+  "expected_git_status": {
+    "modified_unstaged": [
+      "services/investor/dashboard-bff/CLAUDE.md",
+      "services/investor/dashboard-bff/src/handlers/event-listener.ts",
+      "services/investor/dashboard-bff/src/service.stack.ts",
+      "services/investor/dashboard-bff/test/unit/handlers/event-listener.test.ts",
+      "services/investor/investor-adpt/CLAUDE.md",
+      "services/investor/investor-adpt/src/domain/events.ts",
+      "services/investor/investor-adpt/src/service.stack.ts",
+      "services/investor/investor-adpt/test/unit/service.stack.test.ts"
+    ],
+    "staged": [],
+    "untracked_additions": [
+      "continuity/evidence/se-001/00-repository-bindings.json",
+      "continuity/evidence/se-001/01-context-delivery.json",
+      "continuity/evidence/se-001/02-writable-boundary.json",
+      "continuity/evidence/se-001/03-implementation-and-gap-proof.json",
+      "continuity/evidence/se-001/04-success-scenarios.json",
+      "continuity/evidence/se-001/05-mandatory-failures.json",
+      "continuity/evidence/se-001/06-preservation-and-rollback.json",
+      "continuity/evidence/se-001/07-criterion-matrix-and-verdict.json",
+      "continuity/evidence/se-001/commands/01-level4-tests.json",
+      "continuity/evidence/se-001/commands/02-level3-tests.json",
+      "continuity/evidence/se-001/commands/03-level2-tests.json",
+      "continuity/evidence/se-001/commands/04-level1-tests.json",
+      "continuity/evidence/se-001/commands/05-backlog-next-tests.json",
+      "continuity/evidence/se-001/commands/06-gap-and-project-validation.json",
+      "continuity/evidence/se-001/commands/07-final-changed-files.json",
+      "services/investor/dashboard-bff/src/transforms/awaiting-confirmation-activity.ts",
+      "services/investor/dashboard-bff/test/unit/handlers/awaiting-confirmation-activity-gap.test.ts",
+      "services/investor/dashboard-bff/test/unit/transforms/awaiting-confirmation-activity.test.ts"
+    ]
+  },
+  "external_manifest_note": "the SHA-256 manifest of all 26 changed paths is recorded outside all repositories in the SE-001-R3 recovery ledger (final-delta-manifest.txt) and its digest is recorded in the continuity-lab execution closure",
+  "iteration": "SE-001-R3",
+  "kind": "continuity.se001.command-record",
+  "total_changed_paths": 26
+}

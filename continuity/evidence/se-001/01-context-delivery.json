@@ -1,0 +1,70 @@
+{
+  "delivery": {
+    "exclusive_execution_input": "digest-matched adapter view of authorized Context Pack version 1",
+    "no_stale_rejected_revoked_disposition": true,
+    "stale_check": {
+      "changed_dependencies": [],
+      "status": "ready"
+    }
+  },
+  "iteration": "SE-001-R3",
+  "kind": "continuity.se001.context-delivery",
+  "verifications": {
+    "adapter_view_file_sha256": {
+      "expected": "9062458c02bf4ac816cbd7d72af3f1ed3c0e91246217dc83811afc4bedbbe838",
+      "observed": "9062458c02bf4ac816cbd7d72af3f1ed3c0e91246217dc83811afc4bedbbe838",
+      "result": "match"
+    },
+    "adapter_view_rebuild": {
+      "command": "node continuity/level-4/bin/continuity-context.mjs adapter-view --out=none",
+      "derived_from_sha256": "e58c9bc1978d6799cccda96c2520ea1f7f41ab8b88e8a055ff968cd7b8ce15c1",
+      "result": "byte-identical",
+      "view_sha256": "9062458c02bf4ac816cbd7d72af3f1ed3c0e91246217dc83811afc4bedbbe838"
+    },
+    "authorization_record_sha256": {
+      "expected": "a23ec489098ba487ac27da2f1ae8c8752916a462517bae553ead7f4e062221cc",
+      "observed": "a23ec489098ba487ac27da2f1ae8c8752916a462517bae553ead7f4e062221cc",
+      "result": "match",
+      "status": "authorized",
+      "tuple": {
+        "identity": "nestfolio.context.dashboard-bff-awaiting-confirmation-activity-gap",
+        "sha256": "e58c9bc1978d6799cccda96c2520ea1f7f41ab8b88e8a055ff968cd7b8ce15c1",
+        "version": 1
+      }
+    },
+    "backlog_source_sha256": {
+      "expected": "b656733991c96c4275d11e9a9f2bff7f5ac72cdd298cbc68a4b94b6799dc742d",
+      "observed": "b656733991c96c4275d11e9a9f2bff7f5ac72cdd298cbc68a4b94b6799dc742d",
+      "result": "match"
+    },
+    "context_pack_sha256": {
+      "expected": "e58c9bc1978d6799cccda96c2520ea1f7f41ab8b88e8a055ff968cd7b8ce15c1",
+      "observed": "e58c9bc1978d6799cccda96c2520ea1f7f41ab8b88e8a055ff968cd7b8ce15c1",
+      "result": "match"
+    },
+    "formation_trace_sha256": {
+      "expected": "8c05453897a28efc0abc43c143c4657175c7bfed167cf774d783b409b6c94911",
+      "observed": "8c05453897a28efc0abc43c143c4657175c7bfed167cf774d783b409b6c94911",
+      "result": "match"
+    },
+    "level3_route": {
+      "active": true,
+      "route_json_sha256": "0ed84d148428125c0700969921d03fefb914819333d4848d4b262193f1c13d11"
+    },
+    "scope_json_sha256": {
+      "expected": "db7a45278e8f4a270552e3ae1db3695b70e07d1624b27bcdc28f6417883a5ad6",
+      "observed": "db7a45278e8f4a270552e3ae1db3695b70e07d1624b27bcdc28f6417883a5ad6",
+      "result": "match"
+    },
+    "validation_result": {
+      "digest_bound": "e58c9bc1978d6799cccda96c2520ea1f7f41ab8b88e8a055ff968cd7b8ce15c1",
+      "result": "valid",
+      "rules_passed": "18/18"
+    },
+    "working_set_json_sha256": {
+      "expected": "e24fe112a6947d1959a2f4fa6d0083e34ea1a2614347487eaba747bcaab64b97",
+      "observed": "e24fe112a6947d1959a2f4fa6d0083e34ea1a2614347487eaba747bcaab64b97",
+      "result": "match"
+    }
+  }
+}

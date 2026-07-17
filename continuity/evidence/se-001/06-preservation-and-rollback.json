@@ -1,0 +1,52 @@
+{
+  "iteration": "SE-001-R3",
+  "kind": "continuity.se001.preservation-and-rollback",
+  "outside_boundary_immutability": {
+    "method": "full recomputation of the 3523-path start-tree SHA-256 manifest against the implemented working tree",
+    "outside_boundary_mutations": 0,
+    "paths_differing_from_start": [
+      "services/investor/dashboard-bff/CLAUDE.md",
+      "services/investor/dashboard-bff/src/handlers/event-listener.ts",
+      "services/investor/dashboard-bff/src/service.stack.ts",
+      "services/investor/dashboard-bff/test/unit/handlers/event-listener.test.ts",
+      "services/investor/investor-adpt/CLAUDE.md",
+      "services/investor/investor-adpt/src/domain/events.ts",
+      "services/investor/investor-adpt/src/service.stack.ts",
+      "services/investor/investor-adpt/test/unit/service.stack.test.ts"
+    ]
+  },
+  "preservation_ledger": {
+    "evidence_absence_at_start": "15/15 evidence create paths absent",
+    "location_outside_repositories": "~/continuity-recovery/se-001-r3/ledger/",
+    "pre_change_digests_sha256": "3585c87f6b9321b91dc6e6f589a5046c107683b418cf1133cc0751aaa87fd952",
+    "repository_bindings_before": "repository-bindings-before.txt",
+    "start_tree_manifest_paths": 3523,
+    "start_tree_manifest_sha256": "a2a9fc9946a2eaaf5c5424efb4aacd6acf1f4f0746010ed05e51ceb3b1e2bb29",
+    "to_be_created_absence_at_start": "3/3 absent"
+  },
+  "return_cancel_proofs": {
+    "proof_a_delta_only": {
+      "deleted_created": 3,
+      "git_status_porcelain_lines": 0,
+      "mismatches": [],
+      "proof": "return-cancel-A-delta-only",
+      "restored_modified": 8,
+      "tracked_paths_equal_start": "3523/3523"
+    },
+    "proof_b_delta_and_evidence": {
+      "procedure": "isolated temporary copy of the implemented tree including the fifteen evidence additions; restore the 8 modified boundary paths from recorded pre-change bytes, delete the 3 created boundary paths and all 15 evidence paths; recompute the full tracked manifest and git status",
+      "result": "3523/3523 tracked paths byte-identical to the start manifest; git status --porcelain -uall empty",
+      "verification_order": "executed after evidence finalization and verified before the external final manifest was recorded; any discrepancy voids the verdict per the contract fail_rule"
+    }
+  },
+  "rollback_rule_status": "not-triggered (no actual execution condition failed after mutation)",
+  "temporary_fixtures": {
+    "cleanup_ledger": "cleanup-proof.txt",
+    "removed_with_absence_proof": [
+      "gap-before-copy (isolated start-revision copy)",
+      "committed-validation-copy (isolated committed validation copy; throwaway commit 1b1415e7a4fab0180fb94d0839c75fe697bcffcd absent from the real repository history)",
+      "return-cancel-copy-a",
+      "return-cancel-copy-b"
+    ]
+  }
+}

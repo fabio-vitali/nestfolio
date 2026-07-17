@@ -1,0 +1,38 @@
+{
+  "argv": [
+    "node",
+    "--test",
+    "tests/continuity-level-2.test.mjs"
+  ],
+  "cwd_role": "nestfolio-working-tree",
+  "end_utc": "2026-07-17T15:49:23.107Z",
+  "exit_code": 0,
+  "iteration": "SE-001-R3",
+  "kind": "continuity.se001.command-record",
+  "parsed_result": {
+    "fail": 0,
+    "pass": 23,
+    "tests": 23
+  },
+  "pre_mutation_counterpart": {
+    "argv": [
+      "node",
+      "--test",
+      "tests/continuity-level-2.test.mjs"
+    ],
+    "cwd_role": "nestfolio",
+    "end_utc": "2026-07-17T12:20:22.072Z",
+    "exit_code": 0,
+    "parsed_result": {
+      "fail": 0,
+      "pass": 23,
+      "tests": 23
+    },
+    "start_utc": "2026-07-17T12:20:21.030Z",
+    "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "stdout_sha256": "bc93686ae415e00f11f9ff8b6f89dedbe398f79cdc89b9d61016238f28d1f588"
+  },
+  "start_utc": "2026-07-17T15:49:22.033Z",
+  "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+  "stdout_sha256": "e4504835be7149f51f39870bce7b8c7eeda16fc2b4b15df8087510b8e8177cc4"
+}
