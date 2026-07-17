@@ -24,7 +24,7 @@ const ROOT = join(fileURLToPath(import.meta.url), '..', '..');
 const L4 = (n) => join(ROOT, 'continuity', 'level-4', n);
 const sha256 = (buf) => createHash('sha256').update(buf).digest('hex');
 const readJson = (p) => JSON.parse(readFileSync(p, 'utf8'));
-const REV = 'b9d7264082322e09cfd233819b79f128ef912e31';
+const REV = readJson(L4('context-recipe.json')).bound_inputs.repository_revision;
 
 const PERMITTED_ADDITIONS = new Set([
   'continuity/level-4/bin/continuity-context.mjs',

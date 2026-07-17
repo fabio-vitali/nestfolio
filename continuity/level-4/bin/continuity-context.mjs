@@ -154,10 +154,21 @@ export function formCandidate({ root, repoRoot, rev }) {
   stage(1, 'frame-objective-and-output-contract',
     `objective framed from Level 3 Work ${work.value.identity}; output contract: one immutable digest-identified Context Pack version plus Formation Trace`);
 
-  // Stage 2: bind workspace and revision.
+  // Stage 2: bind workspace and revision. The bound revision must be a
+  // commit contained in the current HEAD's ancestry (ancestor-or-equal);
+  // formation reads committed bytes at that revision, never the working tree.
   const head = git(repoRoot, ['rev-parse', 'HEAD']).toString('utf8').trim();
-  if (head !== rev) {
-    throw new Blocked(DIAGNOSTICS.F1, `bound revision ${rev} is not the current HEAD ${head}`);
+  const contained = (() => {
+    try {
+      git(repoRoot, ['cat-file', '-e', `${rev}^{commit}`]);
+      git(repoRoot, ['merge-base', '--is-ancestor', rev, 'HEAD']);
+      return true;
+    } catch {
+      return false;
+    }
+  })();
+  if (!contained) {
+    throw new Blocked(DIAGNOSTICS.F1, `bound revision ${rev} is not contained in the current HEAD ${head}`);
   }
   stage(2, 'bind-workspace-and-revision', `nestfolio bound at ${rev}`);
 
