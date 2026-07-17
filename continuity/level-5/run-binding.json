@@ -1,0 +1,132 @@
+{
+  "artifact": "continuity.level-5.run-binding",
+  "bound_context_pack": {
+    "adapter_view_sha256": "9062458c02bf4ac816cbd7d72af3f1ed3c0e91246217dc83811afc4bedbbe838",
+    "authorization_record_sha256": "a23ec489098ba487ac27da2f1ae8c8752916a462517bae553ead7f4e062221cc",
+    "authorized_at": "2026-07-16T18:50:36.000Z",
+    "authorized_by": "fabio.vitali (human program owner)",
+    "context_pack_path": "continuity/level-4/context-pack.json",
+    "context_pack_sha256": "e58c9bc1978d6799cccda96c2520ea1f7f41ab8b88e8a055ff968cd7b8ce15c1",
+    "formation_trace_sha256": "8c05453897a28efc0abc43c143c4657175c7bfed167cf774d783b409b6c94911",
+    "name": "nestfolio.context.dashboard-bff-awaiting-confirmation-activity-gap",
+    "version": 1
+  },
+  "bound_level_2_lock": {
+    "aggregate_sha256": "73bbb7c9199a79e00208115f1f7ba469be7e42e1bd20d1d72bfc726ac048df26",
+    "packs": "nestfolio.level-1@1.0.1 plus continuity.repository-tools@1.0.0",
+    "procedures": "nestfolio.backlog-next@1.0.1 plus continuity.repository-status@1.0.0"
+  },
+  "bound_level_3_scope": {
+    "route_active": true,
+    "scope_path": "continuity/level-3/scope.json",
+    "scope_sha256": "db7a45278e8f4a270552e3ae1db3695b70e07d1624b27bcdc28f6417883a5ad6"
+  },
+  "bound_repository_revision": "363283bcc97b1e04710db0e7f759ffffddb18b69",
+  "closure_policy": {
+    "backlog_status_change": false,
+    "closed_via_orchestrator_recovery": true,
+    "evidence_bound_completion": false,
+    "kind": "level-5-operational-only",
+    "lease_released_at_close": true,
+    "mechanism": "Session 2 captures the final verified Checkpoint (checkpoint --final); the single-writer lease is then released and the final Handoff published via interrupt as an orchestrator recovery step because Session 2 ended without a deliberate pause; validate and complete are never invoked",
+    "rationale": "completeRun would create Evidence-bound completion, mark the Work Item completed, and ship the backlog source, all forbidden by the MI-005 contract truthful_closure_rule and F11; the engine offers no other Level-5-only terminal state, so the final verified Checkpoint is the operational closure record. Per lease_policy the lease is released \"by recovery after unexpected stop\": Session 2 ended without deliberate pause leaving the lease held, so the orchestrator performed the recovery lease-release (interrupt --session-id session-mi005-2), which released the lease and published the final Handoff referencing run-mi005-final-2 with no Work completion, backlog change, or Evidence.",
+    "work_item_completed": false
+  },
+  "cutover_and_drain": {
+    "drain_rule": "the current journal at the Git common directory journal/ path remains the sole authority for its existing Runs; MI-005 performs zero writes under the journal path.",
+    "dual_writer_prohibition": "DUAL_RUN_ROUTE_CONFLICT before any mutation if a current-journal or target dual Run exists for the effort.",
+    "new_run_cutover": "run-mi005 is a new target Run with a new identity, created only in the target operational store; no current journal Run is imported, converted, or re-keyed.",
+    "route_check": {
+      "active_current_run_for_effort": false,
+      "existing_target_run_for_effort": false,
+      "journal_file_count": 89,
+      "journal_run_directory_count": 30,
+      "journal_tree_digest": "57b5e86a8bad93ba4015b195b8610efce82f9554135d35e11dc67386ab4034a6",
+      "result": "clear"
+    }
+  },
+  "effect_key_policy": {
+    "completed_replay": "deduplicated without re-execution and without rewriting the record",
+    "lifecycle_states": [
+      "planned",
+      "started",
+      "completed",
+      "failed",
+      "compensated",
+      "unknown"
+    ],
+    "retry": "only for effects classified retryable and only under the same effect key",
+    "sole_material_effect": {
+      "content": "MI-005 resumable run cutover keyed effect completed exactly once.",
+      "effort_implementation_effects": "prohibited (the effort is already implemented and published)",
+      "key": "mi005-material-effect",
+      "path": "continuity/dogfood/mi-005-effect.txt"
+    },
+    "unknown_blocks": "UNKNOWN_EFFECT_BLOCKS_RETRY until explicitly reconciled by the human"
+  },
+  "freshness_policy": {
+    "fingerprint_paths": [
+      "runtime/continuity",
+      "continuity/packs",
+      "continuity/bindings",
+      "continuity/level-1",
+      "continuity/level-2",
+      "continuity/level-3",
+      "continuity/level-4",
+      "continuity/dogfood"
+    ],
+    "stale_diagnostic": "STALE_RUN",
+    "validated_on_resume": [
+      "repository fingerprint",
+      "context pack digest",
+      "Level 2 lock aggregate",
+      "pack-lock digest",
+      "engine asset digests"
+    ]
+  },
+  "lease_policy": {
+    "acquisition": "at start or at resume after freshness validation passes",
+    "conflict_diagnostic": "LEASE_CONFLICT",
+    "dead_process_reclamation": "same-host only, with staleness check, recorded in audit ledger",
+    "journal_lease_isolation": "no lease is ever taken on or copied from any current journal Run",
+    "reads_are_lease_free": true,
+    "released_on": [
+      "deliberate pause",
+      "run close",
+      "recovery after unexpected stop"
+    ],
+    "single_writer": true
+  },
+  "level_6_guarantees": "ABSENT — no Work completion, Assurance Plan, Guard, Waiver, Decision, Learning, or Level 6 state is created or claimed.",
+  "run_id": "run-mi005",
+  "schema_version": 1,
+  "sharing_boundary": {
+    "checkpoint_records": [
+      "run revision and state",
+      "repository revision and working-tree fingerprint",
+      "completed keyed effects",
+      "exact next action",
+      "pending decisions and blockers",
+      "Context Pack and lock digests",
+      "adapter and session provenance"
+    ],
+    "resume_source": "only a verified immutable Checkpoint plus a published Handoff, with no transcript dependency"
+  },
+  "store": {
+    "durable_class_root": "continuity/artifacts",
+    "engine_lock_ref": "continuity/level-5/engine-lock.json",
+    "level_5_root": "continuity/level-5",
+    "operational_class_root": ".continuity"
+  },
+  "target_route": {
+    "effort_identity": "dashboard-bff-awaiting-confirmation-activity-gap",
+    "effort_source_path": "docs/backlog/dashboard-bff-awaiting-confirmation-activity-gap.md",
+    "effort_source_revision": "fd5e58b35e665fa5fa0db3c2c31ea5561442f9b6",
+    "effort_source_sha256": "b656733991c96c4275d11e9a9f2bff7f5ac72cdd298cbc68a4b94b6799dc742d",
+    "implementation_publication_revision": "363283bcc97b1e04710db0e7f759ffffddb18b69",
+    "level_3_publication_revision": "b9d7264082322e09cfd233819b79f128ef912e31",
+    "level_4_correction_revision": "89ef74ee32740d30b2ddc7f0eb69f24a1374eea6",
+    "level_4_publication_revision": "a760d6f41ff14491d5b008a7f13234ba0221bcec",
+    "role": "MI-005 creates the first target Run for this effort's target route; it never re-implements, mutates, or completes the effort."
+  }
+}

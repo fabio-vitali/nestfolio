@@ -1,0 +1,433 @@
+{
+  "active_scope": [
+    "continuity/dogfood"
+  ],
+  "adapter_session_provenance": {
+    "adapter": "claude-code",
+    "session_id": "session-mi005-2"
+  },
+  "captured_at": "2026-07-17T19:59:10.503Z",
+  "completed_effects": [
+    {
+      "after_sha256": "4b96dfb9bd0fefaaf695e918e9f698e7cd9b6c546322137ec354dc650e8194cc",
+      "key": "mi005-material-effect",
+      "path": "continuity/dogfood/mi-005-effect.txt"
+    }
+  ],
+  "completion_criteria": [
+    {
+      "description": "The material keyed effect file exists with the expected content: continuity/dogfood/mi-005-effect.txt containing the declared MI-005 effect content.",
+      "id": "mi005-keyed-effect-materialized",
+      "required_evidence_type": "repository-file",
+      "status": "pending",
+      "validator": {
+        "contains": "MI-005 resumable run cutover keyed effect completed exactly once.",
+        "path": "continuity/dogfood/mi-005-effect.txt",
+        "type": "file"
+      }
+    }
+  ],
+  "context_pack_digest": "b838654c99c0b304cddf0caecf02a757dfb94695a76d0c506e995c53e5cbf481",
+  "digest": "6390e918973ac7132c11eceebac6127db047f6c83427fd775b6c853b60e315a9",
+  "final": true,
+  "id": "run-mi005-final-2",
+  "next_action": "No execution action remains. Level 5 operational closure only; no Work completion, Assurance, or Level 6 state exists.",
+  "pack_lock_digest": "050be66fe746bce73cb09f56cb0a677fbd08b3be50a0858d7a2b2661ba4fe793",
+  "repository_fingerprint": {
+    "digest": "5e644149d1455af80d4f23523cc150b565ddc0e8a9202325b2f33bcf12fec325",
+    "files": [
+      {
+        "path": "continuity/bindings/nestfolio/decisions/vs001-accepted-decisions.json",
+        "sha256": "182613f9047e742b454ea2def0a3ca8605041a53224d4e2ab5ddab79cc5c1fc2",
+        "size": 478
+      },
+      {
+        "path": "continuity/bindings/nestfolio/decisions/vs001a-accepted-decisions.json",
+        "sha256": "4c537dc8b919c7cd78005607439695eda16982d66c8a27e898c9b622d4ea134e",
+        "size": 927
+      },
+      {
+        "path": "continuity/bindings/nestfolio/guards/vs001-scope.json",
+        "sha256": "8022c964de724bc6f554e3dbc3905a49c8ef912408f93ec385e2de223d41487e",
+        "size": 674
+      },
+      {
+        "path": "continuity/bindings/nestfolio/guards/vs001a-scope.json",
+        "sha256": "f2d32742a45c4a414ba21716c5fb4edcd58261b3b6f4aeaee7ddac93aae765b4",
+        "size": 1017
+      },
+      {
+        "path": "continuity/bindings/nestfolio/work-items/continuity-vs001-resumable-agent-work-session.json",
+        "sha256": "8135e9acc2fc5cedc4c121e76efc08a7b5a55761e72cd4a7373dfb19e28eae98",
+        "size": 5131
+      },
+      {
+        "path": "continuity/bindings/nestfolio/work-items/continuity-vs001a-claude-code-session-confirmation.json",
+        "sha256": "7e52dda647d628e7fa99c93341dcc7731de8304ec3218a69e9d0176e5a26372d",
+        "size": 8254
+      },
+      {
+        "path": "continuity/dogfood/mi-005-effect.txt",
+        "sha256": "4b96dfb9bd0fefaaf695e918e9f698e7cd9b6c546322137ec354dc650e8194cc",
+        "size": 65
+      },
+      {
+        "path": "continuity/dogfood/vs001-effect.txt",
+        "sha256": "09c9622554c35985c71e2ca9f3ab6c6b970f74ee6f4cc14b679287136c9e4e23",
+        "size": 44
+      },
+      {
+        "path": "continuity/dogfood/vs001a-effect.txt",
+        "sha256": "f8ee4384e7978cde6cbd1ef6ee9a7bef4bda01fff2667480ce46abb406088f7b",
+        "size": 44
+      },
+      {
+        "path": "continuity/level-1/activation.json",
+        "sha256": "d8d011c6d672cda725f039ddfffb26b9157bb95462538423ac473bb3b37a0650",
+        "size": 196
+      },
+      {
+        "path": "continuity/level-1/cli.mjs",
+        "sha256": "fdc297c886580d25cd62f9c83a3865e5c718855a2342b4d36c78fbad29c44a5e",
+        "size": 1496
+      },
+      {
+        "path": "continuity/level-1/pack-lock.json",
+        "sha256": "701caacfce402077dd77659669768759a6c6d4613a94e6abb8e68248f44a8da9",
+        "size": 3862
+      },
+      {
+        "path": "continuity/level-1/pack-manifest.json",
+        "sha256": "2501b33806ee6c7dfd8986ba3d04480634ac24b480c13e81a9cbb89b54b0544b",
+        "size": 699
+      },
+      {
+        "path": "continuity/level-1/procedure-contract.json",
+        "sha256": "776f1e5655a9d0c2973e2d0cf76fe323d3ddb945106c31fdcd4610da9f9c3f66",
+        "size": 3130
+      },
+      {
+        "path": "continuity/level-1/project-binding.json",
+        "sha256": "dc66414f0f2e2be9cb4661b14fd0e1e401d956a64572809da615e58c2a554139",
+        "size": 1062
+      },
+      {
+        "path": "continuity/level-1/README.md",
+        "sha256": "9343854b415ddf798f9081535ca8d94073746e27fc7a7a900ca14ea01f83ed5c",
+        "size": 1147
+      },
+      {
+        "path": "continuity/level-1/src/application-service.mjs",
+        "sha256": "dd19ddaeb5b0fceca74f18e04a370eb53d6b84f9bf2f82fe13c5d8817f7f80b3",
+        "size": 8109
+      },
+      {
+        "path": "continuity/level-1/src/claude-code-adapter.mjs",
+        "sha256": "0038104da7d10af5ccfffb68bd58cbfb66096b8a5939eeff3f2f1954d006fb20",
+        "size": 1299
+      },
+      {
+        "path": "continuity/level-1/src/core.mjs",
+        "sha256": "ba86d1b5fe90645d7fbde049491c7309503ddde56d3b16195a7d89219ecd1fa1",
+        "size": 2355
+      },
+      {
+        "path": "continuity/level-1/src/repository-infrastructure.mjs",
+        "sha256": "c3383ef465c1b0f28b38492b59062f33a51e46dc5ac2c57bc87abdbdd5caff2f",
+        "size": 5319
+      },
+      {
+        "path": "continuity/level-2/activation-history.ndjson",
+        "sha256": "512034d03e0d989fcba1cfcf154e142c25e854336970463dcdee32659b8176cb",
+        "size": 256
+      },
+      {
+        "path": "continuity/level-2/activation.json",
+        "sha256": "af6fc7d570cb0fdcaf24dfb797432daa97aa196f15be07d5f6ff515f99dbfb70",
+        "size": 349
+      },
+      {
+        "path": "continuity/level-2/cli.mjs",
+        "sha256": "0e857c7413d94ae0cbf159c04e6ff1112f8882f4db3481f73ca9e2f42dbb79c7",
+        "size": 1856
+      },
+      {
+        "path": "continuity/level-2/packs.lock.json",
+        "sha256": "0d0e6b52eb5aab3957d51abb432b5baa4c4911880151de8c96a9e4f7c90bb63c",
+        "size": 9880
+      },
+      {
+        "path": "continuity/level-2/packs/continuity.repository-tools/1.0.0/pack-manifest.json",
+        "sha256": "439799dbc8f3ef1d44c178d8d85eaa339a229c76a84d42281c44b80f2061ae19",
+        "size": 867
+      },
+      {
+        "path": "continuity/level-2/packs/continuity.repository-tools/1.0.0/procedures/continuity.repository-status.json",
+        "sha256": "75c4185cef2ed609bababe0cd35b7dc01d853d053679569164ac7ce84fd65057",
+        "size": 1555
+      },
+      {
+        "path": "continuity/level-2/README.md",
+        "sha256": "4056209b3405ad2452ce4e22c2522c58c9950c5c309c14c6caac5616b1fcfaf7",
+        "size": 1164
+      },
+      {
+        "path": "continuity/level-2/src/application-service.mjs",
+        "sha256": "ad2e58bb3425d3b72196e0afce6078fa7501074fe5090df566b9a7fc55603c22",
+        "size": 10787
+      },
+      {
+        "path": "continuity/level-2/src/core.mjs",
+        "sha256": "fcf171439d883ac38ce66e22367e1d33236d239e3aa60c3a702c5c8776ead3fc",
+        "size": 4225
+      },
+      {
+        "path": "continuity/level-2/src/git-repository-adapter.mjs",
+        "sha256": "ed84e1998fd51bd1bf3f37db88a320eb2669e52ffe3cd40bce27b34e74e70dbd",
+        "size": 2625
+      },
+      {
+        "path": "continuity/level-2/src/pack-validator.mjs",
+        "sha256": "fd375fddac0069ed5dbd7a23172bbe48eac3bb4438697ef6b78674be53e204a2",
+        "size": 14440
+      },
+      {
+        "path": "continuity/level-2/src/repository-infrastructure.mjs",
+        "sha256": "28b8d3c9847913a66247527d44486a08b8d3fe0db9fbda084f40ae82268a15c6",
+        "size": 4364
+      },
+      {
+        "path": "continuity/level-3/bin/continuity-work.mjs",
+        "sha256": "f1f515f8c50d428cf14249a2fb027c0ce2d8b3c99c95a209540918bc54060cbe",
+        "size": 25113
+      },
+      {
+        "path": "continuity/level-3/candidates.json",
+        "sha256": "1c292f2f21c9226e4074cab0645323f959374618916a660fc01117c0f08f5f12",
+        "size": 355248
+      },
+      {
+        "path": "continuity/level-3/route.json",
+        "sha256": "0ed84d148428125c0700969921d03fefb914819333d4848d4b262193f1c13d11",
+        "size": 1580
+      },
+      {
+        "path": "continuity/level-3/schema/work-artifacts.schema.json",
+        "sha256": "898c3568ea0e6c9d89e34edfb9569c903240c8a491ef0aca97d96f40d288f3c5",
+        "size": 3983
+      },
+      {
+        "path": "continuity/level-3/scope.json",
+        "sha256": "db7a45278e8f4a270552e3ae1db3695b70e07d1624b27bcdc28f6417883a5ad6",
+        "size": 3267
+      },
+      {
+        "path": "continuity/level-3/work-brief.json",
+        "sha256": "dc50b59f42a72de0bee1b36c888596e8a19a347fb37559237a3a90272f9e60da",
+        "size": 3998
+      },
+      {
+        "path": "continuity/level-3/work-selection.json",
+        "sha256": "b01555e1ec65b4f232d008c82d7d2a22e0b94ac5a0b0a43410397f8638a1848c",
+        "size": 1956
+      },
+      {
+        "path": "continuity/level-3/work.json",
+        "sha256": "b23812bb0999f962856556516945bf82297642140f808d24cdd52e9341381936",
+        "size": 3372
+      },
+      {
+        "path": "continuity/level-3/working-set.json",
+        "sha256": "e24fe112a6947d1959a2f4fa6d0083e34ea1a2614347487eaba747bcaab64b97",
+        "size": 228
+      },
+      {
+        "path": "continuity/level-4/adapter-view.json",
+        "sha256": "9062458c02bf4ac816cbd7d72af3f1ed3c0e91246217dc83811afc4bedbbe838",
+        "size": 10467
+      },
+      {
+        "path": "continuity/level-4/authorization-record.json",
+        "sha256": "a23ec489098ba487ac27da2f1ae8c8752916a462517bae553ead7f4e062221cc",
+        "size": 1081
+      },
+      {
+        "path": "continuity/level-4/bin/continuity-context.mjs",
+        "sha256": "f6e4067330a50e3d53b2281d51a5b224150076ecb0d1564012ff7cebe301d247",
+        "size": 40686
+      },
+      {
+        "path": "continuity/level-4/context-pack.json",
+        "sha256": "e58c9bc1978d6799cccda96c2520ea1f7f41ab8b88e8a055ff968cd7b8ce15c1",
+        "size": 51879
+      },
+      {
+        "path": "continuity/level-4/context-recipe.json",
+        "sha256": "1b8f7e70477f48de8a821ba6c66991c1d9841adaff34b0055033681ffa5d0365",
+        "size": 4482
+      },
+      {
+        "path": "continuity/level-4/formation-trace.json",
+        "sha256": "8c05453897a28efc0abc43c143c4657175c7bfed167cf774d783b409b6c94911",
+        "size": 49195
+      },
+      {
+        "path": "continuity/level-4/schema/context-artifacts.schema.json",
+        "sha256": "72e3977b854a03ef2f194193b11b8dd021ece1804bb6e4682044715c24d97bf6",
+        "size": 3601
+      },
+      {
+        "path": "continuity/level-4/validation-result.json",
+        "sha256": "c526b961fe50c53eed3b89d792f1d0bde28e790b12f5d53a7f715362add5d9d3",
+        "size": 3015
+      },
+      {
+        "path": "continuity/packs/continuity-core/manifest.json",
+        "sha256": "7a0793d0842e48beefcb1bc537b35e881ca8a2bb7572183cfe38db86eeb45a99",
+        "size": 625
+      },
+      {
+        "path": "continuity/packs/continuity-core/procedures/resumable-agent-work.json",
+        "sha256": "1394bee3746051d7906c41b48fb7df10940c2ccee0469b3965a11a3bdf3968b7",
+        "size": 1201
+      },
+      {
+        "path": "continuity/packs/nestfolio/manifest.json",
+        "sha256": "22ac0cc8ba666c43789dbff939571ad529386cd6e1847fa09caf5eb4473f659e",
+        "size": 618
+      },
+      {
+        "path": "continuity/packs/nestfolio/procedures/backlog-and-evidence.json",
+        "sha256": "4de64689023f384eb2afd0bd4e0ebbda152b65c7ce5d69929efa86034697b855",
+        "size": 953
+      },
+      {
+        "path": "runtime/continuity/adapters/claude-code/cli.mjs",
+        "sha256": "4c523fe704fcc290a1f8dc86c918298fea12be58763f155801431d76728d4f0f",
+        "size": 2935
+      },
+      {
+        "path": "runtime/continuity/adapters/claude-code/hooks/hook-lib.mjs",
+        "sha256": "64b9cc49e9502f40bac97019e34e1565fd71f824669711915f72412a9cdcc56c",
+        "size": 2212
+      },
+      {
+        "path": "runtime/continuity/adapters/claude-code/hooks/session-end.mjs",
+        "sha256": "7432eda0d144e74489007b3ab51b276e6be55997ab92b1eb1bec48410ceff94f",
+        "size": 1267
+      },
+      {
+        "path": "runtime/continuity/adapters/claude-code/hooks/session-start.mjs",
+        "sha256": "2b57c8b4c50646dfd5f9cdd5663b135fe44766e3b218d2cc1b73c18df29976ac",
+        "size": 4822
+      },
+      {
+        "path": "runtime/continuity/lib/backlog-binding.mjs",
+        "sha256": "c7b52a38fe4f8f296eff1efec3f8f28f8b451e7422ae68b6929e1d1f5b7f47a1",
+        "size": 3398
+      },
+      {
+        "path": "runtime/continuity/lib/context.mjs",
+        "sha256": "679a3ea6d08c6104d10958696ca30c12091c94a7854ae61a29c53000b6527d35",
+        "size": 3184
+      },
+      {
+        "path": "runtime/continuity/lib/errors.mjs",
+        "sha256": "f1edd864583dd4712c6b2246a3c8b7c1d3d3762d4c3f0bd5fc5f8b20dd7d9c3d",
+        "size": 651
+      },
+      {
+        "path": "runtime/continuity/lib/pack-resolver.mjs",
+        "sha256": "db10c0fadd1063f5632a58b285c0b7f682616d07550911a935f2af760c5e60f1",
+        "size": 3988
+      },
+      {
+        "path": "runtime/continuity/lib/store.mjs",
+        "sha256": "9f313ba396a03b3ac33c3accef3eb13fbcf0554b695f3efc200059b97bf8f0af",
+        "size": 4257
+      },
+      {
+        "path": "runtime/continuity/lib/utils.mjs",
+        "sha256": "e8897333f05bf76a6cd20c1f8f6341d011f79975240e50977e8afbbf302b231f",
+        "size": 5430
+      },
+      {
+        "path": "runtime/continuity/lib/workflow.mjs",
+        "sha256": "6d0f828282183a8cc93f30ec8e61478f31ff4bea41160d763e531a4bb143ffac",
+        "size": 37791
+      },
+      {
+        "path": "runtime/continuity/README.md",
+        "sha256": "e41429748f7a465411b267dec5b54b7d9246f70a8e1b94518b3bd61b86b78dcf",
+        "size": 3239
+      },
+      {
+        "path": "runtime/continuity/test/core.test.mjs",
+        "sha256": "d7e926a1f2053093b8d2440457d936a90595565cd0e6492bcc84c0ee132e0dea",
+        "size": 2087
+      },
+      {
+        "path": "runtime/continuity/test/pack-resolution.test.mjs",
+        "sha256": "aa33e93a78978020d4e6bf5d5d2c094095dacea5b73c529142bcc7206715ce8a",
+        "size": 1475
+      },
+      {
+        "path": "runtime/continuity/test/resumable-session.test.mjs",
+        "sha256": "c2b937c4b57ffb53aef3aa0dc2ccad9a1a1bf99c2c7d776ec3fd69b6b4765d11",
+        "size": 5598
+      },
+      {
+        "path": "runtime/continuity/test/session-hooks.test.mjs",
+        "sha256": "8ecf713b457d3947a2e7202f3b1e78729a1b211dae6d5efe73553c16c4498bc0",
+        "size": 8955
+      },
+      {
+        "path": "runtime/continuity/test/test-fixture.mjs",
+        "sha256": "e23407be2876d974304a98d02f25b90db84b70f1dfbd3caf8cdf67102079956c",
+        "size": 1642
+      },
+      {
+        "path": "runtime/continuity/tools/validate-dogfood-state.mjs",
+        "sha256": "7df0c163f629bad538d8d11972aedede7a1049a8d40028cdc238541b6c3447d0",
+        "size": 2479
+      },
+      {
+        "path": "runtime/continuity/tools/validate-learning-state.mjs",
+        "sha256": "938b8756bbc69ff31582142c51d764b626a5c8b24ca633f070a789a1005466da",
+        "size": 1566
+      },
+      {
+        "path": "runtime/continuity/tools/validate-vs001a-executor-provenance.mjs",
+        "sha256": "e4a15de56c9158db62d372efe670c8864168d652edb56d9447d6cc120ab5b72f",
+        "size": 12143
+      }
+    ],
+    "identity": {
+      "branch": "main",
+      "head": "363283bcc97b1e04710db0e7f759ffffddb18b69",
+      "mode": "git"
+    }
+  },
+  "revision": 1,
+  "run_id": "run-mi005",
+  "schema_version": 1,
+  "scope_ref": {
+    "digest": "1f599c32e290676fc86b181eb6d81c4f9292dfc99a80d1597aa049b09d5d6e09",
+    "id": "scope-mi005-run-continuity",
+    "revision": 1
+  },
+  "session_id": "session-mi005-2",
+  "status": "verified",
+  "updated_at": "2026-07-17T19:59:10.504Z",
+  "verification_digest": "5083faba775c403e19c4563f0520f178f7a8be4d8adc7b1cfe86f8db39d37e19",
+  "work_item_ref": {
+    "digest": "011336b848987849c890307802cbf7c2954aa0e5ab72c9f164175f4971da4079",
+    "id": "dashboard-bff-awaiting-confirmation-activity-gap",
+    "revision": 2
+  },
+  "working_set_ref": {
+    "digest": "a3e4106872ec70eb6ff785d36935a088d66c50dcd7fe47aa0dbf847c316bbe80",
+    "id": "ws-mi005",
+    "revision": 2
+  }
+}

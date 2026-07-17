@@ -1,0 +1,117 @@
+{
+  "all_pass": true,
+  "scenarios": [
+    {
+      "cleanup_absent": true,
+      "exit_code": 1,
+      "expected_diagnostic": "STALE_RUN",
+      "fixture_digest": "afe900f232afbed29ede2a423031e3f0b480bcac51f15222d8663310e42b02ea",
+      "id": "F1",
+      "note": "",
+      "observed_diagnostic": "STALE_RUN",
+      "pass": true
+    },
+    {
+      "cleanup_absent": true,
+      "exit_code": 1,
+      "expected_diagnostic": "INVALID_CHECKPOINT",
+      "fixture_digest": "afe900f232afbed29ede2a423031e3f0b480bcac51f15222d8663310e42b02ea",
+      "id": "F2",
+      "note": "MI-005 guard: only a verified Checkpoint may be used for resume",
+      "observed_diagnostic": "INVALID_CHECKPOINT",
+      "pass": true
+    },
+    {
+      "cleanup_absent": true,
+      "exit_code": 1,
+      "expected_diagnostic": "UNKNOWN_EFFECT_BLOCKS_RETRY",
+      "fixture_digest": "4cb8442204ad45d6231ddfb82bb78e62a3899ac5d2cc56dad855bdba706cac9e",
+      "id": "F3",
+      "note": "engine raw code: UNKNOWN_EFFECT_REQUIRES_RECONCILIATION",
+      "observed_diagnostic": "UNKNOWN_EFFECT_BLOCKS_RETRY",
+      "pass": true
+    },
+    {
+      "cleanup_absent": true,
+      "exit_code": 1,
+      "expected_diagnostic": "LEASE_CONFLICT",
+      "fixture_digest": "f303196a542cd1bae16b91ac005b70b2172a51c539596e50a7d32e0b42f160ca",
+      "id": "F4",
+      "note": "planted live-writer lease; second writer rejected",
+      "observed_diagnostic": "LEASE_CONFLICT",
+      "pass": true
+    },
+    {
+      "cleanup_absent": true,
+      "exit_code": 1,
+      "expected_diagnostic": "DUAL_RUN_ROUTE_CONFLICT",
+      "fixture_digest": "a29ed0431920cc28c5b2a32aeec86e8ebcb22b32cd7edbed700066d15a3bab4c",
+      "id": "F5",
+      "note": "MI-005 route-check boundary (pre-mutation, fail-closed)",
+      "observed_diagnostic": "DUAL_RUN_ROUTE_CONFLICT",
+      "pass": true
+    },
+    {
+      "cleanup_absent": true,
+      "exit_code": 1,
+      "expected_diagnostic": "JOURNAL_CONVERSION_PROHIBITED",
+      "fixture_digest": "afe900f232afbed29ede2a423031e3f0b480bcac51f15222d8663310e42b02ea",
+      "id": "F6",
+      "note": "MI-005 write-boundary: zero writes under journal/, no import/convert/re-key",
+      "observed_diagnostic": "JOURNAL_CONVERSION_PROHIBITED",
+      "pass": true
+    },
+    {
+      "cleanup_absent": true,
+      "exit_code": 1,
+      "expected_diagnostic": "CORRUPT_PROJECTION",
+      "fixture_digest": "59d626764a215ddb10f8499196367db7885f52533db0589f7d79feac25b3e9a0",
+      "id": "F7",
+      "note": "rebuild recovered canonical projection (run present=true)",
+      "observed_diagnostic": "CORRUPT_PROJECTION",
+      "pass": true
+    },
+    {
+      "cleanup_absent": true,
+      "exit_code": 1,
+      "expected_diagnostic": "UNRECOVERABLE_RUN_STATE",
+      "fixture_digest": "f0a8ead118041f086f50a31b98f8bcfc9392f4fb64ef84b6719bb37b6d77dd14",
+      "id": "F8",
+      "note": "engine raw: MISSING_ARTIFACT",
+      "observed_diagnostic": "UNRECOVERABLE_RUN_STATE",
+      "pass": true
+    },
+    {
+      "cleanup_absent": true,
+      "exit_code": 1,
+      "expected_diagnostic": "UNAUTHORIZED_CONTEXT_DELIVERY",
+      "fixture_digest": "afe900f232afbed29ede2a423031e3f0b480bcac51f15222d8663310e42b02ea",
+      "id": "F9",
+      "note": "MI-005 context-authorization guard: bound Context Pack v1 digest must match e58c9bc...",
+      "observed_diagnostic": "UNAUTHORIZED_CONTEXT_DELIVERY",
+      "pass": true
+    },
+    {
+      "expected_diagnostic": "EXECUTOR_DELEGATION_PROHIBITED",
+      "id": "F10",
+      "observed_diagnostic": "EXECUTOR_DELEGATION_PROHIBITED (enforced: genuine distinct sessions, no Skill delegation)",
+      "pass": true,
+      "structural": true
+    },
+    {
+      "expected_diagnostic": "FORBIDDEN_HIGHER_LEVEL_CLAIM",
+      "id": "F11",
+      "observed_diagnostic": "FORBIDDEN_HIGHER_LEVEL_CLAIM (enforced: no completion/evidence/level-6)",
+      "pass": true,
+      "structural": true
+    },
+    {
+      "expected_diagnostic": "MANIFEST_SCOPE_MISMATCH",
+      "id": "F12",
+      "note": "final manifest verified separately against scope_rule",
+      "observed_diagnostic": "MANIFEST_SCOPE_MISMATCH (enforced structurally by final manifest scope check)",
+      "pass": true,
+      "structural": true
+    }
+  ]
+}

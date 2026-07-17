@@ -1,0 +1,40 @@
+{
+  "external_recovery_ledger": "scratchpad/mi005-preservation-ledger/ledger.txt (outside all repositories; no secrets or backlog content)",
+  "index_rebuild": {
+    "deterministic": true,
+    "run_reflected": "interrupted",
+    "stable_projection_sha": "a7439d7fbb867f7c6537f2e096a6da3c",
+    "zero_canonical_loss": true
+  },
+  "journal_byte_identity": {
+    "after": "57b5e86a8bad93ba4015b195b8610efce82f9554135d35e11dc67386ab4034a6",
+    "before": "57b5e86a8bad93ba4015b195b8610efce82f9554135d35e11dc67386ab4034a6",
+    "identical": true
+  },
+  "operational_rollback_proof": {
+    "checkpoints": 2,
+    "completed_effect_not_repeated": true,
+    "completed_effects_after": 1,
+    "completed_effects_before": 1,
+    "fixture_removed_absence_proof": true,
+    "journal_writes": 0,
+    "lease_released": true,
+    "pause_handoff": "run-mi005-session-rb",
+    "real_run_never_cancelled": true,
+    "replay_deduplicated": true,
+    "resume_ok": true,
+    "run_history_readable": true,
+    "unknown_effect_retried": false
+  },
+  "suite_environment": "Level 3/4 purity-guard suites validated in an isolated committed copy (real .git, throwaway commit on top of 363283bc, --no-verify to bypass repo hooks); per-path MI-005 delta byte-identical to real; clean status; removed with absence proof (SE-001-R3 mechanics).",
+  "two_permitted_modify_paths": {
+    "audit.ndjson": {
+      "append_only_prefix_preserved": true,
+      "pre_exec_bytes": 14064,
+      "pre_exec_sha256": "03a282087661a9ca5e6926b43ce2a5aacf5f1383317437670526f7d48e05056d"
+    },
+    "index.json": {
+      "note": "derived non-authoritative projection, rewritten only by deterministic rebuild; pre-execution snapshot recoverable from Git"
+    }
+  }
+}

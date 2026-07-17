@@ -1,6 +1,11 @@
 {
   "active_runs": [
     {
+      "digest": "5b0ac5375ecc04f142f4fd44d4ed925fab75a398165aa04f0d8c95631511aa8e",
+      "id": "run-mi005",
+      "status": "interrupted"
+    },
+    {
       "digest": "c217df1f43717a6d2324c7a49c6d91cf11ccb5587a96bce9162d83243be6a328",
       "id": "run-vs001",
       "status": "completed"
@@ -13,6 +18,18 @@
   ],
   "artifacts": {
     "checkpoints": [
+      {
+        "digest": "b218b66ad2321ff96790ffce8e8a29fadba20764bc9b9585c221cc0dce71c059",
+        "id": "run-mi005-cp-1",
+        "revision": 1,
+        "status": "verified"
+      },
+      {
+        "digest": "6390e918973ac7132c11eceebac6127db047f6c83427fd775b6c853b60e315a9",
+        "id": "run-mi005-final-2",
+        "revision": 1,
+        "status": "verified"
+      },
       {
         "digest": "4bdcb7f93c8714d1824a55390d16fa975b9a82f3af77c2c579607f45b820491c",
         "id": "run-vs001-cp-1",
@@ -39,6 +56,12 @@
       }
     ],
     "context-packs": [
+      {
+        "digest": "b838654c99c0b304cddf0caecf02a757dfb94695a76d0c506e995c53e5cbf481",
+        "id": "run-mi005",
+        "revision": 1,
+        "status": "authorized"
+      },
       {
         "digest": "400c0450c627a813165afd440b4dde9bb08ae401431aeed3010604926efc31fc",
         "id": "run-vs001",
@@ -116,6 +139,12 @@
     ],
     "formation-traces": [
       {
+        "digest": "a9f540af17ef0b3ccf2aa987e92e92691734df08c9f01b70a5b9e0a23974f6d3",
+        "id": "run-mi005",
+        "revision": 1,
+        "status": null
+      },
+      {
         "digest": "18cc4d872fb925e47753479cae4a5beb2c2e5271d09880b8cf9c4ed91c5db151",
         "id": "run-vs001",
         "revision": 1,
@@ -129,6 +158,18 @@
       }
     ],
     "handoffs": [
+      {
+        "digest": "bd512e2a2a637f4f316ee5421caf42c1541ba468102801f6efd799cb27dcbaed",
+        "id": "run-mi005-session-mi005-1",
+        "revision": 1,
+        "status": "published"
+      },
+      {
+        "digest": "bb6b217bbfb5783c7e8209402ee239eae96c69b58f3c175ef546b41c6f9b80f6",
+        "id": "run-mi005-session-mi005-2",
+        "revision": 1,
+        "status": "published"
+      },
       {
         "digest": "f93cc5bb2d38fa2f5bbebb68f8b60717ca73564b2f4144f92ccd117cec1948f8",
         "id": "run-vs001-session-vs001-1",
@@ -172,6 +213,12 @@
     ],
     "pack-locks": [
       {
+        "digest": "25a36383dabe7b0a07d5f6bbd479b89ec928b36288011cb39bbbc1e4c2485123",
+        "id": "run-mi005",
+        "revision": 1,
+        "status": "locked"
+      },
+      {
         "digest": "c4b21ff511acc30111793f51665ee71081e00dd8d1cc2d75a47337ff0071f0da",
         "id": "run-vs001",
         "revision": 1,
@@ -185,6 +232,12 @@
       }
     ],
     "runs": [
+      {
+        "digest": "da281374bae1b9d3685aee7a7a9bf8aa3e9827fd6f716f9c0b87c07899b44f84",
+        "id": "run-mi005",
+        "revision": 8,
+        "status": "interrupted"
+      },
       {
         "digest": "3bd16838207f698f9b5ef2658ac09c9b4835df0317074df15fd128c5e19c1ec0",
         "id": "run-vs001",
@@ -210,9 +263,27 @@
         "id": "scope-continuity-vs001a",
         "revision": 1,
         "status": "active"
+      },
+      {
+        "digest": "1f599c32e290676fc86b181eb6d81c4f9292dfc99a80d1597aa049b09d5d6e09",
+        "id": "scope-mi005-run-continuity",
+        "revision": 1,
+        "status": "active"
       }
     ],
     "sessions": [
+      {
+        "digest": "a0db3c611ae91c95b292792269d2ccb0821cc5b304b361ef59b1261c667f94d3",
+        "id": "session-mi005-1",
+        "revision": 2,
+        "status": "interrupted"
+      },
+      {
+        "digest": "ba7966e0d1b7ea9cb13e11c7e0ce54b87ad564fd1fb5b7f673e080821fb3a808",
+        "id": "session-mi005-2",
+        "revision": 2,
+        "status": "interrupted"
+      },
       {
         "digest": "9b5f24f3812f3a05b00080892f21d7884f3b7681b08cc2231f7ff47fddd00e5a",
         "id": "session-vs001-1",
@@ -239,6 +310,12 @@
       }
     ],
     "validation-plans": [
+      {
+        "digest": "2d36136913c660fa8f60cbfc7a5aee2ec59d697fd7f9ac2d2278f5d5c3f75517",
+        "id": "run-mi005",
+        "revision": 1,
+        "status": "ready"
+      },
       {
         "digest": "8c3e0ceb2fdc91e0d79647d8f831998ce3daf4663323d168e148bc25377c96e5",
         "id": "run-vs001",
@@ -326,6 +403,12 @@
         "id": "continuity-vs001a-claude-code-session-confirmation",
         "revision": 3,
         "status": "completed"
+      },
+      {
+        "digest": "011336b848987849c890307802cbf7c2954aa0e5ab72c9f164175f4971da4079",
+        "id": "dashboard-bff-awaiting-confirmation-activity-gap",
+        "revision": 2,
+        "status": "in_progress"
       }
     ],
     "working-sets": [
@@ -340,11 +423,17 @@
         "id": "ws-continuity-vs001a",
         "revision": 3,
         "status": "completed"
+      },
+      {
+        "digest": "a3e4106872ec70eb6ff785d36935a088d66c50dcd7fe47aa0dbf847c316bbe80",
+        "id": "ws-mi005",
+        "revision": 2,
+        "status": "in_progress"
       }
     ]
   },
   "derived": true,
-  "digest": "ba74a3d50e9d2aa482140a146dafbf60ac6b4e0151fd9934965517e39da50476",
-  "rebuilt_at": "2026-07-13T17:00:14.543Z",
+  "digest": "f1e5205baedc1764e03beb3b1358b107d8a1282db4019c2d694f806d3f9153a2",
+  "rebuilt_at": "2026-07-17T20:13:01.273Z",
   "schema_version": 1
 }

@@ -1,0 +1,34 @@
+{
+  "adapter_command": {
+    "action": "start",
+    "exact_next_action": null,
+    "ok": true
+  },
+  "claude_code_version": "2.1.212 (Claude Code)",
+  "claude_session_id": "d8e31071-caf8-4622-9e8c-2a4cc88afccb",
+  "context_injected": true,
+  "continuity": {
+    "action": "start",
+    "run_id": "run-mi005",
+    "session_id": "session-mi005-1",
+    "working_set_id": "ws-mi005"
+  },
+  "cwd": "/Users/fabiovitali/WebstormProjects/nestfolio",
+  "execution_view": {
+    "digest_match": true,
+    "path": ".continuity/derived/execution-views/run-mi005-session-mi005-1.md",
+    "recomputed_sha256": "bbd3b92d465196dd256b8dca2a92a8c0c4c3cb281cb0cca57ac90ab01be44000",
+    "sha256": "bbd3b92d465196dd256b8dca2a92a8c0c4c3cb281cb0cca57ac90ab01be44000"
+  },
+  "git_revision": {
+    "branch": "main",
+    "head": "363283bcc97b1e04710db0e7f759ffffddb18b69",
+    "mode": "git"
+  },
+  "hook_event_name": "SessionStart",
+  "model": "claude-sonnet-5",
+  "schema_version": 1,
+  "startup_source": "startup",
+  "timestamp": "2026-07-17T19:56:43.423Z",
+  "transcript_contents_inspected": false
+}

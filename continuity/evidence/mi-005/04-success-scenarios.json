@@ -1,0 +1,55 @@
+{
+  "all_pass": true,
+  "scenarios": [
+    {
+      "id": "S1",
+      "pass": true,
+      "requirement": "two-class store, engine digests, hook registration, Level 5 binding verify and recorded"
+    },
+    {
+      "id": "S2",
+      "pass": true,
+      "requirement": "Run created binding Work/Scope/Context v1/Level 2 aggregate/repo fingerprint/lease; route check no dual Run"
+    },
+    {
+      "id": "S3",
+      "pass": true,
+      "requirement": "genuine Session 1 start from digest-matched view, distinct session id, startup; keyed effect once"
+    },
+    {
+      "id": "S4",
+      "pass": true,
+      "requirement": "intermediate Checkpoint verified and Handoff published before Session 1 end; UTC ordering"
+    },
+    {
+      "id": "S5",
+      "pass": true,
+      "requirement": "genuine fresh Session 2 resumes from verified Checkpoint after freshness; lease acquired"
+    },
+    {
+      "id": "S6",
+      "pass": true,
+      "requirement": "Session 2 replay deduplicated without rewrite; exactly one completed effect at close"
+    },
+    {
+      "id": "S7",
+      "pass": true,
+      "requirement": "final Checkpoint verified; Run closed at Level 5 operational scope only; no completion/Assurance/Level 6"
+    },
+    {
+      "id": "S8",
+      "pass": true,
+      "requirement": "derived index deleted and rebuilt deterministically, zero canonical loss; audit pre-exec bytes exact prefix"
+    },
+    {
+      "id": "S9",
+      "pass": true,
+      "requirement": "current journal byte-identical before/after; drain rule recorded; no dual writer"
+    },
+    {
+      "id": "S10",
+      "pass": true,
+      "requirement": "evidence complete, canonical; fixtures and rehearsal copy removed with absence proof; delta uncommitted with SHA-256 manifest"
+    }
+  ]
+}

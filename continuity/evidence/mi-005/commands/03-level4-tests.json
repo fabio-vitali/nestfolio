@@ -1,0 +1,18 @@
+{
+  "argv": [
+    "node",
+    "--test",
+    "tests/continuity-level-4.test.mjs"
+  ],
+  "cwd_role": "isolated-committed-copy",
+  "end_utc": "2026-07-17T20:31:24.890Z",
+  "exit_code": 0,
+  "parsed": {
+    "fail": 0,
+    "pass": 23
+  },
+  "role": "level-4",
+  "start_utc": "2026-07-17T20:31:18.034Z",
+  "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+  "stdout_sha256": "22c1ce5359263e6652f026a8ee054e274226f6337aed8552c0ef70a47067ce20"
+}

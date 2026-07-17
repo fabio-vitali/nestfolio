@@ -1,0 +1,24 @@
+{
+  "completion_policy": "all-required-criteria-pass-with-evidence",
+  "criteria": [
+    {
+      "description": "The material keyed effect file exists with the expected content: continuity/dogfood/mi-005-effect.txt containing the declared MI-005 effect content.",
+      "id": "mi005-keyed-effect-materialized",
+      "required": true,
+      "required_evidence_type": "repository-file",
+      "validator": {
+        "contains": "MI-005 resumable run cutover keyed effect completed exactly once.",
+        "path": "continuity/dogfood/mi-005-effect.txt",
+        "type": "file"
+      }
+    }
+  ],
+  "digest": "2d36136913c660fa8f60cbfc7a5aee2ec59d697fd7f9ac2d2278f5d5c3f75517",
+  "guards": [],
+  "id": "run-mi005",
+  "revision": 1,
+  "run_id": "run-mi005",
+  "schema_version": 1,
+  "status": "ready",
+  "updated_at": "2026-07-17T19:56:43.646Z"
+}

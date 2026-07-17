@@ -1,0 +1,117 @@
+{
+  "digest": "25a36383dabe7b0a07d5f6bbd479b89ec928b36288011cb39bbbc1e4c2485123",
+  "id": "run-mi005",
+  "lock": {
+    "capabilities": [
+      "checkpoint",
+      "completion",
+      "fresh-session-resume",
+      "learning",
+      "nestfolio-backlog-read",
+      "nestfolio-backlog-write",
+      "nestfolio-scope",
+      "nestfolio-validation",
+      "run-start",
+      "validation",
+      "work-selection"
+    ],
+    "digest": "050be66fe746bce73cb09f56cb0a677fbd08b3be50a0858d7a2b2661ba4fe793",
+    "packs": [
+      {
+        "id": "continuity-core",
+        "manifest_path": "continuity/packs/continuity-core/manifest.json",
+        "manifest_sha256": "7a0793d0842e48beefcb1bc537b35e881ca8a2bb7572183cfe38db86eeb45a99",
+        "procedures": [
+          {
+            "capabilities": [
+              "work-selection",
+              "run-start",
+              "checkpoint",
+              "fresh-session-resume",
+              "validation",
+              "completion",
+              "learning"
+            ],
+            "executor": "claude-code",
+            "executor_asset": ".claude/skills/continuity-resumable-work/SKILL.md",
+            "executor_asset_sha256": "177834221c0c5ceea6684f3d644c875bb26888f493156cb04f7c1abaa1d6a47f",
+            "id": "resumable-agent-work",
+            "pack_id": "continuity-core",
+            "pack_version": "0.1.0-vs001",
+            "procedure_path": "continuity/packs/continuity-core/procedures/resumable-agent-work.json",
+            "procedure_sha256": "1394bee3746051d7906c41b48fb7df10940c2ccee0469b3965a11a3bdf3968b7"
+          }
+        ],
+        "version": "0.1.0-vs001"
+      },
+      {
+        "id": "nestfolio-binding",
+        "manifest_path": "continuity/packs/nestfolio/manifest.json",
+        "manifest_sha256": "22ac0cc8ba666c43789dbff939571ad529386cd6e1847fa09caf5eb4473f659e",
+        "procedures": [
+          {
+            "capabilities": [
+              "nestfolio-backlog-read",
+              "nestfolio-backlog-write",
+              "nestfolio-scope",
+              "nestfolio-validation"
+            ],
+            "executor": "claude-code",
+            "executor_asset": ".claude/skills/continuity-nestfolio-binding/SKILL.md",
+            "executor_asset_sha256": "b8d14455821985268184bb4b10b6fd6d106bf32bb74a1a8633adbfe13d307186",
+            "id": "nestfolio-backlog-and-evidence",
+            "pack_id": "nestfolio-binding",
+            "pack_version": "0.1.0-vs001",
+            "procedure_path": "continuity/packs/nestfolio/procedures/backlog-and-evidence.json",
+            "procedure_sha256": "4de64689023f384eb2afd0bd4e0ebbda152b65c7ce5d69929efa86034697b855"
+          }
+        ],
+        "version": "0.1.0-vs001"
+      }
+    ],
+    "procedures": [
+      {
+        "capabilities": [
+          "work-selection",
+          "run-start",
+          "checkpoint",
+          "fresh-session-resume",
+          "validation",
+          "completion",
+          "learning"
+        ],
+        "executor": "claude-code",
+        "executor_asset": ".claude/skills/continuity-resumable-work/SKILL.md",
+        "executor_asset_sha256": "177834221c0c5ceea6684f3d644c875bb26888f493156cb04f7c1abaa1d6a47f",
+        "id": "resumable-agent-work",
+        "pack_id": "continuity-core",
+        "pack_version": "0.1.0-vs001",
+        "procedure_path": "continuity/packs/continuity-core/procedures/resumable-agent-work.json",
+        "procedure_sha256": "1394bee3746051d7906c41b48fb7df10940c2ccee0469b3965a11a3bdf3968b7"
+      },
+      {
+        "capabilities": [
+          "nestfolio-backlog-read",
+          "nestfolio-backlog-write",
+          "nestfolio-scope",
+          "nestfolio-validation"
+        ],
+        "executor": "claude-code",
+        "executor_asset": ".claude/skills/continuity-nestfolio-binding/SKILL.md",
+        "executor_asset_sha256": "b8d14455821985268184bb4b10b6fd6d106bf32bb74a1a8633adbfe13d307186",
+        "id": "nestfolio-backlog-and-evidence",
+        "pack_id": "nestfolio-binding",
+        "pack_version": "0.1.0-vs001",
+        "procedure_path": "continuity/packs/nestfolio/procedures/backlog-and-evidence.json",
+        "procedure_sha256": "4de64689023f384eb2afd0bd4e0ebbda152b65c7ce5d69929efa86034697b855"
+      }
+    ],
+    "schema_version": 1
+  },
+  "lock_digest": "050be66fe746bce73cb09f56cb0a677fbd08b3be50a0858d7a2b2661ba4fe793",
+  "revision": 1,
+  "run_id": "run-mi005",
+  "schema_version": 1,
+  "status": "locked",
+  "updated_at": "2026-07-17T19:56:43.599Z"
+}

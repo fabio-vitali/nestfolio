@@ -1,0 +1,51 @@
+{
+  "preparation_method": "direct authoring under continuity/artifacts/** (not `select`, which would require a forbidden continuity/bindings/** file); the Run itself is created by genuine Session 1 start hook",
+  "prepared_artifacts": {
+    "scope": {
+      "path": "continuity/artifacts/scopes/scope-mi005-run-continuity.json",
+      "sha256": "90f632d695efab8a62b335f590be008001a95a957102d171179d6a091732fd19"
+    },
+    "work_item": {
+      "path": "continuity/artifacts/work-items/dashboard-bff-awaiting-confirmation-activity-gap.json",
+      "sha256": "313af5905dbb3fda35dc9c193502df667812f0044c91f6c3b3691d136313aa60"
+    },
+    "working_set": {
+      "path": "continuity/artifacts/working-sets/ws-mi005.json",
+      "sha256": "3a993edfaf2a88ba2389f134ddcbcf67b6c2d03acaed1bc1c3ab7d750ba5e704"
+    }
+  },
+  "rehearsal": {
+    "created_paths": [
+      "continuity/artifacts/scopes/scope-mi005-run-continuity.json",
+      "continuity/artifacts/work-items/dashboard-bff-awaiting-confirmation-activity-gap.json",
+      "continuity/artifacts/working-sets/ws-mi005.json",
+      "continuity/artifacts/runs/run-mi005.json",
+      "continuity/artifacts/sessions/session-mi005-1.json",
+      "continuity/artifacts/sessions/session-mi005-2.json",
+      "continuity/artifacts/context-packs/run-mi005.json",
+      "continuity/artifacts/formation-traces/run-mi005.json",
+      "continuity/artifacts/pack-locks/run-mi005.json",
+      "continuity/artifacts/validation-plans/run-mi005.json",
+      "continuity/artifacts/checkpoints/run-mi005-cp-1.json",
+      "continuity/artifacts/checkpoints/run-mi005-final-2.json",
+      "continuity/artifacts/handoffs/run-mi005-session-mi005-1.json",
+      "continuity/artifacts/handoffs/run-mi005-session-mi005-2.json",
+      ".continuity/runs/run-mi005/head.json",
+      ".continuity/runs/run-mi005/lease.json",
+      ".continuity/runs/run-mi005/effects.json",
+      ".continuity/derived/execution-views/run-mi005-session-mi005-1.md",
+      ".continuity/derived/execution-views/run-mi005-session-mi005-2.md",
+      "continuity/dogfood/mi-005-effect.txt"
+    ],
+    "created_relative_to_start_revision": 19,
+    "danger_backlog_or_level_1_4_touched": "none",
+    "freeze_proof": "write-set satisfies nestfolio_scope exactly; every path is within create_fixed_paths_on_pass, create_engine_write_set_classes, or the two permitted modify paths",
+    "method": "faithful hand-authored path (no `select`), driving the pinned adapter CLI directly in an isolated copy outside all three repositories; option-Y closure (final checkpoint + interrupt lease-release)",
+    "modified": 2,
+    "modified_paths": [
+      ".continuity/audit.ndjson",
+      ".continuity/derived/index.json"
+    ],
+    "real_execution_adds": "the 6 .continuity/executor-sessions/session-mi005-{1,2}-{start,end}.json and .ndjson genuine hook provenance records, plus the 20 fixed evidence/level-5/test paths"
+  }
+}

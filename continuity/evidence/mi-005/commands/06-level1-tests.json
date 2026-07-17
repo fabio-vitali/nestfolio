@@ -1,0 +1,18 @@
+{
+  "argv": [
+    "node",
+    "--test",
+    "tests/continuity-level-1.test.mjs"
+  ],
+  "cwd_role": "real-working-tree",
+  "end_utc": "2026-07-17T20:31:40.895Z",
+  "exit_code": 0,
+  "parsed": {
+    "fail": 0,
+    "pass": 14
+  },
+  "role": "level-1",
+  "start_utc": "2026-07-17T20:31:40.654Z",
+  "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+  "stdout_sha256": "600cb7a22d1fac4890684cf0174b9db894cb9f973970a872f300d2693c2ae03a"
+}

@@ -1,0 +1,29 @@
+{
+  "adapter": "claude-code",
+  "close_reason": "mi005-orchestrator-recovery-lease-release-after-session2-ended-without-deliberate-pause",
+  "closed_at": "2026-07-17T20:09:43.110Z",
+  "digest": "ba7966e0d1b7ea9cb13e11c7e0ce54b87ad564fd1fb5b7f673e080821fb3a808",
+  "executor": "Claude Code",
+  "id": "session-mi005-2",
+  "lease": {
+    "acquired_at": "2026-07-17T19:58:58.715Z",
+    "active": true,
+    "digest": "5868653582d8bfc216d0dec7173d8e7dabca192483fd66278ac721be1b88e372",
+    "run_id": "run-mi005",
+    "session_id": "session-mi005-2",
+    "updated_at": "2026-07-17T19:58:58.716Z"
+  },
+  "opened_at": "2026-07-17T19:58:58.717Z",
+  "prior_session_ref": "session-mi005-1",
+  "resumed_from_checkpoint_ref": {
+    "digest": "b218b66ad2321ff96790ffce8e8a29fadba20764bc9b9585c221cc0dce71c059",
+    "id": "run-mi005-cp-1",
+    "revision": 1
+  },
+  "revision": 2,
+  "run_id": "run-mi005",
+  "schema_version": 1,
+  "status": "interrupted",
+  "transcript_dependency": false,
+  "updated_at": "2026-07-17T20:09:43.111Z"
+}

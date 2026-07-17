@@ -1,0 +1,16 @@
+{
+  "adapter": "claude-code",
+  "close_reason": "deliberate-pause",
+  "closed_at": "2026-07-17T19:57:10.633Z",
+  "digest": "a0db3c611ae91c95b292792269d2ccb0821cc5b304b361ef59b1261c667f94d3",
+  "executor": "Claude Code",
+  "id": "session-mi005-1",
+  "opened_at": "2026-07-17T19:56:43.647Z",
+  "prior_session_ref": null,
+  "revision": 2,
+  "run_id": "run-mi005",
+  "schema_version": 1,
+  "status": "interrupted",
+  "transcript_dependency": false,
+  "updated_at": "2026-07-17T19:57:10.634Z"
+}

@@ -1,0 +1,14 @@
+{
+  "claude_session_id": "d8e31071-caf8-4622-9e8c-2a4cc88afccb",
+  "continuity": {
+    "action": "start",
+    "run_id": "run-mi005",
+    "session_id": "session-mi005-1",
+    "working_set_id": "ws-mi005"
+  },
+  "hook_event_name": "SessionEnd",
+  "reason": "prompt_input_exit",
+  "schema_version": 1,
+  "timestamp": "2026-07-17T19:58:28.601Z",
+  "transcript_contents_inspected": false
+}

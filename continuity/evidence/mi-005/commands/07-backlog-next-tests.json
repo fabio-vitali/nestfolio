@@ -1,0 +1,26 @@
+{
+  "argv": [
+    "node",
+    "--test",
+    ".claude/skills/backlog-next/test/backlog-gate.test.mjs",
+    ".claude/skills/backlog-next/test/backward-evidence.test.mjs",
+    ".claude/skills/backlog-next/test/classify-changes.test.mjs",
+    ".claude/skills/backlog-next/test/classify-derivation.test.mjs",
+    ".claude/skills/backlog-next/test/decision-log.test.mjs",
+    ".claude/skills/backlog-next/test/detect-cli-exit-contract.test.mjs",
+    ".claude/skills/backlog-next/test/detect-deploy-resolve.test.mjs",
+    ".claude/skills/backlog-next/test/gate-wiring.test.mjs",
+    ".claude/skills/backlog-next/test/lane-classification.test.mjs"
+  ],
+  "cwd_role": "real-working-tree",
+  "end_utc": "2026-07-17T20:31:41.103Z",
+  "exit_code": 0,
+  "parsed": {
+    "fail": 0,
+    "pass": 68
+  },
+  "role": "backlog-next",
+  "start_utc": "2026-07-17T20:31:40.895Z",
+  "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+  "stdout_sha256": "8a22b4b79e65e472f17312d83eb05640d17254f8db296ce73200a8550a7915c0"
+}

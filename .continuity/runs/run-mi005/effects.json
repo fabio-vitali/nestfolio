@@ -1,0 +1,18 @@
+{
+  "digest": "438d449a829099f0987caadb95ca4454a8f6a732e766ad1935e14ff4735d07a3",
+  "effects": [
+    {
+      "after_sha256": "4b96dfb9bd0fefaaf695e918e9f698e7cd9b6c546322137ec354dc650e8194cc",
+      "before_sha256": null,
+      "completed_at": "2026-07-17T19:56:53.793Z",
+      "effect_class": "repository-file-write",
+      "key": "mi005-material-effect",
+      "path": "continuity/dogfood/mi-005-effect.txt",
+      "session_id": "session-mi005-1",
+      "status": "completed"
+    }
+  ],
+  "run_id": "run-mi005",
+  "schema_version": 1,
+  "updated_at": "2026-07-17T19:56:53.793Z"
+}

@@ -1,0 +1,25 @@
+{
+  "bound_digests": {
+    "context_pack": "e58c9bc1978d6799cccda96c2520ea1f7f41ab8b88e8a055ff968cd7b8ce15c1",
+    "effort_source": "b656733991c96c4275d11e9a9f2bff7f5ac72cdd298cbc68a4b94b6799dc742d",
+    "level2_aggregate": "73bbb7c9199a79e00208115f1f7ba469be7e42e1bd20d1d72bfc726ac048df26",
+    "level3_scope": "db7a45278e8f4a270552e3ae1db3695b70e07d1624b27bcdc28f6417883a5ad6"
+  },
+  "engine_lock": {
+    "aggregate_engine_digest": "7e31ff56a10ca6b1715b29f02132e66c80e321921b41dcb55329db2e0f320a38",
+    "bound_revision": "363283bcc97b1e04710db0e7f759ffffddb18b69",
+    "engine_file_count": 20,
+    "hook_registration_digest": "73387f347f43d0f6a154f83ed54c3bdaee0e0b6ba6dbf3120ebf5b8c28834378",
+    "settings_sha256": "999e828d22fcf1cf1e66eb81260a4f8ff3a36b2387adf117ca84602e65c2c6b7",
+    "verified": true
+  },
+  "route_check": {
+    "active_current_run_for_effort": false,
+    "existing_target_run_for_effort": false,
+    "journal_file_count": 89,
+    "journal_run_directory_count": 30,
+    "journal_tree_digest": "57b5e86a8bad93ba4015b195b8610efce82f9554135d35e11dc67386ab4034a6",
+    "result": "clear"
+  },
+  "run_binding_sha256": "e818fcbc828c970dc53e6f3a7d2c138102470ebfb542af778f303ba1654a1981"
+}

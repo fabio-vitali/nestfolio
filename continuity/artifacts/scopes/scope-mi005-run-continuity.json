@@ -1,0 +1,45 @@
+{
+  "allowed_read_paths": [
+    "runtime/continuity",
+    ".claude/skills",
+    "docs/backlog",
+    "continuity",
+    ".continuity"
+  ],
+  "allowed_write_paths": [
+    "continuity/dogfood"
+  ],
+  "digest": "1f599c32e290676fc86b181eb6d81c4f9292dfc99a80d1597aa049b09d5d6e09",
+  "effect_classes": [
+    "repository-file-write",
+    "canonical-artifact-write",
+    "operational-state-write"
+  ],
+  "exclusions": [
+    "The selected effort implementation, its backlog source, and every Level 1-4 artifact.",
+    "The entire current journal tree.",
+    "Any Work completion, Evidence-bound completion, Assurance, Guard, Waiver, Decision, Learning, or Level 6 state.",
+    "validate and complete are prohibited for this Run (they would create Evidence-bound completion and ship the backlog)."
+  ],
+  "expansion_policy": "explicit-revision-and-authorization",
+  "fingerprint_paths": [
+    "runtime/continuity",
+    "continuity/packs",
+    "continuity/bindings",
+    "continuity/level-1",
+    "continuity/level-2",
+    "continuity/level-3",
+    "continuity/level-4",
+    "continuity/dogfood"
+  ],
+  "id": "scope-mi005-run-continuity",
+  "owner": "MI-005",
+  "repository_identity": {
+    "declared_upstream_baseline": "363283bcc97b1e04710db0e7f759ffffddb18b69",
+    "repository": "nestfolio"
+  },
+  "revision": 1,
+  "schema_version": 1,
+  "status": "active",
+  "updated_at": "2026-07-17T19:41:32.083Z"
+}

@@ -1,0 +1,56 @@
+{
+  "checkpoints": {
+    "final": {
+      "captured_at": "2026-07-17T19:59:10.503Z",
+      "final": true,
+      "id": "run-mi005-final-2",
+      "status": "verified"
+    },
+    "intermediate": {
+      "captured_at": "2026-07-17T19:56:56.919Z",
+      "id": "run-mi005-cp-1",
+      "status": "verified"
+    }
+  },
+  "distinct_session_ids": true,
+  "effect": {
+    "completed_by": "session-mi005-1",
+    "completed_count": 1,
+    "key": "mi005-material-effect",
+    "replay_deduplicated": true
+  },
+  "handoffs": {
+    "final": {
+      "id": "run-mi005-session-mi005-2",
+      "published_by": "orchestrator recovery lease-release after Session 2 ended without deliberate pause",
+      "status": "published"
+    },
+    "session_1": {
+      "id": "run-mi005-session-mi005-1",
+      "status": "published"
+    }
+  },
+  "session_1": {
+    "claude_session_id": "d8e31071-caf8-4622-9e8c-2a4cc88afccb",
+    "end_utc": "2026-07-17T19:58:28.601Z",
+    "record_end_sha256": "b2c0ff259a03c7066f2bc0b2676abc51d7ee782684c825fb5e529a7fbb68830f",
+    "record_start_sha256": "c88ccd494f92d2e610300e85f801a7d50adf57f954d57e0e356e459f2d15c996",
+    "start_utc": "2026-07-17T19:56:43.423Z",
+    "startup_source": "startup",
+    "view_digest_match": true
+  },
+  "session_2": {
+    "claude_session_id": "34ad63b5-ff75-4f9f-8c63-58fd90bb31ab",
+    "end_utc": "2026-07-17T20:06:48.738Z",
+    "record_end_sha256": "60993b3c155f2790ef504b0ecf9444646707c01a15803b33c0a9c6a1baec08b2",
+    "record_start_sha256": "7499cbd0c7733ceeb2e68263fc8be19dabb05292f7be057905ffe10a6c5d0c7e",
+    "start_utc": "2026-07-17T19:58:58.503Z",
+    "startup_source": "startup",
+    "view_digest_match": true
+  },
+  "utc_ordering": {
+    "session1_end_after_checkpoint_and_handoff": true,
+    "session2_end_after_final_checkpoint": true,
+    "session2_start_after_session1_end": true
+  }
+}

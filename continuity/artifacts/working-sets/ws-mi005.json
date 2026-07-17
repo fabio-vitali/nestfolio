@@ -1,0 +1,48 @@
+{
+  "active_run_refs": [
+    {
+      "id": "run-mi005",
+      "revision": 2
+    }
+  ],
+  "completed_run_refs": [],
+  "dependency_rationale": "Single bounded MI-005 resumable-run continuity validation; no unrelated Nestfolio work.",
+  "digest": "a3e4106872ec70eb6ff785d36935a088d66c50dcd7fe47aa0dbf847c316bbe80",
+  "evidence_refs": [],
+  "exclusions": [
+    "The selected effort implementation, its backlog source, and every Level 1-4 artifact.",
+    "The entire current journal tree.",
+    "Any Work completion, Evidence-bound completion, Assurance, Guard, Waiver, Decision, Learning, or Level 6 state.",
+    "validate and complete are prohibited for this Run (they would create Evidence-bound completion and ship the backlog)."
+  ],
+  "history": [
+    {
+      "action": "created",
+      "at": "2026-07-17T19:41:32.083Z"
+    },
+    {
+      "action": "run-started",
+      "at": "2026-07-17T19:56:43.650Z",
+      "run_id": "run-mi005"
+    }
+  ],
+  "id": "ws-mi005",
+  "objective": "MI-005 bounded Level 5 resumable-run continuity validation for the one target-routed effort.\nSession 1 (session-mi005-1) executes exactly one material keyed effect:\nnode runtime/continuity/adapters/claude-code/cli.mjs effect --run-id run-mi005 --session-id session-mi005-1 --key mi005-material-effect --path continuity/dogfood/mi-005-effect.txt --content 'MI-005 resumable run cutover keyed effect completed exactly once.'\nthen checkpoints with the exact next action 'Replay effect key mi005-material-effect to prove deduplication, then capture the final Checkpoint and close run-mi005 at Level 5 operational scope only (do NOT run validate or complete).' and interrupts to publish the Handoff before the Claude Code session ends:\nnode runtime/continuity/adapters/claude-code/cli.mjs checkpoint --run-id run-mi005 --session-id session-mi005-1 --next-action \"Replay effect key mi005-material-effect to prove deduplication, then capture the final Checkpoint and close run-mi005 at Level 5 operational scope only (do NOT run validate or complete).\"\nnode runtime/continuity/adapters/claude-code/cli.mjs interrupt --run-id run-mi005 --session-id session-mi005-1 --reason deliberate-pause\nSession 2 (session-mi005-2) is a separately launched fresh Claude Code process resumed by the SessionStart hook from repository-local state; it replays the same effect key/path/content to prove deduplicated:true, then captures the FINAL verified Checkpoint and ENDS. It must NOT run validate or complete (Level 5 operational closure only; no Work completion, Assurance, or Level 6 state):\nnode runtime/continuity/adapters/claude-code/cli.mjs effect --run-id run-mi005 --session-id session-mi005-2 --key mi005-material-effect --path continuity/dogfood/mi-005-effect.txt --content 'MI-005 resumable run cutover keyed effect completed exactly once.'\nnode runtime/continuity/adapters/claude-code/cli.mjs checkpoint --run-id run-mi005 --session-id session-mi005-2 --next-action \"No execution action remains. Level 5 operational closure only; no Work completion, Assurance, or Level 6 state exists.\" --final 1",
+  "revision": 2,
+  "schema_version": 1,
+  "scope_ref": {
+    "digest": "1f599c32e290676fc86b181eb6d81c4f9292dfc99a80d1597aa049b09d5d6e09",
+    "id": "scope-mi005-run-continuity",
+    "revision": 1
+  },
+  "shared_completion_boundary": "Level 5 operational resumable-run continuity is proven for one new target Run; no Work completion, Assurance, or Level 6 state is created.",
+  "status": "in_progress",
+  "updated_at": "2026-07-17T19:56:43.650Z",
+  "work_item_refs": [
+    {
+      "digest": "011336b848987849c890307802cbf7c2954aa0e5ab72c9f164175f4971da4079",
+      "id": "dashboard-bff-awaiting-confirmation-activity-gap",
+      "revision": 2
+    }
+  ]
+}

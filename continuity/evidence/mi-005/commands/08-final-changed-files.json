@@ -1,0 +1,262 @@
+{
+  "created_count": 45,
+  "cwd_role": "real-working-tree",
+  "entry_count": 47,
+  "frozen_utc": "2026-07-17T20:33:21.417Z",
+  "git_argv": [
+    "git",
+    "status",
+    "--porcelain",
+    "-uall"
+  ],
+  "manifest": [
+    {
+      "git_code": "M",
+      "path": ".continuity/audit.ndjson",
+      "sha256": "f10b64fbc05a1e6af6457605fd2810388c614943eb50caac64782e2fa8c8b7c1"
+    },
+    {
+      "git_code": "??",
+      "path": ".continuity/derived/execution-views/run-mi005-session-mi005-1.md",
+      "sha256": "bbd3b92d465196dd256b8dca2a92a8c0c4c3cb281cb0cca57ac90ab01be44000"
+    },
+    {
+      "git_code": "??",
+      "path": ".continuity/derived/execution-views/run-mi005-session-mi005-2.md",
+      "sha256": "e9105c3adaf6feb5416d64879ec346350f666adafd0a92aca8627fba7fa1c679"
+    },
+    {
+      "git_code": "M",
+      "path": ".continuity/derived/index.json",
+      "sha256": "e397940fa86791965abcef706e78e221c5ec312fd80b808a706fec1b84047bce"
+    },
+    {
+      "git_code": "??",
+      "path": ".continuity/executor-sessions/session-mi005-1-end.json",
+      "sha256": "b2c0ff259a03c7066f2bc0b2676abc51d7ee782684c825fb5e529a7fbb68830f"
+    },
+    {
+      "git_code": "??",
+      "path": ".continuity/executor-sessions/session-mi005-1-start.json",
+      "sha256": "c88ccd494f92d2e610300e85f801a7d50adf57f954d57e0e356e459f2d15c996"
+    },
+    {
+      "git_code": "??",
+      "path": ".continuity/executor-sessions/session-mi005-1.ndjson",
+      "sha256": "66b5ecbb935ce7416acd0f986774ebc7b1cd967fb383785292fff6e947cba3d3"
+    },
+    {
+      "git_code": "??",
+      "path": ".continuity/executor-sessions/session-mi005-2-end.json",
+      "sha256": "60993b3c155f2790ef504b0ecf9444646707c01a15803b33c0a9c6a1baec08b2"
+    },
+    {
+      "git_code": "??",
+      "path": ".continuity/executor-sessions/session-mi005-2-start.json",
+      "sha256": "7499cbd0c7733ceeb2e68263fc8be19dabb05292f7be057905ffe10a6c5d0c7e"
+    },
+    {
+      "git_code": "??",
+      "path": ".continuity/executor-sessions/session-mi005-2.ndjson",
+      "sha256": "130ea2203460674a1f43482c1e48237255d26c87a419ffdb301aefd6fbe32eb9"
+    },
+    {
+      "git_code": "??",
+      "path": ".continuity/runs/run-mi005/effects.json",
+      "sha256": "305dd08d71b9c8e55e0d30246192d93364c22126ac31f5bd6d86ec19246e43b2"
+    },
+    {
+      "git_code": "??",
+      "path": ".continuity/runs/run-mi005/head.json",
+      "sha256": "ea8488d19f3db2142839104b729afa382aae0bf8cd1a3b9fdba839c629211513"
+    },
+    {
+      "git_code": "??",
+      "path": ".continuity/runs/run-mi005/lease.json",
+      "sha256": "8d651a6ad60e5fd8e2f5ef426c23cf68ed5431f9d7ecf350c6ec6d326b5cb0e8"
+    },
+    {
+      "git_code": "??",
+      "path": "continuity/artifacts/checkpoints/run-mi005-cp-1.json",
+      "sha256": "a0c3332dbfec0c0d8062ac828a4d4192040b63f1ea7b8acbf6f15a155d9bfbb0"
+    },
+    {
+      "git_code": "??",
+      "path": "continuity/artifacts/checkpoints/run-mi005-final-2.json",
+      "sha256": "5e70708229a328c621c1c1852a29e910902ecddd418a04ca4c1621b992faf560"
+    },
+    {
+      "git_code": "??",
+      "path": "continuity/artifacts/context-packs/run-mi005.json",
+      "sha256": "1bfc9d9fa2aaa9f30ae11f522bff7ed9b20d9c16b687d1f10535b2d91ba6dcc5"
+    },
+    {
+      "git_code": "??",
+      "path": "continuity/artifacts/formation-traces/run-mi005.json",
+      "sha256": "5f1dca02bdde3c37a14c0f37427f8f1dcda70f50e47168841a5438b7db1a600c"
+    },
+    {
+      "git_code": "??",
+      "path": "continuity/artifacts/handoffs/run-mi005-session-mi005-1.json",
+      "sha256": "664b6b125602e4c0f44b9a257a81c3e65bb9bf8282ed45ad7e2967bf5e123c1f"
+    },
+    {
+      "git_code": "??",
+      "path": "continuity/artifacts/handoffs/run-mi005-session-mi005-2.json",
+      "sha256": "d5b3114e1fd8d6ac2ec8a82a1bbb63e199ded0e9460636b2e4c353f2bfc3dca1"
+    },
+    {
+      "git_code": "??",
+      "path": "continuity/artifacts/pack-locks/run-mi005.json",
+      "sha256": "ee2252052f5f69e70b07b7224d8f2990a7ce56b8112d74cdebcb908fa2e22620"
+    },
+    {
+      "git_code": "??",
+      "path": "continuity/artifacts/runs/run-mi005.json",
+      "sha256": "86717732a73fdd80bb2071dfca742ee79b08ba8361547423891aa14520c5e0be"
+    },
+    {
+      "git_code": "??",
+      "path": "continuity/artifacts/scopes/scope-mi005-run-continuity.json",
+      "sha256": "90f632d695efab8a62b335f590be008001a95a957102d171179d6a091732fd19"
+    },
+    {
+      "git_code": "??",
+      "path": "continuity/artifacts/sessions/session-mi005-1.json",
+      "sha256": "ccf4e1f27c09380824b8355fa6a7b694d72610ea342e6ef80f966c9fa7a687f7"
+    },
+    {
+      "git_code": "??",
+      "path": "continuity/artifacts/sessions/session-mi005-2.json",
+      "sha256": "24951519406db2a894b6c1107935948db17cbe44173889fd3d784c7444074556"
+    },
+    {
+      "git_code": "??",
+      "path": "continuity/artifacts/validation-plans/run-mi005.json",
+      "sha256": "2874ededbf8e16087abe39549c893aa20f45b343dfa2b61909b98029f4f688c2"
+    },
+    {
+      "git_code": "??",
+      "path": "continuity/artifacts/work-items/dashboard-bff-awaiting-confirmation-activity-gap.json",
+      "sha256": "313af5905dbb3fda35dc9c193502df667812f0044c91f6c3b3691d136313aa60"
+    },
+    {
+      "git_code": "??",
+      "path": "continuity/artifacts/working-sets/ws-mi005.json",
+      "sha256": "3a993edfaf2a88ba2389f134ddcbcf67b6c2d03acaed1bc1c3ab7d750ba5e704"
+    },
+    {
+      "git_code": "??",
+      "path": "continuity/dogfood/mi-005-effect.txt",
+      "sha256": "4b96dfb9bd0fefaaf695e918e9f698e7cd9b6c546322137ec354dc650e8194cc"
+    },
+    {
+      "git_code": "??",
+      "path": "continuity/evidence/mi-005/00-repository-bindings.json",
+      "sha256": "7c3f14c43478617c09fe3b605c2f2278fc135f6a73d1beb5debaa52fb89e40eb"
+    },
+    {
+      "git_code": "??",
+      "path": "continuity/evidence/mi-005/01-store-binding-and-route.json",
+      "sha256": "24e9c6cf6a2aa8cbaf3f333b99d90ca86410c2803ffe7bc0900513da15110c18"
+    },
+    {
+      "git_code": "??",
+      "path": "continuity/evidence/mi-005/02-run-preparation-and-rehearsal.json",
+      "sha256": "0d590ace761cdc3b76fd2d6bf603e3e9e26370959047e261a3886ed6ec853c8c"
+    },
+    {
+      "git_code": "??",
+      "path": "continuity/evidence/mi-005/03-two-session-continuity.json",
+      "sha256": "03b5d671dcf9e4ee5a709f32251315c5aaa98308d2fbb49db3ca1bf0abd2805a"
+    },
+    {
+      "git_code": "??",
+      "path": "continuity/evidence/mi-005/04-success-scenarios.json",
+      "sha256": "c929f3ecfb9a83d37aa97827b55d830d75dad7214c63d2e44f28c51e27f338f1"
+    },
+    {
+      "git_code": "??",
+      "path": "continuity/evidence/mi-005/05-mandatory-failures.json",
+      "sha256": "7b44aedd31687f74811db510afc283bb20a0fab0aec211d26ab2abf981fc272a"
+    },
+    {
+      "git_code": "??",
+      "path": "continuity/evidence/mi-005/06-preservation-and-rollback.json",
+      "sha256": "fbb595fef5725a90480c2d29f808a750c6d5945c8ad4371945544d3b4a07e3af"
+    },
+    {
+      "git_code": "??",
+      "path": "continuity/evidence/mi-005/07-criterion-matrix-and-verdict.json",
+      "sha256": "self-referential-recording-vessel"
+    },
+    {
+      "git_code": "??",
+      "path": "continuity/evidence/mi-005/commands/01-level5-tests.json",
+      "sha256": "1920e052e11b5758a41bcb106570152fa9af0801c27cacf915e883536fea2e40"
+    },
+    {
+      "git_code": "??",
+      "path": "continuity/evidence/mi-005/commands/02-engine-tests.json",
+      "sha256": "4bc8011cd3cd067e6cc6dba17252c9c17a897c915d02cce04ec90b5693893776"
+    },
+    {
+      "git_code": "??",
+      "path": "continuity/evidence/mi-005/commands/03-level4-tests.json",
+      "sha256": "d0e65b7b3cbfcb1324da85baa808a3f281ff6017710702767c6b108309ce2a3f"
+    },
+    {
+      "git_code": "??",
+      "path": "continuity/evidence/mi-005/commands/04-level3-tests.json",
+      "sha256": "29f38b92173272353ccd4b692cb0dd0d3de330d9310c2493517ed7c1261a42e9"
+    },
+    {
+      "git_code": "??",
+      "path": "continuity/evidence/mi-005/commands/05-level2-tests.json",
+      "sha256": "f68fca94c2178c7d8335d7cf39bcbfce0164fcc7d732368c7d8080b9f2dbc1e6"
+    },
+    {
+      "git_code": "??",
+      "path": "continuity/evidence/mi-005/commands/06-level1-tests.json",
+      "sha256": "ed9e46fe1e29c1748e1bc649e3dd1f5923b70b41d6a5137c2f73df4d8c3f0cdb"
+    },
+    {
+      "git_code": "??",
+      "path": "continuity/evidence/mi-005/commands/07-backlog-next-tests.json",
+      "sha256": "55a5420706b22219c3d605ae054d4fb1dc6338435022c7dc27599aa89612c8a7"
+    },
+    {
+      "git_code": "??",
+      "path": "continuity/evidence/mi-005/commands/08-final-changed-files.json",
+      "sha256": "self-referential-recording-vessel"
+    },
+    {
+      "git_code": "??",
+      "path": "continuity/level-5/engine-lock.json",
+      "sha256": "f33fbb7e52434277516bb6f42f398ddd1b8f2ee6937d84843c565b0afdf82961"
+    },
+    {
+      "git_code": "??",
+      "path": "continuity/level-5/run-binding.json",
+      "sha256": "e818fcbc828c970dc53e6f3a7d2c138102470ebfb542af778f303ba1654a1981"
+    },
+    {
+      "git_code": "??",
+      "path": "tests/continuity-level-5.test.mjs",
+      "sha256": "5ef8113a0e75a3bc3e6e2636a079c0b021727b9f5e61d09800b53107703928fb"
+    }
+  ],
+  "manifest_self_sha256": "3edd7a87a539184c89be3b1edf84be5559c551f93dde0f9b4d07a5fa0f4efd2a",
+  "modified_count": 2,
+  "modified_paths": [
+    ".continuity/audit.ndjson",
+    ".continuity/derived/index.json"
+  ],
+  "note": "commands/08-final-changed-files.json and 07-criterion-matrix-and-verdict.json are the two recording vessels for the manifest; their on-disk digests are self-referential and listed as such. The execution delta is uncommitted and unstaged.",
+  "role": "final-changed-files",
+  "scope_check": {
+    "f12_manifest_scope_mismatch": false,
+    "out_of_scope_paths": [],
+    "pass": true
+  }
+}

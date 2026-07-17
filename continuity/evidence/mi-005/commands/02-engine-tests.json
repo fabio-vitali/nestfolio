@@ -1,0 +1,21 @@
+{
+  "argv": [
+    "node",
+    "--test",
+    "runtime/continuity/test/core.test.mjs",
+    "runtime/continuity/test/pack-resolution.test.mjs",
+    "runtime/continuity/test/resumable-session.test.mjs",
+    "runtime/continuity/test/session-hooks.test.mjs"
+  ],
+  "cwd_role": "real-working-tree",
+  "end_utc": "2026-07-17T20:31:18.034Z",
+  "exit_code": 0,
+  "parsed": {
+    "fail": 0,
+    "pass": 9
+  },
+  "role": "engine",
+  "start_utc": "2026-07-17T20:31:16.717Z",
+  "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+  "stdout_sha256": "5fb11e811d76b0d3d0409e6f5018fbe9ae43d0f39d7e6f001b4a1a09df59c1e2"
+}

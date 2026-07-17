@@ -1,0 +1,68 @@
+{
+  "diagnostics": [],
+  "digest": "a9f540af17ef0b3ccf2aa987e92e92691734df08c9f01b70a5b9e0a23974f6d3",
+  "formed_at": "2026-07-17T19:56:43.645Z",
+  "id": "run-mi005",
+  "omissions": [],
+  "revision": 1,
+  "run_id": "run-mi005",
+  "schema_version": 1,
+  "sources": [
+    {
+      "digest": "7aeb74822e542d14e110c80916edb910de4d6fcd27a1f3a2cc37acd16c462000",
+      "id": "dashboard-bff-awaiting-confirmation-activity-gap",
+      "rationale": "Selected work authority",
+      "required": true,
+      "revision": 1,
+      "type": "work_item"
+    },
+    {
+      "digest": "504dc541135c236076329788d8425b7d4a44a125632fe1e5155f5c4269160523",
+      "id": "ws-mi005",
+      "rationale": "Bounded execution selection",
+      "required": true,
+      "revision": 1,
+      "type": "working_set"
+    },
+    {
+      "digest": "1f599c32e290676fc86b181eb6d81c4f9292dfc99a80d1597aa049b09d5d6e09",
+      "id": "scope-mi005-run-continuity",
+      "rationale": "Read/write boundary and exclusions",
+      "required": true,
+      "revision": 1,
+      "type": "scope"
+    },
+    {
+      "digest": "1394bee3746051d7906c41b48fb7df10940c2ccee0469b3965a11a3bdf3968b7",
+      "id": "resumable-agent-work",
+      "rationale": "Resolved executable procedure",
+      "required": true,
+      "revision": "continuity-core@0.1.0-vs001",
+      "type": "procedure"
+    },
+    {
+      "digest": "4de64689023f384eb2afd0bd4e0ebbda152b65c7ce5d69929efa86034697b855",
+      "id": "nestfolio-backlog-and-evidence",
+      "rationale": "Resolved executable procedure",
+      "required": true,
+      "revision": "nestfolio-binding@0.1.0-vs001",
+      "type": "procedure"
+    }
+  ],
+  "stages": [
+    "bind-work",
+    "bind-execution-boundary",
+    "resolve-packs",
+    "resolve-procedures",
+    "resolve-decisions",
+    "resolve-guards-and-criteria",
+    "inspect-repository-evidence",
+    "apply-inclusions-and-exclusions",
+    "detect-stale-missing-contradictory-state",
+    "assemble-context-pack",
+    "validate-and-authorize",
+    "deliver-adapter-view"
+  ],
+  "trace_digest": "eb9a5dc673e9024524fd0ba00b2256f7d0265ae7d4723042fd9d8fe39e432ed2",
+  "updated_at": "2026-07-17T19:56:43.646Z"
+}

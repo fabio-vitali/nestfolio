@@ -1,0 +1,50 @@
+{
+  "criteria": [
+    {
+      "description": "session gates, engine/store binding, Level 4/3/2 digest verification, route check pass fail-closed before mutation",
+      "id": "C1",
+      "pass": true
+    },
+    {
+      "description": "exact Run creation binding, frozen rehearsed write-set, complete pre-mutation preservation ledger",
+      "id": "C2",
+      "pass": true
+    },
+    {
+      "description": "real two-Session start/resume with machine-captured provenance and ordering, verified Checkpoints, published Handoff, keyed-effect deduplication",
+      "id": "C3",
+      "pass": true
+    },
+    {
+      "description": "every mandatory failure blocks with the exact typed diagnostic",
+      "id": "C4",
+      "pass": true
+    },
+    {
+      "description": "current journal, backlog source, Levels 1-4, VS-001/VS-001A records, every byte outside permitted sets remain exact",
+      "id": "C5",
+      "pass": true
+    },
+    {
+      "description": "authority, route, cutover/drain, lease, store ownership, absent Level 6 guarantees observable, truthful, unambiguous",
+      "id": "C6",
+      "pass": true
+    },
+    {
+      "description": "deterministic index rebuild, audit prefix preservation, operational rollback proof, cleanup absence proofs, exact uncommitted final manifest",
+      "id": "C7",
+      "pass": true
+    }
+  ],
+  "engine_adaptations_disclosed": [
+    "Closure: the pinned engine offers no Level-5-only terminal closed state; the Run closes at the final verified Checkpoint, and the single-writer lease is released via interrupt as an orchestrator recovery step after Session 2 ended without a deliberate pause (lease_policy: released by recovery after unexpected stop).",
+    "F-diagnostics: F1 STALE_RUN and F4 LEASE_CONFLICT are engine-native; F2/F3/F5-F9 are MI-005 validation-layer diagnostics enforced by the fixtures/orchestrator over the engine behavior (F3 maps the engine raw code UNKNOWN_EFFECT_REQUIRES_RECONCILIATION); F10-F12 are structural.",
+    "create_fixed_paths_on_pass enumerates 20 explicit fixed paths; scope_rule prose says \"twenty-one\" — the explicit enumeration (20) is followed and all 20 are present."
+  ],
+  "final_manifest_self_sha256": "3edd7a87a539184c89be3b1edf84be5559c551f93dde0f9b4d07a5fa0f4efd2a",
+  "level_5_note": "Level 5 operational resumable-run continuity proven for one new target Run; the Run is closed at a final verified Checkpoint with the lease released; no Work completion, Assurance, Evidence-bound completion, or Level 6 state exists.",
+  "manifest_entry_count": 47,
+  "manifest_reference": "continuity/evidence/mi-005/commands/08-final-changed-files.json",
+  "verdict": "UNCONDITIONAL PASS",
+  "verdict_rule": "C1-C7, S1-S10, F1-F12, every precondition, validation, preservation, rollback, cleanup, and exact-manifest requirement passed conjunctively; no prohibited action occurred; execution delta remains uncommitted and unstaged."
+}
