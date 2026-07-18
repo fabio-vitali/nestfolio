@@ -1,0 +1,30 @@
+{
+  "criterion": "e2elb-c2-fix-direction",
+  "mode": "human-review-authorization",
+  "round": 2,
+  "supersedes_or_extends": "fix-direction-decision.json (round 1: re-measure-current-run-first, already executed)",
+  "prompted_with": {
+    "summary": "The 2026-07-18 re-measurement (continuity/dogfood/e2e-live-budget/remeasure-2026-07-18.md) ran the live-AgentCore e2e suite once against current quotas (~48 min, 5,173 Bedrock invocations, 68.9% of the 2026-06-26 reference burn's 7,513) and produced ZERO InvocationThrottles on all three models (Haiku/Sonnet/Nova), vs. 1,789 Haiku throttles on the reference burn, at an unchanged Haiku TPM quota (L-58BE175A, still 5,000,000). The run is explicitly informative, not decisive: (1) DNS-resolution failures (getaddrinfo ENOTFOUND) against AWS EventBridge/DynamoDB endpoints failed 3 contract-emission suites at fixture setup before any Bedrock call, suppressing part of the measured volume; (2) 3 live-AgentCore decision-cycle scenarios timed out on withProfileSnapshot() (360s), cause undetermined. 7/28 test suites failed, 24/56 tests failed.",
+    "options_offered": [
+      "accept the current evidence as sufficient for now; do not spend further AWS/Bedrock budget on another live re-measurement",
+      "run one more live suite pass now that the DNS-failure confound is known, to get a cleaner signal",
+      "proceed anyway with requesting the Haiku TPM quota increase (L-58BE175A) as a belt-and-suspenders move",
+      "proceed with the burst-concurrency-reduction implementation direction (separate dedicated session)",
+      "defer again with no new action"
+    ],
+    "recommended_option": "accept the current evidence as sufficient for now; do not spend further AWS/Bedrock budget on another live re-measurement"
+  },
+  "owner_reply": "accept-current-evidence (Recommended) — selected via AskUserQuestion",
+  "decision": "no-quota-fix-pursued-monitor-and-revisit",
+  "decision_detail": "e2elb-c2-fix-direction: no further quota-increase or burst-reduction fix pursued at this time. Zero throttles at 68.9% of reference volume, at an unchanged TPM quota, is treated as a meaningfully different signal from the 22-day-stale 2026-06-26 reference burn, sufficient given the owner's stated priority on Continuity development over Nestfolio work. Monitor and revisit only if a future live e2e-feature-tests run against AWS actually throttles again; no scheduled re-measurement, no quota-increase request submitted, no burst-reduction implementation session opened as a result of this decision.",
+  "decision_machine_captured_utc": "2026-07-18T22:00:12.000Z",
+  "deferred_options": [
+    "re-measure-again",
+    "request-tpm-quota-increase",
+    "reduce-burst-concurrency"
+  ],
+  "related_side_findings_filed_this_session": [
+    "docs/backlog/from-e2elb-remeasure-2026-07-18-dns-enotfound.md",
+    "docs/backlog/from-e2elb-remeasure-2026-07-18-withprofilesnapshot-timeout.md"
+  ]
+}

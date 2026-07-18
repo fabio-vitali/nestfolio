@@ -320,3 +320,118 @@ Continuity engine.
   ≈ 12 min; ≈ 20% overhead for this session, lower than both prior samples
   (Entry 5 ≈57%, Entry 10 ≈28%) because the dominant cost was the live
   suite's own real runtime, not Continuity process.
+
+## Entry 16 — Fix-direction decision round 2: no quota fix pursued, monitor and revisit (criterion e2elb-c2 input)
+
+- Entry written (machine-captured UTC): 2026-07-18T22:00:12.000Z
+- Session: fresh Claude Code session `ffab733b-cc5f-44fd-98fd-1cad12a81efd`
+  (new chat, no context from session `e3b57e80-...` that executed the
+  re-measurement recorded in Entry 13).
+- The confounded re-measurement result (Entry 13 /
+  `remeasure-2026-07-18.md`) was re-presented to the human program owner via
+  `AskUserQuestion` with five options (accept current evidence / re-measure
+  again / request the Haiku TPM quota increase / reduce Haiku burst
+  concurrency / defer again), recommended option = accept current evidence
+  and spend no further AWS/Bedrock budget on another live re-measurement.
+  Owner selected the recommended option.
+- Decision recorded (mode `human-review-authorization`, machine-captured
+  UTC): `continuity/dogfood/e2e-live-budget/fix-direction-decision-round-2.json`
+  — `decision: "no-quota-fix-pursued-monitor-and-revisit"`. This is a NEW
+  file alongside `fix-direction-decision.json` (round 1, unedited); round 1
+  decided to re-measure first (executed), round 2 decides what to do with
+  that re-measurement's result. No decision was inferred.
+- Effect: `e2elb-c2-fix-direction` is resolved for this period without a
+  quota-increase request or a burst-reduction implementation session; no
+  further live-suite re-measurement is scheduled. Revisit only if a future
+  live `e2e-feature-tests` run against AWS actually throttles again.
+  `e2elb-c3-budget-fit` remains untouched. No period-verdict or
+  per-criterion completion claim is made by this entry.
+
+## Entry 17 — Two side-findings from the re-measurement filed to backlog (criterion 6/9 input)
+
+- Entry written (machine-captured UTC): 2026-07-18T22:03:00.000Z
+- Session: `ffab733b-cc5f-44fd-98fd-1cad12a81efd`
+- The owner separately authorized (via `AskUserQuestion`, recommended
+  option accepted) filing the two operational findings surfaced by the
+  re-measurement (Entry 13) as backlog items, since until now they existed
+  only in the SD-001 ledger. Used the `backlog-add` skill's intake driver
+  (`runtime/adapters/claude-code/run-intake.mjs`) for both, per its
+  finding→route→write mechanism (not a manual file write).
+- Routing: both findings were checked against the active epic
+  (`runtime-self-hosting-debt` — unrelated, internal runtime/ code-quality
+  debt) and every parking theme epic; neither matched. Both were also
+  checked against their nearest thematic precedents, which are all
+  `status: shipped` (closed), not open parking items, so folding/joining was
+  not available: `test-integration-parallel-dns-exhaustion` (shipped
+  2026-06-23; its own out-of-scope note explicitly predicted "a separate
+  item if e2e ever shows DNS exhaustion" — apps/e2e-feature-tests was never
+  wired with its `installDnsResilience` fix) for the DNS finding;
+  `e2e-fixture-agentcore-synchronous-coupling` (shipped 2026-05-21, the
+  `withProfileSnapshot()` fixture itself) and
+  `scenario-12-rebalance-on-drift-missing-mandate-fixture` (shipped
+  2026-05-18, same InvestorProfileSnapshot-materialisation area) for the
+  timeout finding. Both were filed as new parking orphans:
+  `docs/backlog/from-e2elb-remeasure-2026-07-18-dns-enotfound.md` and
+  `docs/backlog/from-e2elb-remeasure-2026-07-18-withprofilesnapshot-timeout.md`.
+  `backlog-lint` passed (464 files, all 11 rules) after both filings.
+  Committed on `main` (see HEAD SHA in the closing entry of this session).
+
+## Entry 18 — Failure-visibility event: accidental amend of the published starting-HEAD commit, caught pre-push and corrected
+
+- Entry written (machine-captured UTC): 2026-07-18T22:10:00.000Z
+- Session: `ffab733b-cc5f-44fd-98fd-1cad12a81efd`
+- While committing the two backlog filings from Entry 17, a leftover
+  `--amend` in a chained shell command (intended as a dead fallback guarded
+  by `2>/dev/null`, not meant to execute) instead ran successfully and
+  amended the published starting-HEAD commit `9c3e842b686f0fca8cee34cd09acc32824b79630`
+  ("Record e2elb-c2 re-measurement decision and result in SD-001 ledger")
+  into a new commit `ecc61e9f` carrying an incomplete message and the two
+  backlog files folded into it — a rewrite of already-pushed history.
+- Caught immediately (before any push) by inspecting `git status -sb`
+  ("diverged, 1 and 1 different commits") and `git log`. Verified the
+  original commit object `9c3e842b` was still intact and reachable (git
+  objects are immutable; `origin/main` still pointed at it, so it was never
+  at risk). Corrected by backing up the two new backlog files, running
+  `git reset --hard 9c3e842b686f0fca8cee34cd09acc32824b79630` to restore
+  local `main` to exactly the original published commit, restoring the two
+  files, and committing them fresh as a new commit
+  (`8980a1ab71e58194512d169a10100066cb1ad61f`,
+  "docs(backlog): file DNS-exhaustion and withProfileSnapshot-timeout e2e
+  findings") on top of the unmodified `9c3e842b`. `origin/main` was never
+  pushed to or altered; no published history was actually rewritten on the
+  remote. Verified post-fix: `git log` shows `9c3e842b` unchanged as the
+  parent of `8980a1ab...`, local `main` ahead of `origin/main` by exactly 1
+  commit, working tree clean.
+- Root cause: an unnecessary defensive fallback command
+  (`git commit --amend --no-edit 2>/dev/null`) was left in a compound shell
+  invocation instead of being removed once no longer needed — a process
+  error, not a tooling failure. No further action needed beyond this
+  disclosure; no data or published state was lost.
+
+## Entry 19 — Resumption sample (criterion 3 input; counter 1/15 → 2/15)
+
+- Entry written (machine-captured UTC): 2026-07-18T22:12:00.000Z
+- Fresh-session identity: Claude Code session
+  `ffab733b-cc5f-44fd-98fd-1cad12a81efd`, launched via the handoff mechanism
+  with no chat context from the prior session (`e3b57e80-...`) that executed
+  the re-measurement (Entry 13) and left the round-2 fix-direction decision
+  open.
+- Source of next action: repository artifacts, not chat memory — `git
+  status -sb` / HEAD SHA checks against the pinned starting revisions in the
+  session prompt (nestfolio `9c3e842b`, continuity-lab `52c5b2e1`), plus
+  `remeasure-2026-07-18.md` and ledger Entries 12-13. The session prompt
+  itself was authored from that same repository state by the prior session,
+  not recalled informally.
+- Proved correct: yes — the repository state accurately identified the
+  pending round-2 decision and the correct non-resumability of
+  `run-e2e-live-budget` (not attempted). The round-2 decision was recorded
+  as a NEW file (`fix-direction-decision-round-2.json`) alongside the
+  round-1 file, per the session prompt's explicit instruction not to
+  overwrite it in place.
+- Material-loss / duplicated-effect / silently-skipped-step check: the
+  session did hit one material near-loss (Entry 18, an accidental amend of
+  the published starting-HEAD commit) — caught and corrected before any
+  push, with no actual loss of published state. No other material loss,
+  duplicated effect, or silently-skipped step observed; `gap-sizing.md` and
+  `remeasure-2026-07-18.md` were not re-measured or edited, no engine Run
+  resume was attempted, no step from the prior session was duplicated.
