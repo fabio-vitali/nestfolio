@@ -205,3 +205,18 @@ Continuity engine.
   (real CloudWatch/quota measurement + analysis) ≈ 18 min; Continuity
   bookkeeping (ledger correction + evidence framing) ≈ 7 min; ≈ 28% overhead
   for this stretch, lower than the bootstrap-heavy Entry 5 sample as expected.
+
+## Entry 11 — Fix-direction decision deferred by owner (criterion e2elb-c2 stays pending)
+
+- Entry written (machine-captured UTC): 2026-07-18T20:22:21.000Z
+- The gap-sizing finding (Entry 8) was presented to the human program owner
+  in-session with three options (re-measure a current run first / raise the
+  Haiku cross-region TPM quota / reduce Haiku burst concurrency). Owner reply:
+  "Rimanda" (defer). No fix direction is chosen; criterion e2elb-c2 remains
+  pending and NO fix-direction-decision record is created (a decision is never
+  inferred or defaulted into existence). Only criterion e2elb-c1 (gap sizing)
+  is measured so far; e2elb-c3 (budget-fit) untouched.
+- No completion or per-criterion claim is made. The Work Item stays in
+  progress; the recommended next diagnostic (re-measure one current
+  live-AgentCore run against current quotas before committing to a fix)
+  remains available for a later owner decision.
