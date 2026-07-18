@@ -125,3 +125,83 @@ Continuity engine.
   - multi-item efforts: 0 of 5 (Epics or equivalent: 0 of 2)
   - resumption samples: 0 of 15
   - active weeks: 1 of 6
+
+## Entry 7 — Correction of Entry 3's "no AWS credentials" claim (references Entry 3)
+
+- Entry written (machine-captured UTC): 2026-07-18T20:17:41.000Z
+- Session: Claude Code session 51cae0e8-25e2-4676-9657-0242547c7bb0 (same
+  session as entries 1-6; continued after the owner pointed out the AWS
+  profile).
+- Correction: Entry 3 stated "the gap-sizing measurement was blocked
+  in-session: no AWS credentials available." That was an EXECUTOR ERROR, not
+  an environment block. Credentials were available all along via the
+  `nestfolio-dev` profile declared in Nestfolio `.env`
+  (`AWS_PROFILE=nestfolio-dev`, loaded by `.envrc` direnv `dotenv`); the
+  executor ran `aws sts get-caller-identity` without selecting the profile
+  and misread the empty default credential chain as "no credentials."
+  `AWS_PROFILE=nestfolio-dev aws sts get-caller-identity` succeeds (account
+  771924376645, AdminRole). The measurement was executed this session (Entry
+  8). Entry 3's other facts stand.
+
+## Entry 8 — Gap-sizing measurement result (criterion 1 input; e2elb-c1 MEASURED)
+
+- Entry written (machine-captured UTC): 2026-07-18T20:17:41.000Z
+- Measurement machine-captured UTC: 2026-07-18T20:14:06.000Z
+- Evidence: continuity/dogfood/e2e-live-budget/gap-sizing.md (marker
+  "e2elb-c1-gap-sizing: MEASURED"). Source: CloudWatch AWS/Bedrock + Service
+  Quotas, account 771924376645, region us-east-1, burn day 2026-06-26 UTC
+  (7,513 invocations, matches the dossier's ~7.2k).
+- Material finding (overturns the dossier's per-day-exhaustion hypothesis):
+  all 1,789 throttles were on Haiku 4.5; Sonnet 4-6 and Nova Pro had zero.
+  Per-DAY usage of the heaviest model (Haiku) was only 4.8% of its
+  tokens-per-day quota (17.1M / 357.1M), and the per-day quotas are
+  Adjustable=false. The binding constraint is Haiku tokens-per-MINUTE / burst
+  concurrency (EstimatedTPMQuotaUsage peaked at 49,264% on the burn day); the
+  only adjustable quota lever is the Haiku cross-region TPM quota
+  (L-58BE175A, adj=true). Material caveat: burn evidence is 22 days stale and
+  the TPM quotas are mutable, so a current run must be re-measured before the
+  gap can be projected onto today's quotas.
+- The measurement corrected two errors in the recorded measurement plan: the
+  metric names are InputTokenCount/OutputTokenCount (not the assumed
+  Invocation*TokenCount), and the six production AgentConfigs pin THREE
+  profiles (Haiku 4.5, Sonnet 4-6, Nova Pro).
+
+## Entry 9 — Resumable-execution friction observation (criterion 3 input)
+
+- Entry written (machine-captured UTC): 2026-07-18T20:17:41.000Z
+- Observation: Run run-e2e-live-budget became NON-engine-resumable after its
+  first-session artifacts were committed on Nestfolio main (commit 79a15c6c),
+  which advanced HEAD. The engine freshness check
+  (verifyFreshness -> repositoryFingerprint -> gitIdentity) binds to the git
+  HEAD SHA, so `resume` returned STALE_RUN (expected fingerprint 94ff01f0 at
+  HEAD 6c75d4d1, actual c12f1d81 at HEAD 79a15c6c). Verified: commit 79a15c6c
+  touched no fingerprint_paths file — only the HEAD SHA changed. This is the
+  same accepted, documented consequence class as run-mi005 becoming
+  non-resumable by staleness after MI-006-R1. No material Work Item, scope,
+  Decision, or completion-criterion loss: the next action was correctly
+  identified from repository state (the published Handoff + measurement-plan
+  effect), no duplicated or silently-skipped effect occurred, and the
+  gap-sizing.md evidence was recorded as a direct Scope-declared-path work
+  product instead of an engine effect (documented in the file).
+- NOT a resumption sample: this continuation ran in the SAME Claude Code chat
+  session (51cae0e8...) with full chat context, so it is NOT a fresh-session
+  resumption and is NOT counted toward the resumption-sample counter (stays
+  0/15). Recorded here only as a resumable-execution friction finding.
+- Practical consequence for cadence: during the period, a Run's own artifact
+  commit ends that Run's engine-resumability; genuine cross-session
+  resumptions must resume BEFORE committing (against the same HEAD), or the
+  Work Item's eventual engine completion needs a fresh Run prepared against
+  the then-current HEAD.
+
+## Entry 10 — Skill-reuse and overhead addendum for the measurement continuation
+
+- Entry written (machine-captured UTC): 2026-07-18T20:17:41.000Z
+- Skill/procedure invocations on this real task: continuity-resumable-work
+  (resume attempt via the adapter CLI, which surfaced the STALE_RUN finding);
+  direct AWS CloudWatch get-metric-statistics / list-metrics and Service
+  Quotas list-service-quotas per the recorded measurement plan (direct work,
+  not a Skill).
+- Overhead addendum (this continuation, ~25 min): development-directed work
+  (real CloudWatch/quota measurement + analysis) ≈ 18 min; Continuity
+  bookkeeping (ledger correction + evidence framing) ≈ 7 min; ≈ 28% overhead
+  for this stretch, lower than the bootstrap-heavy Entry 5 sample as expected.
