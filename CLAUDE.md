@@ -137,6 +137,8 @@ The brainstorming / writing-plans / executing-plans / subagent-driven-developmen
 
 ## Pre-authorized actions (auto mode)
 
+**Connecting to the sandbox.** The `aws` CLI, integration suites (`nx run <svc>:test-integration`), and the e2e gates all authenticate through the **`nestfolio-dev`** profile — the single source of truth is Nestfolio `.env` (`AWS_PROFILE=nestfolio-dev`, loaded into interactive shells by `.envrc` via direnv). A non-interactive agent shell does **not** auto-load `.env`/direnv, so **export it explicitly** before any AWS call: `export AWS_PROFILE=nestfolio-dev` (region `us-east-1` is baked into the profile; it is an assume-role profile). Verify with `aws sts get-caller-identity` → account `771924376645`, `AdminRole`. If a call fails with `NoCredentials`/expired, the profile's source-profile session needs refreshing — ask the user to run the interactive credential refresh (e.g. `aws sso login`) and retry. Do **not** report an AWS step (introspection, integration/e2e run) as blocked before selecting the profile — an empty default credential chain is not "no credentials".
+
 The following actions against the **dev sandbox** (AWS account 771924376645) are pre-authorized — proceed without asking when in auto mode:
 
 - **Dev deploys.** `bash infrastructure/scripts/deploy.sh sandbox --prefix=dev …` (any `--services=` filter, any tee/pipe to `/tmp/*.log`).
