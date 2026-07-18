@@ -435,3 +435,83 @@ Continuity engine.
   duplicated effect, or silently-skipped step observed; `gap-sizing.md` and
   `remeasure-2026-07-18.md` were not re-measured or edited, no engine Run
   resume was attempted, no step from the prior session was duplicated.
+
+## Entry 20 — e2elb-c3-budget-fit structural tension disclosed and dispositioned: Work Item blocked/deferred, no fix chosen
+
+- Entry written (machine-captured UTC): 2026-07-18T22:29:26.000Z
+- Session: fresh Claude Code session `d6825ea2-a76d-4000-9076-0bb7ed386384`
+  (new chat, no context from session `ffab733b-...` that recorded the
+  e2elb-c2 round-2 decision in Entries 16-17).
+- Structural tension (discovered and disclosed, not resolved, in the prior
+  session per Entries 16-17): `e2elb-c3-budget-fit` requires a "chosen fix"
+  to be implemented and validated, but the `e2elb-c2-fix-direction`
+  round-2 decision explicitly chose `no-quota-fix-pursued-monitor-and-revisit`
+  — no fix was chosen. As literally written, c3 is therefore currently
+  unsatisfiable through its intended path.
+- The tension was presented to the human program owner in full via
+  `AskUserQuestion` (literal criterion text, literal round-2 decision text,
+  and the two structural alternatives: reverse course on a fix direction,
+  or treat the Work Item as not-completable under its current criteria for
+  now), with three options offered — (i) RECOMMENDED: record the Work Item
+  as blocked/deferred and route to a different backlog item via
+  `/backlog-next` for now, revisiting only on a future real throttle or a
+  priority shift back to Nestfolio; (ii) reverse course now and choose a
+  fix direction, a new decision requiring a dedicated escalated-model
+  session; (iii) defer the disposition itself, no action beyond disclosure.
+  Owner selected the recommended option (i).
+- Recording mechanism: before recording, the pinned engine
+  (`runtime/continuity/lib/{store,workflow}.mjs`, the claude-code CLI
+  adapter) was inspected directly. No CLI subcommand or store-API function
+  exists to mark a work item blocked/deferred while leaving
+  `completion_criteria` untouched; the only two mechanical options found
+  were `interrupt` on the active Run (touches Run/Session status only, not
+  the work item) or a direct `store.writeArtifact` on the whole work-item
+  envelope in the MI-005/MI-006-R1 style (which in that precedent always
+  rewrote `completion_criteria` too). Per the session prompt's explicit
+  "stop and ask rather than guess" instruction, this finding was presented
+  to the owner via a second `AskUserQuestion` with a third option: no
+  pinned-store mutation this session, record via a standalone decision
+  file plus this ledger append, mirroring the e2elb-c2 round-2 precedent
+  exactly. Owner selected that recommended option.
+- Decision recorded (mode `human-review-authorization`, machine-captured
+  UTC 2026-07-18T22:29:26.000Z):
+  `continuity/dogfood/e2e-live-budget/c3-disposition-decision.json` —
+  `decision: "blocked-deferred-no-fix-chosen"`.
+- Effect: the Work Item `e2e-live-suite-exceeds-bedrock-daily-token-budget`
+  is treated as blocked/deferred — not completed, not abandoned. No
+  mutation was made to the pinned work-item envelope: status remains
+  `in_progress`, all three `completion_criteria` remain exactly as
+  recorded (pending), no per-criterion completion or failure claim is made
+  by this entry or the decision file. No AWS Service Quota increase
+  request submitted, no burst-reduction implementation session opened, no
+  further live-suite re-measurement scheduled. Revisit e2elb-c3 only if a
+  future live `e2e-feature-tests` run against AWS actually throttles
+  again, or if program priority shifts back toward Nestfolio work. The
+  recommended next operation is to route to a different backlog item via
+  `/backlog-next`.
+
+## Entry 21 — Resumption sample (criterion 3 input; counter 2/15 → 3/15)
+
+- Entry written (machine-captured UTC): 2026-07-18T22:29:26.000Z
+- Fresh-session identity: Claude Code session
+  `d6825ea2-a76d-4000-9076-0bb7ed386384`, launched via the handoff
+  mechanism with no chat context from the prior session
+  (`ffab733b-cc5f-44fd-98fd-1cad12a81efd`) that recorded the e2elb-c2
+  round-2 decision and left the e2elb-c3 structural tension disclosed but
+  undispositioned.
+- Source of next action: repository artifacts, not chat memory — `git
+  status -sb` / HEAD SHA checks against the pinned starting revisions in
+  the session prompt (nestfolio `1d474c95`, continuity-lab `52c5b2e1`),
+  plus `fix-direction-decision-round-2.json`, the work-item JSON's
+  `completion_criteria`, and ledger Entries 16-17. The session prompt
+  itself was authored from that same repository state by the prior
+  session, not recalled informally.
+- Proved correct: yes — the repository state accurately identified the
+  undispositioned e2elb-c3 tension and the correct non-resumability of
+  `run-e2e-live-budget` (not attempted; no engine command was invoked this
+  session).
+- Material-loss / duplicated-effect / silently-skipped-step check: no
+  material loss, duplicated effect, or silently-skipped step observed;
+  `fix-direction-decision-round-2.json` was not re-measured or edited, no
+  engine Run resume was attempted, no step from the prior session was
+  duplicated.

@@ -1,0 +1,30 @@
+{
+  "criterion": "e2elb-c3-budget-fit",
+  "mode": "human-review-authorization",
+  "context": "e2elb-c3-budget-fit requires: \"The chosen fix is implemented and a full live-AgentCore e2e pass fits within the daily token budget (measured need at or below the effective quota), with the validating evidence recorded\" (validator: continuity/dogfood/e2e-live-budget/budget-fit-validation.md must contain \"e2elb-c3-budget-fit: VALIDATED\"). The e2elb-c2-fix-direction round-2 decision (fix-direction-decision-round-2.json, decision_machine_captured_utc 2026-07-18T22:00:12.000Z) explicitly chose \"no-quota-fix-pursued-monitor-and-revisit\": no quota-increase request, no burst-reduction implementation session, and no scheduled re-measurement. As literally written, c3 therefore has no \"chosen fix\" to implement or validate and is currently unsatisfiable through its intended path. This tension was discovered and disclosed, not resolved, in the session that recorded round-2 (dogfooding-ledger.md Entries 16-17).",
+  "prompted_with": {
+    "summary": "The structural tension above was presented in full via AskUserQuestion, including the literal criterion text, the literal round-2 decision text, and an explicit statement that c3 as written cannot be satisfied without either reversing course on a fix direction or treating the Work Item as not-completable under its current criteria for now.",
+    "options_offered": [
+      "RECOMMENDED — record the Work Item as blocked/deferred (not completed, not abandoned) with a note pointing to this ledger trail, and route to a different backlog item via /backlog-next for now; revisit e2elb-c3 only if/when a future event (a real throttle, a priority shift back to Nestfolio) makes pursuing a fix worthwhile",
+      "reverse course now and choose a fix direction (quota-increase request or burst-reduction implementation) specifically to unblock c3 — a new decision, not implied by anything decided so far, requiring a dedicated design/implementation session with the model escalated per policy",
+      "defer the disposition itself — no action this session beyond the disclosure already made"
+    ],
+    "recommended_option": "record the Work Item as blocked/deferred (not completed, not abandoned) with a note pointing to this ledger trail, and route to a different backlog item via /backlog-next for now"
+  },
+  "owner_reply": "Blocca/rinvia il Work Item (Recommended) — selected via AskUserQuestion",
+  "decision": "blocked-deferred-no-fix-chosen",
+  "decision_detail": "e2elb-c3-budget-fit: no fix direction is chosen or implemented at this time, consistent with the round-2 e2elb-c2 decision. The Work Item e2e-live-suite-exceeds-bedrock-daily-token-budget is treated as blocked/deferred for now — not completed, not abandoned. Revisit e2elb-c3 only if a future event makes pursuing a fix worthwhile: a live e2e-feature-tests run against AWS actually throttles again, or program priority shifts back toward Nestfolio work. No AWS Service Quota increase request submitted, no burst-reduction implementation session opened, no further live-suite re-measurement scheduled as a result of this decision. No period-verdict or per-criterion completion/failure claim is made by this file: e2elb-c3-budget-fit status is left exactly as it was (pending).",
+  "recording_mechanism_prompted_with": {
+    "summary": "Before recording, the pinned engine (runtime/continuity/lib/{store,workflow}.mjs and the claude-code CLI adapter) was inspected directly: no CLI subcommand or store-API function exists that marks a work item blocked/deferred while leaving completion_criteria untouched. The only two mechanical options found were (a) `interrupt` on the active Run — sets Run/Session status to interrupted and publishes an engine Handoff, but does not touch the work item at all, or (b) a direct store.writeArtifact call on the whole work-item envelope in the MI-005/MI-006-R1 style — but in that precedent this always rewrote completion_criteria as part of the rebinding, not a pure no-op on them. This finding was presented to the owner via a second AskUserQuestion alongside a third option: make no pinned-store mutation at all this session and record the disposition the same way the e2elb-c2 round-2 decision was recorded — a standalone decision JSON file plus a dogfooding-ledger append.",
+    "options_offered": [
+      "RECOMMENDED — no mutation of the pinned Work Item envelope this session; record via a standalone decision JSON file (this file) plus a dogfooding-ledger append, mirroring the e2elb-c2 round-2 precedent exactly",
+      "run `interrupt` on the active Run (run-e2e-live-budget) to mark the Run/Session interrupted and publish an engine Handoff, leaving the work item and completion_criteria untouched",
+      "call store.writeArtifact directly on the work-item envelope in the MI-005/MI-006-R1 style to reflect a blocked/deferred state"
+    ],
+    "recommended_option": "no mutation of the pinned Work Item envelope this session; record via a standalone decision JSON file plus a dogfooding-ledger append"
+  },
+  "recording_mechanism_owner_reply": "(c) Solo file decisione + ledger (Recommended) — selected via AskUserQuestion",
+  "recording_mechanism_decision": "decision-file-and-ledger-only-no-pinned-mutation",
+  "pinned_work_item_status_effect": "none — e2e-live-suite-exceeds-bedrock-daily-token-budget remains status \"in_progress\"; all three completion_criteria (e2elb-c1-gap-sizing, e2elb-c2-fix-direction, e2elb-c3-budget-fit) are left exactly as recorded in the pinned store; no per-criterion claim is made by this file or the ledger entry it accompanies; no CLI command (select/start/effect/checkpoint/interrupt/resume/validate/lesson/complete) was invoked this session",
+  "decision_machine_captured_utc": "2026-07-18T22:29:26.000Z"
+}
