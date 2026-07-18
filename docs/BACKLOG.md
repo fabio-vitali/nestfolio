@@ -217,7 +217,7 @@ rollup: core 0/3 done · captured 0/0 done
 - core · parking · [portfolio-drift-detected-registry-collision](backlog/portfolio-drift-detected-registry-collision.md)
 - core · parking · [weight-drift-detector](backlog/weight-drift-detector.md)
 
-**Parking health:** 31 theme epic(s), 12 orphan(s) — drive orphans → 0 with `/backlog-themes`
+**Parking health:** 31 theme epic(s), 14 orphan(s) — drive orphans → 0 with `/backlog-themes`
 
 ## ACTIVE
 
@@ -238,6 +238,8 @@ _(none)_
 - [bump-tsconfig-es2022-to-es2023](backlog/bump-tsconfig-es2022-to-es2023.md) [tooling] — Enable .toSpliced/.toReversed/.with workspace-wide; promote on second use case.
 - [decision-log-utc-date-stamp](backlog/decision-log-utc-date-stamp.md) [bug] — decision-log.mjs stamps the UTC date — evening-CET appends land under yesterday's date in an append-only audit log
 - [from-audit-e2e-test](backlog/from-audit-e2e-test.md) [bug]
+- [from-e2elb-remeasure-2026-07-18-dns-enotfound](backlog/from-e2elb-remeasure-2026-07-18-dns-enotfound.md) [bug]
+- [from-e2elb-remeasure-2026-07-18-withprofilesnapshot-timeout](backlog/from-e2elb-remeasure-2026-07-18-withprofilesnapshot-timeout.md) [bug]
 - [integration-suite-lever-5-cdk-bundling](backlog/integration-suite-lever-5-cdk-bundling.md) [refactor] — cdk-constructs:test bundles 57 assets in 32s as it synthesizes per-construct stacks in tests. This sits in the unit suite, not integration. Dossier called out as out-of-scope for integration slowness but worth tracking if unit wall-clock becomes a concern.
 - [rebalance-planner-mode-awareness](backlog/rebalance-planner-mode-awareness.md) [refactor] — rebalance-planner stays mode-blind; promote on mode-correlated gap.
 - [rename-nestfolio-integ-prefix-to-prefix](backlog/rename-nestfolio-integ-prefix-to-prefix.md) [refactor] — Verbose NESTFOLIO_INTEG_ namespace is friction; rename atomically + sweep docs.
