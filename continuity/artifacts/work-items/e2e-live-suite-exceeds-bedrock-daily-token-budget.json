@@ -1,0 +1,109 @@
+{
+  "active_run_refs": [
+    {
+      "id": "run-e2e-live-budget",
+      "revision": 2
+    }
+  ],
+  "blockers": [],
+  "completed_run_refs": [],
+  "completion_criteria": [
+    {
+      "description": "Per-model token consumption of one full live-AgentCore e2e run and the current Bedrock tokens-per-day Service Quota values are measured and recorded with machine-captured provenance.",
+      "id": "e2elb-c1-gap-sizing",
+      "required_evidence_type": "measurement-record",
+      "status": "pending",
+      "validator": {
+        "contains": "e2elb-c1-gap-sizing: MEASURED",
+        "path": "continuity/dogfood/e2e-live-budget/gap-sizing.md",
+        "type": "file"
+      }
+    },
+    {
+      "description": "A fix direction (quota increase, consumption reduction, scenario scoping, suite split, or a combination) is chosen and ratified by the human program owner with machine-captured UTC.",
+      "id": "e2elb-c2-fix-direction",
+      "required_evidence_type": "agent-and-human-review-record",
+      "status": "pending",
+      "validator": {
+        "contains": "\"mode\": \"human-review-authorization\"",
+        "path": "continuity/dogfood/e2e-live-budget/fix-direction-decision.json",
+        "type": "file"
+      }
+    },
+    {
+      "description": "The chosen fix is implemented and a full live-AgentCore e2e pass fits within the daily token budget (measured need at or below the effective quota), with the validating evidence recorded.",
+      "id": "e2elb-c3-budget-fit",
+      "required_evidence_type": "budget-fit-validation-record",
+      "status": "pending",
+      "validator": {
+        "contains": "e2elb-c3-budget-fit: VALIDATED",
+        "path": "continuity/dogfood/e2e-live-budget/budget-fit-validation.md",
+        "type": "file"
+      }
+    }
+  ],
+  "constraints": [
+    "The pinned engine runtime/continuity/** is used unmodified; preparation used the pinned store API directly (the MI-005/MI-006-R1 evidenced mechanism) because creating a new continuity/bindings/** file is blocked during the SD-001 period.",
+    "Completion occurs only through the engine completion gate (all required criteria passed with linked immutable Evidence) and the truthful backlog write-back.",
+    "Outward-facing actions (an AWS Service Quota increase request) require explicit human program owner authorization before execution.",
+    "Implementation and ship of in-repo changes go through the repository normal ship mechanisms (backlog-next closing phase), never around them."
+  ],
+  "decisions": [],
+  "dependencies": [],
+  "digest": "9a5976fda7cfb341ef8b0ff6db7c0c3f7ba6d8e1468ccea2c905b7ac01e12c55",
+  "evidence_refs": [],
+  "exclusions": [
+    "No byte change to runtime/continuity/**, the hook registration, or .claude/settings.json (engine frozen during the SD-001 period).",
+    "No edit to any published continuity suite and no mutation of any recorded historical or immutable result.",
+    "No Skills, Packs, or bindings change outside the MI-007 governed-learning owner-applied path.",
+    "No period-verdict or per-criterion claim; observational dogfooding-ledger appends only."
+  ],
+  "expected_outputs": [
+    "a recorded per-model gap sizing (measured tokens per full live run versus tokens-per-day quota) with machine-captured provenance",
+    "an owner-ratified fix direction record",
+    "the implemented fix with budget-fit validation evidence and the truthful backlog completion write-back"
+  ],
+  "guards": [],
+  "history": [
+    {
+      "action": "prepared",
+      "at": "2026-07-18T19:56:11.495Z",
+      "note": "SD-001 standing-period work. Selected by the /backlog-next deterministic rank rule (top-ranked QUEUED, rank 1); prepared through the pinned store API per the MI-005/MI-006-R1 evidenced mechanism.",
+      "source_sha256": "adce68b78e63769fc513fb5372277a63deb3d5481ad4ba57afdeceee3950782a"
+    },
+    {
+      "action": "run-started",
+      "at": "2026-07-18T19:56:18.785Z",
+      "run_id": "run-e2e-live-budget"
+    }
+  ],
+  "id": "e2e-live-suite-exceeds-bedrock-daily-token-budget",
+  "objective": "Make one full live-AgentCore e2e run fit within the dev-account Bedrock daily token budget: size the measured per-model token gap against the tokens-per-day Service Quotas, record an owner-ratified fix direction (quota increase, consumption reduction, scenario scoping, suite split, or a combination), implement it through the repository normal ship mechanisms, and validate that a full pass no longer exhausts the daily budget.",
+  "project_binding": "nestfolio",
+  "required_capabilities": [
+    "work-selection",
+    "run-start",
+    "checkpoint",
+    "fresh-session-resume"
+  ],
+  "required_evidence": [
+    "measurement record for criterion 1 (per-model CloudWatch token totals for one full run plus the current Service Quota values, with capture commands and machine-captured UTC)",
+    "agent-and-human-review record for criterion 2 (the direction analysis plus program-owner authorization with machine-captured UTC)",
+    "budget-fit validation record for criterion 3 (post-fix evidence that one full pass fits the daily budget)"
+  ],
+  "revision": 2,
+  "schema_version": 1,
+  "scope_ref": {
+    "id": "scope-e2e-live-budget",
+    "revision": 1
+  },
+  "source": {
+    "path": "docs/backlog/e2e-live-suite-exceeds-bedrock-daily-token-budget.md",
+    "sha256": "adce68b78e63769fc513fb5372277a63deb3d5481ad4ba57afdeceee3950782a",
+    "source_status": "queued",
+    "type": "nestfolio-backlog"
+  },
+  "status": "in_progress",
+  "type": "infra",
+  "updated_at": "2026-07-18T19:56:18.785Z"
+}

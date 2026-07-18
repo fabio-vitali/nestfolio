@@ -1,0 +1,48 @@
+{
+  "active_run_refs": [
+    {
+      "id": "run-e2e-live-budget",
+      "revision": 2
+    }
+  ],
+  "completed_run_refs": [],
+  "dependency_rationale": "Single bounded SD-001-period backlog item; no unrelated Nestfolio work.",
+  "digest": "b0994530f59b07a82d45ba916cc9c7bff5cd76bccf113370faa99a161a9ef7a6",
+  "evidence_refs": [],
+  "exclusions": [
+    "No byte change to runtime/continuity/**, the hook registration, or .claude/settings.json (engine frozen during the SD-001 period).",
+    "No edit to any published continuity suite and no mutation of any recorded historical or immutable result.",
+    "No Skills, Packs, or bindings change outside the MI-007 governed-learning owner-applied path.",
+    "No period-verdict or per-criterion claim; observational dogfooding-ledger appends only."
+  ],
+  "history": [
+    {
+      "action": "created",
+      "at": "2026-07-18T19:56:11.499Z"
+    },
+    {
+      "action": "run-started",
+      "at": "2026-07-18T19:56:18.785Z",
+      "run_id": "run-e2e-live-budget"
+    }
+  ],
+  "id": "ws-e2e-live-budget",
+  "objective": "Make one full live-AgentCore e2e run fit within the dev-account Bedrock daily token budget: size the measured per-model token gap against the tokens-per-day Service Quotas, record an owner-ratified fix direction (quota increase, consumption reduction, scenario scoping, suite split, or a combination), implement it through the repository normal ship mechanisms, and validate that a full pass no longer exhausts the daily budget.",
+  "revision": 2,
+  "schema_version": 1,
+  "scope_ref": {
+    "digest": "ad177ab82a8ead1ab3446a350a708c139d84d98e30fcac5edd9ba1b9b1e00299",
+    "id": "scope-e2e-live-budget",
+    "revision": 1
+  },
+  "shared_completion_boundary": "The single Work Item e2e-live-suite-exceeds-bedrock-daily-token-budget completes when all three completion criteria pass with linked immutable Evidence and the truthful backlog write-back lands.",
+  "status": "in_progress",
+  "updated_at": "2026-07-18T19:56:18.785Z",
+  "work_item_refs": [
+    {
+      "digest": "9a5976fda7cfb341ef8b0ff6db7c0c3f7ba6d8e1468ccea2c905b7ac01e12c55",
+      "id": "e2e-live-suite-exceeds-bedrock-daily-token-budget",
+      "revision": 2
+    }
+  ]
+}

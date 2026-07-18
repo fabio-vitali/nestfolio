@@ -1,0 +1,68 @@
+{
+  "diagnostics": [],
+  "digest": "31e38900812567b0dfdb2f921a289f6dc1ab527ab041e5eee3a663520c70dec6",
+  "formed_at": "2026-07-18T19:56:18.781Z",
+  "id": "run-e2e-live-budget",
+  "omissions": [],
+  "revision": 1,
+  "run_id": "run-e2e-live-budget",
+  "schema_version": 1,
+  "sources": [
+    {
+      "digest": "e786f12fc431e8b969cfde8db7cd9cfd54e9c98d15dbe75671267122afe9b026",
+      "id": "e2e-live-suite-exceeds-bedrock-daily-token-budget",
+      "rationale": "Selected work authority",
+      "required": true,
+      "revision": 1,
+      "type": "work_item"
+    },
+    {
+      "digest": "36c6ea5e3557d987f7d214405612b2c68a682b556512dec419cdef3812c9bf91",
+      "id": "ws-e2e-live-budget",
+      "rationale": "Bounded execution selection",
+      "required": true,
+      "revision": 1,
+      "type": "working_set"
+    },
+    {
+      "digest": "ad177ab82a8ead1ab3446a350a708c139d84d98e30fcac5edd9ba1b9b1e00299",
+      "id": "scope-e2e-live-budget",
+      "rationale": "Read/write boundary and exclusions",
+      "required": true,
+      "revision": 1,
+      "type": "scope"
+    },
+    {
+      "digest": "1394bee3746051d7906c41b48fb7df10940c2ccee0469b3965a11a3bdf3968b7",
+      "id": "resumable-agent-work",
+      "rationale": "Resolved executable procedure",
+      "required": true,
+      "revision": "continuity-core@0.1.0-vs001",
+      "type": "procedure"
+    },
+    {
+      "digest": "4de64689023f384eb2afd0bd4e0ebbda152b65c7ce5d69929efa86034697b855",
+      "id": "nestfolio-backlog-and-evidence",
+      "rationale": "Resolved executable procedure",
+      "required": true,
+      "revision": "nestfolio-binding@0.1.0-vs001",
+      "type": "procedure"
+    }
+  ],
+  "stages": [
+    "bind-work",
+    "bind-execution-boundary",
+    "resolve-packs",
+    "resolve-procedures",
+    "resolve-decisions",
+    "resolve-guards-and-criteria",
+    "inspect-repository-evidence",
+    "apply-inclusions-and-exclusions",
+    "detect-stale-missing-contradictory-state",
+    "assemble-context-pack",
+    "validate-and-authorize",
+    "deliver-adapter-view"
+  ],
+  "trace_digest": "57a61d6f98735ab887aee1e283f01ebfb38ffa08b76f0479b43919f6aa85b1cf",
+  "updated_at": "2026-07-18T19:56:18.781Z"
+}

@@ -1,6 +1,11 @@
 {
   "active_runs": [
     {
+      "digest": "964cb8f3b828b3aac1f007af354a07b68ceab8f0c6f0f83d1bafde79ed577e2c",
+      "id": "run-e2e-live-budget",
+      "status": "running"
+    },
+    {
       "digest": "5b0ac5375ecc04f142f4fd44d4ed925fab75a398165aa04f0d8c95631511aa8e",
       "id": "run-mi005",
       "status": "interrupted"
@@ -75,6 +80,12 @@
       }
     ],
     "context-packs": [
+      {
+        "digest": "6515cc80b115d2892821d60038dc07db28666a4dd499f7fc34ddd23e5dc633c5",
+        "id": "run-e2e-live-budget",
+        "revision": 1,
+        "status": "authorized"
+      },
       {
         "digest": "b838654c99c0b304cddf0caecf02a757dfb94695a76d0c506e995c53e5cbf481",
         "id": "run-mi005",
@@ -189,6 +200,12 @@
       }
     ],
     "formation-traces": [
+      {
+        "digest": "31e38900812567b0dfdb2f921a289f6dc1ab527ab041e5eee3a663520c70dec6",
+        "id": "run-e2e-live-budget",
+        "revision": 1,
+        "status": null
+      },
       {
         "digest": "a9f540af17ef0b3ccf2aa987e92e92691734df08c9f01b70a5b9e0a23974f6d3",
         "id": "run-mi005",
@@ -312,6 +329,12 @@
     ],
     "pack-locks": [
       {
+        "digest": "024ae612a9adcbef7e8f3a193482ed9592d54ba90975431d998e61214566c443",
+        "id": "run-e2e-live-budget",
+        "revision": 1,
+        "status": "locked"
+      },
+      {
         "digest": "25a36383dabe7b0a07d5f6bbd479b89ec928b36288011cb39bbbc1e4c2485123",
         "id": "run-mi005",
         "revision": 1,
@@ -337,6 +360,12 @@
       }
     ],
     "runs": [
+      {
+        "digest": "b12fa3c9c33a5144e28cc289db0c0987a30d27cfb9eb18a4328f831a971210ae",
+        "id": "run-e2e-live-budget",
+        "revision": 2,
+        "status": "running"
+      },
       {
         "digest": "da281374bae1b9d3685aee7a7a9bf8aa3e9827fd6f716f9c0b87c07899b44f84",
         "id": "run-mi005",
@@ -376,6 +405,12 @@
         "status": "active"
       },
       {
+        "digest": "ad177ab82a8ead1ab3446a350a708c139d84d98e30fcac5edd9ba1b9b1e00299",
+        "id": "scope-e2e-live-budget",
+        "revision": 1,
+        "status": "active"
+      },
+      {
         "digest": "1f599c32e290676fc86b181eb6d81c4f9292dfc99a80d1597aa049b09d5d6e09",
         "id": "scope-mi005-run-continuity",
         "revision": 1,
@@ -389,6 +424,12 @@
       }
     ],
     "sessions": [
+      {
+        "digest": "2735341ab1b6b8b3c3bcd23846aff05a461927465f940a047344212091fc4a40",
+        "id": "session-e2e-live-budget-1",
+        "revision": 1,
+        "status": "active"
+      },
       {
         "digest": "a0db3c611ae91c95b292792269d2ccb0821cc5b304b361ef59b1261c667f94d3",
         "id": "session-mi005-1",
@@ -433,6 +474,12 @@
       }
     ],
     "validation-plans": [
+      {
+        "digest": "8bbec69ccaf80d3a987fc10c6881da021d8f4561bc5e59c4663681330fa36c99",
+        "id": "run-e2e-live-budget",
+        "revision": 1,
+        "status": "ready"
+      },
       {
         "digest": "2d36136913c660fa8f60cbfc7a5aee2ec59d697fd7f9ac2d2278f5d5c3f75517",
         "id": "run-mi005",
@@ -556,6 +603,12 @@
         "id": "dashboard-bff-awaiting-confirmation-activity-gap",
         "revision": 5,
         "status": "completed"
+      },
+      {
+        "digest": "9a5976fda7cfb341ef8b0ff6db7c0c3f7ba6d8e1468ccea2c905b7ac01e12c55",
+        "id": "e2e-live-suite-exceeds-bedrock-daily-token-budget",
+        "revision": 2,
+        "status": "in_progress"
       }
     ],
     "working-sets": [
@@ -572,6 +625,12 @@
         "status": "completed"
       },
       {
+        "digest": "b0994530f59b07a82d45ba916cc9c7bff5cd76bccf113370faa99a161a9ef7a6",
+        "id": "ws-e2e-live-budget",
+        "revision": 2,
+        "status": "in_progress"
+      },
+      {
         "digest": "a3e4106872ec70eb6ff785d36935a088d66c50dcd7fe47aa0dbf847c316bbe80",
         "id": "ws-mi005",
         "revision": 2,
@@ -586,7 +645,7 @@
     ]
   },
   "derived": true,
-  "digest": "a1bc6f56109b2aa7961d258e8d65e5552ebe33b37be1d67d8a0e11352605cdb0",
-  "rebuilt_at": "2026-07-18T17:02:23.323Z",
+  "digest": "185fd3b763a328d5964d87acc10149389c46af04ac44ccee9a5f70679467bca0",
+  "rebuilt_at": "2026-07-18T19:56:18.790Z",
   "schema_version": 1
 }

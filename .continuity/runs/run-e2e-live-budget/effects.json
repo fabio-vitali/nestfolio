@@ -1,0 +1,18 @@
+{
+  "digest": "1e5f46070abdc1e626e990dd4ea5a1224a10423fe921d9db1927a0354352a22e",
+  "effects": [
+    {
+      "after_sha256": "fc294b2a54d31e9bb5cbeaf3d291334e75c277132b13089c378fa851437bb4b1",
+      "before_sha256": null,
+      "completed_at": "2026-07-18T19:57:52.438Z",
+      "effect_class": "repository-file-write",
+      "key": "e2elb-measurement-plan-v1",
+      "path": "continuity/dogfood/e2e-live-budget/measurement-plan.md",
+      "session_id": "session-e2e-live-budget-1",
+      "status": "completed"
+    }
+  ],
+  "run_id": "run-e2e-live-budget",
+  "schema_version": 1,
+  "updated_at": "2026-07-18T19:57:52.438Z"
+}

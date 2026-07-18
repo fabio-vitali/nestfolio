@@ -1,0 +1,10 @@
+{
+  "active_session_id": null,
+  "digest": "667420b20ab704bf7e7a11d172e1070817449f7968213761d8152444b09b032d",
+  "latest_checkpoint_id": "run-e2e-live-budget-cp-1",
+  "run_id": "run-e2e-live-budget",
+  "run_revision": 5,
+  "schema_version": 1,
+  "status": "interrupted",
+  "updated_at": "2026-07-18T19:58:10.539Z"
+}

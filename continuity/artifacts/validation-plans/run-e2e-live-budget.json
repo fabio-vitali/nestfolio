@@ -1,0 +1,46 @@
+{
+  "completion_policy": "all-required-criteria-pass-with-evidence",
+  "criteria": [
+    {
+      "description": "Per-model token consumption of one full live-AgentCore e2e run and the current Bedrock tokens-per-day Service Quota values are measured and recorded with machine-captured provenance.",
+      "id": "e2elb-c1-gap-sizing",
+      "required": true,
+      "required_evidence_type": "measurement-record",
+      "validator": {
+        "contains": "e2elb-c1-gap-sizing: MEASURED",
+        "path": "continuity/dogfood/e2e-live-budget/gap-sizing.md",
+        "type": "file"
+      }
+    },
+    {
+      "description": "A fix direction (quota increase, consumption reduction, scenario scoping, suite split, or a combination) is chosen and ratified by the human program owner with machine-captured UTC.",
+      "id": "e2elb-c2-fix-direction",
+      "required": true,
+      "required_evidence_type": "agent-and-human-review-record",
+      "validator": {
+        "contains": "\"mode\": \"human-review-authorization\"",
+        "path": "continuity/dogfood/e2e-live-budget/fix-direction-decision.json",
+        "type": "file"
+      }
+    },
+    {
+      "description": "The chosen fix is implemented and a full live-AgentCore e2e pass fits within the daily token budget (measured need at or below the effective quota), with the validating evidence recorded.",
+      "id": "e2elb-c3-budget-fit",
+      "required": true,
+      "required_evidence_type": "budget-fit-validation-record",
+      "validator": {
+        "contains": "e2elb-c3-budget-fit: VALIDATED",
+        "path": "continuity/dogfood/e2e-live-budget/budget-fit-validation.md",
+        "type": "file"
+      }
+    }
+  ],
+  "digest": "8bbec69ccaf80d3a987fc10c6881da021d8f4561bc5e59c4663681330fa36c99",
+  "guards": [],
+  "id": "run-e2e-live-budget",
+  "revision": 1,
+  "run_id": "run-e2e-live-budget",
+  "schema_version": 1,
+  "status": "ready",
+  "updated_at": "2026-07-18T19:56:18.782Z"
+}

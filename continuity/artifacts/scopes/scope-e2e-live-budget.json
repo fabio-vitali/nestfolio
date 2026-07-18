@@ -1,0 +1,48 @@
+{
+  "allowed_read_paths": [
+    "runtime/continuity",
+    ".claude/skills",
+    "docs/backlog",
+    "continuity",
+    ".continuity",
+    "apps/e2e-feature-tests",
+    "services",
+    "libs",
+    "tools"
+  ],
+  "allowed_write_paths": [
+    "continuity/dogfood/e2e-live-budget",
+    "docs/backlog/e2e-live-suite-exceeds-bedrock-daily-token-budget.md"
+  ],
+  "digest": "ad177ab82a8ead1ab3446a350a708c139d84d98e30fcac5edd9ba1b9b1e00299",
+  "effect_classes": [
+    "repository-file-write"
+  ],
+  "exclusions": [
+    "No byte change to runtime/continuity/**, the hook registration, or .claude/settings.json (engine frozen during the SD-001 period).",
+    "No edit to any published continuity suite and no mutation of any recorded historical or immutable result.",
+    "No Skills, Packs, or bindings change outside the MI-007 governed-learning owner-applied path.",
+    "No period-verdict or per-criterion claim; observational dogfooding-ledger appends only."
+  ],
+  "expansion_policy": "explicit-revision-and-authorization",
+  "fingerprint_paths": [
+    "runtime/continuity",
+    "continuity/packs",
+    "continuity/bindings",
+    "continuity/level-1",
+    "continuity/level-2",
+    "continuity/level-3",
+    "continuity/level-4",
+    "continuity/level-5"
+  ],
+  "id": "scope-e2e-live-budget",
+  "owner": "VS-001",
+  "repository_identity": {
+    "declared_upstream_baseline": "6c75d4d1edcc1b2251368932cc38227088ae7a43",
+    "repository": "nestfolio"
+  },
+  "revision": 1,
+  "schema_version": 1,
+  "status": "active",
+  "updated_at": "2026-07-18T19:56:11.498Z"
+}
