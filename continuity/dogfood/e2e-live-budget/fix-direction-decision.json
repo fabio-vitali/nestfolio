@@ -1,0 +1,23 @@
+{
+  "criterion": "e2elb-c2-fix-direction",
+  "mode": "human-review-authorization",
+  "prompted_with": {
+    "summary": "Gap-sizing finding (e2elb-c1, MEASURED): the 2026-06-26 burn did not exhaust a tokens-per-day quota (Haiku, the heaviest model, used only 4.8% of its daily quota, which is Adjustable=false). The binding constraint is Haiku 4.5 tokens-per-MINUTE / burst concurrency (all 1,789 throttles on Haiku; EstimatedTPMQuotaUsage peaked at 49,264%). The only adjustable lever is the Haiku cross-region TPM quota L-58BE175A (adj=true, currently 5,000,000). The evidence is 22 days stale and the TPM quotas are mutable.",
+    "options_offered": [
+      "re-measure one current live-AgentCore run against current quotas first",
+      "request the Haiku cross-region TPM quota increase (L-58BE175A)",
+      "reduce Haiku burst concurrency / scope / split the suite (separate implementation session)",
+      "defer again"
+    ],
+    "recommended_option": "re-measure one current live-AgentCore run against current quotas first"
+  },
+  "owner_context_question_verbatim": "cosa consigli considerando che ora il focus è sullo sviluppo di continuity più che su nestfolio?",
+  "assistant_recommendation_given": "Re-measure now regardless of the Continuity-vs-Nestfolio focus shift: it is fully scripted (sonnet-tier) execution with no design/judgment cost, and closes the criterion with fresh data. Options (b) TPM quota-increase request and (c) reduce-burst-concurrency implementation are the ones that would actually draw attention away from Continuity development and should be deferred to a future Nestfolio-focused session.",
+  "owner_reply_verbatim": "Sì, rimisura ora (Raccomandato)",
+  "decision": "re-measure-current-run-first",
+  "decision_machine_captured_utc": "2026-07-18T20:53:13.000Z",
+  "deferred_options": [
+    "request-tpm-quota-increase",
+    "reduce-burst-concurrency"
+  ]
+}

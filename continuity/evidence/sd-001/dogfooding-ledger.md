@@ -220,3 +220,103 @@ Continuity engine.
   progress; the recommended next diagnostic (re-measure one current
   live-AgentCore run against current quotas before committing to a fix)
   remains available for a later owner decision.
+
+## Entry 12 — Fix-direction decision ratified: re-measure first (criterion e2elb-c2 input)
+
+- Entry written (machine-captured UTC): 2026-07-18T21:48:19.000Z
+- Session: fresh Claude Code session `e3b57e80-bf01-437d-b617-56b933cd2fa6`
+  (new chat, no context from session `51cae0e8-...`; this is the session the
+  standing period rules call the "DEFERRED fix-direction decision"
+  resolution session).
+- The Entry 8 gap-sizing finding was re-presented to the human program owner
+  with four options (re-measure / raise the Haiku TPM quota / reduce Haiku
+  burst concurrency / defer again), recommended option = re-measure. The
+  owner first asked a clarifying question ("cosa consigli considerando che
+  ora il focus è sullo sviluppo di continuity più che su nestfolio?" —
+  verbatim); the assistant answered that re-measurement is fully scripted,
+  low-cost work that does not draw attention from Continuity development,
+  unlike the TPM-quota-increase request or the burst-reduction
+  implementation (both deferred), and re-affirmed the re-measure
+  recommendation. Owner reply (verbatim): "Sì, rimisura ora (Raccomandato)".
+- Decision recorded (mode `human-review-authorization`, verbatim reply,
+  machine-captured UTC): `continuity/dogfood/e2e-live-budget/fix-direction-decision.json`,
+  `decision: "re-measure-current-run-first"`. No decision was inferred; the
+  clarifying exchange preceded the captured ratification.
+
+## Entry 13 — Re-measurement executed; result informative, not decisive (criterion e2elb-c2 input; failure-visibility event)
+
+- Entry written (machine-captured UTC): 2026-07-18T21:48:19.000Z
+- Session: `e3b57e80-bf01-437d-b617-56b933cd2fa6`
+- Ran the live-AgentCore e2e suite once against current quotas
+  (`pnpm nx run e2e-feature-tests:test-e2e-features`, `AWS_PROFILE=nestfolio-dev`),
+  2026-07-18T20:56:19.000Z–2026-07-18T21:44:48.000Z (≈48 min, 5,173 Bedrock
+  invocations, 68.9% of the 2026-06-26 reference burn's 7,513). Evidence:
+  `continuity/dogfood/e2e-live-budget/remeasure-2026-07-18.md`.
+- Result: **zero `InvocationThrottles` on all three models this run**
+  (Haiku/Sonnet/Nova), vs. 1,789 Haiku throttles on the reference burn, at
+  unchanged TPM quota values (Haiku `L-58BE175A` still 5,000,000).
+- Failure-visibility event (fail-closed, not silently swallowed): the run
+  surfaced two findings independent of the budget question, both left
+  undiagnosed and unfixed as out of this session's authorized scope: (1)
+  `getaddrinfo ENOTFOUND events.us-east-1.amazonaws.com` /
+  `...ddb.us-east-1.amazonaws.com` DNS-resolution failures during the run,
+  which failed 3 contract-emission suites at fixture setup before any
+  Bedrock call, suppressing part of this run's invocation volume; (2) three
+  live-AgentCore decision-cycle scenarios (`first-decision`,
+  `rebalance-on-drift`, `operating-mode-recommendation-shape` ×3 cases)
+  timed out on `withProfileSnapshot(): ... not materialised within 360s`,
+  cause undetermined (same DNS issue vs. genuine AgentCore-side slowness).
+  7 of 28 test suites failed (24/56 tests); Jest exited non-zero.
+- Because of (1) and (2), this measurement is honestly recorded as
+  informative but not decisive: it cannot confirm today's quotas no longer
+  throttle a full CLEAN pass, only that a partial, DNS-degraded pass at
+  68.9% of reference volume produced zero throttles. No period-verdict or
+  per-criterion completion claim is made; `e2elb-c2-fix-direction` itself
+  (whether a further quota-increase or burst-reduction fix is still
+  warranted) stays open for a future owner decision informed by this file.
+  `e2elb-c3-budget-fit` remains untouched.
+
+## Entry 14 — Resumption sample (criterion 3 input; counter 0/15 → 1/15)
+
+- Entry written (machine-captured UTC): 2026-07-18T21:48:19.000Z
+- Fresh-session identity: Claude Code session
+  `e3b57e80-bf01-437d-b617-56b933cd2fa6`, launched via the handoff mechanism
+  with no chat context from the prior session (`51cae0e8-...`) that left
+  `e2elb-c2` deferred (Entry 11).
+- Source of next action: repository artifacts, not chat memory — `git
+  status -sb` / HEAD SHA checks against the pinned starting revisions in the
+  session prompt, `continuity/dogfood/e2e-live-budget/gap-sizing.md`, and
+  `continuity/evidence/sd-001/dogfooding-ledger.md` Entry 11 (the deferred
+  decision marker). The session prompt itself was authored from that same
+  repository state by the prior session, not recalled informally.
+- Proved correct: yes — the repository state accurately identified the
+  pending decision (e2elb-c2) and the correct non-resumability of
+  `run-e2e-live-budget` (Entry 9), which this session did not attempt to
+  resume; the re-measurement was recorded as a new Scope-declared-path file
+  per the same documented pattern as `gap-sizing.md`, not as an engine
+  effect.
+- Material-loss / duplicated-effect / silently-skipped-step check: none
+  observed. `gap-sizing.md` was not re-measured or edited; no engine Run
+  resume was attempted (would have raised `STALE_RUN`); no step from the
+  prior session was silently skipped or duplicated.
+
+## Entry 15 — Skill-reuse and overhead addendum (criterion 6 and 9 inputs)
+
+- Entry written (machine-captured UTC): 2026-07-18T21:48:19.000Z
+- Skill/procedure invocations on this real task: `continuity-repository-status`
+  (starting-revision verification across all three repositories).
+  `AskUserQuestion` used twice for the human-review-authorization capture
+  (initial options presentation, then a confirmation round after the
+  owner's clarifying question) — direct interaction, not a Skill.
+  CloudWatch/Service Quotas queries and the live-suite invocation were
+  direct work per the recorded pattern from the prior session's measurement
+  plan, not a Skill invocation.
+- Overhead sample: total active time this session ≈ 60 min; development-
+  directed work (owner Q&A, running/reading the live suite, CloudWatch
+  analysis, writing `remeasure-2026-07-18.md`) ≈ 48 min (dominated by the
+  live suite's own ≈48 min wall-clock, run in the background while no other
+  Continuity bookkeeping proceeded); Continuity/ledger bookkeeping
+  (starting-revision checks, decision-record JSON, ledger entries, handoff)
+  ≈ 12 min; ≈ 20% overhead for this session, lower than both prior samples
+  (Entry 5 ≈57%, Entry 10 ≈28%) because the dominant cost was the live
+  suite's own real runtime, not Continuity process.
