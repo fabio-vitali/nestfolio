@@ -1,0 +1,14 @@
+{
+  "byte_identity_after_execution": {
+    "audit_prefix_preserved": true,
+    "journal_tree_digest_unchanged": "57b5e86a8bad93ba4015b195b8610efce82f9554135d35e11dc67386ab4034a6",
+    "mi005_records_unchanged": 16,
+    "run_mi005_status": "interrupted"
+  },
+  "completion_reversibility": "proven in the rehearsal copy before real application; the real delta remains uncommitted and byte-exactly reversible",
+  "rehearsal": {
+    "both_states_corrected_suites": "Level 4 23/23 and Level 5 7/7 in both pre-completion and post-completion states",
+    "performed_in": "isolated git clone + node_modules symlink outside all three repositories",
+    "rollback": "byte-exact: six modify paths restored and 24 created paths removed; git status clean; HEAD unchanged; copy removed with absence proof"
+  }
+}

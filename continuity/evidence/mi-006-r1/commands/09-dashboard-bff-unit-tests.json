@@ -1,0 +1,21 @@
+{
+  "command": {
+    "argv": [
+      "npx",
+      "nx",
+      "test",
+      "dashboard-bff"
+    ],
+    "cwd_role": "nestfolio-real-post-completion-tree",
+    "end_utc": "2026-07-18T13:37:13.315Z",
+    "exit_code": 0,
+    "parsed": {
+      "pass": 70,
+      "total": 70
+    },
+    "start_utc": "2026-07-18T13:37:12.858Z",
+    "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "stdout_sha256": "7d76e7a453f513107e48e18ad45e8b871f6385a7834d4824105986ae883c9009"
+  },
+  "required": "dashboard-bff unit suite green (criterion 2 deterministic Evidence source)"
+}

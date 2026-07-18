@@ -1,0 +1,47 @@
+{
+  "accepted_documented_consequence": "After the Work Item advances past revision 2, run-mi005 becomes permanently non-resumable: its final Checkpoint pins work_item revision 2 and freshness returns STALE_RUN. No run-mi005 byte changes; this is an accepted, documented consequence, not a repair, relabeling, or reinterpretation of the MI-005 PASS.",
+  "atomic_completion_policy": "completeRun atomically transitions the Work Item to completed (third exception transition), the working set to completed, records the final verified Checkpoint, links every accepted Evidence artifact, and writes back the one backlog item tracking fields; it requires the single-writer lease and releases it at completion; the audit ledger is append-only.",
+  "audit_append_only": true,
+  "backlog_writeback": {
+    "after_sha256": "ea565c07025ffa9643895ea8074bd9ca20d8deb4e1be682b476ca77712e5a2c2",
+    "before_sha256": "b656733991c96c4275d11e9a9f2bff7f5ac72cdd298cbc68a4b94b6799dc742d",
+    "fields_written": [
+      "status",
+      "closed",
+      "validation_gate"
+    ],
+    "path": "docs/backlog/dashboard-bff-awaiting-confirmation-activity-gap.md",
+    "status_after": "shipped",
+    "truthful": "the effort genuinely shipped at Nestfolio 363283bc and its evidence is published; only tracking fields are written; the planning narrative is otherwise byte-identical; reversible during execution (delta uncommitted)."
+  },
+  "derived_index_rebuilt": true,
+  "final_checkpoint": {
+    "digest": "59b768e95a707e184a3009fd657c926fda4b783c818a33da954cf37a39690f8f",
+    "final": true,
+    "id": "run-mi006-r1-final-1",
+    "revision": 1
+  },
+  "lease_released": true,
+  "run": {
+    "final_checkpoint_id": "run-mi006-r1-final-1",
+    "id": "run-mi006-r1",
+    "session_id": "session-mi006-r1-1",
+    "status": "completed"
+  },
+  "work_item_terminal": {
+    "completed_run_refs": [
+      {
+        "digest": "c5d7cb00b94470647386eb03630fdf82f5617ab8a280e68fabdccfdecf8cb1e0",
+        "id": "run-mi006-r1",
+        "revision": 5
+      }
+    ],
+    "evidence_refs": [
+      "run-mi006-r1-mi006r1-c1-investigation",
+      "run-mi006-r1-mi006r1-c2-cdc-sourcing",
+      "run-mi006-r1-mi006r1-c3-non-regression"
+    ],
+    "revision": 5,
+    "status": "completed"
+  }
+}

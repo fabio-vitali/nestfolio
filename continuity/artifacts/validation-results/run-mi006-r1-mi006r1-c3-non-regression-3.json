@@ -1,0 +1,23 @@
+{
+  "criterion_id": "mi006r1-c3-non-regression",
+  "digest": "cc09c120f07cbffbf98fb3040ff4b9b859408e90565905b9f0a918f20be5e494",
+  "exit_code": 0,
+  "id": "run-mi006-r1-mi006r1-c3-non-regression-3",
+  "mode": "deterministic-command",
+  "revision": 1,
+  "run_id": "run-mi006-r1",
+  "schema_version": 1,
+  "status": "passed",
+  "stderr_excerpt": "",
+  "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+  "stdout_excerpt": "{\"check\":\"mi006-r1-criterion-3-non-regression\",\"integration_files_byte_identical\":true,\"unit_files_byte_identical\":true,\"dead_handler_non_comment_occurrences\":0,\"result\":\"pass\"}\n",
+  "stdout_sha256": "ef3ccd385cdea9cad07d01949002805b521fb566565d121a195a9531e3a904f7",
+  "updated_at": "2026-07-18T13:26:48.961Z",
+  "validator": {
+    "command": [
+      "node",
+      "continuity/level-6/checks/criterion-3-non-regression-check.mjs"
+    ],
+    "type": "command"
+  }
+}

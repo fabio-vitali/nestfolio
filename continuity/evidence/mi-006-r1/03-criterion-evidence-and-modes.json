@@ -1,0 +1,89 @@
+{
+  "criteria": [
+    {
+      "id": "mi006r1-c1-investigation",
+      "status": "passed"
+    },
+    {
+      "id": "mi006r1-c2-cdc-sourcing",
+      "status": "passed"
+    },
+    {
+      "id": "mi006r1-c3-non-regression",
+      "status": "passed"
+    }
+  ],
+  "criterion_1_review_record": {
+    "human_review_authorization_utc": "2026-07-18T13:04:57.000Z",
+    "human_review_marker": "\"mode\": \"human-review-authorization\"",
+    "path": "continuity/level-6/criterion-1-investigation-review.json",
+    "sha256": "cc9265fa6e7c44b86da9d0989e410d22a68cbe92acda5b51c2ca152ddc30db77"
+  },
+  "criterion_2_agent_review": "distinct typed agent-review note recorded in the completion-binding criterion_matrix: sourcing is the existing DECISION_PACKET_UPDATED row CDC, not the removed dead event",
+  "engine_evidence": [
+    {
+      "criterion_id": "mi006r1-c1-investigation",
+      "digest": "27e86f7ffb78e710eea31ad6864172b1d68eeb3e64420a566ebaee16f32ac138",
+      "id": "run-mi006-r1-mi006r1-c1-investigation",
+      "revision": 1
+    },
+    {
+      "criterion_id": "mi006r1-c2-cdc-sourcing",
+      "digest": "8d69008a2cb2095dc3d94531a47ecf6a89ce0b8ce8e4fc287c4f3cf2d94be5c9",
+      "id": "run-mi006-r1-mi006r1-c2-cdc-sourcing",
+      "revision": 1
+    },
+    {
+      "criterion_id": "mi006r1-c3-non-regression",
+      "digest": "a1e03c386f1b22f19fc35249886531b48102a368acc3c0f5bbd1cd5cbcd1d666",
+      "id": "run-mi006-r1-mi006r1-c3-non-regression",
+      "revision": 1
+    }
+  ],
+  "matrix": [
+    {
+      "engine_evidence_ref": {
+        "criterion_id": "mi006r1-c1-investigation",
+        "digest": "27e86f7ffb78e710eea31ad6864172b1d68eeb3e64420a566ebaee16f32ac138",
+        "id": "run-mi006-r1-mi006r1-c1-investigation",
+        "revision": 1
+      },
+      "id": "mi006r1-c1-investigation",
+      "modes": [
+        "agent-review",
+        "human-review"
+      ],
+      "required_evidence_type": "agent-and-human-review-record",
+      "review_record": "continuity/level-6/criterion-1-investigation-review.json"
+    },
+    {
+      "agent_review_note": "the awaiting-confirmation projection is sourced from the DecisionPacket AWAITING_CONFIRMATION status via the existing DECISION_PACKET_UPDATED row CDC, never the removed dead event",
+      "engine_evidence_ref": {
+        "criterion_id": "mi006r1-c2-cdc-sourcing",
+        "digest": "8d69008a2cb2095dc3d94531a47ecf6a89ce0b8ce8e4fc287c4f3cf2d94be5c9",
+        "id": "run-mi006-r1-mi006r1-c2-cdc-sourcing",
+        "revision": 1
+      },
+      "id": "mi006r1-c2-cdc-sourcing",
+      "modes": [
+        "deterministic",
+        "agent-review"
+      ],
+      "required_evidence_type": "deterministic-suite-run"
+    },
+    {
+      "engine_evidence_ref": {
+        "criterion_id": "mi006r1-c3-non-regression",
+        "digest": "a1e03c386f1b22f19fc35249886531b48102a368acc3c0f5bbd1cd5cbcd1d666",
+        "id": "run-mi006-r1-mi006r1-c3-non-regression",
+        "revision": 1
+      },
+      "id": "mi006r1-c3-non-regression",
+      "modes": [
+        "deterministic"
+      ],
+      "required_evidence_type": "deterministic-non-regression-proof"
+    }
+  ],
+  "mode_distinctness": "Deterministic, agent-review, and human-review Evidence are recorded as distinct typed modes with separate provenance and authority; never merged into one opaque score (DR-0017)."
+}

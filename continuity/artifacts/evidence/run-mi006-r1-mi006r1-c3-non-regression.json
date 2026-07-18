@@ -1,0 +1,29 @@
+{
+  "authority": "deterministic",
+  "criterion_id": "mi006r1-c3-non-regression",
+  "digest": "a1e03c386f1b22f19fc35249886531b48102a368acc3c0f5bbd1cd5cbcd1d666",
+  "evidence_type": "deterministic-non-regression-proof",
+  "id": "run-mi006-r1-mi006r1-c3-non-regression",
+  "provenance": {
+    "adapter": "claude-code",
+    "repository_fingerprint": "68f9b273af5de9f676cd046af03f29b161b8584cd6ba3c2abb290c18232c9cd6",
+    "session_id": "session-mi006-r1-1",
+    "validator": {
+      "command": [
+        "node",
+        "continuity/level-6/checks/criterion-3-non-regression-check.mjs"
+      ],
+      "type": "command"
+    }
+  },
+  "revision": 1,
+  "run_id": "run-mi006-r1",
+  "schema_version": 1,
+  "status": "accepted",
+  "updated_at": "2026-07-18T13:26:48.994Z",
+  "validation_result_ref": {
+    "digest": "cc09c120f07cbffbf98fb3040ff4b9b859408e90565905b9f0a918f20be5e494",
+    "id": "run-mi006-r1-mi006r1-c3-non-regression-3",
+    "revision": 1
+  }
+}

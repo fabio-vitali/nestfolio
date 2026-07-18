@@ -1,0 +1,98 @@
+{
+  "assurance_plan": {
+    "completion_policy": "all-required-criteria-pass-with-evidence",
+    "criteria": [
+      {
+        "id": "mi006r1-c1-investigation",
+        "status": "passed",
+        "validator_type": "file"
+      },
+      {
+        "id": "mi006r1-c2-cdc-sourcing",
+        "status": "passed",
+        "validator_type": "command"
+      },
+      {
+        "id": "mi006r1-c3-non-regression",
+        "status": "passed",
+        "validator_type": "command"
+      }
+    ],
+    "formed_by": "pinned engine startRun",
+    "validation_plan_ref": {
+      "digest": "240b087cd2b42cde9079d18d7f0c8b00e2ebe3aa049cacf40c85a8a6985f40df",
+      "id": "run-mi006-r1",
+      "revision": 1
+    }
+  },
+  "changed_fields": [
+    "objective",
+    "scope_ref",
+    "exclusions",
+    "constraints",
+    "expected_outputs",
+    "completion_criteria",
+    "required_evidence",
+    "guards",
+    "active_run_refs",
+    "history(appended)"
+  ],
+  "formation": {
+    "scope": {
+      "envelope_digest": "053fc05b2c375645c5159c461204365e397074b6ed7265a75218ba04f994a2cf",
+      "file_sha256": "1903ac95e2203b5b5f7347612a20a9d8a4058c53d033f235b7d2ef90fcff73e0",
+      "id": "scope-mi006-r1-completion",
+      "revision": 1
+    },
+    "working_set": {
+      "envelope_digest": "fe8810954dece48e87e059f4810307a14c2d9635e8fc1834ea813be0b148cd04",
+      "file_sha256": "16b27b0507d3cf5f79ee46c82e553dab5276fc68af58dbca80010d72b5509367",
+      "id": "ws-mi006-r1",
+      "revision": 1
+    }
+  },
+  "immutability_exception": {
+    "advancement": [
+      {
+        "envelope_digest": "25a06fdba890fef557852cc9078b1fb7944bb73ec9ccd87c2f9d169ce3cb14e7",
+        "file_sha256": "a4f87ccdd261e4dd062dd7b369ad9d8a2cf0901f76d9764a0486cc1696952be9",
+        "mechanism": "pinned store API writeArtifact expectedRevision 2",
+        "revision": 3,
+        "transition": "rebinding-write"
+      },
+      {
+        "envelope_digest": "985b707b31d2d97fd9d9992f17630ca22941af31c85d71be671f9c041a3048b6",
+        "file_sha256": "9ea241cb53eee1c185f3f88045fc80681d1b9661af8fed726b255aabe8c0878c",
+        "mechanism": "pinned engine startRun run-mi006-r1",
+        "revision": 4,
+        "transition": "engine-startRun"
+      },
+      {
+        "envelope_digest": "918cb597368fc7713c755640e5572ad5902d41a134232c4404ee12dd5b475498",
+        "file_sha256": "363acbe26e154b574bbe0491b97889cdddbfcd69dfbc9cacb86072ed52b7e602",
+        "mechanism": "pinned engine completeRun run-mi006-r1",
+        "revision": 5,
+        "status": "completed",
+        "transition": "engine-completeRun"
+      }
+    ],
+    "record": "continuity/artifacts/work-items/dashboard-bff-awaiting-confirmation-activity-gap.json",
+    "revision_2_base_sha256": "313af5905dbb3fda35dc9c193502df667812f0044c91f6c3b3691d136313aa60",
+    "revision_2_envelope_digest": "011336b848987849c890307802cbf7c2954aa0e5ab72c9f164175f4971da4079"
+  },
+  "source_unchanged_sha256": "b656733991c96c4275d11e9a9f2bff7f5ac72cdd298cbc68a4b94b6799dc742d",
+  "unchanged_byte_equal_fields": [
+    "id",
+    "schema_version",
+    "status",
+    "source",
+    "type",
+    "project_binding",
+    "dependencies",
+    "blockers",
+    "completed_run_refs(base)",
+    "evidence_refs(base)",
+    "required_capabilities",
+    "decisions"
+  ]
+}

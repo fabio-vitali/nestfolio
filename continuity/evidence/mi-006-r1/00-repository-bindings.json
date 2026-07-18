@@ -1,0 +1,28 @@
+{
+  "bound_context_pack_v1_sha256": "e58c9bc1978d6799cccda96c2520ea1f7f41ab8b88e8a055ff968cd7b8ce15c1",
+  "bound_level_2_aggregate": "73bbb7c9199a79e00208115f1f7ba469be7e42e1bd20d1d72bfc726ac048df26",
+  "bound_level_3_scope_sha256": "db7a45278e8f4a270552e3ae1db3695b70e07d1624b27bcdc28f6417883a5ad6",
+  "effort_source_sha256_recorded": "b656733991c96c4275d11e9a9f2bff7f5ac72cdd298cbc68a4b94b6799dc742d",
+  "iteration": "MI-006-R1",
+  "journal_methodology": "digestJson over the sorted [{path, sha256}] of every file under the Git common directory .git/journal tree (reproduces the published Level 5 run-binding journal_tree_digest)",
+  "journal_tree_digest_before_and_after": "57b5e86a8bad93ba4015b195b8610efce82f9554135d35e11dc67386ab4034a6",
+  "recorded_utc": "2026-07-18T13:37:14.012Z",
+  "repositories": {
+    "continuity-lab": {
+      "branch": "main",
+      "head": "80d70ac9bf9f1252474a9fbed414a0ef6ee57061",
+      "role": "contract authority (published contract revision)"
+    },
+    "continuity-workspace": {
+      "branch": "main",
+      "clean": true,
+      "head": "d45449dfd5d96ea4e89174e535a0942aa0e4021f"
+    },
+    "nestfolio": {
+      "branch": "main",
+      "clean_at_start": true,
+      "head": "eafa09b81a600bd58fe8f4639298a182039d21f5",
+      "post_completion_delta": "uncommitted and unstaged"
+    }
+  }
+}

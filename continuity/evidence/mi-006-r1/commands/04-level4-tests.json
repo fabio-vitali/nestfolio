@@ -1,0 +1,21 @@
+{
+  "command": {
+    "argv": [
+      "node",
+      "--test",
+      "tests/continuity-level-4.test.mjs"
+    ],
+    "cwd_role": "isolated-committed-validation-copy (SE-001-R3/MI-005 mechanics; S10 purity guard)",
+    "end_utc": "2026-07-18T13:36:56.054Z",
+    "exit_code": 0,
+    "parsed": {
+      "fail": 0,
+      "pass": 23,
+      "tests": 23
+    },
+    "start_utc": "2026-07-18T13:36:48.904Z",
+    "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "stdout_sha256": "5ed56bf7daa1766429091e39a53fe42ad70cb131b83f74becb8795a85b3eeb80"
+  },
+  "required": "Level 4 23/23 (isolated committed validation copy; S10 purity guard)"
+}

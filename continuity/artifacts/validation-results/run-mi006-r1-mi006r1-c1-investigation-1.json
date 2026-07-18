@@ -1,0 +1,21 @@
+{
+  "criterion_id": "mi006r1-c1-investigation",
+  "digest": "1d31241d909561a9bd46628efa1b1e9289c224bd35178021b6d20f27166dec1a",
+  "exit_code": 0,
+  "id": "run-mi006-r1-mi006r1-c1-investigation-1",
+  "mode": "deterministic-file",
+  "revision": 1,
+  "run_id": "run-mi006-r1",
+  "schema_version": 1,
+  "status": "passed",
+  "stderr_excerpt": "",
+  "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+  "stdout_excerpt": "Verified continuity/level-6/criterion-1-investigation-review.json",
+  "stdout_sha256": "1f02cc15dadc23f471617e4dafdbc7c38a500ac94bc516caf8cd190049d857ed",
+  "updated_at": "2026-07-18T13:26:40.645Z",
+  "validator": {
+    "contains": "\"mode\": \"human-review-authorization\"",
+    "path": "continuity/level-6/criterion-1-investigation-review.json",
+    "type": "file"
+  }
+}

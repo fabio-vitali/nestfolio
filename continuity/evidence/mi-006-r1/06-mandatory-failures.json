@@ -1,0 +1,128 @@
+{
+  "all_match": true,
+  "scenarios": [
+    {
+      "cleanup_absent": true,
+      "exit_code": 1,
+      "expected_diagnostic": "COMPLETION_GATE_BLOCKED",
+      "fixture_digest": "1a6afb632dc8c7505668dd9a781fe436bf34cca432b0927741aef476302cde1f",
+      "id": "F1",
+      "match": true,
+      "observed_diagnostic": "COMPLETION_GATE_BLOCKED"
+    },
+    {
+      "cleanup_absent": true,
+      "exit_code": 1,
+      "expected_diagnostic": "COMPLETION_GATE_BLOCKED",
+      "fixture_digest": "596c8697a36b49ce7e6e204be0265621085cc1f2f1195e5c716d169d30057e81",
+      "id": "F2",
+      "match": true,
+      "observed_diagnostic": "COMPLETION_GATE_BLOCKED"
+    },
+    {
+      "cleanup_absent": true,
+      "exit_code": 1,
+      "expected_diagnostic": "COMPLETION_GATE_BLOCKED",
+      "fixture_digest": "e4b7ad5ae564c5c62dde0cffa428a5c5b07a6ff916eb210bba30d7ab1bab069f",
+      "id": "F3",
+      "match": true,
+      "observed_diagnostic": "COMPLETION_GATE_BLOCKED"
+    },
+    {
+      "cleanup_absent": true,
+      "exit_code": 1,
+      "expected_diagnostic": "COMPLETION_GATE_BLOCKED",
+      "fixture_digest": "b130778067c54def87c298305e5496c26493920cec30df4545fd57fbbe3e06b6",
+      "id": "F-NARRATIVE",
+      "match": true,
+      "observed_diagnostic": "COMPLETION_GATE_BLOCKED"
+    },
+    {
+      "cleanup_absent": true,
+      "exit_code": 1,
+      "expected_diagnostic": "OUT_OF_SCOPE_EFFECT",
+      "fixture_digest": "b8a8b1f7844ffbeebcc922b24d5901331e7b41dece11a06ab0da7322748706fb",
+      "id": "F4",
+      "match": true,
+      "observed_diagnostic": "OUT_OF_SCOPE_EFFECT"
+    },
+    {
+      "cleanup_absent": true,
+      "exit_code": 1,
+      "expected_diagnostic": "REVISION_CONFLICT",
+      "fixture_digest": "729ef221c140a3257330ed008f79af76c2f46da6eb95546b9123c9613b7833a8",
+      "id": "F-REBIND-CONFLICT",
+      "match": true,
+      "observed_diagnostic": "REVISION_CONFLICT"
+    },
+    {
+      "cleanup_absent": true,
+      "exit_code": 1,
+      "expected_diagnostic": "IMMUTABLE_ARTIFACT_EXISTS",
+      "fixture_digest": "229d155511f36bd5f0991e3ecd50e8a0703dd5c282a7cbd96b0764e546644b1f",
+      "id": "F-REBIND-CONFLICT-IMMUTABLE",
+      "match": true,
+      "observed_diagnostic": "IMMUTABLE_ARTIFACT_EXISTS"
+    },
+    {
+      "cleanup_absent": true,
+      "exit_code": 1,
+      "expected_diagnostic": "STALE_RUN",
+      "fixture_digest": "b8e2845aad19227d809e037fb7c3082856c24fe1b946c3efbf3df1f0aa5b9c9f",
+      "id": "F-STALE-CONTEXT",
+      "match": true,
+      "observed_diagnostic": "STALE_RUN"
+    },
+    {
+      "cleanup_absent": true,
+      "exit_code": 1,
+      "expected_diagnostic": "UNRESOLVED_DECISION_BLOCKS_COMPLETION",
+      "fixture_digest": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "id": "F5",
+      "match": true,
+      "observed_diagnostic": "UNRESOLVED_DECISION_BLOCKS_COMPLETION"
+    },
+    {
+      "cleanup_absent": true,
+      "exit_code": 1,
+      "expected_diagnostic": "GUARD_BLOCKS_COMPLETION",
+      "fixture_digest": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "id": "F6",
+      "match": true,
+      "observed_diagnostic": "GUARD_BLOCKS_COMPLETION"
+    },
+    {
+      "cleanup_absent": true,
+      "exit_code": 1,
+      "expected_diagnostic": "AUTOMATIC_GUARD_MINTING_PROHIBITED",
+      "fixture_digest": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "id": "F-AUTO-GUARD",
+      "match": true,
+      "observed_diagnostic": "AUTOMATIC_GUARD_MINTING_PROHIBITED"
+    },
+    {
+      "cleanup_absent": true,
+      "exit_code": 1,
+      "expected_diagnostic": "AUTOMATIC_OR_DISGUISED_WAIVER_PROHIBITED",
+      "fixture_digest": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "id": "F-AUTO-WAIVER",
+      "match": true,
+      "observed_diagnostic": "AUTOMATIC_OR_DISGUISED_WAIVER_PROHIBITED"
+    },
+    {
+      "cleanup_absent": true,
+      "exit_code": 1,
+      "expected_diagnostic": "WAIVER_EXPIRED_CRITERION_REOPENED",
+      "fixture_digest": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "id": "F-WAIVER-EXPIRY",
+      "match": true,
+      "observed_diagnostic": "WAIVER_EXPIRED_CRITERION_REOPENED"
+    }
+  ],
+  "structural_prohibitions": {
+    "F-EXCEPTION-OVERREACH": "no write advanced the Work Item outside the three contracted transitions and no other pre-existing store record was advanced (write-set == frozen; 16 MI-005 byte-identity records unchanged)",
+    "F10": "no Skill, /backlog-next, or continuity:invoke delegation; the engine CLI/API and store API were driven directly",
+    "F11": "no MI-007 state: zero observations, lessons, handoffs for run-mi006-r1",
+    "F12": "no write outside the frozen write-set, fixed create paths, and six permitted modify paths; the pinned engine is byte-identical"
+  }
+}

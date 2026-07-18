@@ -1,0 +1,183 @@
+{
+  "accepted_documented_consequence": "After the Work Item advances past revision 2, run-mi005 becomes permanently non-resumable: its final Checkpoint pins work_item revision 2 and freshness returns STALE_RUN. No run-mi005 byte changes; this is an accepted, documented consequence, not a repair, relabeling, or reinterpretation of the MI-005 PASS.",
+  "artifact": "continuity.level-6.completion-binding",
+  "atomic_completion_policy": "completeRun atomically transitions the Work Item to completed (third exception transition), the working set to completed, records the final verified Checkpoint, links every accepted Evidence artifact, and writes back the one backlog item tracking fields; it requires the single-writer lease and releases it at completion; the audit ledger is append-only.",
+  "backlog_writeback": {
+    "after_sha256": "ea565c07025ffa9643895ea8074bd9ca20d8deb4e1be682b476ca77712e5a2c2",
+    "before_sha256": "b656733991c96c4275d11e9a9f2bff7f5ac72cdd298cbc68a4b94b6799dc742d",
+    "fields_written": [
+      "status",
+      "closed",
+      "validation_gate"
+    ],
+    "path": "docs/backlog/dashboard-bff-awaiting-confirmation-activity-gap.md",
+    "status_after": "shipped",
+    "truthful": "the effort genuinely shipped at Nestfolio 363283bc and its evidence is published; only tracking fields are written; the planning narrative is otherwise byte-identical; reversible during execution (delta uncommitted)."
+  },
+  "bound_digests": {
+    "context_pack_v1": "e58c9bc1978d6799cccda96c2520ea1f7f41ab8b88e8a055ff968cd7b8ce15c1",
+    "effort_source": "b656733991c96c4275d11e9a9f2bff7f5ac72cdd298cbc68a4b94b6799dc742d",
+    "level_2_aggregate": "73bbb7c9199a79e00208115f1f7ba469be7e42e1bd20d1d72bfc726ac048df26",
+    "level_3_scope": "db7a45278e8f4a270552e3ae1db3695b70e07d1624b27bcdc28f6417883a5ad6"
+  },
+  "bound_repository_revision": "eafa09b81a600bd58fe8f4639298a182039d21f5",
+  "coexistence_route_record": {
+    "external_authority_note": "the Git published-implementation revision and the current commit/ship gates are referenced once, read-only, as external-authority provenance; MI-006-R1 declares no second Git or CI verdict and duplicates no external object",
+    "git_published_implementation_revision": "363283bcc97b1e04710db0e7f759ffffddb18b69",
+    "no_current_check_retired": true
+  },
+  "criterion_matrix": [
+    {
+      "engine_evidence_ref": {
+        "criterion_id": "mi006r1-c1-investigation",
+        "digest": "27e86f7ffb78e710eea31ad6864172b1d68eeb3e64420a566ebaee16f32ac138",
+        "id": "run-mi006-r1-mi006r1-c1-investigation",
+        "revision": 1
+      },
+      "id": "mi006r1-c1-investigation",
+      "modes": [
+        "agent-review",
+        "human-review"
+      ],
+      "required_evidence_type": "agent-and-human-review-record",
+      "review_record": "continuity/level-6/criterion-1-investigation-review.json"
+    },
+    {
+      "agent_review_note": "the awaiting-confirmation projection is sourced from the DecisionPacket AWAITING_CONFIRMATION status via the existing DECISION_PACKET_UPDATED row CDC, never the removed dead event",
+      "engine_evidence_ref": {
+        "criterion_id": "mi006r1-c2-cdc-sourcing",
+        "digest": "8d69008a2cb2095dc3d94531a47ecf6a89ce0b8ce8e4fc287c4f3cf2d94be5c9",
+        "id": "run-mi006-r1-mi006r1-c2-cdc-sourcing",
+        "revision": 1
+      },
+      "id": "mi006r1-c2-cdc-sourcing",
+      "modes": [
+        "deterministic",
+        "agent-review"
+      ],
+      "required_evidence_type": "deterministic-suite-run"
+    },
+    {
+      "engine_evidence_ref": {
+        "criterion_id": "mi006r1-c3-non-regression",
+        "digest": "a1e03c386f1b22f19fc35249886531b48102a368acc3c0f5bbd1cd5cbcd1d666",
+        "id": "run-mi006-r1-mi006r1-c3-non-regression",
+        "revision": 1
+      },
+      "id": "mi006r1-c3-non-regression",
+      "modes": [
+        "deterministic"
+      ],
+      "required_evidence_type": "deterministic-non-regression-proof"
+    }
+  ],
+  "evidence_mode_distinctness": "Deterministic, agent-review, and human-review Evidence are recorded as distinct typed modes with separate provenance and authority; never merged into one opaque score (DR-0017).",
+  "formation": {
+    "scope": {
+      "envelope_digest": "053fc05b2c375645c5159c461204365e397074b6ed7265a75218ba04f994a2cf",
+      "file_sha256": "1903ac95e2203b5b5f7347612a20a9d8a4058c53d033f235b7d2ef90fcff73e0",
+      "id": "scope-mi006-r1-completion",
+      "revision": 1
+    },
+    "working_set": {
+      "envelope_digest": "fe8810954dece48e87e059f4810307a14c2d9635e8fc1834ea813be0b148cd04",
+      "file_sha256": "16b27b0507d3cf5f79ee46c82e553dab5276fc68af58dbca80010d72b5509367",
+      "id": "ws-mi006-r1",
+      "revision": 1
+    }
+  },
+  "guard_classification": {
+    "classified_guard": {
+      "binding_path": "continuity/bindings/nestfolio/guards/mi006-r1-dashboard-bff-no-dead-user-confirmation-requested-handler.json",
+      "definition_sha256": "74008f124ccc9962f94592a03d9a03fe492565e696cc3176a11a2c6066591f4a",
+      "evaluation": "true",
+      "id": "nestfolio-dashboard-bff-no-dead-user-confirmation-requested-handler",
+      "version": "1"
+    },
+    "goal_versus_guard": "The three completion criteria are Goal-shaped (become-true for this Work Item); the classified Guard is Guard-shaped (keep-true). DR-0005 keeps them separate.",
+    "no_auto_guard_minting": true,
+    "validators": {
+      "dashboard_bff_integration_suite": "byte-identity non-regression subject (criterion 3), not run locally (targets real deployed AWS)",
+      "dashboard_bff_unit_suite": "deterministic command validator (criterion 2 Evidence source)"
+    }
+  },
+  "iteration": "MI-006-R1",
+  "no_mi007_state": "No Observation, Lesson, Change Proposal, Decision, learning promotion, Guard minting from an agent suggestion, universal registry, remote source, or Console is created or claimed; MI-007 remains blocked.",
+  "published_suite_correction": {
+    "corrected_assertions": [
+      {
+        "id": "S7",
+        "semantics": "adapter-view rebuild verified against a Git-restored bound-revision backlog fixture; recorded write-back transition required when the tree advanced",
+        "suite": "level-4"
+      },
+      {
+        "id": "S8",
+        "semantics": "staleness fixture backlog uses Git-restored bound-revision bytes; recorded write-back transition required when the tree advanced",
+        "suite": "level-4"
+      },
+      {
+        "id": "S9",
+        "semantics": "the pinned backlog identity verifies the recorded digest against the bound-revision committed bytes; recorded write-back transition required when the tree advanced",
+        "suite": "level-4"
+      },
+      {
+        "id": "run-binding effort-source",
+        "semantics": "effort-source digest verified against the bound-revision committed bytes; recorded write-back transition required when the tree advanced",
+        "suite": "level-5"
+      }
+    ],
+    "corrected_paths": [
+      "tests/continuity-level-4.test.mjs",
+      "tests/continuity-level-5.test.mjs"
+    ],
+    "rule": "each corrected assertion verifies the recorded digest b656733… against the bound-revision committed bytes (permanent historical truth) and, whenever the current working-tree bytes differ, additionally requires this completion write-back transition (before_sha256 == recorded, after_sha256 == current)."
+  },
+  "run": {
+    "final_checkpoint_id": "run-mi006-r1-final-1",
+    "id": "run-mi006-r1",
+    "session_id": "session-mi006-r1-1",
+    "status": "completed"
+  },
+  "schema_version": 1,
+  "target_work_item": {
+    "advancement": [
+      {
+        "envelope_digest": "25a06fdba890fef557852cc9078b1fb7944bb73ec9ccd87c2f9d169ce3cb14e7",
+        "file_sha256": "a4f87ccdd261e4dd062dd7b369ad9d8a2cf0901f76d9764a0486cc1696952be9",
+        "mechanism": "pinned store API writeArtifact expectedRevision 2",
+        "revision": 3,
+        "transition": "rebinding-write"
+      },
+      {
+        "envelope_digest": "985b707b31d2d97fd9d9992f17630ca22941af31c85d71be671f9c041a3048b6",
+        "file_sha256": "9ea241cb53eee1c185f3f88045fc80681d1b9661af8fed726b255aabe8c0878c",
+        "mechanism": "pinned engine startRun run-mi006-r1",
+        "revision": 4,
+        "transition": "engine-startRun"
+      },
+      {
+        "envelope_digest": "918cb597368fc7713c755640e5572ad5902d41a134232c4404ee12dd5b475498",
+        "file_sha256": "363acbe26e154b574bbe0491b97889cdddbfcd69dfbc9cacb86072ed52b7e602",
+        "mechanism": "pinned engine completeRun run-mi006-r1",
+        "revision": 5,
+        "status": "completed",
+        "transition": "engine-completeRun"
+      }
+    ],
+    "id": "dashboard-bff-awaiting-confirmation-activity-gap",
+    "revision_2_base_sha256": "313af5905dbb3fda35dc9c193502df667812f0044c91f6c3b3691d136313aa60",
+    "revision_2_envelope_digest": "011336b848987849c890307802cbf7c2954aa0e5ab72c9f164175f4971da4079",
+    "store_path": "continuity/artifacts/work-items/dashboard-bff-awaiting-confirmation-activity-gap.json"
+  },
+  "waiver_policy": {
+    "demonstrated_in": "isolated temporary fixture outside all three repositories, on a synthetic criterion; no real effort criterion is waived",
+    "no_auto_waiver": true,
+    "properties": [
+      "explicit and authorized by a declared human authority",
+      "scoped and time-bounded",
+      "evidence-linked",
+      "recorded as distinct from a pass (never rendered as passing Evidence)",
+      "reopens the blocked criterion on expiry"
+    ]
+  }
+}

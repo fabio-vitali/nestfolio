@@ -1,0 +1,33 @@
+{
+  "agent_review": {
+    "actual_behavior": "At the bound revision eafa09b8 the feed surfaces exactly one awaiting-confirmation Activity row per decision, sourced from the DecisionPacket AWAITING_CONFIRMATION status via the existing row CDC event DECISION_PACKET_UPDATED (forwarded advisory->investor by investor-adpt), handled by createHandlers()[DECISION_PACKET_UPDATED] -> awaitingConfirmationActivity, filtered on status === AWAITING_CONFIRMATION and keyed by decisionId (Activity#awaiting-confirmation#<decisionId>), collapsing redeliveries. It is not sourced from DECISION_PACKET_CREATED and not from the removed dead USER_CONFIRMATION_REQUESTED event.",
+    "authority": "agent-review",
+    "executor": "Claude Code (claude-opus-4-8)",
+    "expected_behavior": "The dashboard recent-activity feed is expected to surface an \"awaiting confirmation\" item when a DecisionPacket enters AWAITING_CONFIRMATION status (an L2 decision requiring investor confirmation) — the backlog gap dashboard-bff-awaiting-confirmation-activity-gap.",
+    "gap_status": "Real historically: at the pre-implementation revision no DECISION_PACKET_UPDATED handler and no awaiting-confirmation projection existed. SE-001 closed the gap (shipped at Nestfolio 363283bcc97b1e04710db0e7f759ffffddb18b69).",
+    "real_gap_exists": true,
+    "recorded_at_utc": "2026-07-18T13:11:21.000Z",
+    "source_references": [
+      "services/investor/dashboard-bff/src/handlers/event-listener.ts:46-47 (DECISION_PACKET_UPDATED -> awaitingConfirmationActivity)",
+      "services/investor/dashboard-bff/src/transforms/awaiting-confirmation-activity.ts:27 (status !== AWAITING_CONFIRMATION || !decisionId -> undefined)",
+      "services/investor/dashboard-bff/src/transforms/awaiting-confirmation-activity.ts:32-41 (records one Activity row keyed Activity#awaiting-confirmation#<decisionId>)",
+      "services/investor/dashboard-bff/test/unit/handlers/awaiting-confirmation-activity-gap.test.ts",
+      "services/investor/dashboard-bff/test/unit/transforms/awaiting-confirmation-activity.test.ts",
+      "no non-comment USER_CONFIRMATION_REQUESTED occurrence under services/investor/dashboard-bff/src (two occurrences, both in // comments)"
+    ],
+    "sourcing_conclusion": "The signal is sourced from the DecisionPacket AWAITING_CONFIRMATION status via the existing DECISION_PACKET_UPDATED row CDC, never from the removed dead USER_CONFIRMATION_REQUESTED event."
+  },
+  "criterion_id": "mi006r1-c1-investigation",
+  "human_review": {
+    "authority": "fabio.vitali (human program owner)",
+    "authorized": true,
+    "authorized_at_utc": "2026-07-18T13:04:57.000Z",
+    "authorizes": "the agent-review criterion-1 investigation finding recorded above: expected-versus-actual awaiting-confirmation recent-activity behavior for L2 AWAITING_CONFIRMATION decisions, a real gap now closed by SE-001, the signal sourced from the DecisionPacket AWAITING_CONFIRMATION status via the existing DECISION_PACKET_UPDATED row CDC and never from the removed dead USER_CONFIRMATION_REQUESTED event.",
+    "capture": "machine-captured UTC via date -u at the moment of authorization (AskUserQuestion human-review, MI-004 authorization precedent)",
+    "mode": "human-review-authorization",
+    "statement_verbatim": "Autorizzo il finding"
+  },
+  "kind": "continuity.level6.criterion-1-investigation-review",
+  "schema_version": 1,
+  "statement": "investigation determines expected-versus-actual recent-activity behavior for L2 AWAITING_CONFIRMATION decisions"
+}

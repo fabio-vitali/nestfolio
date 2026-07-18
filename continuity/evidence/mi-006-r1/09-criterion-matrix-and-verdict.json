@@ -1,0 +1,62 @@
+{
+  "criterion_matrix": [
+    {
+      "engine_evidence_ref": {
+        "criterion_id": "mi006r1-c1-investigation",
+        "digest": "27e86f7ffb78e710eea31ad6864172b1d68eeb3e64420a566ebaee16f32ac138",
+        "id": "run-mi006-r1-mi006r1-c1-investigation",
+        "revision": 1
+      },
+      "id": "mi006r1-c1-investigation",
+      "modes": [
+        "agent-review",
+        "human-review"
+      ],
+      "required_evidence_type": "agent-and-human-review-record",
+      "review_record": "continuity/level-6/criterion-1-investigation-review.json"
+    },
+    {
+      "agent_review_note": "the awaiting-confirmation projection is sourced from the DecisionPacket AWAITING_CONFIRMATION status via the existing DECISION_PACKET_UPDATED row CDC, never the removed dead event",
+      "engine_evidence_ref": {
+        "criterion_id": "mi006r1-c2-cdc-sourcing",
+        "digest": "8d69008a2cb2095dc3d94531a47ecf6a89ce0b8ce8e4fc287c4f3cf2d94be5c9",
+        "id": "run-mi006-r1-mi006r1-c2-cdc-sourcing",
+        "revision": 1
+      },
+      "id": "mi006r1-c2-cdc-sourcing",
+      "modes": [
+        "deterministic",
+        "agent-review"
+      ],
+      "required_evidence_type": "deterministic-suite-run"
+    },
+    {
+      "engine_evidence_ref": {
+        "criterion_id": "mi006r1-c3-non-regression",
+        "digest": "a1e03c386f1b22f19fc35249886531b48102a368acc3c0f5bbd1cd5cbcd1d666",
+        "id": "run-mi006-r1-mi006r1-c3-non-regression",
+        "revision": 1
+      },
+      "id": "mi006r1-c3-non-regression",
+      "modes": [
+        "deterministic"
+      ],
+      "required_evidence_type": "deterministic-non-regression-proof"
+    }
+  ],
+  "modes_covered": [
+    "deterministic",
+    "agent-review",
+    "human-review"
+  ],
+  "verdict": "UNCONDITIONAL PASS",
+  "verdict_inputs": {
+    "C1": "preconditions/engine-lock/digests/byte-identity/run-mi005-closed/route pass fail-closed before mutation",
+    "C2": "rebinding + two formation writes + classified Guard performed exactly; Assurance Plan formed by the pinned engine",
+    "C3": "each criterion validated by the pinned engine with a linked immutable Evidence artifact across distinct modes",
+    "C4": "suites classified as validators; one classified Guard true; external gates referenced once; coexistence route recorded",
+    "C5": "Work Item atomically Evidence-bound completed via the pinned engine with final Checkpoint, linked Evidence, truthful backlog write-back; reversible-proven",
+    "C6": "every mandatory failure blocks with the exact typed diagnostic",
+    "C7": "journal/Levels 1-5/byte-identity/engine exact; corrected suites pass; index rebuild, audit prefix, cleanup, exact uncommitted manifest"
+  }
+}

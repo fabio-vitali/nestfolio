@@ -6,6 +6,11 @@
       "status": "interrupted"
     },
     {
+      "digest": "08461d3e75a6c3a0ed5de98e61453f6526cc866dfd279155cafa7ad4b79768f5",
+      "id": "run-mi006-r1",
+      "status": "completed"
+    },
+    {
       "digest": "c217df1f43717a6d2324c7a49c6d91cf11ccb5587a96bce9162d83243be6a328",
       "id": "run-vs001",
       "status": "completed"
@@ -27,6 +32,12 @@
       {
         "digest": "6390e918973ac7132c11eceebac6127db047f6c83427fd775b6c853b60e315a9",
         "id": "run-mi005-final-2",
+        "revision": 1,
+        "status": "verified"
+      },
+      {
+        "digest": "59b768e95a707e184a3009fd657c926fda4b783c818a33da954cf37a39690f8f",
+        "id": "run-mi006-r1-final-1",
         "revision": 1,
         "status": "verified"
       },
@@ -63,6 +74,12 @@
         "status": "authorized"
       },
       {
+        "digest": "d4ac9c76a5893118439535da906b4842012faf12fd797b3570e46550405afc87",
+        "id": "run-mi006-r1",
+        "revision": 1,
+        "status": "authorized"
+      },
+      {
         "digest": "400c0450c627a813165afd440b4dde9bb08ae401431aeed3010604926efc31fc",
         "id": "run-vs001",
         "revision": 1,
@@ -76,6 +93,24 @@
       }
     ],
     "evidence": [
+      {
+        "digest": "27e86f7ffb78e710eea31ad6864172b1d68eeb3e64420a566ebaee16f32ac138",
+        "id": "run-mi006-r1-mi006r1-c1-investigation",
+        "revision": 1,
+        "status": "accepted"
+      },
+      {
+        "digest": "8d69008a2cb2095dc3d94531a47ecf6a89ce0b8ce8e4fc287c4f3cf2d94be5c9",
+        "id": "run-mi006-r1-mi006r1-c2-cdc-sourcing",
+        "revision": 1,
+        "status": "accepted"
+      },
+      {
+        "digest": "a1e03c386f1b22f19fc35249886531b48102a368acc3c0f5bbd1cd5cbcd1d666",
+        "id": "run-mi006-r1-mi006r1-c3-non-regression",
+        "revision": 1,
+        "status": "accepted"
+      },
       {
         "digest": "4e22601e474130919e5836f996394e66a7bb47e00c6d5a863fa5010096f8cdb6",
         "id": "run-vs001-core-implementation-tests",
@@ -141,6 +176,12 @@
       {
         "digest": "a9f540af17ef0b3ccf2aa987e92e92691734df08c9f01b70a5b9e0a23974f6d3",
         "id": "run-mi005",
+        "revision": 1,
+        "status": null
+      },
+      {
+        "digest": "ef2232685fbfdd96f7d417d547749e7ae087a1162fed846ea8b4fe1c7ce6ef52",
+        "id": "run-mi006-r1",
         "revision": 1,
         "status": null
       },
@@ -219,6 +260,12 @@
         "status": "locked"
       },
       {
+        "digest": "32a2bc1dea5b86c65225fb394d349820db1daf4a6d4b8194e59337f83c7a2edc",
+        "id": "run-mi006-r1",
+        "revision": 1,
+        "status": "locked"
+      },
+      {
         "digest": "c4b21ff511acc30111793f51665ee71081e00dd8d1cc2d75a47337ff0071f0da",
         "id": "run-vs001",
         "revision": 1,
@@ -237,6 +284,12 @@
         "id": "run-mi005",
         "revision": 8,
         "status": "interrupted"
+      },
+      {
+        "digest": "c5d7cb00b94470647386eb03630fdf82f5617ab8a280e68fabdccfdecf8cb1e0",
+        "id": "run-mi006-r1",
+        "revision": 5,
+        "status": "completed"
       },
       {
         "digest": "3bd16838207f698f9b5ef2658ac09c9b4835df0317074df15fd128c5e19c1ec0",
@@ -269,6 +322,12 @@
         "id": "scope-mi005-run-continuity",
         "revision": 1,
         "status": "active"
+      },
+      {
+        "digest": "053fc05b2c375645c5159c461204365e397074b6ed7265a75218ba04f994a2cf",
+        "id": "scope-mi006-r1-completion",
+        "revision": 1,
+        "status": "active"
       }
     ],
     "sessions": [
@@ -283,6 +342,12 @@
         "id": "session-mi005-2",
         "revision": 2,
         "status": "interrupted"
+      },
+      {
+        "digest": "0f77509d7d8b85b00a7d7d26b7279793b6b9bcc8cafdaf32ad4fec2cdb438769",
+        "id": "session-mi006-r1-1",
+        "revision": 2,
+        "status": "closed"
       },
       {
         "digest": "9b5f24f3812f3a05b00080892f21d7884f3b7681b08cc2231f7ff47fddd00e5a",
@@ -317,6 +382,12 @@
         "status": "ready"
       },
       {
+        "digest": "240b087cd2b42cde9079d18d7f0c8b00e2ebe3aa049cacf40c85a8a6985f40df",
+        "id": "run-mi006-r1",
+        "revision": 1,
+        "status": "ready"
+      },
+      {
         "digest": "8c3e0ceb2fdc91e0d79647d8f831998ce3daf4663323d168e148bc25377c96e5",
         "id": "run-vs001",
         "revision": 1,
@@ -330,6 +401,24 @@
       }
     ],
     "validation-results": [
+      {
+        "digest": "1d31241d909561a9bd46628efa1b1e9289c224bd35178021b6d20f27166dec1a",
+        "id": "run-mi006-r1-mi006r1-c1-investigation-1",
+        "revision": 1,
+        "status": "passed"
+      },
+      {
+        "digest": "7e6a239b296b39d7ea697b933e58a0815376a80de9aae50d98784f367325e62e",
+        "id": "run-mi006-r1-mi006r1-c2-cdc-sourcing-2",
+        "revision": 1,
+        "status": "passed"
+      },
+      {
+        "digest": "cc09c120f07cbffbf98fb3040ff4b9b859408e90565905b9f0a918f20be5e494",
+        "id": "run-mi006-r1-mi006r1-c3-non-regression-3",
+        "revision": 1,
+        "status": "passed"
+      },
       {
         "digest": "afef3b780d5085dc1c15f7fe3f7c94c7e4df059b96f57e07bcad8ae16016cbe6",
         "id": "run-vs001-core-implementation-tests-1",
@@ -405,10 +494,10 @@
         "status": "completed"
       },
       {
-        "digest": "011336b848987849c890307802cbf7c2954aa0e5ab72c9f164175f4971da4079",
+        "digest": "918cb597368fc7713c755640e5572ad5902d41a134232c4404ee12dd5b475498",
         "id": "dashboard-bff-awaiting-confirmation-activity-gap",
-        "revision": 2,
-        "status": "in_progress"
+        "revision": 5,
+        "status": "completed"
       }
     ],
     "working-sets": [
@@ -429,11 +518,17 @@
         "id": "ws-mi005",
         "revision": 2,
         "status": "in_progress"
+      },
+      {
+        "digest": "e050184048b1387b44a87e537bda4abbcce76aac9a5213a602fdf7c2e9ccd789",
+        "id": "ws-mi006-r1",
+        "revision": 3,
+        "status": "completed"
       }
     ]
   },
   "derived": true,
-  "digest": "f1e5205baedc1764e03beb3b1358b107d8a1282db4019c2d694f806d3f9153a2",
-  "rebuilt_at": "2026-07-17T20:13:01.273Z",
+  "digest": "9f36abdf678b2502c844a8a45d749acb3d9c24aa8fc596b5be7da11758164644",
+  "rebuilt_at": "2026-07-18T13:26:49.044Z",
   "schema_version": 1
 }

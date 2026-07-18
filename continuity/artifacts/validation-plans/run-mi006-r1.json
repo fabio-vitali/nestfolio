@@ -1,0 +1,59 @@
+{
+  "completion_policy": "all-required-criteria-pass-with-evidence",
+  "criteria": [
+    {
+      "description": "investigation determines expected-versus-actual recent-activity behavior for L2 AWAITING_CONFIRMATION decisions",
+      "id": "mi006r1-c1-investigation",
+      "required": true,
+      "required_evidence_type": "agent-and-human-review-record",
+      "validator": {
+        "contains": "\"mode\": \"human-review-authorization\"",
+        "path": "continuity/level-6/criterion-1-investigation-review.json",
+        "type": "file"
+      }
+    },
+    {
+      "description": "if a real gap is confirmed, the signal is sourced from the DecisionPacket AWAITING_CONFIRMATION status via the existing row CDC, never from the removed dead event",
+      "id": "mi006r1-c2-cdc-sourcing",
+      "required": true,
+      "required_evidence_type": "deterministic-suite-run",
+      "validator": {
+        "command": [
+          "npx",
+          "nx",
+          "test",
+          "dashboard-bff"
+        ],
+        "type": "command"
+      }
+    },
+    {
+      "description": "the dashboard-bff unit suite remains green, the integration-suite files are byte-identical (non-regression), and the removed USER_CONFIRMATION_REQUESTED handler is not reintroduced",
+      "id": "mi006r1-c3-non-regression",
+      "required": true,
+      "required_evidence_type": "deterministic-non-regression-proof",
+      "validator": {
+        "command": [
+          "node",
+          "continuity/level-6/checks/criterion-3-non-regression-check.mjs"
+        ],
+        "type": "command"
+      }
+    }
+  ],
+  "digest": "240b087cd2b42cde9079d18d7f0c8b00e2ebe3aa049cacf40c85a8a6985f40df",
+  "guards": [
+    {
+      "definition_sha256": "74008f124ccc9962f94592a03d9a03fe492565e696cc3176a11a2c6066591f4a",
+      "id": "nestfolio-dashboard-bff-no-dead-user-confirmation-requested-handler",
+      "path": "continuity/bindings/nestfolio/guards/mi006-r1-dashboard-bff-no-dead-user-confirmation-requested-handler.json",
+      "version": "1"
+    }
+  ],
+  "id": "run-mi006-r1",
+  "revision": 1,
+  "run_id": "run-mi006-r1",
+  "schema_version": 1,
+  "status": "ready",
+  "updated_at": "2026-07-18T13:26:40.627Z"
+}

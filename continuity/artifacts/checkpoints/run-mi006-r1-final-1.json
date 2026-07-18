@@ -1,0 +1,703 @@
+{
+  "active_scope": [],
+  "adapter_session_provenance": {
+    "adapter": "claude-code",
+    "session_id": "session-mi006-r1-1"
+  },
+  "captured_at": "2026-07-18T13:26:49.036Z",
+  "completed_effects": [],
+  "completion_criteria": [
+    {
+      "description": "investigation determines expected-versus-actual recent-activity behavior for L2 AWAITING_CONFIRMATION decisions",
+      "id": "mi006r1-c1-investigation",
+      "required_evidence_type": "agent-and-human-review-record",
+      "status": "passed",
+      "validator": {
+        "contains": "\"mode\": \"human-review-authorization\"",
+        "path": "continuity/level-6/criterion-1-investigation-review.json",
+        "type": "file"
+      }
+    },
+    {
+      "description": "if a real gap is confirmed, the signal is sourced from the DecisionPacket AWAITING_CONFIRMATION status via the existing row CDC, never from the removed dead event",
+      "id": "mi006r1-c2-cdc-sourcing",
+      "required_evidence_type": "deterministic-suite-run",
+      "status": "passed",
+      "validator": {
+        "command": [
+          "npx",
+          "nx",
+          "test",
+          "dashboard-bff"
+        ],
+        "type": "command"
+      }
+    },
+    {
+      "description": "the dashboard-bff unit suite remains green, the integration-suite files are byte-identical (non-regression), and the removed USER_CONFIRMATION_REQUESTED handler is not reintroduced",
+      "id": "mi006r1-c3-non-regression",
+      "required_evidence_type": "deterministic-non-regression-proof",
+      "status": "passed",
+      "validator": {
+        "command": [
+          "node",
+          "continuity/level-6/checks/criterion-3-non-regression-check.mjs"
+        ],
+        "type": "command"
+      }
+    }
+  ],
+  "context_pack_digest": "d4ac9c76a5893118439535da906b4842012faf12fd797b3570e46550405afc87",
+  "digest": "59b768e95a707e184a3009fd657c926fda4b783c818a33da954cf37a39690f8f",
+  "final": true,
+  "id": "run-mi006-r1-final-1",
+  "next_action": "No execution action remains. Review the candidate Lesson and authorize the next iteration from VS-001 evidence.",
+  "pack_lock_digest": "050be66fe746bce73cb09f56cb0a677fbd08b3be50a0858d7a2b2661ba4fe793",
+  "repository_fingerprint": {
+    "digest": "68f9b273af5de9f676cd046af03f29b161b8584cd6ba3c2abb290c18232c9cd6",
+    "files": [
+      {
+        "path": "continuity/bindings/nestfolio/decisions/vs001-accepted-decisions.json",
+        "sha256": "182613f9047e742b454ea2def0a3ca8605041a53224d4e2ab5ddab79cc5c1fc2",
+        "size": 478
+      },
+      {
+        "path": "continuity/bindings/nestfolio/decisions/vs001a-accepted-decisions.json",
+        "sha256": "4c537dc8b919c7cd78005607439695eda16982d66c8a27e898c9b622d4ea134e",
+        "size": 927
+      },
+      {
+        "path": "continuity/bindings/nestfolio/guards/mi006-r1-dashboard-bff-no-dead-user-confirmation-requested-handler.json",
+        "sha256": "74008f124ccc9962f94592a03d9a03fe492565e696cc3176a11a2c6066591f4a",
+        "size": 1038
+      },
+      {
+        "path": "continuity/bindings/nestfolio/guards/vs001-scope.json",
+        "sha256": "8022c964de724bc6f554e3dbc3905a49c8ef912408f93ec385e2de223d41487e",
+        "size": 674
+      },
+      {
+        "path": "continuity/bindings/nestfolio/guards/vs001a-scope.json",
+        "sha256": "f2d32742a45c4a414ba21716c5fb4edcd58261b3b6f4aeaee7ddac93aae765b4",
+        "size": 1017
+      },
+      {
+        "path": "continuity/bindings/nestfolio/work-items/continuity-vs001-resumable-agent-work-session.json",
+        "sha256": "8135e9acc2fc5cedc4c121e76efc08a7b5a55761e72cd4a7373dfb19e28eae98",
+        "size": 5131
+      },
+      {
+        "path": "continuity/bindings/nestfolio/work-items/continuity-vs001a-claude-code-session-confirmation.json",
+        "sha256": "7e52dda647d628e7fa99c93341dcc7731de8304ec3218a69e9d0176e5a26372d",
+        "size": 8254
+      },
+      {
+        "path": "continuity/level-1/activation.json",
+        "sha256": "d8d011c6d672cda725f039ddfffb26b9157bb95462538423ac473bb3b37a0650",
+        "size": 196
+      },
+      {
+        "path": "continuity/level-1/cli.mjs",
+        "sha256": "fdc297c886580d25cd62f9c83a3865e5c718855a2342b4d36c78fbad29c44a5e",
+        "size": 1496
+      },
+      {
+        "path": "continuity/level-1/pack-lock.json",
+        "sha256": "701caacfce402077dd77659669768759a6c6d4613a94e6abb8e68248f44a8da9",
+        "size": 3862
+      },
+      {
+        "path": "continuity/level-1/pack-manifest.json",
+        "sha256": "2501b33806ee6c7dfd8986ba3d04480634ac24b480c13e81a9cbb89b54b0544b",
+        "size": 699
+      },
+      {
+        "path": "continuity/level-1/procedure-contract.json",
+        "sha256": "776f1e5655a9d0c2973e2d0cf76fe323d3ddb945106c31fdcd4610da9f9c3f66",
+        "size": 3130
+      },
+      {
+        "path": "continuity/level-1/project-binding.json",
+        "sha256": "dc66414f0f2e2be9cb4661b14fd0e1e401d956a64572809da615e58c2a554139",
+        "size": 1062
+      },
+      {
+        "path": "continuity/level-1/README.md",
+        "sha256": "9343854b415ddf798f9081535ca8d94073746e27fc7a7a900ca14ea01f83ed5c",
+        "size": 1147
+      },
+      {
+        "path": "continuity/level-1/src/application-service.mjs",
+        "sha256": "dd19ddaeb5b0fceca74f18e04a370eb53d6b84f9bf2f82fe13c5d8817f7f80b3",
+        "size": 8109
+      },
+      {
+        "path": "continuity/level-1/src/claude-code-adapter.mjs",
+        "sha256": "0038104da7d10af5ccfffb68bd58cbfb66096b8a5939eeff3f2f1954d006fb20",
+        "size": 1299
+      },
+      {
+        "path": "continuity/level-1/src/core.mjs",
+        "sha256": "ba86d1b5fe90645d7fbde049491c7309503ddde56d3b16195a7d89219ecd1fa1",
+        "size": 2355
+      },
+      {
+        "path": "continuity/level-1/src/repository-infrastructure.mjs",
+        "sha256": "c3383ef465c1b0f28b38492b59062f33a51e46dc5ac2c57bc87abdbdd5caff2f",
+        "size": 5319
+      },
+      {
+        "path": "continuity/level-2/activation-history.ndjson",
+        "sha256": "512034d03e0d989fcba1cfcf154e142c25e854336970463dcdee32659b8176cb",
+        "size": 256
+      },
+      {
+        "path": "continuity/level-2/activation.json",
+        "sha256": "af6fc7d570cb0fdcaf24dfb797432daa97aa196f15be07d5f6ff515f99dbfb70",
+        "size": 349
+      },
+      {
+        "path": "continuity/level-2/cli.mjs",
+        "sha256": "0e857c7413d94ae0cbf159c04e6ff1112f8882f4db3481f73ca9e2f42dbb79c7",
+        "size": 1856
+      },
+      {
+        "path": "continuity/level-2/packs.lock.json",
+        "sha256": "0d0e6b52eb5aab3957d51abb432b5baa4c4911880151de8c96a9e4f7c90bb63c",
+        "size": 9880
+      },
+      {
+        "path": "continuity/level-2/packs/continuity.repository-tools/1.0.0/pack-manifest.json",
+        "sha256": "439799dbc8f3ef1d44c178d8d85eaa339a229c76a84d42281c44b80f2061ae19",
+        "size": 867
+      },
+      {
+        "path": "continuity/level-2/packs/continuity.repository-tools/1.0.0/procedures/continuity.repository-status.json",
+        "sha256": "75c4185cef2ed609bababe0cd35b7dc01d853d053679569164ac7ce84fd65057",
+        "size": 1555
+      },
+      {
+        "path": "continuity/level-2/README.md",
+        "sha256": "4056209b3405ad2452ce4e22c2522c58c9950c5c309c14c6caac5616b1fcfaf7",
+        "size": 1164
+      },
+      {
+        "path": "continuity/level-2/src/application-service.mjs",
+        "sha256": "ad2e58bb3425d3b72196e0afce6078fa7501074fe5090df566b9a7fc55603c22",
+        "size": 10787
+      },
+      {
+        "path": "continuity/level-2/src/core.mjs",
+        "sha256": "fcf171439d883ac38ce66e22367e1d33236d239e3aa60c3a702c5c8776ead3fc",
+        "size": 4225
+      },
+      {
+        "path": "continuity/level-2/src/git-repository-adapter.mjs",
+        "sha256": "ed84e1998fd51bd1bf3f37db88a320eb2669e52ffe3cd40bce27b34e74e70dbd",
+        "size": 2625
+      },
+      {
+        "path": "continuity/level-2/src/pack-validator.mjs",
+        "sha256": "fd375fddac0069ed5dbd7a23172bbe48eac3bb4438697ef6b78674be53e204a2",
+        "size": 14440
+      },
+      {
+        "path": "continuity/level-2/src/repository-infrastructure.mjs",
+        "sha256": "28b8d3c9847913a66247527d44486a08b8d3fe0db9fbda084f40ae82268a15c6",
+        "size": 4364
+      },
+      {
+        "path": "continuity/level-3/bin/continuity-work.mjs",
+        "sha256": "f1f515f8c50d428cf14249a2fb027c0ce2d8b3c99c95a209540918bc54060cbe",
+        "size": 25113
+      },
+      {
+        "path": "continuity/level-3/candidates.json",
+        "sha256": "1c292f2f21c9226e4074cab0645323f959374618916a660fc01117c0f08f5f12",
+        "size": 355248
+      },
+      {
+        "path": "continuity/level-3/route.json",
+        "sha256": "0ed84d148428125c0700969921d03fefb914819333d4848d4b262193f1c13d11",
+        "size": 1580
+      },
+      {
+        "path": "continuity/level-3/schema/work-artifacts.schema.json",
+        "sha256": "898c3568ea0e6c9d89e34edfb9569c903240c8a491ef0aca97d96f40d288f3c5",
+        "size": 3983
+      },
+      {
+        "path": "continuity/level-3/scope.json",
+        "sha256": "db7a45278e8f4a270552e3ae1db3695b70e07d1624b27bcdc28f6417883a5ad6",
+        "size": 3267
+      },
+      {
+        "path": "continuity/level-3/work-brief.json",
+        "sha256": "dc50b59f42a72de0bee1b36c888596e8a19a347fb37559237a3a90272f9e60da",
+        "size": 3998
+      },
+      {
+        "path": "continuity/level-3/work-selection.json",
+        "sha256": "b01555e1ec65b4f232d008c82d7d2a22e0b94ac5a0b0a43410397f8638a1848c",
+        "size": 1956
+      },
+      {
+        "path": "continuity/level-3/work.json",
+        "sha256": "b23812bb0999f962856556516945bf82297642140f808d24cdd52e9341381936",
+        "size": 3372
+      },
+      {
+        "path": "continuity/level-3/working-set.json",
+        "sha256": "e24fe112a6947d1959a2f4fa6d0083e34ea1a2614347487eaba747bcaab64b97",
+        "size": 228
+      },
+      {
+        "path": "continuity/level-4/adapter-view.json",
+        "sha256": "9062458c02bf4ac816cbd7d72af3f1ed3c0e91246217dc83811afc4bedbbe838",
+        "size": 10467
+      },
+      {
+        "path": "continuity/level-4/authorization-record.json",
+        "sha256": "a23ec489098ba487ac27da2f1ae8c8752916a462517bae553ead7f4e062221cc",
+        "size": 1081
+      },
+      {
+        "path": "continuity/level-4/bin/continuity-context.mjs",
+        "sha256": "f6e4067330a50e3d53b2281d51a5b224150076ecb0d1564012ff7cebe301d247",
+        "size": 40686
+      },
+      {
+        "path": "continuity/level-4/context-pack.json",
+        "sha256": "e58c9bc1978d6799cccda96c2520ea1f7f41ab8b88e8a055ff968cd7b8ce15c1",
+        "size": 51879
+      },
+      {
+        "path": "continuity/level-4/context-recipe.json",
+        "sha256": "1b8f7e70477f48de8a821ba6c66991c1d9841adaff34b0055033681ffa5d0365",
+        "size": 4482
+      },
+      {
+        "path": "continuity/level-4/formation-trace.json",
+        "sha256": "8c05453897a28efc0abc43c143c4657175c7bfed167cf774d783b409b6c94911",
+        "size": 49195
+      },
+      {
+        "path": "continuity/level-4/schema/context-artifacts.schema.json",
+        "sha256": "72e3977b854a03ef2f194193b11b8dd021ece1804bb6e4682044715c24d97bf6",
+        "size": 3601
+      },
+      {
+        "path": "continuity/level-4/validation-result.json",
+        "sha256": "c526b961fe50c53eed3b89d792f1d0bde28e790b12f5d53a7f715362add5d9d3",
+        "size": 3015
+      },
+      {
+        "path": "continuity/level-5/engine-lock.json",
+        "sha256": "f33fbb7e52434277516bb6f42f398ddd1b8f2ee6937d84843c565b0afdf82961",
+        "size": 5006
+      },
+      {
+        "path": "continuity/level-5/run-binding.json",
+        "sha256": "e818fcbc828c970dc53e6f3a7d2c138102470ebfb542af778f303ba1654a1981",
+        "size": 6903
+      },
+      {
+        "path": "continuity/packs/continuity-core/manifest.json",
+        "sha256": "7a0793d0842e48beefcb1bc537b35e881ca8a2bb7572183cfe38db86eeb45a99",
+        "size": 625
+      },
+      {
+        "path": "continuity/packs/continuity-core/procedures/resumable-agent-work.json",
+        "sha256": "1394bee3746051d7906c41b48fb7df10940c2ccee0469b3965a11a3bdf3968b7",
+        "size": 1201
+      },
+      {
+        "path": "continuity/packs/nestfolio/manifest.json",
+        "sha256": "22ac0cc8ba666c43789dbff939571ad529386cd6e1847fa09caf5eb4473f659e",
+        "size": 618
+      },
+      {
+        "path": "continuity/packs/nestfolio/procedures/backlog-and-evidence.json",
+        "sha256": "4de64689023f384eb2afd0bd4e0ebbda152b65c7ce5d69929efa86034697b855",
+        "size": 953
+      },
+      {
+        "path": "runtime/continuity/adapters/claude-code/cli.mjs",
+        "sha256": "4c523fe704fcc290a1f8dc86c918298fea12be58763f155801431d76728d4f0f",
+        "size": 2935
+      },
+      {
+        "path": "runtime/continuity/adapters/claude-code/hooks/hook-lib.mjs",
+        "sha256": "64b9cc49e9502f40bac97019e34e1565fd71f824669711915f72412a9cdcc56c",
+        "size": 2212
+      },
+      {
+        "path": "runtime/continuity/adapters/claude-code/hooks/session-end.mjs",
+        "sha256": "7432eda0d144e74489007b3ab51b276e6be55997ab92b1eb1bec48410ceff94f",
+        "size": 1267
+      },
+      {
+        "path": "runtime/continuity/adapters/claude-code/hooks/session-start.mjs",
+        "sha256": "2b57c8b4c50646dfd5f9cdd5663b135fe44766e3b218d2cc1b73c18df29976ac",
+        "size": 4822
+      },
+      {
+        "path": "runtime/continuity/lib/backlog-binding.mjs",
+        "sha256": "c7b52a38fe4f8f296eff1efec3f8f28f8b451e7422ae68b6929e1d1f5b7f47a1",
+        "size": 3398
+      },
+      {
+        "path": "runtime/continuity/lib/context.mjs",
+        "sha256": "679a3ea6d08c6104d10958696ca30c12091c94a7854ae61a29c53000b6527d35",
+        "size": 3184
+      },
+      {
+        "path": "runtime/continuity/lib/errors.mjs",
+        "sha256": "f1edd864583dd4712c6b2246a3c8b7c1d3d3762d4c3f0bd5fc5f8b20dd7d9c3d",
+        "size": 651
+      },
+      {
+        "path": "runtime/continuity/lib/pack-resolver.mjs",
+        "sha256": "db10c0fadd1063f5632a58b285c0b7f682616d07550911a935f2af760c5e60f1",
+        "size": 3988
+      },
+      {
+        "path": "runtime/continuity/lib/store.mjs",
+        "sha256": "9f313ba396a03b3ac33c3accef3eb13fbcf0554b695f3efc200059b97bf8f0af",
+        "size": 4257
+      },
+      {
+        "path": "runtime/continuity/lib/utils.mjs",
+        "sha256": "e8897333f05bf76a6cd20c1f8f6341d011f79975240e50977e8afbbf302b231f",
+        "size": 5430
+      },
+      {
+        "path": "runtime/continuity/lib/workflow.mjs",
+        "sha256": "6d0f828282183a8cc93f30ec8e61478f31ff4bea41160d763e531a4bb143ffac",
+        "size": 37791
+      },
+      {
+        "path": "runtime/continuity/README.md",
+        "sha256": "e41429748f7a465411b267dec5b54b7d9246f70a8e1b94518b3bd61b86b78dcf",
+        "size": 3239
+      },
+      {
+        "path": "runtime/continuity/test/core.test.mjs",
+        "sha256": "d7e926a1f2053093b8d2440457d936a90595565cd0e6492bcc84c0ee132e0dea",
+        "size": 2087
+      },
+      {
+        "path": "runtime/continuity/test/pack-resolution.test.mjs",
+        "sha256": "aa33e93a78978020d4e6bf5d5d2c094095dacea5b73c529142bcc7206715ce8a",
+        "size": 1475
+      },
+      {
+        "path": "runtime/continuity/test/resumable-session.test.mjs",
+        "sha256": "c2b937c4b57ffb53aef3aa0dc2ccad9a1a1bf99c2c7d776ec3fd69b6b4765d11",
+        "size": 5598
+      },
+      {
+        "path": "runtime/continuity/test/session-hooks.test.mjs",
+        "sha256": "8ecf713b457d3947a2e7202f3b1e78729a1b211dae6d5efe73553c16c4498bc0",
+        "size": 8955
+      },
+      {
+        "path": "runtime/continuity/test/test-fixture.mjs",
+        "sha256": "e23407be2876d974304a98d02f25b90db84b70f1dfbd3caf8cdf67102079956c",
+        "size": 1642
+      },
+      {
+        "path": "runtime/continuity/tools/validate-dogfood-state.mjs",
+        "sha256": "7df0c163f629bad538d8d11972aedede7a1049a8d40028cdc238541b6c3447d0",
+        "size": 2479
+      },
+      {
+        "path": "runtime/continuity/tools/validate-learning-state.mjs",
+        "sha256": "938b8756bbc69ff31582142c51d764b626a5c8b24ca633f070a789a1005466da",
+        "size": 1566
+      },
+      {
+        "path": "runtime/continuity/tools/validate-vs001a-executor-provenance.mjs",
+        "sha256": "e4a15de56c9158db62d372efe670c8864168d652edb56d9447d6cc120ab5b72f",
+        "size": 12143
+      },
+      {
+        "path": "services/investor/dashboard-bff/CLAUDE.md",
+        "sha256": "14c61b990ceba46de9076ece5d65d5fa38924f9ccb502c41034b82cb4fd8ab16",
+        "size": 10543
+      },
+      {
+        "path": "services/investor/dashboard-bff/jest.config.js",
+        "sha256": "1cfba88642faf167274151971f479b9733ec91028bdaba5d37e80f5be8a004b9",
+        "size": 2019
+      },
+      {
+        "path": "services/investor/dashboard-bff/jest.integration.config.js",
+        "sha256": "2264d6f1f6d537bc32703cd79669dbbd3e273341042742920a8d9971baddfa84",
+        "size": 991
+      },
+      {
+        "path": "services/investor/dashboard-bff/project.json",
+        "sha256": "144b7fa0227d62771a631d1b29473e338a2eaf50e3dbd64304595e95e96576a8",
+        "size": 1438
+      },
+      {
+        "path": "services/investor/dashboard-bff/README.md",
+        "sha256": "54ce3c2feb5f9f7f40a137c8fd52f8c459c3101d7f2f9f7f55eec3ec832d260c",
+        "size": 166
+      },
+      {
+        "path": "services/investor/dashboard-bff/src/graphql/js-function/get-dashboard.fn.js",
+        "sha256": "78ddfa08ef6f4bec9b7c2cdfdda3e620fa3f6c736fdba0c5d0791bbd8b94b976",
+        "size": 1725
+      },
+      {
+        "path": "services/investor/dashboard-bff/src/graphql/js-function/get-position-snapshots.fn.js",
+        "sha256": "817097e543a2c62c5dafd486a1a75cbe707b7d27135cc55307ff7e811b91ae09",
+        "size": 647
+      },
+      {
+        "path": "services/investor/dashboard-bff/src/graphql/js-function/get-recent-activity.fn.js",
+        "sha256": "bfa7fd61f66876f89de36d1053da36dfcd9c4841699ba44fbfc24ee28ca7b23e",
+        "size": 610
+      },
+      {
+        "path": "services/investor/dashboard-bff/src/graphql/js-function/get-simulation-summary.fn.js",
+        "sha256": "2a9b2dbce0b271da42c8ff26f12617ec8c3e14bee9947144af1d53989eae3ca2",
+        "size": 375
+      },
+      {
+        "path": "services/investor/dashboard-bff/src/graphql/js-function/get-time-travel-availability.fn.js",
+        "sha256": "518aed1e8e6667fabe14fcb1e918770c27e32ef6c544a4dde3d9a1cb244c3e26",
+        "size": 466
+      },
+      {
+        "path": "services/investor/dashboard-bff/src/graphql/js-function/publish-activity-update.fn.js",
+        "sha256": "c4ee500a245e77bb3da55cd29141e8278050ac9bc58a728cd3ae2828c355d3a9",
+        "size": 761
+      },
+      {
+        "path": "services/investor/dashboard-bff/src/graphql/js-function/publish-dashboard-update.fn.js",
+        "sha256": "4c4a1b40d2ab81194d2f391692f6c811ee867cc640c8a560595451c860f9e23d",
+        "size": 693
+      },
+      {
+        "path": "services/investor/dashboard-bff/src/graphql/js-function/publish-position-update.fn.js",
+        "sha256": "b2afb17afdb2b045993c914b96c5a6fb98b8866d4c65fe7aada87f09f2e04f1e",
+        "size": 771
+      },
+      {
+        "path": "services/investor/dashboard-bff/src/graphql/js-function/utils/check-auth.fn.js",
+        "sha256": "31798bf20f6af9829dc6ec7c6fa8f296af34dffa6cd2005f2ebb969fc1e8785a",
+        "size": 706
+      },
+      {
+        "path": "services/investor/dashboard-bff/src/handlers/dashboard-publisher.ts",
+        "sha256": "1383ea51d3e5e1b07aaccdd4ed74b6af5e76a800ed281a7a5f9e75b2f99c6701",
+        "size": 7790
+      },
+      {
+        "path": "services/investor/dashboard-bff/src/handlers/event-listener.ts",
+        "sha256": "7b5b489b599dc6e1c75d6825c2860f47396f69984ef328fc7816deb5d619429a",
+        "size": 3865
+      },
+      {
+        "path": "services/investor/dashboard-bff/src/main.ts",
+        "sha256": "a974b830a913bbcd6145bc8b333a4e4019e434de2d640155d70495e612300461",
+        "size": 582
+      },
+      {
+        "path": "services/investor/dashboard-bff/src/read-model-ownership.ts",
+        "sha256": "49b522614fe26c1937f2448930093af4f49501953e29d31bf37ecae5fbf5e7c7",
+        "size": 1267
+      },
+      {
+        "path": "services/investor/dashboard-bff/src/repositories/dashboard.repository.ts",
+        "sha256": "eaa9d9f083d74e102aaac4263c3db0fcefc092e487d39f6bf92146fa8001f4b6",
+        "size": 11412
+      },
+      {
+        "path": "services/investor/dashboard-bff/src/schema.graphql",
+        "sha256": "deffc3bb7676c342d8d2ea8dbb97e66214b102a37d50ee6a5bd94fb2317b8279",
+        "size": 4163
+      },
+      {
+        "path": "services/investor/dashboard-bff/src/service.stack.ts",
+        "sha256": "f8636c98e491f9a7a303a026dd8455ff2837b3d0d6c86f74838bd071eb482a2e",
+        "size": 2828
+      },
+      {
+        "path": "services/investor/dashboard-bff/src/transforms/advisory-status.ts",
+        "sha256": "1c05bc157092845e97a70471f8b833bcc230292a74bdd42d46dcc658e6d6e0fc",
+        "size": 1292
+      },
+      {
+        "path": "services/investor/dashboard-bff/src/transforms/awaiting-confirmation-activity.ts",
+        "sha256": "f261113db7bf81fa9feb78ced4a43d26e5607ca623acefaac63f0e16f8ef3c2a",
+        "size": 1938
+      },
+      {
+        "path": "services/investor/dashboard-bff/src/transforms/investor-snapshot.ts",
+        "sha256": "094848d2a0b96a5eec659af7d68d785b49c94b763c0abfe4e04098c216cc6f86",
+        "size": 2084
+      },
+      {
+        "path": "services/investor/dashboard-bff/src/transforms/portfolio-summary.ts",
+        "sha256": "d41eb54d71954a7587ebdf008737fa574f4ab54f625fa9b16abe36ff5251fc98",
+        "size": 2375
+      },
+      {
+        "path": "services/investor/dashboard-bff/src/transforms/position-snapshot.ts",
+        "sha256": "0001ca89640b6ef6f3e70f8be488e44089695c812a50a60ce9a2c16983f8f047",
+        "size": 2183
+      },
+      {
+        "path": "services/investor/dashboard-bff/src/transforms/recent-activity.ts",
+        "sha256": "d3087a4d101f0b4bad9a3848fbcc2f6d07a0c032ad894614a4c786c4da646a80",
+        "size": 2260
+      },
+      {
+        "path": "services/investor/dashboard-bff/src/transforms/time-travel-availability.ts",
+        "sha256": "7405a2194290470142d634b8f67747de2bdb24490aa09f0d0e47ba827645b376",
+        "size": 1207
+      },
+      {
+        "path": "services/investor/dashboard-bff/test/integration/dashboard-bff.integration.test.ts",
+        "sha256": "aa7c11fc1e975deecb8cd5329a2c831aef5dd36e2374473831141f2d1999fc50",
+        "size": 37312
+      },
+      {
+        "path": "services/investor/dashboard-bff/test/integration/read-model-projection.integration.test.ts",
+        "sha256": "bad65ddec03bffb7fdf78031e42d8fc69c53a3cdccee63024f990e3664b2f8e8",
+        "size": 3094
+      },
+      {
+        "path": "services/investor/dashboard-bff/test/types/read-model-ownership.type-test.ts",
+        "sha256": "e6209a2ba4641b1fd8dcccf00a8e620dd37786facf910efd1cc846b7bc1b46e4",
+        "size": 1555
+      },
+      {
+        "path": "services/investor/dashboard-bff/test/unit/graphql/__mocks__/appsync-utils-dynamodb.ts",
+        "sha256": "a2dd6d53d99f9cbb2aeb5c501146f7b39644e4b762447a13c6e8259a4ef5d9b6",
+        "size": 506
+      },
+      {
+        "path": "services/investor/dashboard-bff/test/unit/graphql/__mocks__/appsync-utils.ts",
+        "sha256": "415c40d14197ff2cf4791574a377769d8d6979250288702384b55241046bb144",
+        "size": 923
+      },
+      {
+        "path": "services/investor/dashboard-bff/test/unit/graphql/get-position-snapshots.test.ts",
+        "sha256": "15ebeb33a0eb8ff42499cd316db8495e7db4c2a5c4f6665471a6e1557b6fbb02",
+        "size": 516
+      },
+      {
+        "path": "services/investor/dashboard-bff/test/unit/handlers/awaiting-confirmation-activity-gap.test.ts",
+        "sha256": "c3724e16986a1751330ea02040b4716619beada67b0c12e7cefc5f6e574ec5f0",
+        "size": 3994
+      },
+      {
+        "path": "services/investor/dashboard-bff/test/unit/handlers/dashboard-publisher.test.ts",
+        "sha256": "a2f2cdbb08ec0435426644df977b222a17e4b3ea0047396a0fbde63d04958f1f",
+        "size": 16214
+      },
+      {
+        "path": "services/investor/dashboard-bff/test/unit/handlers/event-listener.test.ts",
+        "sha256": "464d8740080b0d66993719644cf0bbe20c5a740b0a374e2200e6f7371a696edc",
+        "size": 2649
+      },
+      {
+        "path": "services/investor/dashboard-bff/test/unit/repositories/dashboard.repository.test.ts",
+        "sha256": "a93015e31b991cf2f73a47557c13cf0731b915cc544fe3a5c2e86332863e1723",
+        "size": 9387
+      },
+      {
+        "path": "services/investor/dashboard-bff/test/unit/service.stack.test.ts",
+        "sha256": "85d60eadd90241acc57121fee8a043b5f98c66dfd1f4cd2b7cde006e0ceb94e5",
+        "size": 1952
+      },
+      {
+        "path": "services/investor/dashboard-bff/test/unit/transforms/advisory-status.test.ts",
+        "sha256": "372bf6c44db1c9159a8826b38caf391e4609bc8ddbc7074217069be2ba84afde",
+        "size": 2084
+      },
+      {
+        "path": "services/investor/dashboard-bff/test/unit/transforms/awaiting-confirmation-activity.test.ts",
+        "sha256": "a2203511920c20903fc80086ecdf5c6ef963a60fc894c2f88bcf370da2580a66",
+        "size": 3193
+      },
+      {
+        "path": "services/investor/dashboard-bff/test/unit/transforms/investor-snapshot.test.ts",
+        "sha256": "94a1e157f6fa3fc8bb85d53462b47f2c2c18ba2617a8bb7e96392c7739fcb2d7",
+        "size": 2554
+      },
+      {
+        "path": "services/investor/dashboard-bff/test/unit/transforms/portfolio-summary.test.ts",
+        "sha256": "9b8cd0990c62c94cd59ad43f77d9867ee8f1f67d6b6fd3b0ec1459a13c0585f9",
+        "size": 3552
+      },
+      {
+        "path": "services/investor/dashboard-bff/test/unit/transforms/position-snapshot.test.ts",
+        "sha256": "b9c1d7bd3972de193e5a103057e7a08e7c4c1099aaffc0f0d26c98e183746b42",
+        "size": 2949
+      },
+      {
+        "path": "services/investor/dashboard-bff/test/unit/transforms/recent-activity.test.ts",
+        "sha256": "c931a9857a5f9ffdbcc1901ae55c24139d086c88ef15bbbf7e3e8281fdedb56c",
+        "size": 3265
+      },
+      {
+        "path": "services/investor/dashboard-bff/test/unit/transforms/time-travel-availability.test.ts",
+        "sha256": "aef5b700d2fbbdba51466217b8eacc6dcbf9b4973db3c448d1114b211073b00f",
+        "size": 2136
+      },
+      {
+        "path": "services/investor/dashboard-bff/tsconfig.json",
+        "sha256": "099dcd57621bf292e5b379ec3b05a1760de9e71cdced9974c74a2fe1b5df5c27",
+        "size": 131
+      },
+      {
+        "path": "services/investor/dashboard-bff/tsconfig.lib.json",
+        "sha256": "a2d38812a133767918699999cb215fdcd02200a7580d7f2f61294fcc3e4e10fd",
+        "size": 170
+      },
+      {
+        "path": "services/investor/dashboard-bff/tsconfig.spec.json",
+        "sha256": "4ecb4f6e661d0debe805c19a9af6829e9a4dd35ec88e68eee819942e9042e9b6",
+        "size": 219
+      },
+      {
+        "path": "services/investor/dashboard-bff/tsconfig.type-test.json",
+        "sha256": "19ac9019444e6f45bcdff330779e79d5d6a0a7739be2666f4973ae3ad12e316c",
+        "size": 173
+      }
+    ],
+    "identity": {
+      "branch": "main",
+      "head": "eafa09b81a600bd58fe8f4639298a182039d21f5",
+      "mode": "git"
+    }
+  },
+  "revision": 1,
+  "run_id": "run-mi006-r1",
+  "schema_version": 1,
+  "scope_ref": {
+    "digest": "053fc05b2c375645c5159c461204365e397074b6ed7265a75218ba04f994a2cf",
+    "id": "scope-mi006-r1-completion",
+    "revision": 1
+  },
+  "session_id": "session-mi006-r1-1",
+  "status": "verified",
+  "updated_at": "2026-07-18T13:26:49.036Z",
+  "verification_digest": "571119aa9339c9b9c09f72a468da062c09b747dc8771ec986344a175ed56104d",
+  "work_item_ref": {
+    "digest": "985b707b31d2d97fd9d9992f17630ca22941af31c85d71be671f9c041a3048b6",
+    "id": "dashboard-bff-awaiting-confirmation-activity-gap",
+    "revision": 4
+  },
+  "working_set_ref": {
+    "digest": "be313bc127764ffdd2ba8a7acb0e1880cde3be3999cad35a1b5fed7231ba2eda",
+    "id": "ws-mi006-r1",
+    "revision": 2
+  }
+}

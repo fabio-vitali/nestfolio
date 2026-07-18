@@ -1,0 +1,27 @@
+{
+  "authority": "deterministic",
+  "criterion_id": "mi006r1-c1-investigation",
+  "digest": "27e86f7ffb78e710eea31ad6864172b1d68eeb3e64420a566ebaee16f32ac138",
+  "evidence_type": "agent-and-human-review-record",
+  "id": "run-mi006-r1-mi006r1-c1-investigation",
+  "provenance": {
+    "adapter": "claude-code",
+    "repository_fingerprint": "68f9b273af5de9f676cd046af03f29b161b8584cd6ba3c2abb290c18232c9cd6",
+    "session_id": "session-mi006-r1-1",
+    "validator": {
+      "contains": "\"mode\": \"human-review-authorization\"",
+      "path": "continuity/level-6/criterion-1-investigation-review.json",
+      "type": "file"
+    }
+  },
+  "revision": 1,
+  "run_id": "run-mi006-r1",
+  "schema_version": 1,
+  "status": "accepted",
+  "updated_at": "2026-07-18T13:26:40.679Z",
+  "validation_result_ref": {
+    "digest": "1d31241d909561a9bd46628efa1b1e9289c224bd35178021b6d20f27166dec1a",
+    "id": "run-mi006-r1-mi006r1-c1-investigation-1",
+    "revision": 1
+  }
+}

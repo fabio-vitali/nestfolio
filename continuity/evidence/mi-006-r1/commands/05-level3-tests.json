@@ -1,0 +1,21 @@
+{
+  "command": {
+    "argv": [
+      "node",
+      "--test",
+      "tests/continuity-level-3.test.mjs"
+    ],
+    "cwd_role": "isolated-committed-validation-copy (purity guard)",
+    "end_utc": "2026-07-18T13:37:11.346Z",
+    "exit_code": 0,
+    "parsed": {
+      "fail": 0,
+      "pass": 23,
+      "tests": 23
+    },
+    "start_utc": "2026-07-18T13:36:56.054Z",
+    "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "stdout_sha256": "5775f369590bb70162b412aee63ed29e5fb7d8a60a1d9464db9800ea7489bc4f"
+  },
+  "required": "Level 3 23/23 (isolated committed validation copy)"
+}

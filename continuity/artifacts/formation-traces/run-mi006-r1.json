@@ -1,0 +1,76 @@
+{
+  "diagnostics": [],
+  "digest": "ef2232685fbfdd96f7d417d547749e7ae087a1162fed846ea8b4fe1c7ce6ef52",
+  "formed_at": "2026-07-18T13:26:40.625Z",
+  "id": "run-mi006-r1",
+  "omissions": [],
+  "revision": 1,
+  "run_id": "run-mi006-r1",
+  "schema_version": 1,
+  "sources": [
+    {
+      "digest": "25a06fdba890fef557852cc9078b1fb7944bb73ec9ccd87c2f9d169ce3cb14e7",
+      "id": "dashboard-bff-awaiting-confirmation-activity-gap",
+      "rationale": "Selected work authority",
+      "required": true,
+      "revision": 3,
+      "type": "work_item"
+    },
+    {
+      "digest": "fe8810954dece48e87e059f4810307a14c2d9635e8fc1834ea813be0b148cd04",
+      "id": "ws-mi006-r1",
+      "rationale": "Bounded execution selection",
+      "required": true,
+      "revision": 1,
+      "type": "working_set"
+    },
+    {
+      "digest": "053fc05b2c375645c5159c461204365e397074b6ed7265a75218ba04f994a2cf",
+      "id": "scope-mi006-r1-completion",
+      "rationale": "Read/write boundary and exclusions",
+      "required": true,
+      "revision": 1,
+      "type": "scope"
+    },
+    {
+      "digest": "1394bee3746051d7906c41b48fb7df10940c2ccee0469b3965a11a3bdf3968b7",
+      "id": "resumable-agent-work",
+      "rationale": "Resolved executable procedure",
+      "required": true,
+      "revision": "continuity-core@0.1.0-vs001",
+      "type": "procedure"
+    },
+    {
+      "digest": "4de64689023f384eb2afd0bd4e0ebbda152b65c7ce5d69929efa86034697b855",
+      "id": "nestfolio-backlog-and-evidence",
+      "rationale": "Resolved executable procedure",
+      "required": true,
+      "revision": "nestfolio-binding@0.1.0-vs001",
+      "type": "procedure"
+    },
+    {
+      "digest": "74008f124ccc9962f94592a03d9a03fe492565e696cc3176a11a2c6066591f4a",
+      "id": "nestfolio-dashboard-bff-no-dead-user-confirmation-requested-handler",
+      "rationale": "Applicable project Guard",
+      "required": true,
+      "revision": "1",
+      "type": "guard"
+    }
+  ],
+  "stages": [
+    "bind-work",
+    "bind-execution-boundary",
+    "resolve-packs",
+    "resolve-procedures",
+    "resolve-decisions",
+    "resolve-guards-and-criteria",
+    "inspect-repository-evidence",
+    "apply-inclusions-and-exclusions",
+    "detect-stale-missing-contradictory-state",
+    "assemble-context-pack",
+    "validate-and-authorize",
+    "deliver-adapter-view"
+  ],
+  "trace_digest": "282aca7e6041c3c1ad2b258f434e68f63cc56a185ba4ac4381b4b452e40551f7",
+  "updated_at": "2026-07-18T13:26:40.626Z"
+}

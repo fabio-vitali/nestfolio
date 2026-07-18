@@ -1,0 +1,23 @@
+{
+  "coexistence_route_record": {
+    "external_authority_note": "the Git published-implementation revision and the current commit/ship gates are referenced once, read-only, as external-authority provenance; MI-006-R1 declares no second Git or CI verdict and duplicates no external object",
+    "git_published_implementation_revision": "363283bcc97b1e04710db0e7f759ffffddb18b69",
+    "no_current_check_retired": true
+  },
+  "goal_versus_guard": "The three completion criteria are Goal-shaped (become-true for this Work Item); the classified Guard is Guard-shaped (keep-true). DR-0005 keeps them separate.",
+  "guard_classification": {
+    "classified_guard": {
+      "binding_path": "continuity/bindings/nestfolio/guards/mi006-r1-dashboard-bff-no-dead-user-confirmation-requested-handler.json",
+      "definition_sha256": "74008f124ccc9962f94592a03d9a03fe492565e696cc3176a11a2c6066591f4a",
+      "evaluation": "true",
+      "id": "nestfolio-dashboard-bff-no-dead-user-confirmation-requested-handler",
+      "version": "1"
+    },
+    "goal_versus_guard": "The three completion criteria are Goal-shaped (become-true for this Work Item); the classified Guard is Guard-shaped (keep-true). DR-0005 keeps them separate.",
+    "no_auto_guard_minting": true,
+    "validators": {
+      "dashboard_bff_integration_suite": "byte-identity non-regression subject (criterion 3), not run locally (targets real deployed AWS)",
+      "dashboard_bff_unit_suite": "deterministic command validator (criterion 2 Evidence source)"
+    }
+  }
+}

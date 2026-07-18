@@ -1,0 +1,12 @@
+{
+  "active_before_expiry": true,
+  "cleanup_absent": true,
+  "distinct_from_pass": true,
+  "evidence_linked": true,
+  "explicit_and_authorized": true,
+  "fixture_digest": "61e0f28603e876a361131c0095e65e9c4a65f0ba1824c54c48febbe47eeb63c7",
+  "never_automatic": true,
+  "no_real_criterion_waived": true,
+  "reopens_on_expiry": true,
+  "scoped_and_time_bounded": true
+}

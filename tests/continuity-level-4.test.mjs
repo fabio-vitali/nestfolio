@@ -4,7 +4,7 @@
 import assert from 'node:assert/strict';
 import { execFileSync } from 'node:child_process';
 import { createHash } from 'node:crypto';
-import { cpSync, existsSync, mkdtempSync, readFileSync, rmSync } from 'node:fs';
+import { cpSync, existsSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import os from 'node:os';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -181,26 +181,60 @@ test('S6: isolated revocation disables delivery and returns the effort to Level 
 });
 
 test('S7: adapter view rebuilds byte-identically, digest-matches, and states absent Level 5-6 guarantees', () => {
-  const committed = readFileSync(L4('adapter-view.json'));
-  const first = buildAdapterView({ root: ROOT });
-  const second = buildAdapterView({ root: ROOT });
+  const committedRef = readFileSync(L4('adapter-view.json'));
+  const BACKLOG = 'docs/backlog/dashboard-bff-awaiting-confirmation-activity-gap.md';
+  const RECORDED = 'b656733991c96c4275d11e9a9f2bff7f5ac72cdd298cbc68a4b94b6799dc742d';
+  const current = sha256(readFileSync(join(ROOT, BACKLOG)));
+  let root = ROOT;
+  let tmp = null;
+  if (current !== RECORDED) {
+    // MI-006-R1 completion-aware correction: the working tree advanced past the
+    // Evidence-bound completion write-back; rebuild the adapter view against a
+    // fixture whose backlog is the Git-restored bound-revision bytes, and require
+    // the recorded completion write-back transition.
+    const cb = readJson(join(ROOT, 'continuity/level-6/completion-binding.json'));
+    assert.equal(cb.backlog_writeback.before_sha256, RECORDED);
+    assert.equal(cb.backlog_writeback.after_sha256, current);
+    tmp = mkdtempSync(join(os.tmpdir(), 'mi006r1-s7-'));
+    root = join(tmp, 'root');
+    cpSync(join(ROOT, 'continuity', 'level-4'), join(root, 'continuity', 'level-4'), { recursive: true });
+    cpSync(join(ROOT, 'continuity', 'level-3'), join(root, 'continuity', 'level-3'), { recursive: true });
+    for (const rel of ['continuity/level-2/packs.lock.json', 'continuity/level-1/pack-lock.json', 'package.json', BACKLOG]) {
+      cpSync(join(ROOT, rel), join(root, rel));
+    }
+    writeFileSync(join(root, BACKLOG), execFileSync('git', ['-C', ROOT, 'show', `${REV}:${BACKLOG}`]));
+  }
+  const first = buildAdapterView({ root });
+  const second = buildAdapterView({ root });
   assert.equal(sha256(first.bytes), sha256(second.bytes));
-  assert.equal(sha256(first.bytes), sha256(committed), 'rebuild equals the committed adapter-view.json');
+  assert.equal(sha256(first.bytes), sha256(committedRef), 'rebuild equals the committed adapter-view.json');
   const pack = readFileSync(L4('context-pack.json'));
   assert.equal(first.view.authorized_context_pack.sha256, sha256(pack), 'view digest-matches the authorized pack');
   assert.equal(first.view.delivery_provenance.derived_from_sha256, sha256(pack));
   const text = JSON.stringify(first.view.executor_receives.absent_guarantees);
   for (const lvl of ['Level 5', 'Level 6']) assert.match(text, new RegExp(lvl));
   assert.ok(first.view.omitted_inspect_only.length > 0, 'omitted inspect-only material listed with reasons');
+  if (tmp) { rmSync(tmp, { force: true, recursive: true }); assert.equal(existsSync(tmp), false, 'fixture removed with absence proof'); }
 });
 
 test('S8: a changed source digest marks the pack stale with the exact changed dependency', () => {
   const tmp = mkdtempSync(join(os.tmpdir(), 'mi004-s8-'));
   cpSync(L4(''), join(tmp, 'continuity', 'level-4'), { recursive: true });
   cpSync(join(ROOT, 'continuity', 'level-3'), join(tmp, 'continuity', 'level-3'), { recursive: true });
-  for (const rel of ['docs/backlog/dashboard-bff-awaiting-confirmation-activity-gap.md',
-    'continuity/level-2/packs.lock.json', 'continuity/level-1/pack-lock.json', 'package.json']) {
+  const BACKLOG = 'docs/backlog/dashboard-bff-awaiting-confirmation-activity-gap.md';
+  const RECORDED = 'b656733991c96c4275d11e9a9f2bff7f5ac72cdd298cbc68a4b94b6799dc742d';
+  for (const rel of ['continuity/level-2/packs.lock.json', 'continuity/level-1/pack-lock.json', 'package.json', BACKLOG]) {
     cpSync(join(ROOT, rel), join(tmp, rel));
+  }
+  // MI-006-R1 completion-aware correction: the backlog fixture uses the Git-restored
+  // bound-revision bytes (not the possibly-completed working tree); require the
+  // recorded completion write-back transition once the tree has advanced.
+  writeFileSync(join(tmp, BACKLOG), execFileSync('git', ['-C', ROOT, 'show', `${REV}:${BACKLOG}`]));
+  const currentBacklog = sha256(readFileSync(join(ROOT, BACKLOG)));
+  if (currentBacklog !== RECORDED) {
+    const cb = readJson(join(ROOT, 'continuity/level-6/completion-binding.json'));
+    assert.equal(cb.backlog_writeback.before_sha256, RECORDED);
+    assert.equal(cb.backlog_writeback.after_sha256, currentBacklog);
   }
   assert.equal(checkStaleness({ root: tmp }).status, 'ready', 'fresh fixture is not stale');
   cpSync(join(ROOT, 'continuity', 'level-3', 'work.json'), join(tmp, 'continuity', 'level-3', 'scope.json'));
@@ -221,7 +255,22 @@ test('S8: a changed source digest marks the pack stale with the exact changed de
 });
 
 test('S9: lower-level identities (Levels 1-3, backlog-next, suites, package) remain exact', () => {
+  const BACKLOG = 'docs/backlog/dashboard-bff-awaiting-confirmation-activity-gap.md';
   for (const [rel, expected] of Object.entries(PINNED)) {
+    if (rel === BACKLOG) {
+      // MI-006-R1 completion-aware correction: verify the recorded digest against the
+      // bound-revision committed bytes; require the recorded completion write-back
+      // transition once the working tree advances past completion.
+      const committed = sha256(execFileSync('git', ['-C', ROOT, 'show', `${REV}:${rel}`]));
+      assert.equal(expected, committed, `${rel} recorded digest == bound-revision committed bytes`);
+      const current = sha256(readFileSync(join(ROOT, rel)));
+      if (current !== expected) {
+        const cb = readJson(join(ROOT, 'continuity/level-6/completion-binding.json'));
+        assert.equal(cb.backlog_writeback.before_sha256, expected);
+        assert.equal(cb.backlog_writeback.after_sha256, current);
+      }
+      continue;
+    }
     assert.equal(sha256(readFileSync(join(ROOT, rel))), expected, rel);
   }
 });

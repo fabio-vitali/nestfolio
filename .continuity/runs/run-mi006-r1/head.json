@@ -1,0 +1,10 @@
+{
+  "active_session_id": null,
+  "digest": "08461d3e75a6c3a0ed5de98e61453f6526cc866dfd279155cafa7ad4b79768f5",
+  "latest_checkpoint_id": "run-mi006-r1-final-1",
+  "run_id": "run-mi006-r1",
+  "run_revision": 5,
+  "schema_version": 1,
+  "status": "completed",
+  "updated_at": "2026-07-18T13:26:49.040Z"
+}

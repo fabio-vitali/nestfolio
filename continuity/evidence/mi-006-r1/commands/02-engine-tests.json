@@ -1,0 +1,24 @@
+{
+  "command": {
+    "argv": [
+      "node",
+      "--test",
+      "runtime/continuity/test/core.test.mjs",
+      "runtime/continuity/test/pack-resolution.test.mjs",
+      "runtime/continuity/test/resumable-session.test.mjs",
+      "runtime/continuity/test/session-hooks.test.mjs"
+    ],
+    "cwd_role": "nestfolio-real-post-completion-tree",
+    "end_utc": "2026-07-18T13:36:48.810Z",
+    "exit_code": 0,
+    "parsed": {
+      "fail": 0,
+      "pass": 9,
+      "tests": 9
+    },
+    "start_utc": "2026-07-18T13:36:47.589Z",
+    "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "stdout_sha256": "d884a9b67eae2072d5b758f7f29f3bee9eb04d2f367f5a9f465a25a6c7ae8f76"
+  },
+  "required": "engine suite 0 failures"
+}

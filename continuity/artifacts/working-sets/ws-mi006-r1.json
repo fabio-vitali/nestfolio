@@ -1,0 +1,72 @@
+{
+  "active_run_refs": [],
+  "completed_run_refs": [
+    {
+      "digest": "c5d7cb00b94470647386eb03630fdf82f5617ab8a280e68fabdccfdecf8cb1e0",
+      "id": "run-mi006-r1",
+      "revision": 5
+    }
+  ],
+  "dependency_rationale": "Single bounded MI-006-R1 completion of the already selected, already implemented, already Level-5-run effort; no unrelated Nestfolio work.",
+  "digest": "e050184048b1387b44a87e537bda4abbcce76aac9a5213a602fdf7c2e9ccd789",
+  "evidence_refs": [
+    {
+      "criterion_id": "mi006r1-c1-investigation",
+      "digest": "27e86f7ffb78e710eea31ad6864172b1d68eeb3e64420a566ebaee16f32ac138",
+      "id": "run-mi006-r1-mi006r1-c1-investigation",
+      "revision": 1
+    },
+    {
+      "criterion_id": "mi006r1-c2-cdc-sourcing",
+      "digest": "8d69008a2cb2095dc3d94531a47ecf6a89ce0b8ce8e4fc287c4f3cf2d94be5c9",
+      "id": "run-mi006-r1-mi006r1-c2-cdc-sourcing",
+      "revision": 1
+    },
+    {
+      "criterion_id": "mi006r1-c3-non-regression",
+      "digest": "a1e03c386f1b22f19fc35249886531b48102a368acc3c0f5bbd1cd5cbcd1d666",
+      "id": "run-mi006-r1-mi006r1-c3-non-regression",
+      "revision": 1
+    }
+  ],
+  "exclusions": [
+    "No re-implementation or mutation of the selected effort, its backlog source, or any Level 1-5 artifact.",
+    "No mutation of any other backlog item or any MI-005/VS-001/VS-001A record.",
+    "No MI-007 Decision-and-Learning state (Observation, Lesson, Change Proposal, Decision, learning promotion, registry, remote source, Console)."
+  ],
+  "history": [
+    {
+      "action": "created",
+      "at": "2026-07-18T13:26:40.570Z"
+    },
+    {
+      "action": "run-started",
+      "at": "2026-07-18T13:26:40.630Z",
+      "run_id": "run-mi006-r1"
+    },
+    {
+      "action": "completed",
+      "at": "2026-07-18T13:26:49.038Z",
+      "run_id": "run-mi006-r1"
+    }
+  ],
+  "id": "ws-mi006-r1",
+  "objective": "MI-006-R1 Evidence-bound completion of the one target-routed effort dashboard-bff-awaiting-confirmation-activity-gap through the pinned engine: advance the existing in_progress Work Item to Evidence-bound completed against the three Level 3 criteria with typed Evidence spanning deterministic, agent-review, and human-review modes, the classified Guard coexisting, and the truthful backlog completion write-back.",
+  "revision": 3,
+  "schema_version": 1,
+  "scope_ref": {
+    "digest": "053fc05b2c375645c5159c461204365e397074b6ed7265a75218ba04f994a2cf",
+    "id": "scope-mi006-r1-completion",
+    "revision": 1
+  },
+  "shared_completion_boundary": "Evidence-bound completion of the one target-routed effort through the pinned engine; no effort re-implementation and no file effects.",
+  "status": "completed",
+  "updated_at": "2026-07-18T13:26:49.038Z",
+  "work_item_refs": [
+    {
+      "digest": "918cb597368fc7713c755640e5572ad5902d41a134232c4404ee12dd5b475498",
+      "id": "dashboard-bff-awaiting-confirmation-activity-gap",
+      "revision": 5
+    }
+  ]
+}

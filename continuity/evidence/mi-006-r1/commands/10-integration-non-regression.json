@@ -1,0 +1,26 @@
+{
+  "command": {
+    "argv": [
+      "node",
+      "continuity/level-6/checks/criterion-3-non-regression-check.mjs"
+    ],
+    "cwd_role": "nestfolio-real-post-completion-tree",
+    "end_utc": "2026-07-18T13:37:13.346Z",
+    "exit_code": 0,
+    "parsed": {
+      "check": "mi006-r1-criterion-3-non-regression",
+      "dead_handler_non_comment_occurrences": 0,
+      "integration_files_byte_identical": true,
+      "result": "pass",
+      "unit_files_byte_identical": true
+    },
+    "start_utc": "2026-07-18T13:37:13.315Z",
+    "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "stdout_sha256": "ef3ccd385cdea9cad07d01949002805b521fb566565d121a195a9531e3a904f7"
+  },
+  "integration_files": {
+    "services/investor/dashboard-bff/test/integration/dashboard-bff.integration.test.ts": "aa7c11fc1e975deecb8cd5329a2c831aef5dd36e2374473831141f2d1999fc50",
+    "services/investor/dashboard-bff/test/integration/read-model-projection.integration.test.ts": "bad65ddec03bffb7fdf78031e42d8fc69c53a3cdccee63024f990e3664b2f8e8"
+  },
+  "note": "the integration suite targets real deployed AWS and is not run locally; non-regression is proven by byte-identity (SE-001 precedent)"
+}

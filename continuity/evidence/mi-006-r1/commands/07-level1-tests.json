@@ -1,0 +1,21 @@
+{
+  "command": {
+    "argv": [
+      "node",
+      "--test",
+      "tests/continuity-level-1.test.mjs"
+    ],
+    "cwd_role": "nestfolio-real-post-completion-tree",
+    "end_utc": "2026-07-18T13:37:12.641Z",
+    "exit_code": 0,
+    "parsed": {
+      "fail": 0,
+      "pass": 14,
+      "tests": 14
+    },
+    "start_utc": "2026-07-18T13:37:12.394Z",
+    "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "stdout_sha256": "f1c9ec53a1dab03971453308b7a63de29166589a7e9a7fc04728bc01ae3fb3b1"
+  },
+  "required": "retained Level 1 14/14"
+}

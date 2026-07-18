@@ -1,0 +1,40 @@
+{
+  "allowed_read_paths": [
+    "runtime/continuity",
+    ".claude/skills",
+    "docs/backlog",
+    "continuity",
+    ".continuity",
+    "services/investor/dashboard-bff"
+  ],
+  "allowed_write_paths": [],
+  "digest": "053fc05b2c375645c5159c461204365e397074b6ed7265a75218ba04f994a2cf",
+  "effect_classes": [],
+  "exclusions": [
+    "No re-implementation or mutation of the selected effort, its backlog source, or any Level 1-5 artifact.",
+    "No mutation of any other backlog item or any MI-005/VS-001/VS-001A record.",
+    "No MI-007 Decision-and-Learning state (Observation, Lesson, Change Proposal, Decision, learning promotion, registry, remote source, Console)."
+  ],
+  "expansion_policy": "explicit-revision-and-authorization",
+  "fingerprint_paths": [
+    "runtime/continuity",
+    "continuity/packs",
+    "continuity/bindings",
+    "continuity/level-1",
+    "continuity/level-2",
+    "continuity/level-3",
+    "continuity/level-4",
+    "continuity/level-5",
+    "services/investor/dashboard-bff"
+  ],
+  "id": "scope-mi006-r1-completion",
+  "owner": "VS-001",
+  "repository_identity": {
+    "declared_upstream_baseline": "363283bcc97b1e04710db0e7f759ffffddb18b69",
+    "repository": "nestfolio"
+  },
+  "revision": 1,
+  "schema_version": 1,
+  "status": "active",
+  "updated_at": "2026-07-18T13:26:40.569Z"
+}

@@ -1,47 +1,99 @@
 {
-  "active_run_refs": [
+  "active_run_refs": [],
+  "blockers": [],
+  "completed_run_refs": [
     {
-      "id": "run-mi005",
-      "revision": 2
+      "digest": "c5d7cb00b94470647386eb03630fdf82f5617ab8a280e68fabdccfdecf8cb1e0",
+      "id": "run-mi006-r1",
+      "revision": 5
     }
   ],
-  "blockers": [],
-  "completed_run_refs": [],
   "completion_criteria": [
     {
-      "description": "The material keyed effect file exists with the expected content: continuity/dogfood/mi-005-effect.txt containing the declared MI-005 effect content.",
-      "id": "mi005-keyed-effect-materialized",
-      "required_evidence_type": "repository-file",
-      "status": "pending",
+      "description": "investigation determines expected-versus-actual recent-activity behavior for L2 AWAITING_CONFIRMATION decisions",
+      "id": "mi006r1-c1-investigation",
+      "required_evidence_type": "agent-and-human-review-record",
+      "status": "passed",
       "validator": {
-        "contains": "MI-005 resumable run cutover keyed effect completed exactly once.",
-        "path": "continuity/dogfood/mi-005-effect.txt",
+        "contains": "\"mode\": \"human-review-authorization\"",
+        "path": "continuity/level-6/criterion-1-investigation-review.json",
         "type": "file"
+      }
+    },
+    {
+      "description": "if a real gap is confirmed, the signal is sourced from the DecisionPacket AWAITING_CONFIRMATION status via the existing row CDC, never from the removed dead event",
+      "id": "mi006r1-c2-cdc-sourcing",
+      "required_evidence_type": "deterministic-suite-run",
+      "status": "passed",
+      "validator": {
+        "command": [
+          "npx",
+          "nx",
+          "test",
+          "dashboard-bff"
+        ],
+        "type": "command"
+      }
+    },
+    {
+      "description": "the dashboard-bff unit suite remains green, the integration-suite files are byte-identical (non-regression), and the removed USER_CONFIRMATION_REQUESTED handler is not reintroduced",
+      "id": "mi006r1-c3-non-regression",
+      "required_evidence_type": "deterministic-non-regression-proof",
+      "status": "passed",
+      "validator": {
+        "command": [
+          "node",
+          "continuity/level-6/checks/criterion-3-non-regression-check.mjs"
+        ],
+        "type": "command"
       }
     }
   ],
   "constraints": [
-    "No re-implementation or mutation of the selected effort, its backlog source, or any Level 1-4 artifact.",
-    "No current journal read/write beyond the read-only route check and byte-identity proof.",
-    "No Work completion, Evidence-bound completion, Assurance, Guard, Waiver, Decision, Learning, or Level 6 state.",
-    "The Run closes at the final verified Checkpoint; validate and complete are never invoked."
+    "The pinned engine runtime/continuity/** is used unmodified; no engine code is introduced.",
+    "Completion occurs only through the engine completion gate (all required criteria passed with linked immutable Evidence).",
+    "The single permitted canonical planning mutation is the engine atomic backlog completion write-back of this one effort."
   ],
   "decisions": [],
   "dependencies": [],
-  "digest": "011336b848987849c890307802cbf7c2954aa0e5ab72c9f164175f4971da4079",
-  "evidence_refs": [],
+  "digest": "918cb597368fc7713c755640e5572ad5902d41a134232c4404ee12dd5b475498",
+  "evidence_refs": [
+    {
+      "criterion_id": "mi006r1-c1-investigation",
+      "digest": "27e86f7ffb78e710eea31ad6864172b1d68eeb3e64420a566ebaee16f32ac138",
+      "id": "run-mi006-r1-mi006r1-c1-investigation",
+      "revision": 1
+    },
+    {
+      "criterion_id": "mi006r1-c2-cdc-sourcing",
+      "digest": "8d69008a2cb2095dc3d94531a47ecf6a89ce0b8ce8e4fc287c4f3cf2d94be5c9",
+      "id": "run-mi006-r1-mi006r1-c2-cdc-sourcing",
+      "revision": 1
+    },
+    {
+      "criterion_id": "mi006r1-c3-non-regression",
+      "digest": "a1e03c386f1b22f19fc35249886531b48102a368acc3c0f5bbd1cd5cbcd1d666",
+      "id": "run-mi006-r1-mi006r1-c3-non-regression",
+      "revision": 1
+    }
+  ],
   "exclusions": [
-    "The selected effort implementation, its backlog source, and every Level 1-4 artifact.",
-    "The entire current journal tree.",
-    "Any Work completion, Evidence-bound completion, Assurance, Guard, Waiver, Decision, Learning, or Level 6 state.",
-    "validate and complete are prohibited for this Run (they would create Evidence-bound completion and ship the backlog)."
+    "No re-implementation or mutation of the selected effort, its backlog source, or any Level 1-5 artifact.",
+    "No mutation of any other backlog item or any MI-005/VS-001/VS-001A record.",
+    "No MI-007 Decision-and-Learning state (Observation, Lesson, Change Proposal, Decision, learning promotion, registry, remote source, Console)."
   ],
   "expected_outputs": [
-    "one completed keyed effect and one deduplicated replay",
-    "intermediate and final verified Checkpoints and a published Handoff",
-    "adapter-produced execution views for both Sessions"
+    "formed Assurance Plan carrying the three Level 3 completion criteria",
+    "three linked immutable Evidence artifacts spanning deterministic, agent-review, and human-review modes",
+    "the atomic Evidence-bound completion with the truthful backlog write-back"
   ],
-  "guards": [],
+  "guards": [
+    {
+      "id": "nestfolio-dashboard-bff-no-dead-user-confirmation-requested-handler",
+      "path": "continuity/bindings/nestfolio/guards/mi006-r1-dashboard-bff-no-dead-user-confirmation-requested-handler.json",
+      "version": "1"
+    }
+  ],
   "history": [
     {
       "action": "prepared",
@@ -52,10 +104,31 @@
       "action": "run-started",
       "at": "2026-07-17T19:56:43.649Z",
       "run_id": "run-mi005"
+    },
+    {
+      "action": "mi006-r1-rebinding",
+      "at": "2026-07-18T13:26:40.567Z",
+      "authorization": "human program owner fabio.vitali, human-review authorization at 2026-07-18T13:04:57.000Z",
+      "contract": "MI-006-R1 Evidence-Bound Completion Existing-Work-Item Rebinding Correction"
+    },
+    {
+      "action": "run-started",
+      "at": "2026-07-18T13:26:40.629Z",
+      "run_id": "run-mi006-r1"
+    },
+    {
+      "action": "completed",
+      "at": "2026-07-18T13:26:49.038Z",
+      "evidence_refs": [
+        "run-mi006-r1-mi006r1-c1-investigation",
+        "run-mi006-r1-mi006r1-c2-cdc-sourcing",
+        "run-mi006-r1-mi006r1-c3-non-regression"
+      ],
+      "run_id": "run-mi006-r1"
     }
   ],
   "id": "dashboard-bff-awaiting-confirmation-activity-gap",
-  "objective": "MI-005 bounded Level 5 resumable-run continuity validation for the one target-routed effort.\nSession 1 (session-mi005-1) executes exactly one material keyed effect:\nnode runtime/continuity/adapters/claude-code/cli.mjs effect --run-id run-mi005 --session-id session-mi005-1 --key mi005-material-effect --path continuity/dogfood/mi-005-effect.txt --content 'MI-005 resumable run cutover keyed effect completed exactly once.'\nthen checkpoints with the exact next action 'Replay effect key mi005-material-effect to prove deduplication, then capture the final Checkpoint and close run-mi005 at Level 5 operational scope only (do NOT run validate or complete).' and interrupts to publish the Handoff before the Claude Code session ends:\nnode runtime/continuity/adapters/claude-code/cli.mjs checkpoint --run-id run-mi005 --session-id session-mi005-1 --next-action \"Replay effect key mi005-material-effect to prove deduplication, then capture the final Checkpoint and close run-mi005 at Level 5 operational scope only (do NOT run validate or complete).\"\nnode runtime/continuity/adapters/claude-code/cli.mjs interrupt --run-id run-mi005 --session-id session-mi005-1 --reason deliberate-pause\nSession 2 (session-mi005-2) is a separately launched fresh Claude Code process resumed by the SessionStart hook from repository-local state; it replays the same effect key/path/content to prove deduplicated:true, then captures the FINAL verified Checkpoint and ENDS. It must NOT run validate or complete (Level 5 operational closure only; no Work completion, Assurance, or Level 6 state):\nnode runtime/continuity/adapters/claude-code/cli.mjs effect --run-id run-mi005 --session-id session-mi005-2 --key mi005-material-effect --path continuity/dogfood/mi-005-effect.txt --content 'MI-005 resumable run cutover keyed effect completed exactly once.'\nnode runtime/continuity/adapters/claude-code/cli.mjs checkpoint --run-id run-mi005 --session-id session-mi005-2 --next-action \"No execution action remains. Level 5 operational closure only; no Work completion, Assurance, or Level 6 state exists.\" --final 1",
+  "objective": "MI-006-R1 Evidence-bound completion of the one target-routed effort dashboard-bff-awaiting-confirmation-activity-gap through the pinned engine: advance the existing in_progress Work Item to Evidence-bound completed against the three Level 3 criteria with typed Evidence spanning deterministic, agent-review, and human-review modes, the classified Guard coexisting, and the truthful backlog completion write-back.",
   "project_binding": "nestfolio",
   "required_capabilities": [
     "work-selection",
@@ -64,12 +137,14 @@
     "fresh-session-resume"
   ],
   "required_evidence": [
-    "repository-file Evidence for the keyed effect"
+    "agent-and-human-review record for criterion 1 (investigation finding plus program-owner human-review authorization with machine-captured UTC)",
+    "deterministic dashboard-bff unit suite run for criterion 2 plus a distinct agent-review sourcing confirmation",
+    "deterministic non-regression proof for criterion 3 (integration-file byte-identity plus removed-dead-handler check)"
   ],
-  "revision": 2,
+  "revision": 5,
   "schema_version": 1,
   "scope_ref": {
-    "id": "scope-mi005-run-continuity",
+    "id": "scope-mi006-r1-completion",
     "revision": 1
   },
   "source": {
@@ -78,7 +153,7 @@
     "source_status": "parking",
     "type": "nestfolio-backlog"
   },
-  "status": "in_progress",
+  "status": "completed",
   "type": "bug",
-  "updated_at": "2026-07-17T19:56:43.649Z"
+  "updated_at": "2026-07-18T13:26:49.038Z"
 }

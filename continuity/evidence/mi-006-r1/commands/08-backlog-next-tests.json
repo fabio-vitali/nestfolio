@@ -1,0 +1,29 @@
+{
+  "command": {
+    "argv": [
+      "node",
+      "--test",
+      ".claude/skills/backlog-next/test/backlog-gate.test.mjs",
+      ".claude/skills/backlog-next/test/backward-evidence.test.mjs",
+      ".claude/skills/backlog-next/test/classify-changes.test.mjs",
+      ".claude/skills/backlog-next/test/classify-derivation.test.mjs",
+      ".claude/skills/backlog-next/test/decision-log.test.mjs",
+      ".claude/skills/backlog-next/test/detect-cli-exit-contract.test.mjs",
+      ".claude/skills/backlog-next/test/detect-deploy-resolve.test.mjs",
+      ".claude/skills/backlog-next/test/gate-wiring.test.mjs",
+      ".claude/skills/backlog-next/test/lane-classification.test.mjs"
+    ],
+    "cwd_role": "nestfolio-real-post-completion-tree",
+    "end_utc": "2026-07-18T13:37:12.857Z",
+    "exit_code": 0,
+    "parsed": {
+      "fail": 0,
+      "pass": 68,
+      "tests": 68
+    },
+    "start_utc": "2026-07-18T13:37:12.651Z",
+    "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "stdout_sha256": "6c429ce5c00f39d8796f27ca8b358d31d6d811f774a810acb71b83bde3550e44"
+  },
+  "required": "backlog-next 68/68 without invoking any Skill"
+}

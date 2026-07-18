@@ -6,6 +6,7 @@
 // absent-Level-6 declarations. No network, no mutation, no Skill.
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
+import { execFileSync } from 'node:child_process';
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -57,7 +58,21 @@ test('run-binding: bound Level 3 scope and Level 2 aggregate match', () => {
 
 test('run-binding: bound effort source is byte-identical to the recorded digest', () => {
   assert.equal(runBinding.target_route.effort_identity, 'dashboard-bff-awaiting-confirmation-activity-gap');
-  assert.equal(runBinding.target_route.effort_source_sha256, fileSha('docs/backlog/dashboard-bff-awaiting-confirmation-activity-gap.md'));
+  // MI-006-R1 completion-aware correction (published_suite_correction): verify the
+  // recorded digest against the bound-revision COMMITTED backlog bytes (permanent
+  // historical truth); when the working tree has advanced past the Evidence-bound
+  // completion write-back, additionally require the recorded transition in the
+  // Level 6 completion-binding.
+  {
+    const committed = sha256(execFileSync('git', ['-C', root, 'show', `${runBinding.bound_repository_revision}:docs/backlog/dashboard-bff-awaiting-confirmation-activity-gap.md`]));
+    assert.equal(runBinding.target_route.effort_source_sha256, committed);
+    const current = fileSha('docs/backlog/dashboard-bff-awaiting-confirmation-activity-gap.md');
+    if (current !== runBinding.target_route.effort_source_sha256) {
+      const cb = readJson('continuity/level-6/completion-binding.json');
+      assert.equal(cb.backlog_writeback.before_sha256, runBinding.target_route.effort_source_sha256);
+      assert.equal(cb.backlog_writeback.after_sha256, current);
+    }
+  }
   assert.equal(runBinding.target_route.effort_source_sha256, 'b656733991c96c4275d11e9a9f2bff7f5ac72cdd298cbc68a4b94b6799dc742d');
   assert.equal(runBinding.bound_repository_revision, '363283bcc97b1e04710db0e7f759ffffddb18b69');
 });

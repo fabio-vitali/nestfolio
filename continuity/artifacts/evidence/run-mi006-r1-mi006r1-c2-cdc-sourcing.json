@@ -1,0 +1,31 @@
+{
+  "authority": "deterministic",
+  "criterion_id": "mi006r1-c2-cdc-sourcing",
+  "digest": "8d69008a2cb2095dc3d94531a47ecf6a89ce0b8ce8e4fc287c4f3cf2d94be5c9",
+  "evidence_type": "deterministic-suite-run",
+  "id": "run-mi006-r1-mi006r1-c2-cdc-sourcing",
+  "provenance": {
+    "adapter": "claude-code",
+    "repository_fingerprint": "68f9b273af5de9f676cd046af03f29b161b8584cd6ba3c2abb290c18232c9cd6",
+    "session_id": "session-mi006-r1-1",
+    "validator": {
+      "command": [
+        "npx",
+        "nx",
+        "test",
+        "dashboard-bff"
+      ],
+      "type": "command"
+    }
+  },
+  "revision": 1,
+  "run_id": "run-mi006-r1",
+  "schema_version": 1,
+  "status": "accepted",
+  "updated_at": "2026-07-18T13:26:48.929Z",
+  "validation_result_ref": {
+    "digest": "7e6a239b296b39d7ea697b933e58a0815376a80de9aae50d98784f367325e62e",
+    "id": "run-mi006-r1-mi006r1-c2-cdc-sourcing-2",
+    "revision": 1
+  }
+}

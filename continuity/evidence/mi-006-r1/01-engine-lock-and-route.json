@@ -1,0 +1,13 @@
+{
+  "aggregate_engine_digest": "7e31ff56a10ca6b1715b29f02132e66c80e321921b41dcb55329db2e0f320a38",
+  "engine_lock": "continuity/level-6/engine-lock.json",
+  "engine_modification_permitted": false,
+  "hook_registration_digest": "73387f347f43d0f6a154f83ed54c3bdaee0e0b6ba6dbf3120ebf5b8c28834378",
+  "route_check": {
+    "active_current_journal_run_for_effort": false,
+    "other_active_target_run_for_effort": false,
+    "result": "clear",
+    "run_mi005_status": "interrupted (closed; never reopened, reused, resumed, converted, or completed)"
+  },
+  "settings_sha256": "999e828d22fcf1cf1e66eb81260a4f8ff3a36b2387adf117ca84602e65c2c6b7"
+}
