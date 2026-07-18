@@ -22,6 +22,14 @@
     }
   ],
   "artifacts": {
+    "change-proposals": [
+      {
+        "digest": "31adbc339d00ab1b8ff67433f78d23eb061efb331612e33d2a66a4a256238b4f",
+        "id": "change-proposal-mi007-01-deterministic-evidence-boundary-rule",
+        "revision": 3,
+        "status": "applied"
+      }
+    ],
     "checkpoints": [
       {
         "digest": "b218b66ad2321ff96790ffce8e8a29fadba20764bc9b9585c221cc0dce71c059",
@@ -90,6 +98,14 @@
         "id": "run-vs001a",
         "revision": 1,
         "status": "authorized"
+      }
+    ],
+    "decisions": [
+      {
+        "digest": "50724a854e4bcc0a125a55f3034fc0009cd1bc39f44ea0d1a0d329bf464b671c",
+        "id": "decision-mi007-01-accept-deterministic-evidence-boundary-change",
+        "revision": 1,
+        "status": "decided"
       }
     ],
     "evidence": [
@@ -236,6 +252,18 @@
         "id": "lesson-f4536b4b-1784-4a7a-95b0-daa941f2fefe",
         "revision": 1,
         "status": "candidate"
+      },
+      {
+        "digest": "86e55c2877f9a4e9e67ee08e81ea315aad2c4ea8cfc507ae75d4702ddfde2e36",
+        "id": "lesson-mi007-01-deterministic-evidence-boundary",
+        "revision": 2,
+        "status": "accepted"
+      },
+      {
+        "digest": "ee827d742ad7f6cc700eed5c416b9665af88743b1b3fbb209fc75e6e4b9646cc",
+        "id": "lesson-mi007-02-automatic-rebinding-rejected",
+        "revision": 1,
+        "status": "rejected"
       }
     ],
     "observations": [
@@ -250,6 +278,36 @@
         "id": "observation-7f1dc36c-0754-4035-88af-f4bd58432878",
         "revision": 1,
         "status": "triaged"
+      },
+      {
+        "digest": "bfae525bf5970b388a1d1ae80cb36ea0457f566f895efddef041024078da89b4",
+        "id": "observation-mi007-01-deterministic-evidence-sourcing",
+        "revision": 2,
+        "status": "accepted"
+      },
+      {
+        "digest": "bc4ce2a3ce289c6c9568f7d67eb411da00cc96b5c0b0061d06f548412c60bc74",
+        "id": "observation-mi007-02-dead-handler-guard-duplicate",
+        "revision": 2,
+        "status": "duplicate"
+      },
+      {
+        "digest": "e2bbb1aadde4acb718a87389fdb98a2ed3060078b28a0bf0ad6b9261b3d2c3e8",
+        "id": "observation-mi007-03-run-mi005-staleness",
+        "revision": 2,
+        "status": "deferred"
+      },
+      {
+        "digest": "741cec4189b7e1e5d948fc02c96005fab700ab17e8d9d30430cd1ca7ae608d1e",
+        "id": "observation-mi007-04-occupied-work-item-conflict",
+        "revision": 2,
+        "status": "rejected"
+      },
+      {
+        "digest": "69ab2a688122338cc46a55348b69676425cb6a68dff60a4ccf95b39aa471c8ee",
+        "id": "observation-mi007-05-historical-import-f30",
+        "revision": 1,
+        "status": "historical"
       }
     ],
     "pack-locks": [
@@ -528,7 +586,7 @@
     ]
   },
   "derived": true,
-  "digest": "9f36abdf678b2502c844a8a45d749acb3d9c24aa8fc596b5be7da11758164644",
-  "rebuilt_at": "2026-07-18T13:26:49.044Z",
+  "digest": "a1bc6f56109b2aa7961d258e8d65e5552ebe33b37be1d67d8a0e11352605cdb0",
+  "rebuilt_at": "2026-07-18T17:02:23.323Z",
   "schema_version": 1
 }

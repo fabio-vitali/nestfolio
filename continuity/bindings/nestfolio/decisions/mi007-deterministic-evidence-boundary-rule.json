@@ -1,0 +1,48 @@
+{
+  "application_authorization": {
+    "capture": "machine-captured UTC via date -u at the moment of confirmation (MI-004/MI-006-R1 authorization precedent)",
+    "captured_at_utc": "2026-07-18T17:01:57.000Z",
+    "statement_verbatim": "ok"
+  },
+  "applies_to": "criterion Evidence binding for target-routed Nestfolio work",
+  "authority": "fabio.vitali (human program owner)",
+  "enforcement": "non-executable — future contracts cite this record; nothing enforces it automatically",
+  "id": "mi007-deterministic-evidence-boundary-rule",
+  "provenance": {
+    "change_proposal": {
+      "digest": "27117e1787c9d0c1a5dd0fbdaa04506c28d9c3f440b9c70a3bf3a4bf84e5a97a",
+      "id": "change-proposal-mi007-01-deterministic-evidence-boundary-rule",
+      "revision": 2
+    },
+    "decision": {
+      "digest": "50724a854e4bcc0a125a55f3034fc0009cd1bc39f44ea0d1a0d329bf464b671c",
+      "id": "decision-mi007-01-accept-deterministic-evidence-boundary-change",
+      "revision": 1
+    },
+    "lesson": {
+      "digest": "86e55c2877f9a4e9e67ee08e81ea315aad2c4ea8cfc507ae75d4702ddfde2e36",
+      "id": "lesson-mi007-01-deterministic-evidence-boundary",
+      "revision": 2
+    },
+    "observation": {
+      "digest": "bfae525bf5970b388a1d1ae80cb36ea0457f566f895efddef041024078da89b4",
+      "id": "observation-mi007-01-deterministic-evidence-sourcing",
+      "revision": 2
+    },
+    "source_evidence": [
+      {
+        "id": "run-mi006-r1-mi006r1-c2-cdc-sourcing",
+        "sha256": "05d2314133133e7cafedc489a8b53429e652dcbfb24bef2eb50bfd0d068c791b"
+      },
+      {
+        "id": "run-mi006-r1-mi006r1-c3-non-regression",
+        "sha256": "a3e3ab815c0c2d9793eba1e3f08b59382d9fd97f96d71b258cf79ecee701b718"
+      }
+    ]
+  },
+  "rule": "Before binding a validator as deterministic Evidence for a completion criterion, verify the validator is executable within the boundary of the session that must produce the Evidence; a validator that depends on external infrastructure may enter a bounded contract only as a byte-identity/non-regression subject or as separately produced, provenance-recorded external Evidence.",
+  "schema_version": 1,
+  "source_repository": "continuity-lab (MI-007 governed learning)",
+  "status": "accepted",
+  "version": "1"
+}

@@ -1,0 +1,25 @@
+{
+  "digest": "ee827d742ad7f6cc700eed5c416b9665af88743b1b3fbb209fc75e6e4b9646cc",
+  "id": "lesson-mi007-02-automatic-rebinding-rejected",
+  "iteration": "MI-007",
+  "kind": "continuity.target-learning.lesson",
+  "observation_ref": {
+    "digest": "741cec4189b7e1e5d948fc02c96005fab700ab17e8d9d30430cd1ca7ae608d1e",
+    "id": "observation-mi007-04-occupied-work-item-conflict",
+    "revision": 2
+  },
+  "promotion": {
+    "automatic": false,
+    "status": "not_promoted",
+    "target_changes": []
+  },
+  "revision": 1,
+  "safety_review": {
+    "rationale": "An automatic immutability exception would let any Run mutate immutable records without owner authorization; the safe path is a contracted, owner-approved, bounded exception as MI-006-R1 performed.",
+    "status": "unsafe"
+  },
+  "schema_version": 1,
+  "statement": "Candidate (rejected): on an occupied work-item id the engine should automatically rebind or advance the existing record so completion can proceed.",
+  "status": "rejected",
+  "updated_at": "2026-07-18T16:57:07.715Z"
+}

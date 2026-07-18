@@ -1,0 +1,36 @@
+{
+  "contracted_review_outcome": "deferred",
+  "digest": "e2bbb1aadde4acb718a87389fdb98a2ed3060078b28a0bf0ad6b9261b3d2c3e8",
+  "evidence_refs": [],
+  "id": "observation-mi007-03-run-mi005-staleness",
+  "iteration": "MI-007",
+  "kind": "continuity.target-learning.observation",
+  "provenance": {
+    "sources": [
+      {
+        "path": "docs/70-implementation/mi-006-r1-evidence-bound-completion-existing-work-item-rebinding.md",
+        "repository": "continuity-lab",
+        "revision_lineage": "80d70ac9bf9f1252474a9fbed414a0ef6ee57061",
+        "section": "Accepted documented consequence"
+      },
+      {
+        "path": "continuity/artifacts/runs/run-mi005.json",
+        "role": "MI-005 run record byte-identity (unchanged)",
+        "sha256": "86717732a73fdd80bb2071dfca742ee79b08ba8361547423891aa14520c5e0be"
+      }
+    ]
+  },
+  "review": {
+    "capture": "machine-captured UTC via date -u at the moment of confirmation (MI-004/MI-006-R1 authorization precedent)",
+    "captured_at_utc": "2026-07-18T16:56:45.000Z",
+    "outcome": "deferred",
+    "rationale": "No action in this bound; any staleness-recovery capability is a separately contracted future slice; not a defect.",
+    "reviewer": "fabio.vitali (human program owner)",
+    "statement_verbatim": "Confermo: 01 accepted, 02 duplicate, 03 deferred, 04 rejected"
+  },
+  "revision": 2,
+  "schema_version": 1,
+  "statement": "After the effort's Work Item advanced past revision 2, run-mi005 became permanently non-resumable by staleness (its final Checkpoint pins work_item revision 2; the engine's freshness validation returns STALE_RUN); MI-006-R1 recorded this as an accepted, documented consequence with no byte change to any run-mi005 record.",
+  "status": "deferred",
+  "updated_at": "2026-07-18T16:56:56.796Z"
+}

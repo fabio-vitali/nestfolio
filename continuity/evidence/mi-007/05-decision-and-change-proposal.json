@@ -1,0 +1,55 @@
+{
+  "change_proposal": {
+    "applied_file": {
+      "path": "continuity/bindings/nestfolio/decisions/mi007-deterministic-evidence-boundary-rule.json",
+      "sha256": "f602eeb0c9e438821c312cea6a3e112c0035a41ee39e18b6c0ec40360145050d"
+    },
+    "decision_ref": {
+      "digest": "50724a854e4bcc0a125a55f3034fc0009cd1bc39f44ea0d1a0d329bf464b671c",
+      "id": "decision-mi007-01-accept-deterministic-evidence-boundary-change",
+      "revision": 1
+    },
+    "digest": "31adbc339d00ab1b8ff67433f78d23eb061efb331612e33d2a66a4a256238b4f",
+    "final_revision": 3,
+    "final_status": "applied",
+    "id": "change-proposal-mi007-01-deterministic-evidence-boundary-rule",
+    "revision_chain": [
+      "proposed(rev1)",
+      "accepted(rev2)",
+      "applied(rev3)"
+    ],
+    "target_artifact": "continuity/bindings/nestfolio/decisions/mi007-deterministic-evidence-boundary-rule.json"
+  },
+  "decision": {
+    "digest": "50724a854e4bcc0a125a55f3034fc0009cd1bc39f44ea0d1a0d329bf464b671c",
+    "id": "decision-mi007-01-accept-deterministic-evidence-boundary-change",
+    "revision": 1,
+    "status": "decided",
+    "supporting_refs": {
+      "change_proposal": {
+        "id": "change-proposal-mi007-01-deterministic-evidence-boundary-rule"
+      },
+      "evidence": [
+        {
+          "id": "run-mi006-r1-mi006r1-c2-cdc-sourcing",
+          "sha256": "05d2314133133e7cafedc489a8b53429e652dcbfb24bef2eb50bfd0d068c791b"
+        },
+        {
+          "id": "run-mi006-r1-mi006r1-c3-non-regression",
+          "sha256": "a3e3ab815c0c2d9793eba1e3f08b59382d9fd97f96d71b258cf79ecee701b718"
+        }
+      ],
+      "lesson": {
+        "digest": "86e55c2877f9a4e9e67ee08e81ea315aad2c4ea8cfc507ae75d4702ddfde2e36",
+        "id": "lesson-mi007-01-deterministic-evidence-boundary",
+        "revision": 2
+      },
+      "observation": {
+        "digest": "bfae525bf5970b388a1d1ae80cb36ea0457f566f895efddef041024078da89b4",
+        "id": "observation-mi007-01-deterministic-evidence-sourcing",
+        "revision": 2
+      }
+    }
+  },
+  "iteration": "MI-007"
+}

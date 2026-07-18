@@ -1,0 +1,51 @@
+{
+  "iteration": "MI-007",
+  "lessons": [
+    {
+      "digest": "86e55c2877f9a4e9e67ee08e81ea315aad2c4ea8cfc507ae75d4702ddfde2e36",
+      "id": "lesson-mi007-01-deterministic-evidence-boundary",
+      "observation_ref": {
+        "digest": "bfae525bf5970b388a1d1ae80cb36ea0457f566f895efddef041024078da89b4",
+        "id": "observation-mi007-01-deterministic-evidence-sourcing",
+        "revision": 2
+      },
+      "promotion": {
+        "automatic": false,
+        "status": "proposal-created",
+        "target_changes": [
+          {
+            "id": "change-proposal-mi007-01-deterministic-evidence-boundary-rule"
+          }
+        ]
+      },
+      "revision": 2,
+      "safety_review": {
+        "outcome": "accepted",
+        "reviewer": "fabio.vitali (human program owner)",
+        "status": "human-review-complete"
+      },
+      "status": "accepted"
+    },
+    {
+      "digest": "ee827d742ad7f6cc700eed5c416b9665af88743b1b3fbb209fc75e6e4b9646cc",
+      "id": "lesson-mi007-02-automatic-rebinding-rejected",
+      "observation_ref": {
+        "digest": "741cec4189b7e1e5d948fc02c96005fab700ab17e8d9d30430cd1ca7ae608d1e",
+        "id": "observation-mi007-04-occupied-work-item-conflict",
+        "revision": 2
+      },
+      "promotion": {
+        "automatic": false,
+        "status": "not_promoted",
+        "target_changes": []
+      },
+      "revision": 1,
+      "safety_review": {
+        "rationale": "An automatic immutability exception would let any Run mutate immutable records without owner authorization; the safe path is a contracted, owner-approved, bounded exception as MI-006-R1 performed.",
+        "status": "unsafe"
+      },
+      "status": "rejected"
+    }
+  ],
+  "rule": "Lessons carry no rule authority; promotion.automatic is always false; the only path from lesson-mi007-01 to a canonical change is the separate Change Proposal."
+}

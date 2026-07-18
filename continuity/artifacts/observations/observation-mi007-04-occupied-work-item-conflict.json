@@ -1,0 +1,34 @@
+{
+  "contracted_review_outcome": "rejected",
+  "digest": "741cec4189b7e1e5d948fc02c96005fab700ab17e8d9d30430cd1ca7ae608d1e",
+  "evidence_refs": [],
+  "id": "observation-mi007-04-occupied-work-item-conflict",
+  "iteration": "MI-007",
+  "kind": "continuity.target-learning.observation",
+  "provenance": {
+    "sources": [
+      {
+        "path": "docs/70-implementation/mi-006-evidence-bound-completion-and-guard-coexistence.md",
+        "repository": "continuity-lab",
+        "revision": "893f7e04769798452c9fcd3716ea34459f1a51dd"
+      },
+      {
+        "reference": "MI-006-R1 contract immutability_exception (session context-pack)",
+        "repository": "continuity-lab"
+      }
+    ]
+  },
+  "review": {
+    "capture": "machine-captured UTC via date -u at the moment of confirmation (MI-004/MI-006-R1 authorization precedent)",
+    "captured_at_utc": "2026-07-18T16:56:45.000Z",
+    "outcome": "rejected",
+    "rationale": "The derived candidate lesson-mi007-02 is unsafe; automatic rebinding of an occupied work-item id is rejected.",
+    "reviewer": "fabio.vitali (human program owner)",
+    "statement_verbatim": "Confermo: 01 accepted, 02 duplicate, 03 deferred, 04 rejected"
+  },
+  "revision": 2,
+  "schema_version": 1,
+  "statement": "MI-006 closed UNCONDITIONAL FAIL with ENGINE_POLICY_MISMATCH because the pinned engine keys exactly one Work Item per work_id and the effort's id was occupied by an immutable in_progress MI-005 record; selectWork returned REVISION_CONFLICT (expected_revision 0, actual_revision 2) and no engine path existed without engine modification or an immutability violation.",
+  "status": "rejected",
+  "updated_at": "2026-07-18T16:56:56.796Z"
+}

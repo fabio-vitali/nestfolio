@@ -1,0 +1,63 @@
+{
+  "classifications": [
+    {
+      "basis": "Route facts recorded read-only: the one target-routed effort (dashboard-bff-awaiting-confirmation-activity-gap) is completed; no active target Run exists; the current journal serves current-routed work only. The completed effort's Level 6 completion flowed through the pinned engine with no mint consideration, and automatic check promotion for target-routed work is prohibited (proven by the no-auto-promotion proof and fixture F-TARGET-ROUTED-MINT); no active target dependency.",
+      "classification": "retained for current-routed work; REJECTED for target-routed work",
+      "implementation_reference": "backlog-next SKILL.md step 6.4b; run-backward.mjs consider",
+      "mechanism": "ship-time mint consideration",
+      "migration_plan_row": "backward-edge: ship-time check mint consideration",
+      "retired": false
+    },
+    {
+      "basis": "Route facts recorded read-only: the one target-routed effort (dashboard-bff-awaiting-confirmation-activity-gap) is completed; no active target Run exists; the current journal serves current-routed work only. Target-routed learning flows through the governed loop, so the current mint path has no active target dependency and stays available for current-routed work only.",
+      "classification": "retained for current-routed work; for target-routed work its function is REPLACED by the governed Observation-Lesson-Change-Proposal-owner-application loop this contract proves end-to-end",
+      "implementation_reference": "run-backward.mjs mint",
+      "mechanism": "check minting/ratification with human floor",
+      "migration_plan_row": "backward-edge: check minting/ratification",
+      "retired": false
+    },
+    {
+      "basis": "Route facts recorded read-only: the one target-routed effort (dashboard-bff-awaiting-confirmation-activity-gap) is completed; no active target Run exists; the current journal serves current-routed work only. No active target Run depends on target-lifecycle curation in this bound, so current curation is retained unchanged and target adaptation is deferred without active dependency.",
+      "classification": "retained — human authority and history preserved; target-lifecycle adaptation DEFERRED",
+      "implementation_reference": "run-backward.mjs curate; retire/supersede/keep decisions",
+      "mechanism": "check keep/retire/supersede curation",
+      "migration_plan_row": "backward-edge: check curation lifecycle",
+      "retired": false
+    },
+    {
+      "basis": "Route facts recorded read-only: the one target-routed effort (dashboard-bff-awaiting-confirmation-activity-gap) is completed; no active target Run exists; the current journal serves current-routed work only. The completed effort requires no automated backlog creation and MI-007 references findings as Observations only, so the current intake path has no active target dependency.",
+      "classification": "retained current; target migration DEFERRED — MI-007 references findings as Observations but does not automate backlog creation",
+      "implementation_reference": "backlog-add hot-path router",
+      "mechanism": "finding-to-backlog intake",
+      "migration_plan_row": "backward-edge: finding-to-backlog intake",
+      "retired": false
+    },
+    {
+      "basis": "Route facts recorded read-only: the one target-routed effort (dashboard-bff-awaiting-confirmation-activity-gap) is completed; no active target Run exists; the current journal serves current-routed work only. The completed effort's one Guard was activated by explicit classification, not by broad registry migration, so the current YAML remains an invocable validator with no active target dependency.",
+      "classification": "retained — current YAML remains invocable as a validator; target Guard activation only by explicit classification (proven by MI-006-R1); broad migration DEFERRED",
+      "implementation_reference": "check registry loading and lifecycle YAML",
+      "mechanism": "registry loading and check lifecycle YAML",
+      "migration_plan_row": "backward-edge: registry and check lifecycle",
+      "retired": false
+    },
+    {
+      "basis": "Route facts recorded read-only: the one target-routed effort (dashboard-bff-awaiting-confirmation-activity-gap) is completed; no active target Run exists; the current journal serves current-routed work only. It is referenced read-only as external Evidence for the completed effort, so it remains project-specific with no active target dependency.",
+      "classification": "retained as project-specific; migration DEFERRED — referenced as external Evidence only",
+      "implementation_reference": "deploy and affected-integration gate",
+      "mechanism": "deploy and affected-integration gate",
+      "migration_plan_row": "backward-edge: deploy/affected-integration gate",
+      "retired": false
+    }
+  ],
+  "iteration": "MI-007",
+  "nothing_retired_statement": "NOTHING is retired, disabled, or deleted in this bound. Exact retirement timing remains with later sustained dogfooding per the migration plan open-questions register.",
+  "out_of_scope_confirmations": "themes, intake breadth, Epic orchestration, and deploy behavior remain in the Nestfolio binding or current route per the migration-plan exclusions; no universal registry and no hosted service exist or are claimed",
+  "route_facts": {
+    "current_journal_serves_current_routed_work_only": true,
+    "no_active_target_run": true,
+    "one_target_routed_effort_completed": true,
+    "recorded_read_only": true
+  },
+  "total_mechanisms": 6,
+  "total_retired": 0
+}

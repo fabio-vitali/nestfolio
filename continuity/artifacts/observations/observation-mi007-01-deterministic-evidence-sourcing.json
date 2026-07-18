@@ -1,0 +1,49 @@
+{
+  "contracted_review_outcome": "accepted",
+  "digest": "bfae525bf5970b388a1d1ae80cb36ea0457f566f895efddef041024078da89b4",
+  "evidence_refs": [
+    {
+      "id": "run-mi006-r1-mi006r1-c3-non-regression",
+      "sha256": "a3e3ab815c0c2d9793eba1e3f08b59382d9fd97f96d71b258cf79ecee701b718"
+    },
+    {
+      "id": "run-mi006-r1-mi006r1-c2-cdc-sourcing",
+      "sha256": "05d2314133133e7cafedc489a8b53429e652dcbfb24bef2eb50bfd0d068c791b"
+    }
+  ],
+  "id": "observation-mi007-01-deterministic-evidence-sourcing",
+  "iteration": "MI-007",
+  "kind": "continuity.target-learning.observation",
+  "provenance": {
+    "sources": [
+      {
+        "path": "docs/70-implementation/mi-006-evidence-bound-completion-and-guard-coexistence.md",
+        "repository": "continuity-lab",
+        "revision": "893f7e04769798452c9fcd3716ea34459f1a51dd"
+      },
+      {
+        "id": "run-mi006-r1-mi006r1-c3-non-regression",
+        "role": "run-mi006-r1 criterion-3 non-regression Evidence",
+        "sha256": "a3e3ab815c0c2d9793eba1e3f08b59382d9fd97f96d71b258cf79ecee701b718"
+      },
+      {
+        "id": "run-mi006-r1-mi006r1-c2-cdc-sourcing",
+        "role": "run-mi006-r1 criterion-2 cdc-sourcing Evidence",
+        "sha256": "05d2314133133e7cafedc489a8b53429e652dcbfb24bef2eb50bfd0d068c791b"
+      }
+    ]
+  },
+  "review": {
+    "capture": "machine-captured UTC via date -u at the moment of confirmation (MI-004/MI-006-R1 authorization precedent)",
+    "captured_at_utc": "2026-07-18T16:56:45.000Z",
+    "outcome": "accepted",
+    "rationale": "The deterministic-evidence sourcing finding is a real, Evidence-backed defect class; it proceeds to lesson-mi007-01 and the separate Change Proposal.",
+    "reviewer": "fabio.vitali (human program owner)",
+    "statement_verbatim": "Confermo: 01 accepted, 02 duplicate, 03 deferred, 04 rejected"
+  },
+  "revision": 2,
+  "schema_version": 1,
+  "statement": "The MI-006 contract bound the dashboard-bff integration suite as deterministic Evidence for Level 3 criteria 2 and 3, but that suite targets real deployed AWS and cannot execute inside a bounded local session; MI-006 recorded this as the owner-authorized secondary finding (machine-captured UTC 2026-07-18T11:38:34.000Z) and MI-006-R1 corrected the deterministic Evidence to the dashboard-bff unit suite plus a byte-identity non-regression proof of the integration-suite files.",
+  "status": "accepted",
+  "updated_at": "2026-07-18T16:56:56.794Z"
+}

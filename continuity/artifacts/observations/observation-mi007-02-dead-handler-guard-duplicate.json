@@ -1,0 +1,40 @@
+{
+  "contracted_review_outcome": "duplicate",
+  "digest": "bc4ce2a3ce289c6c9568f7d67eb411da00cc96b5c0b0061d06f548412c60bc74",
+  "evidence_refs": [
+    {
+      "id": "run-mi006-r1-mi006r1-c3-non-regression",
+      "sha256": "a3e3ab815c0c2d9793eba1e3f08b59382d9fd97f96d71b258cf79ecee701b718"
+    }
+  ],
+  "id": "observation-mi007-02-dead-handler-guard-duplicate",
+  "iteration": "MI-007",
+  "kind": "continuity.target-learning.observation",
+  "provenance": {
+    "sources": [
+      {
+        "id": "run-mi006-r1-mi006r1-c3-non-regression",
+        "role": "run-mi006-r1 criterion-3 non-regression Evidence",
+        "sha256": "a3e3ab815c0c2d9793eba1e3f08b59382d9fd97f96d71b258cf79ecee701b718"
+      },
+      {
+        "path": "continuity/bindings/nestfolio/guards/mi006-r1-dashboard-bff-no-dead-user-confirmation-requested-handler.json",
+        "role": "classified target Guard definition",
+        "sha256": "74008f124ccc9962f94592a03d9a03fe492565e696cc3176a11a2c6066591f4a"
+      }
+    ]
+  },
+  "review": {
+    "capture": "machine-captured UTC via date -u at the moment of confirmation (MI-004/MI-006-R1 authorization precedent)",
+    "captured_at_utc": "2026-07-18T16:56:45.000Z",
+    "outcome": "duplicate",
+    "rationale": "Already governed by the classified target Guard nestfolio-dashboard-bff-no-dead-user-confirmation-requested-handler; no new Lesson, Proposal, or Guard is created from it.",
+    "reviewer": "fabio.vitali (human program owner)",
+    "statement_verbatim": "Confermo: 01 accepted, 02 duplicate, 03 deferred, 04 rejected"
+  },
+  "revision": 2,
+  "schema_version": 1,
+  "statement": "The condition that the removed dead USER_CONFIRMATION_REQUESTED handler must not be reintroduced was surfaced again by run-mi006-r1's criterion-3 Evidence; the condition is already governed by the classified target Guard nestfolio-dashboard-bff-no-dead-user-confirmation-requested-handler (definition 74008f12…), referenced by the completed Work Item and evaluated true.",
+  "status": "duplicate",
+  "updated_at": "2026-07-18T16:56:56.795Z"
+}

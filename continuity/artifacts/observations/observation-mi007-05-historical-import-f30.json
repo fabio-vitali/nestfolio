@@ -1,0 +1,35 @@
+{
+  "contracted_review_outcome": "none — provenance-preserving historical import only, never reviewed or promoted",
+  "digest": "69ab2a688122338cc46a55348b69676425cb6a68dff60a4ccf95b39aa471c8ee",
+  "evidence_refs": [],
+  "id": "observation-mi007-05-historical-import-f30",
+  "import": {
+    "quoted_entry": "F-30 — always stamp `closed: <today>` at ship (shared with backlog-next-epic)",
+    "source_path": ".claude/skills/backlog-next/LESSONS.md",
+    "source_sha256": "eea79ec7be3f8370b491b3eb764159b89a8849ca7a45a875602a81de1549c1a3",
+    "target_routed_note": "For target-routed work this behavior is already provided by the pinned engine truthful completion write-back, proven by run-mi006-r1 (backlog advanced with status shipped and closed 2026-07-18)."
+  },
+  "iteration": "MI-007",
+  "kind": "continuity.target-learning.observation",
+  "provenance": {
+    "sources": [
+      {
+        "path": ".claude/skills/backlog-next/LESSONS.md",
+        "quoted_entry": "F-30 — always stamp `closed: <today>` at ship (shared with backlog-next-epic)",
+        "role": "current lesson dossier historical-import source",
+        "sha256": "eea79ec7be3f8370b491b3eb764159b89a8849ca7a45a875602a81de1549c1a3"
+      },
+      {
+        "backlog_after_sha256": "ea565c07025ffa9643895ea8074bd9ca20d8deb4e1be682b476ca77712e5a2c2",
+        "backlog_before_sha256": "b656733991c96c4275d11e9a9f2bff7f5ac72cdd298cbc68a4b94b6799dc742d",
+        "reference": "run-mi006-r1 completion evidence"
+      }
+    ]
+  },
+  "review": null,
+  "revision": 1,
+  "schema_version": 1,
+  "statement": "Historical import from the current lesson dossier .claude/skills/backlog-next/LESSONS.md (SHA-256 eea79ec7…), entry \"F-30 — always stamp `closed: <today>` at ship\": the explicit closed: stamp is the authoritative ship date and the only one immune to across-midnight drift. For target-routed work this behavior is already provided by the pinned engine's truthful completion write-back, proven by run-mi006-r1 (backlog b656733… advanced to ea565c07… with status shipped and closed 2026-07-18).",
+  "status": "historical",
+  "updated_at": "2026-07-18T16:39:47.706Z"
+}

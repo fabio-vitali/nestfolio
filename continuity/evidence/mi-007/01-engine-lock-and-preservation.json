@@ -1,0 +1,118 @@
+{
+  "audit_prefix_preserved": true,
+  "byte_identity_records": [
+    {
+      "digest_after": "afd1e24b35224a3c92475a05eb4c198f799eb695f0092a14b628320ea2887f0f",
+      "digest_before": "afd1e24b35224a3c92475a05eb4c198f799eb695f0092a14b628320ea2887f0f",
+      "record": "bound source continuity/artifacts/evidence/run-mi006-r1-mi006r1-c1-investigation.json",
+      "unchanged": true
+    },
+    {
+      "digest_after": "05d2314133133e7cafedc489a8b53429e652dcbfb24bef2eb50bfd0d068c791b",
+      "digest_before": "05d2314133133e7cafedc489a8b53429e652dcbfb24bef2eb50bfd0d068c791b",
+      "record": "bound source continuity/artifacts/evidence/run-mi006-r1-mi006r1-c2-cdc-sourcing.json",
+      "unchanged": true
+    },
+    {
+      "digest_after": "a3e3ab815c0c2d9793eba1e3f08b59382d9fd97f96d71b258cf79ecee701b718",
+      "digest_before": "a3e3ab815c0c2d9793eba1e3f08b59382d9fd97f96d71b258cf79ecee701b718",
+      "record": "bound source continuity/artifacts/evidence/run-mi006-r1-mi006r1-c3-non-regression.json",
+      "unchanged": true
+    },
+    {
+      "digest_after": "74008f124ccc9962f94592a03d9a03fe492565e696cc3176a11a2c6066591f4a",
+      "digest_before": "74008f124ccc9962f94592a03d9a03fe492565e696cc3176a11a2c6066591f4a",
+      "record": "bound source continuity/bindings/nestfolio/guards/mi006-r1-dashboard-bff-no-dead-user-confirmation-requested-handler.json",
+      "unchanged": true
+    },
+    {
+      "digest_after": "eea79ec7be3f8370b491b3eb764159b89a8849ca7a45a875602a81de1549c1a3",
+      "digest_before": "eea79ec7be3f8370b491b3eb764159b89a8849ca7a45a875602a81de1549c1a3",
+      "record": "bound source .claude/skills/backlog-next/LESSONS.md",
+      "unchanged": true
+    },
+    {
+      "digest_after": "87cba425ff92262293dc0d7a43641f7858c618694e96d09990b0fd0ca9071dd0",
+      "digest_before": "87cba425ff92262293dc0d7a43641f7858c618694e96d09990b0fd0ca9071dd0",
+      "record": "byte-identity continuity/artifacts/runs/run-mi006-r1.json",
+      "unchanged": true
+    },
+    {
+      "digest_after": "363acbe26e154b574bbe0491b97889cdddbfcd69dfbc9cacb86072ed52b7e602",
+      "digest_before": "363acbe26e154b574bbe0491b97889cdddbfcd69dfbc9cacb86072ed52b7e602",
+      "record": "byte-identity continuity/artifacts/work-items/dashboard-bff-awaiting-confirmation-activity-gap.json",
+      "unchanged": true
+    },
+    {
+      "digest_after": "3f5190768ec06800ea48e35fa60adb6e8415dded95f106fedb3e61124b1d23f7",
+      "digest_before": "3f5190768ec06800ea48e35fa60adb6e8415dded95f106fedb3e61124b1d23f7",
+      "record": "byte-identity continuity/artifacts/validation-plans/run-mi006-r1.json",
+      "unchanged": true
+    },
+    {
+      "digest_after": "46c93abbb31ae2a71379536b1883009ca335a8efcc6a0dd8873360bdd0af4068",
+      "digest_before": "46c93abbb31ae2a71379536b1883009ca335a8efcc6a0dd8873360bdd0af4068",
+      "record": "byte-identity continuity/artifacts/checkpoints/run-mi006-r1-final-1.json",
+      "unchanged": true
+    },
+    {
+      "digest_after": "1903ac95e2203b5b5f7347612a20a9d8a4058c53d033f235b7d2ef90fcff73e0",
+      "digest_before": "1903ac95e2203b5b5f7347612a20a9d8a4058c53d033f235b7d2ef90fcff73e0",
+      "record": "byte-identity continuity/artifacts/scopes/scope-mi006-r1-completion.json",
+      "unchanged": true
+    },
+    {
+      "digest_after": "16b27b0507d3cf5f79ee46c82e553dab5276fc68af58dbca80010d72b5509367",
+      "digest_before": "16b27b0507d3cf5f79ee46c82e553dab5276fc68af58dbca80010d72b5509367",
+      "record": "byte-identity continuity/artifacts/working-sets/ws-mi006-r1.json",
+      "unchanged": true
+    },
+    {
+      "digest_after": "b0a7c8d9f39cb2b93b02fb1c123ed0fa67d615ba24a51adf4899cba236b799fc",
+      "digest_before": "b0a7c8d9f39cb2b93b02fb1c123ed0fa67d615ba24a51adf4899cba236b799fc",
+      "record": "byte-identity continuity/artifacts/sessions/session-mi006-r1-1.json",
+      "unchanged": true
+    },
+    {
+      "digest_after": "d47cc67233d9e4ff0ae9ff7291fb69c59a839aa6a2f177c8e4c084244a9d361b",
+      "digest_before": "d47cc67233d9e4ff0ae9ff7291fb69c59a839aa6a2f177c8e4c084244a9d361b",
+      "record": "byte-identity continuity/artifacts/context-packs/run-mi006-r1.json",
+      "unchanged": true
+    },
+    {
+      "digest_after": "be5778b0b0edb5842cd0673ae078a37dfc6b9ea5c02592acbc7e14f8f78f95d9",
+      "digest_before": "be5778b0b0edb5842cd0673ae078a37dfc6b9ea5c02592acbc7e14f8f78f95d9",
+      "record": "byte-identity continuity/artifacts/pack-locks/run-mi006-r1.json",
+      "unchanged": true
+    },
+    {
+      "digest_after": "580af1f634eb4468ef9d337e39b316c189b8e511d86fa293410d1733f6799b1d",
+      "digest_before": "580af1f634eb4468ef9d337e39b316c189b8e511d86fa293410d1733f6799b1d",
+      "record": "byte-identity continuity/artifacts/formation-traces/run-mi006-r1.json",
+      "unchanged": true
+    },
+    {
+      "digest_after": "803863bb2e0021d1ebb70a506a242bbb7cb4d8b8f9c2bfc4a4db69a62adac8c4",
+      "digest_before": "803863bb2e0021d1ebb70a506a242bbb7cb4d8b8f9c2bfc4a4db69a62adac8c4",
+      "record": "byte-identity continuity/level-6/completion-binding.json",
+      "unchanged": true
+    }
+  ],
+  "engine_lock": {
+    "aggregate_engine_digest": "7e31ff56a10ca6b1715b29f02132e66c80e321921b41dcb55329db2e0f320a38",
+    "file_count": 20,
+    "hook_registration_digest": "73387f347f43d0f6a154f83ed54c3bdaee0e0b6ba6dbf3120ebf5b8c28834378",
+    "settings_sha256": "999e828d22fcf1cf1e66eb81260a4f8ff3a36b2387adf117ca84602e65c2c6b7",
+    "verified_before_and_after": true
+  },
+  "iteration": "MI-007",
+  "journal_tree_digest": {
+    "after": "38595c19ca318988b05a54663dff1912deb9f39c31bf17035b24b2a20993c9c4",
+    "before": "38595c19ca318988b05a54663dff1912deb9f39c31bf17035b24b2a20993c9c4",
+    "unchanged": true
+  },
+  "modify_paths": [
+    ".continuity/audit.ndjson",
+    ".continuity/derived/index.json"
+  ]
+}

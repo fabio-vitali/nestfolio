@@ -1,0 +1,48 @@
+{
+  "before_approvals_no_target_byte_changed": "The applied file appears only after the decision-create and change-proposal-accept audit records; before those, no target-artifact byte changed (only observation/lesson records existed, which carry no rule authority).",
+  "digest_sets": [
+    {
+      "after": "7e31ff56a10ca6b1715b29f02132e66c80e321921b41dcb55329db2e0f320a38",
+      "before": "7e31ff56a10ca6b1715b29f02132e66c80e321921b41dcb55329db2e0f320a38",
+      "set": "runtime/** engine aggregate",
+      "unchanged": true
+    },
+    {
+      "after": "999e828d22fcf1cf1e66eb81260a4f8ff3a36b2387adf117ca84602e65c2c6b7",
+      "before": "999e828d22fcf1cf1e66eb81260a4f8ff3a36b2387adf117ca84602e65c2c6b7",
+      "set": ".claude/settings.json",
+      "unchanged": true
+    },
+    {
+      "after": "74008f124ccc9962f94592a03d9a03fe492565e696cc3176a11a2c6066591f4a",
+      "before": "74008f124ccc9962f94592a03d9a03fe492565e696cc3176a11a2c6066591f4a",
+      "set": "classified Guard definition",
+      "unchanged": true
+    },
+    {
+      "after": "eea79ec7be3f8370b491b3eb764159b89a8849ca7a45a875602a81de1549c1a3",
+      "before": "eea79ec7be3f8370b491b3eb764159b89a8849ca7a45a875602a81de1549c1a3",
+      "set": ".claude/skills/backlog-next/LESSONS.md",
+      "unchanged": true
+    }
+  ],
+  "git_scope": {
+    "modified_tracked": [
+      ".continuity/audit.ndjson",
+      ".continuity/derived/index.json"
+    ],
+    "staged_count": 0
+  },
+  "iteration": "MI-007",
+  "sole_binding_addition": "continuity/bindings/nestfolio/decisions/mi007-deterministic-evidence-boundary-rule.json",
+  "vs001_records_unchanged": {
+    "lessons": [
+      "0cb8e9caa9dc24d1dc4e8a91283a120e71f6aa56779211c848b80539f0f8b284",
+      "e126b67a6dc415a08231168b979dcd261059dee24d9eeee85449c297b7f673bb"
+    ],
+    "observations": [
+      "33234cfe62df7ba29fa0e2980df03c7d2fca47afc151640bdb6ce49fcb9d9086",
+      "d718383b32ef4bcba0cdd575d05f6505c46012b77fdf242455ed88ffa98d7394"
+    ]
+  }
+}

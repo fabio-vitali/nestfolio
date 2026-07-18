@@ -1,0 +1,116 @@
+{
+  "all_suites_pass": true,
+  "iteration": "MI-007",
+  "manifest": {
+    "created": [
+      "continuity/artifacts/change-proposals/change-proposal-mi007-01-deterministic-evidence-boundary-rule.json",
+      "continuity/artifacts/decisions/decision-mi007-01-accept-deterministic-evidence-boundary-change.json",
+      "continuity/artifacts/lessons/lesson-mi007-01-deterministic-evidence-boundary.json",
+      "continuity/artifacts/lessons/lesson-mi007-02-automatic-rebinding-rejected.json",
+      "continuity/artifacts/observations/observation-mi007-01-deterministic-evidence-sourcing.json",
+      "continuity/artifacts/observations/observation-mi007-02-dead-handler-guard-duplicate.json",
+      "continuity/artifacts/observations/observation-mi007-03-run-mi005-staleness.json",
+      "continuity/artifacts/observations/observation-mi007-04-occupied-work-item-conflict.json",
+      "continuity/artifacts/observations/observation-mi007-05-historical-import-f30.json",
+      "continuity/bindings/nestfolio/decisions/mi007-deterministic-evidence-boundary-rule.json",
+      "continuity/evidence/mi-007/00-repository-bindings.json",
+      "continuity/evidence/mi-007/01-engine-lock-and-preservation.json",
+      "continuity/evidence/mi-007/02-observations-and-provenance.json",
+      "continuity/evidence/mi-007/03-review-outcomes-and-authorizations.json",
+      "continuity/evidence/mi-007/04-lessons-and-safety-review.json",
+      "continuity/evidence/mi-007/05-decision-and-change-proposal.json",
+      "continuity/evidence/mi-007/06-applied-change-and-ordering-proof.json",
+      "continuity/evidence/mi-007/07-no-auto-promotion-proof.json",
+      "continuity/evidence/mi-007/08-retirement-inventory.json",
+      "continuity/evidence/mi-007/09-mandatory-failures.json",
+      "continuity/evidence/mi-007/10-suites-and-manifest.json",
+      "continuity/evidence/mi-007/commands/01-learning-tests.json",
+      "continuity/evidence/mi-007/commands/02-level6-tests.json",
+      "continuity/evidence/mi-007/commands/03-level5-tests.json",
+      "continuity/evidence/mi-007/commands/04-level4-tests.json",
+      "continuity/evidence/mi-007/commands/05-level3-tests.json",
+      "continuity/evidence/mi-007/commands/06-level2-tests.json",
+      "continuity/evidence/mi-007/commands/07-level1-tests.json",
+      "continuity/evidence/mi-007/commands/08-engine-tests.json",
+      "continuity/evidence/mi-007/commands/09-backlog-next-tests.json",
+      "continuity/evidence/mi-007/commands/10-final-changed-files.json",
+      "continuity/level-6/learning-binding.json",
+      "continuity/level-6/retirement-inventory.json",
+      "tests/continuity-level-6-learning.test.mjs"
+    ],
+    "created_count": 34,
+    "modified": [
+      ".continuity/audit.ndjson",
+      ".continuity/derived/index.json"
+    ],
+    "modified_count": 2,
+    "scope_rule": "exactly the fixed create paths plus the two permitted modified paths; uncommitted and unstaged; no other modified, deleted, renamed, or staged path",
+    "staged_count": 0
+  },
+  "note": "Per-file SHA-256 digests are recorded per store artifact (internal digest) and in the MI-007 execution closure manifest (with its self-hash) recorded in continuity-lab; commands/10-final-changed-files.json records the git status output.",
+  "suite_results": {
+    "01-learning-tests": {
+      "cwd_role": "real-nestfolio-tree",
+      "expected": 11,
+      "fail": 0,
+      "ok": true,
+      "pass": 11
+    },
+    "02-level6-tests": {
+      "cwd_role": "real-nestfolio-tree",
+      "expected": 10,
+      "fail": 0,
+      "ok": true,
+      "pass": 10
+    },
+    "03-level5-tests": {
+      "cwd_role": "real-nestfolio-tree",
+      "expected": 7,
+      "fail": 0,
+      "ok": true,
+      "pass": 7
+    },
+    "04-level4-tests": {
+      "cwd_role": "isolated-committed-validation-copy",
+      "expected": 23,
+      "fail": 0,
+      "ok": true,
+      "pass": 23
+    },
+    "05-level3-tests": {
+      "cwd_role": "isolated-committed-validation-copy",
+      "expected": 23,
+      "fail": 0,
+      "ok": true,
+      "pass": 23
+    },
+    "06-level2-tests": {
+      "cwd_role": "real-nestfolio-tree",
+      "expected": 23,
+      "fail": 0,
+      "ok": true,
+      "pass": 23
+    },
+    "07-level1-tests": {
+      "cwd_role": "real-nestfolio-tree",
+      "expected": 14,
+      "fail": 0,
+      "ok": true,
+      "pass": 14
+    },
+    "08-engine-tests": {
+      "cwd_role": "real-nestfolio-tree",
+      "expected": 9,
+      "fail": 0,
+      "ok": true,
+      "pass": 9
+    },
+    "09-backlog-next-tests": {
+      "cwd_role": "real-nestfolio-tree",
+      "expected": 68,
+      "fail": 0,
+      "ok": true,
+      "pass": 68
+    }
+  }
+}

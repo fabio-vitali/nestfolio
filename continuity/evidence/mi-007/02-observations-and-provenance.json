@@ -1,0 +1,145 @@
+{
+  "iteration": "MI-007",
+  "observations": [
+    {
+      "digest": "bfae525bf5970b388a1d1ae80cb36ea0457f566f895efddef041024078da89b4",
+      "evidence_refs": [
+        {
+          "id": "run-mi006-r1-mi006r1-c3-non-regression",
+          "sha256": "a3e3ab815c0c2d9793eba1e3f08b59382d9fd97f96d71b258cf79ecee701b718"
+        },
+        {
+          "id": "run-mi006-r1-mi006r1-c2-cdc-sourcing",
+          "sha256": "05d2314133133e7cafedc489a8b53429e652dcbfb24bef2eb50bfd0d068c791b"
+        }
+      ],
+      "file_sha256": "7b852341d17bb4f56345ef5de15753f7cf40f4e70ee4915690b05660a6dac731",
+      "id": "observation-mi007-01-deterministic-evidence-sourcing",
+      "import": null,
+      "provenance": {
+        "sources": [
+          {
+            "path": "docs/70-implementation/mi-006-evidence-bound-completion-and-guard-coexistence.md",
+            "repository": "continuity-lab",
+            "revision": "893f7e04769798452c9fcd3716ea34459f1a51dd"
+          },
+          {
+            "id": "run-mi006-r1-mi006r1-c3-non-regression",
+            "role": "run-mi006-r1 criterion-3 non-regression Evidence",
+            "sha256": "a3e3ab815c0c2d9793eba1e3f08b59382d9fd97f96d71b258cf79ecee701b718"
+          },
+          {
+            "id": "run-mi006-r1-mi006r1-c2-cdc-sourcing",
+            "role": "run-mi006-r1 criterion-2 cdc-sourcing Evidence",
+            "sha256": "05d2314133133e7cafedc489a8b53429e652dcbfb24bef2eb50bfd0d068c791b"
+          }
+        ]
+      },
+      "revision": 2,
+      "status": "accepted"
+    },
+    {
+      "digest": "bc4ce2a3ce289c6c9568f7d67eb411da00cc96b5c0b0061d06f548412c60bc74",
+      "evidence_refs": [
+        {
+          "id": "run-mi006-r1-mi006r1-c3-non-regression",
+          "sha256": "a3e3ab815c0c2d9793eba1e3f08b59382d9fd97f96d71b258cf79ecee701b718"
+        }
+      ],
+      "file_sha256": "e4b6a562c40485e3f2e4013795687c8728dd086d8d7084112f2f502be3e7dbf9",
+      "id": "observation-mi007-02-dead-handler-guard-duplicate",
+      "import": null,
+      "provenance": {
+        "sources": [
+          {
+            "id": "run-mi006-r1-mi006r1-c3-non-regression",
+            "role": "run-mi006-r1 criterion-3 non-regression Evidence",
+            "sha256": "a3e3ab815c0c2d9793eba1e3f08b59382d9fd97f96d71b258cf79ecee701b718"
+          },
+          {
+            "path": "continuity/bindings/nestfolio/guards/mi006-r1-dashboard-bff-no-dead-user-confirmation-requested-handler.json",
+            "role": "classified target Guard definition",
+            "sha256": "74008f124ccc9962f94592a03d9a03fe492565e696cc3176a11a2c6066591f4a"
+          }
+        ]
+      },
+      "revision": 2,
+      "status": "duplicate"
+    },
+    {
+      "digest": "e2bbb1aadde4acb718a87389fdb98a2ed3060078b28a0bf0ad6b9261b3d2c3e8",
+      "evidence_refs": [],
+      "file_sha256": "cb8044b6f106029dca455f8e7e4516c8f7026b6ad1ceae9da0d9f25b23a67bd8",
+      "id": "observation-mi007-03-run-mi005-staleness",
+      "import": null,
+      "provenance": {
+        "sources": [
+          {
+            "path": "docs/70-implementation/mi-006-r1-evidence-bound-completion-existing-work-item-rebinding.md",
+            "repository": "continuity-lab",
+            "revision_lineage": "80d70ac9bf9f1252474a9fbed414a0ef6ee57061",
+            "section": "Accepted documented consequence"
+          },
+          {
+            "path": "continuity/artifacts/runs/run-mi005.json",
+            "role": "MI-005 run record byte-identity (unchanged)",
+            "sha256": "86717732a73fdd80bb2071dfca742ee79b08ba8361547423891aa14520c5e0be"
+          }
+        ]
+      },
+      "revision": 2,
+      "status": "deferred"
+    },
+    {
+      "digest": "741cec4189b7e1e5d948fc02c96005fab700ab17e8d9d30430cd1ca7ae608d1e",
+      "evidence_refs": [],
+      "file_sha256": "45d0a2ad749f14eafb297db71ca1cf28376817d6378e70594c0596391133ad14",
+      "id": "observation-mi007-04-occupied-work-item-conflict",
+      "import": null,
+      "provenance": {
+        "sources": [
+          {
+            "path": "docs/70-implementation/mi-006-evidence-bound-completion-and-guard-coexistence.md",
+            "repository": "continuity-lab",
+            "revision": "893f7e04769798452c9fcd3716ea34459f1a51dd"
+          },
+          {
+            "reference": "MI-006-R1 contract immutability_exception (session context-pack)",
+            "repository": "continuity-lab"
+          }
+        ]
+      },
+      "revision": 2,
+      "status": "rejected"
+    },
+    {
+      "digest": "69ab2a688122338cc46a55348b69676425cb6a68dff60a4ccf95b39aa471c8ee",
+      "evidence_refs": [],
+      "file_sha256": "06181fb9d5556af7dc6d468f965c60fa4819c19895dc96765654a68f07628f83",
+      "id": "observation-mi007-05-historical-import-f30",
+      "import": {
+        "quoted_entry": "F-30 — always stamp `closed: <today>` at ship (shared with backlog-next-epic)",
+        "source_path": ".claude/skills/backlog-next/LESSONS.md",
+        "source_sha256": "eea79ec7be3f8370b491b3eb764159b89a8849ca7a45a875602a81de1549c1a3",
+        "target_routed_note": "For target-routed work this behavior is already provided by the pinned engine truthful completion write-back, proven by run-mi006-r1 (backlog advanced with status shipped and closed 2026-07-18)."
+      },
+      "provenance": {
+        "sources": [
+          {
+            "path": ".claude/skills/backlog-next/LESSONS.md",
+            "quoted_entry": "F-30 — always stamp `closed: <today>` at ship (shared with backlog-next-epic)",
+            "role": "current lesson dossier historical-import source",
+            "sha256": "eea79ec7be3f8370b491b3eb764159b89a8849ca7a45a875602a81de1549c1a3"
+          },
+          {
+            "backlog_after_sha256": "ea565c07025ffa9643895ea8074bd9ca20d8deb4e1be682b476ca77712e5a2c2",
+            "backlog_before_sha256": "b656733991c96c4275d11e9a9f2bff7f5ac72cdd298cbc68a4b94b6799dc742d",
+            "reference": "run-mi006-r1 completion evidence"
+          }
+        ]
+      },
+      "revision": 1,
+      "status": "historical"
+    }
+  ]
+}

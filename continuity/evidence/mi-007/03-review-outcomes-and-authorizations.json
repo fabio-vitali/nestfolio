@@ -1,0 +1,69 @@
+{
+  "captures": [
+    {
+      "advanced_to_revision": 2,
+      "captured_at_utc": "2026-07-18T16:56:45.000Z",
+      "item": "observation-mi007-01-deterministic-evidence-sourcing",
+      "kind": "observation-review-outcome",
+      "outcome": "accepted",
+      "reviewer": "fabio.vitali (human program owner)",
+      "statement_verbatim": "Confermo: 01 accepted, 02 duplicate, 03 deferred, 04 rejected"
+    },
+    {
+      "advanced_to_revision": 2,
+      "captured_at_utc": "2026-07-18T16:56:45.000Z",
+      "item": "observation-mi007-02-dead-handler-guard-duplicate",
+      "kind": "observation-review-outcome",
+      "outcome": "duplicate",
+      "reviewer": "fabio.vitali (human program owner)",
+      "statement_verbatim": "Confermo: 01 accepted, 02 duplicate, 03 deferred, 04 rejected"
+    },
+    {
+      "advanced_to_revision": 2,
+      "captured_at_utc": "2026-07-18T16:56:45.000Z",
+      "item": "observation-mi007-03-run-mi005-staleness",
+      "kind": "observation-review-outcome",
+      "outcome": "deferred",
+      "reviewer": "fabio.vitali (human program owner)",
+      "statement_verbatim": "Confermo: 01 accepted, 02 duplicate, 03 deferred, 04 rejected"
+    },
+    {
+      "advanced_to_revision": 2,
+      "captured_at_utc": "2026-07-18T16:56:45.000Z",
+      "item": "observation-mi007-04-occupied-work-item-conflict",
+      "kind": "observation-review-outcome",
+      "outcome": "rejected",
+      "reviewer": "fabio.vitali (human program owner)",
+      "statement_verbatim": "Confermo: 01 accepted, 02 duplicate, 03 deferred, 04 rejected"
+    },
+    {
+      "advanced_to_revision": 2,
+      "captured_at_utc": "2026-07-18T16:58:57.000Z",
+      "item": "lesson-mi007-01-deterministic-evidence-boundary",
+      "kind": "lesson-acceptance",
+      "outcome": "accepted",
+      "reviewer": "fabio.vitali (human program owner)",
+      "statement_verbatim": "confermo"
+    },
+    {
+      "captured_at_utc": "2026-07-18T17:00:48.000Z",
+      "item": "decision-mi007-01-accept-deterministic-evidence-boundary-change",
+      "kind": "durable-decision",
+      "outcome": "decided",
+      "reviewer": "fabio.vitali (human program owner)",
+      "revision": 1,
+      "statement_verbatim": "ok"
+    },
+    {
+      "captured_at_utc": "2026-07-18T17:01:57.000Z",
+      "item": "mi007-deterministic-evidence-boundary-rule",
+      "kind": "application-authorization",
+      "outcome": "accepted",
+      "reviewer": "fabio.vitali (human program owner)",
+      "statement_verbatim": "ok"
+    }
+  ],
+  "human_floor": "Every review outcome, the Lesson acceptance, the Decision, and the application authorization is an explicit act of the human program owner (fabio.vitali), captured verbatim during execution with machine-captured UTC (date -u at capture).",
+  "iteration": "MI-007",
+  "withheld_semantics": "A withheld or contradicting reply on any item is REVIEW_AUTHORIZATION_WITHHELD: stop fail-closed, roll back, close UNCONDITIONAL FAIL. No outcome was inferred, defaulted, or rehearsed-then-reused; the rehearsal used the fixed placeholder REHEARSAL-PENDING-OWNER-CAPTURE, which appears in zero produced artifacts."
+}

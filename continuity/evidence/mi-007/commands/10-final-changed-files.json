@@ -1,0 +1,22 @@
+{
+  "argv": [
+    "git",
+    "-C",
+    "/Users/fabiovitali/WebstormProjects/nestfolio",
+    "status",
+    "--porcelain",
+    "-uall"
+  ],
+  "command": "10-final-changed-files",
+  "cwd_role": "real-nestfolio-tree",
+  "end_utc": "2026-07-18T17:11:50.000Z",
+  "exit_code": 0,
+  "iteration": "MI-007",
+  "parsed": {
+    "changed_path_count": 35,
+    "note": "captured immediately before this record and 10-suites-and-manifest were finalized; the complete constructed manifest is in 10-suites-and-manifest.json"
+  },
+  "start_utc": "2026-07-18T17:11:50.000Z",
+  "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+  "stdout_sha256": "ae176e37ee6069d170d2e91ed4c8bfe2d98bf89e85695e7da7e3b76453310c4a"
+}

@@ -1,0 +1,119 @@
+{
+  "cleanup_absence_proof": true,
+  "fixture_based": [
+    {
+      "exit_code": 1,
+      "expected": "IMMUTABLE_ARTIFACT_EXISTS",
+      "id": "F-REVIEW-CONFLICT/IMMUTABLE",
+      "observed": "IMMUTABLE_ARTIFACT_EXISTS",
+      "ok": true
+    },
+    {
+      "exit_code": 1,
+      "expected": "REVISION_CONFLICT",
+      "id": "F-REVIEW-CONFLICT/REVISION",
+      "observed": "REVISION_CONFLICT",
+      "ok": true
+    },
+    {
+      "exit_code": 1,
+      "expected": "IMPORT_PROVENANCE_MISSING",
+      "id": "F-IMPORT-PROVENANCE",
+      "observed": "IMPORT_PROVENANCE_MISSING",
+      "ok": true
+    },
+    {
+      "exit_code": 1,
+      "expected": "REVIEW_OUTCOME_PROHIBITS_PROMOTION",
+      "id": "F-OUTCOME-PROMOTION/duplicate",
+      "observed": "REVIEW_OUTCOME_PROHIBITS_PROMOTION",
+      "ok": true
+    },
+    {
+      "exit_code": 1,
+      "expected": "REVIEW_OUTCOME_PROHIBITS_PROMOTION",
+      "id": "F-OUTCOME-PROMOTION/deferred",
+      "observed": "REVIEW_OUTCOME_PROHIBITS_PROMOTION",
+      "ok": true
+    },
+    {
+      "exit_code": 1,
+      "expected": "REVIEW_OUTCOME_PROHIBITS_PROMOTION",
+      "id": "F-OUTCOME-PROMOTION/rejected",
+      "observed": "REVIEW_OUTCOME_PROHIBITS_PROMOTION",
+      "ok": true
+    },
+    {
+      "exit_code": 1,
+      "expected": "REVIEW_OUTCOME_PROHIBITS_PROMOTION",
+      "id": "F-OUTCOME-PROMOTION/historical",
+      "observed": "REVIEW_OUTCOME_PROHIBITS_PROMOTION",
+      "ok": true
+    },
+    {
+      "exit_code": 1,
+      "expected": "UNAUTHORIZED_TARGET_CHANGE",
+      "id": "F-UNAUTHORIZED-APPLY",
+      "observed": "UNAUTHORIZED_TARGET_CHANGE",
+      "ok": true
+    },
+    {
+      "exit_code": 1,
+      "expected": "RETIREMENT_BLOCKED_ACTIVE_DEPENDENCY",
+      "id": "F-RETIRE-ACTIVE/retired-true",
+      "observed": "RETIREMENT_BLOCKED_ACTIVE_DEPENDENCY",
+      "ok": true
+    },
+    {
+      "exit_code": 1,
+      "expected": "RETIREMENT_BLOCKED_ACTIVE_DEPENDENCY",
+      "id": "F-RETIRE-ACTIVE/missing-basis",
+      "observed": "RETIREMENT_BLOCKED_ACTIVE_DEPENDENCY",
+      "ok": true
+    }
+  ],
+  "fixture_digest": "b09ed9cc99eeb7890dc617913bd4f78a57a2617c127cae302b3c2d113cccecc9",
+  "iteration": "MI-007",
+  "structural_prohibitions": [
+    {
+      "diagnostic": "AUTOMATIC_PROMOTION_PROHIBITED",
+      "id": "F-AUTO-PROMOTION",
+      "proof": "no file under continuity/bindings/**, continuity/packs/**, .claude/skills/**, runtime/**, or any published suite changed as a consequence of an Observation/Lesson; the sole binding addition appeared only after the recorded owner Decision and acceptance (no-auto-promotion digest proof + audit-order proof)."
+    },
+    {
+      "diagnostic": "LEARNING_RECORD_HAS_NO_RULE_AUTHORITY",
+      "id": "F-LESSON-AUTHORITY",
+      "proof": "every Lesson carries promotion.automatic=false; the only path to a canonical change is the separate Change Proposal + owner Decision + owner application; no Observation/Lesson mutated any rule/Guard/validator/Pack/binding directly."
+    },
+    {
+      "diagnostic": "TARGET_ROUTED_AUTOMATIC_CHECK_PROMOTION_PROHIBITED",
+      "id": "F-TARGET-ROUTED-MINT",
+      "proof": "no run-backward.mjs mint/consider/curate invocation appears in any recorded command; target-routed learning flowed only through the governed store-API loop."
+    },
+    {
+      "diagnostic": "FRAMEWORK_CORE_PROMOTION_PROHIBITED",
+      "id": "F-CORE-PROMOTION",
+      "proof": "runtime/continuity/** is byte-identical (engine-lock verified before and after); no learning record, rule, or mechanism was promoted into Framework Core, and no cross-project generality is claimed."
+    },
+    {
+      "diagnostic": "REVIEW_AUTHORIZATION_WITHHELD",
+      "id": "F-REVIEW-WITHHELD",
+      "proof": "stop-and-fail semantics documented without fabricating a withheld reply: any silence/refusal/contradiction on any of the 7 captures would trigger fail-closed rollback and UNCONDITIONAL FAIL; in this execution all 7 were genuinely captured verbatim with machine-captured UTC."
+    },
+    {
+      "diagnostic": "EXECUTOR_DELEGATION_PROHIBITED",
+      "id": "F10",
+      "proof": "no Skill, /backlog-next, continuity:invoke, or run-backward.mjs was invoked for contracted work; all store writes were driven directly via the pinned store API as a library."
+    },
+    {
+      "diagnostic": "FORBIDDEN_HIGHER_LEVEL_CLAIM",
+      "id": "F11",
+      "proof": "no Run, Work Item, Checkpoint, Handoff, Context Pack, or MI-008-or-later state was created or claimed; the derived index shows zero new runs and the learning binding records negative_state."
+    },
+    {
+      "diagnostic": "MANIFEST_SCOPE_MISMATCH",
+      "id": "F12",
+      "proof": "the final Nestfolio delta equals exactly the fixed create paths plus the two permitted modify paths, with no other modified/deleted/renamed path and nothing staged (final manifest)."
+    }
+  ]
+}

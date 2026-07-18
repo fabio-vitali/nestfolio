@@ -1,0 +1,19 @@
+{
+  "argv": [
+    "node",
+    "--test",
+    "tests/continuity-level-3.test.mjs"
+  ],
+  "command": "05-level3-tests",
+  "cwd_role": "isolated-committed-validation-copy",
+  "end_utc": "2026-07-18T17:11:47.000Z",
+  "exit_code": 0,
+  "iteration": "MI-007",
+  "parsed": {
+    "fail": 0,
+    "pass": 23
+  },
+  "start_utc": "2026-07-18T17:11:32.000Z",
+  "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+  "stdout_sha256": "08942a3d2a59e7f4934c44883c726b69f3c52f94a7934678d7e3f1d4d440e689"
+}

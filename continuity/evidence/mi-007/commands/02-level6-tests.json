@@ -1,0 +1,19 @@
+{
+  "argv": [
+    "node",
+    "--test",
+    "tests/continuity-level-6.test.mjs"
+  ],
+  "command": "02-level6-tests",
+  "cwd_role": "real-nestfolio-tree",
+  "end_utc": "2026-07-18T17:11:25.000Z",
+  "exit_code": 0,
+  "iteration": "MI-007",
+  "parsed": {
+    "fail": 0,
+    "pass": 10
+  },
+  "start_utc": "2026-07-18T17:11:25.000Z",
+  "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+  "stdout_sha256": "a75dd39fd6ea989bd90f1afc581687f7a077245f2d90764c84f5264fe6fd009b"
+}
