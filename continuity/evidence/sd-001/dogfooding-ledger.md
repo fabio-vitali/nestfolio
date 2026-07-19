@@ -515,3 +515,178 @@ Continuity engine.
   `fix-direction-decision-round-2.json` was not re-measured or edited, no
   engine Run resume was attempted, no step from the prior session was
   duplicated.
+
+## Entry 22 — Resumption sample (criterion 3 input; counter 3/15 → 4/15)
+
+- Entry written (machine-captured UTC): 2026-07-19T09:07:00.000Z
+- Fresh-session identity: Claude Code session
+  `02f14ef3-8391-4a1c-b8df-f40fb8578d1c`, launched via the handoff
+  mechanism with no chat context from the prior session
+  (`d6825ea2-a76d-4000-9076-0bb7ed386384`) that dispositioned e2elb-c3.
+- Source of next action: repository artifacts, not chat memory — `git
+  status -sb` / HEAD SHA checks against the pinned starting revisions in
+  the session prompt (nestfolio `897176bc`, continuity-lab `52c5b2e1`),
+  `npm run continuity:doctor`/`continuity:verify` (both "ready"), then
+  `docs/BACKLOG.md` repository state. The session prompt itself was
+  authored from that same repository state by the prior session, not
+  recalled informally.
+- Proved correct: yes — the repository state accurately identified that
+  QUEUED rank 1 is still `e2e-live-suite-exceeds-bedrock-daily-token-budget`
+  (the same blocked/deferred Work Item from Entry 20, `docs/backlog`
+  frontmatter unchanged at `status: queued` because the c3 disposition
+  deliberately touched only the pinned store, not the backlog-next
+  file — see Entry 20).
+- Material-loss / duplicated-effect / silently-skipped-step check: no
+  material loss, duplicated effect, or silently-skipped step observed; no
+  engine Run resume was attempted (none was pending); no step from the
+  prior session was duplicated.
+
+## Entry 23 — Practical work-selection event, second item this period (criterion 5 input)
+
+- Entry written (machine-captured UTC): 2026-07-19T09:07:00.000Z
+- Session: `02f14ef3-8391-4a1c-b8df-f40fb8578d1c`
+- Conflict identified before selecting: `/backlog-next`'s default Step-1
+  deterministic pick (no ACTIVE non-epic item → top-ranked QUEUED, rank 1)
+  resolves to `e2e-live-suite-exceeds-bedrock-daily-token-budget` — the
+  same Work Item this same session's prompt had just described as
+  blocked/deferred with an explicit "do not reopen speculatively" note
+  (Entry 20). Presented to the owner via `AskUserQuestion`: skip to rank 2
+  via an explicit `<id>` argument (recommended) vs. follow the literal
+  deterministic pick anyway. Owner selected the recommended option.
+- Selected: `e2e-fixtures-test-stale-detail-envelope-assertion` (type bug,
+  rank 2, no epic pointer, `status: queued`) via
+  `/backlog-next e2e-fixtures-test-stale-detail-envelope-assertion` (Step-1
+  "with `<id>` argument" / `queued` → proceed regardless of rank).
+- Classification: Simple lane (single app, `apps/e2e-feature-tests/test/
+  helpers/fixtures.test.ts`, no deploy, no public-interface change, no
+  architectural decision) — worked directly on `main`.
+
+## Entry 24 — Non-trivial Work Item worked through the engine; fix landed, ship-gate blocked (criteria 4/5 input)
+
+- Entry written (machine-captured UTC): 2026-07-19T09:07:00.000Z
+- Session: `02f14ef3-8391-4a1c-b8df-f40fb8578d1c`
+- Classification at first appearance: NON-TRIVIAL — a real, verified bug
+  fix (two stale-assertion e2e-fixture unit tests asserting the
+  pre-migration flat `detail:{}` EB envelope instead of the DRY
+  `{context, subject}` shape the fixtures actually emit), not pure
+  Continuity bookkeeping, not typo-class.
+- Continuity management: driven through the pinned engine, not hand-run —
+  `node runtime/adapters/claude-code/run-next.mjs
+  e2e-fixtures-test-stale-detail-envelope-assertion` (parked at
+  `execute:<id>`, lane initially misread as `doc-layer` because the fix
+  was not yet committed and the adapter's lane classifier reads the
+  committed `origin/main...HEAD` diff, not the working tree). The fix was
+  implemented (root-caused against `apps/e2e-feature-tests/src/helpers/
+  fixtures.ts`'s actual emitted shapes), verified green (scoped
+  `JEST_PATH=helpers/fixtures.test.ts` run: 5/5 passing, was 3/5), and
+  committed (`4358626e0fb9889748ca177568e3d2702fba17f8`) before fulfilling
+  the execute step, so the re-run correctly classified `lane: "simple"`.
+- `detect-doc-derivation.mjs` correctly reported no derivation needed
+  (exit 10); `tools/affected-projects.mjs` correctly scoped affected
+  projects to `e2e-feature-tests,nestfolio-e2e`, both lint-clean (0
+  errors).
+- Outcome: fix is real, verified, and committed+pushed on `main`, but the
+  Work Item's own ship-gate could not be honestly closed this session —
+  see Entry 25. `docs/backlog/e2e-fixtures-test-stale-detail-envelope-
+  assertion.md` frontmatter left at `status: queued` (unchanged); no
+  per-criterion or ship claim made for it.
+
+## Entry 25 — Failure-visibility event: pre-ship gate blocked on pre-existing whole-scope debt, unrelated to the item's own diff
+
+- Entry written (machine-captured UTC): 2026-07-19T09:07:00.000Z
+- Session: `02f14ef3-8391-4a1c-b8df-f40fb8578d1c`
+- The `run-next.mjs` pre-ship deploy-gate (lane `simple` → trigger
+  `{contexts:[audit], cost_ceiling:expensive, on:item-pre-ship}`) ran the
+  `audit-e2e-test` judgment check. That check's `scope.paths` is
+  `apps/e2e-feature-tests/**` (whole-app), so once selected by
+  `findByScope` it audited the entire app, not just the one changed file,
+  and returned `status: "failed"` with 4 findings — all in files never
+  touched by this item's 4-line diff (forbidden `@nestfolio/
+  integration-testing` import in 2 files; direct-DDB-read-without-
+  justification-comment in 5 files; 3 helpers missing from the
+  `src/index.ts` barrel; 5 files hand-rolling polling instead of the
+  shared `poll()` helper). Fail-closed, not silently swallowed.
+- This reproduces, in a NEW manifestation (a pre-ship judgment-tier
+  `audit` check rather than a start-gate `invariant` check), the exact
+  systemic pattern already tracked in the backlog as unresolved
+  (`runtime-gate-baseline-debt` epic / `gate-surfaced-source-debt`
+  member, both `status: parking`): item-gates evaluate whole-scope, so
+  pre-existing tree debt blocks a narrowly-scoped item's completion.
+  The documented `curate` ritual (SKILL.md §6.4b) is wired to a
+  DIFFERENT, later trigger name (`--trigger ship-gate|dangling-scope` via
+  `runtime/adapters/git/ship-recheck.mjs`), not to this pre-ship
+  `item-pre-ship` trigger — no already-wired escape valve was found for
+  this specific block. Re-running would not help without a new commit
+  (`preShipBatch` short-circuits on unchanged SHA via `e2eIsFresh`).
+- Presented to the owner via `AskUserQuestion` with three options: (i)
+  RECOMMENDED — treat the item as blocked by the pre-existing debt (leave
+  `docs/backlog` status `queued`, unchanged; file the 4 findings; route
+  to the next backlog item); (ii) expand scope to also fix the 4
+  unrelated findings so the gate passes clean; (iii) investigate the
+  `curate` ritual despite the trigger-name mismatch. Owner selected the
+  recommended option (i).
+- Effect: `e2e-fixtures-test-stale-detail-envelope-assertion` is treated
+  as blocked on ship-gate closure only — its own fix is done, verified,
+  and safely committed independent of the Work Item's bookkeeping (Entry
+  24). No further pre-ship retry attempted this session.
+
+## Entry 26 — Backlog filing event, including a caught-and-reverted data-loss near-miss (criteria 6/9 input)
+
+- Entry written (machine-captured UTC): 2026-07-19T09:07:00.000Z
+- Session: `02f14ef3-8391-4a1c-b8df-f40fb8578d1c`
+- Per the Entry 25 disposition, the 4 pre-ship findings were filed to the
+  backlog. Finding #0 (the forbidden-import finding) was already filed
+  2026-07-06 as `docs/backlog/from-audit-e2e-test.md`
+  (`provenance.from_finding: audit-e2e-test#0`) — confirmed a duplicate,
+  not re-filed.
+- Attempted the sanctioned intake driver
+  (`node runtime/adapters/claude-code/run-intake.mjs --finding <f1.json>
+  --fulfil execute:intake-audit-e2e-test#1 --value '...route:"orphan"...'`)
+  for finding #1 (the DDB-read-justification finding). It returned
+  `"written": ["docs/backlog/from-audit-e2e-test.md"]` — the SAME path as
+  finding #0's already-filed item — and had silently overwritten finding
+  #0's `done_when`/body with finding #1's content. Caught immediately via
+  `git diff` (uncommitted) before any commit; reverted with `git checkout
+  -- docs/backlog/from-audit-e2e-test.md`; verified restored (`git diff`
+  clean). No data was actually lost (never committed, let alone pushed).
+- Root cause identified: `run-intake.mjs`'s orphan route derives the
+  written filename from `from-<check-id>` alone, not from the finding's
+  own id, so a second orphan-routed finding from the same check collides
+  with and overwrites the first. Filed as a new backlog item
+  (`run-intake-orphan-route-filename-collision`) so the driver is not
+  reused unsafely for repeat same-check findings until fixed.
+- Given the demonstrated collision, the remaining 3 findings (#1 DDB-read
+  justification, #2 barrel-export gap, #3 poll()-helper duplication) were
+  filed manually per the `backlog-add` skill's documented template/
+  procedure (used as the semantics reference for exactly this case) with
+  distinct ids, `status: parking`, no epic match (checked the active
+  `runtime-self-hosting-debt` epic's `scope:`/`out_of_scope:` and every
+  parking theme epic by root cause; none matched) → plain orphans.
+  `node .claude/skills/backlog-lint/lint.mjs --fix`: 468 files, all 11
+  rules pass. Committed
+  (`948752c42469599d27a27cd54d72723d75331979`) and pushed to
+  `origin/main` (`897176bc..948752c4`).
+
+## Entry 27 — Session-boundary model-tier escalation note for the next Work Item (model-policy input)
+
+- Entry written (machine-captured UTC): 2026-07-19T09:07:00.000Z
+- Session: `02f14ef3-8391-4a1c-b8df-f40fb8578d1c`
+- `/backlog-next`'s deterministic pick for a third item this period would
+  again require an explicit `<id>` (rank 1 and rank 2 are both still
+  QUEUED and effectively blocked per Entries 20 and 25): rank 3,
+  `circuit-breaker-lifecycle-e2e-breaker-stuck-open` (type bug, root
+  cause unconfirmed between two hypotheses — test-isolation state-leak vs.
+  Bedrock-throttle-storm collateral — its own documented cheapest-next-
+  step is "run scenario 14 in isolation [against live AWS] and inspect
+  the broker-alpaca-adpt breaker-state row before/after").
+- Per the workspace model policy (`continuity-workspace/CLAUDE.md` §
+  "Model policy"), root-causing a live-AWS e2e flake between two
+  hypotheses is genuine hard-debugging judgment work, not scripted
+  routing — it calls for `claude-fable-5`/`claude-opus-4-8`, not
+  `claude-sonnet-5` (this session's model). This session did not adopt,
+  classify, or begin executing this item (no `docs/backlog` status
+  change, no engine `run-next.mjs` invocation for it) so as not to spend
+  live-AWS budget or a preliminary judgment pass on the cheaper tier that
+  would need redoing. Recommended next operation: a fresh session
+  launched with `claude-fable-5` to select and execute this item (or the
+  next-ranked alternative if priorities have shifted).
