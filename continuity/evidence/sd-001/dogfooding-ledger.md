@@ -1247,3 +1247,22 @@ Continuity engine.
   first (e2elb: real throttle or priority shift; e2e-fixtures /
   circuit-breaker: the systemic whole-scope-debt gate, tracked under the
   parking `runtime-gate-baseline-debt` epic).
+
+## Entry 39 — Resumption sample: fresh Claude Code session continuing from repository state (criterion 12 input)
+
+- Entry written (machine-captured UTC): 2026-07-19T12:29:22.000Z
+- Session: this session — a genuinely new Claude Code chat launched from
+  the Entry 38 handoff prompt (`~/continuity-handoffs/`), with no chat
+  memory of Entries 36-38; continuation was resumed entirely from
+  repository state (BACKLOG.md, the ledger itself, and the pinned
+  starting-revision check), matching the same fresh-session rule applied
+  at Entries 29/31/34/36 (and distinct from the NOT-a-resumption case at
+  Entry 9, which continued in the same chat).
+- Starting revisions confirmed exactly as pinned: Nestfolio HEAD
+  `1266783e8de3d50c136a3596504273e7a88efc35` clean on
+  `main`...`origin/main`; continuity-lab HEAD
+  `54ddae7f8c98d5365ec15d21e337bac192a6c2e4` clean, unchanged;
+  continuity-workspace clean on `main`.
+- Counters: resumptions 8/15 → **9/15**. WI 4/20 unchanged (pending this
+  session's selection); weeks 1/6 unchanged. Week 1 runs through
+  2026-07-25T19:39:42Z; no weekly-boundary entry required.
