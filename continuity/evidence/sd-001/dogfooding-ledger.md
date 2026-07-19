@@ -1720,3 +1720,153 @@ Continuity engine.
   decision point. The doc-layer LATER shortlist scouted across Entries
   45/47/48 is now exhausted; the next session will need to scout fresh
   candidates from the LATER list in `docs/BACKLOG.md`.
+
+## Entry 49 — Resumption sample: fresh Claude Code session continuing from repository state (criterion 12 input)
+
+- Entry written (machine-captured UTC): 2026-07-19T16:49:25Z.
+- Session: this session — a genuinely new Claude Code chat launched
+  from the Entry 48 handoff prompt (`~/continuity-handoffs/`), with no
+  chat memory of Entries 46-48, resumed entirely from repository state
+  (`docs/BACKLOG.md`, the ledger, the pinned starting-revision check).
+  Same fresh-session rule as Entries 29/31/34/36/39/42/44/46; restores
+  the cadence that Entry 48 (an accidental same-chat continuation)
+  could not sample.
+- Starting revisions confirmed exactly as pinned: Nestfolio HEAD
+  `ee0a7d498d3732b03e93d2c3650af91c1dcc2ce5` clean on `main`, in sync
+  with `origin/main`; continuity-lab HEAD
+  `dbd5664438c053531bdd3de38998ff7b9a90f3f0` clean, unchanged from the
+  Entry 48 observation (the one-commit lab drift ahead of the
+  long-standing `54ddae7f` baseline remains a separate concurrent
+  lab-side session, out of scope here, not touched); continuity-workspace
+  clean on `main`.
+- Counters: resumptions 12/15 → **13/15**. WI 8/20 unchanged (pending
+  this session's selection); weeks 1/6 unchanged. Week 1 runs through
+  2026-07-25T19:39:42Z; no weekly-boundary entry required.
+
+## Entry 50 — Work Item promoted and worked; outcome pending ship-gate disposition (criteria 4/5/6 input)
+
+- Entry written (machine-captured UTC): 2026-07-19T16:49:25Z.
+- Session: this session (resumption 13/15, Entry 49).
+- `continuity:doctor`/`continuity:verify` confirmed Level 1 activation
+  (`nestfolio.level-1@1.0.1` Pack + `nestfolio.backlog-next@1.0.1`
+  Procedure, all 19 locked assets verified, `failures: []`).
+  `backlog-next/preflight.mjs` passed clean.
+- `/backlog-next`'s default Step-1 pick again resolved to rank 1
+  `e2e-live-suite-exceeds-bedrock-daily-token-budget` — all four QUEUED
+  items re-confirmed blocked, unchanged from Entries 40/43/45/47/48.
+  The doc-layer LATER shortlist scouted across Entries 45/47/48 was
+  confirmed exhausted this session (no remaining `[doc]`-tagged LATER
+  entries); scouted 6 fresh `[tooling]`/`[refactor]`-tagged LATER
+  candidates against the tightened profile (no `epic:` pointer, no
+  deploy dependency, not touching `apps/e2e-feature-tests/**`, not
+  touching any `continuity/level-1/pack-lock.json` asset) and narrowed
+  to 2 clean candidates, presented via `AskUserQuestion`.
+- Selected for promotion: `test-support-typecheck-put-event-type-test-drift`
+  (`type: tooling`, `status: parking`→`queued rank: 5`) —
+  `pnpm nx run test-support:typecheck` was red on `main` independent of
+  any working-tree change: the negative type-test's `@ts-expect-error`
+  directive had drifted off the line an SDK/overload-resolution change
+  moved the expected `TS2769` compile error to (from the `subject:`
+  property up to the `putEvent(` call). Promotion committed `8e3b7c22`
+  and pushed.
+- Classification: Simple lane (single file,
+  `libs/test-support/test/types/put-event.type-test.ts`; no deploy, no
+  public-interface change); worked directly on `main`, no worktree.
+  Verified the drift against a live `tsc --noEmit` run before editing
+  (both failure lines reproduced exactly as the backlog item described).
+- Fix: repositioned the `@ts-expect-error` comment from the `subject:`
+  line onto the `putEvent(` call line (commit `a07019ba`) — confirmed
+  the surfaced `TS2769` is genuinely the intended negative case (unknown
+  event name rejected), not a different overload regression, per the
+  item's own "cheapest next step" guidance. `pnpm nx run
+  test-support:typecheck` green after the fix (was: 2 errors).
+- `detect-doc-derivation.mjs` correctly reported no derivation needed
+  (exit 10, `derivation=false`).
+- Driven through the pinned engine, not hand-run:
+  `node runtime/adapters/claude-code/run-next.mjs
+  test-support-typecheck-put-event-type-test-drift` (parked at
+  `execute:<id>`, lane `simple`); fulfilled with the committed
+  `TaskResult` (`--fulfil execute:… --value '{"status":"done",…}'`,
+  commit `a07019ba` referenced). The re-run's pre-ship deploy-gate batch
+  then **failed with 41 findings** — see Entry 51 for the full
+  disposition. `docs/backlog/test-support-typecheck-put-event-type-test-drift.md`
+  frontmatter left at `status: queued rank: 5` (unchanged); no ship
+  claim made.
+- Owner disposition via `AskUserQuestion`: Entry-25/33-class block —
+  item treated as blocked on ship-gate closure only; its fix is real,
+  verified (typecheck green), and committed (`a07019ba`, pushed to
+  `origin/main` as part of `main`'s routine history — no gate
+  push-through, no scope expansion. Filing of the newly-surfaced
+  findings explicitly DEFERRED to a dedicated mechanical session (owner
+  chose the "block, defer filing" option over "block, file now").
+
+## Entry 51 — Failure-visibility event: pre-ship deploy-gate blocked on pre-existing whole-scope debt, unrelated to the item's own diff (Entry-25/33-class)
+
+- Entry written (machine-captured UTC): 2026-07-19T16:49:25Z.
+- Session: this session (resumption 13/15, Entry 49/50).
+- The `run-next.mjs` pre-ship deploy-gate (lane `simple`) ran its
+  standard audit batch and returned `status: "failed"`, **41 findings —
+  none from this item's diff** (the diff touches exactly one file,
+  `libs/test-support/test/types/put-event.type-test.ts`; grepped the
+  full findings payload for `put-event.type-test` / `test-support` —
+  zero matches beyond the task-id field itself):
+  - **14 `audit-domain` findings** — domain-level inconsistencies across
+    unrelated services; finding `audit-domain#0` (broker-ctrl
+    `SimDepositInitiatedSubjectSchema` / `SimWithdrawalRequestedSubjectSchema`
+    forbidden `Subject` suffix) is the SAME pre-existing violation
+    already filed as `broker-ctrl-sim-funding-subject-suffix-rename`
+    (parked, acknowledged by the check's own comment — see Entry 32/33).
+    NOT re-filed. The remaining 13 `audit-domain` findings were not
+    individually deduped against the backlog this session (deferred, per
+    the owner's disposition below).
+  - **27 `audit-system-arch-docs` findings** — CLAUDE.md service-card
+    drift (stale test enumerations, wrong file paths, stale construct
+    claims) and E2E-convention drift (unjustified direct DynamoDB reads,
+    a `@nestfolio/integration-testing` import sanctioned by
+    `jest.config.js` but flagged by audit-e2e-test check 8, a barrel
+    omitting 3 helper exports) across a wide span of unrelated services
+    and `apps/e2e-feature-tests/**` files. None deduped against the
+    backlog this session (deferred).
+  - No deploy findings present in the payload — this item's diff is
+    test-only, so `detect-deploy-needed.mjs` correctly gated no deploy
+    attempt; the entire 41-finding block is the audit-batch step, not a
+    deploy-step failure.
+- Same root-cause class as Entries 24/25 and 32/33: item-gates run
+  global invariants whole-scope (the still-parked
+  `runtime-gate-baseline-debt` theme epic), so pre-existing tree-wide
+  debt blocks this item's ship gate even though the item's own change is
+  clean and unrelated.
+- Owner disposition via `AskUserQuestion` (single decision, two options
+  presented): **"Block as Entry-25-class"** chosen (over "block and file
+  the 41 findings now") — item stays blocked on ship-gate closure only;
+  no gate push-through; filing of the (at most 40, after the one known
+  dup) newly-surfaced findings deferred to a dedicated mechanical
+  filing/dedup session, not this doc/tooling-scoped session.
+- Standing rules audit: no byte changed under `runtime/continuity/**`;
+  hooks/settings untouched; no published suite edited; no immutable
+  record mutated; no Skills/Packs/bindings touched (this item only
+  touched `libs/test-support/test/types/put-event.type-test.ts` plus its
+  own backlog frontmatter + `docs/BACKLOG.md`, confirmed not locked-pack
+  assets — `backlog-next` remains the only locked pack, unaffected); no
+  SD-002 claim; none of the four standing blocked QUEUED items reopened
+  or ship-pushed; engine Guards never bypassed (no `curate`/skip
+  invoked — the block itself is the honest outcome, not a bypass).
+- Final Nestfolio HEAD this session: `a07019ba` (the drift fix), clean
+  on `main`, in sync with `origin/main` (pushed). continuity-lab HEAD
+  observed unchanged at `dbd5664438c053531bdd3de38998ff7b9a90f3f0` (not
+  touched by this session). continuity-workspace unaffected.
+- Counters: WI 8/20 unchanged (this item did NOT ship — Entry-25-class
+  blocks do not count toward the WI counter, consistent with Entries
+  24/32 not incrementing it either). Weeks 1/6 unchanged; resumptions
+  13/15 (Entry 49).
+- Recommended next operation: a dedicated mechanical filing/dedup
+  session to process the 41 newly-surfaced pre-ship findings (mirrors
+  the Entry 33 deferred-filing precedent, now compounding with those
+  12+1 findings from Entries 34-35) — OR, if the owner prefers to keep
+  advancing the WI counter first, a fresh `/backlog-next` session in a
+  genuinely NEW Claude Code chat to restore the resumption-sampling
+  cadence and scout the next candidate (QUEUED still holds the four
+  standing blocked items; the doc-layer LATER shortlist is exhausted,
+  `[tooling]`/`[refactor]` LATER items are the next scouting pool, one
+  of which — `benchmark-agents-skill-simplification` — was already
+  scouted and screened clean this session as a fallback candidate).
