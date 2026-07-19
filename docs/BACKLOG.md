@@ -233,7 +233,6 @@ _(none)_
 2. [e2e-fixtures-test-stale-detail-envelope-assertion](backlog/e2e-fixtures-test-stale-detail-envelope-assertion.md) [bug] — apps/e2e-feature-tests fixtures.test.ts asserts the old flat detail:{} EB envelope, but the fixtures now emit the DRY {context, subject} envelope — 2 stale-assertion failures unrelated to any service.
 3. [circuit-breaker-lifecycle-e2e-breaker-stuck-open](backlog/circuit-breaker-lifecycle-e2e-breaker-stuck-open.md) [bug] — scenario 14 circuit-breaker-lifecycle e2e: initiateDeposit returns SERVICE_TEMPORARILY_UNAVAILABLE (breaker OPEN) when the test expects it closed — root cause unconfirmed (state-leak vs throttle-storm collateral).
 4. [decision-log-utc-date-stamp](backlog/decision-log-utc-date-stamp.md) [bug] — decision-log.mjs stamps the UTC date — evening-CET appends land under yesterday's date in an append-only audit log
-5. [c4-diagrams-stale-vs-cdk-stacks](backlog/c4-diagrams-stale-vs-cdk-stacks.md) [doc] — C4 D2 diagrams under docs/architecture are stale vs the CDK stacks (dashboard-bff Ingress event count, two advisory-to-investor cross-domain event counts).
 
 ## LATER
 
@@ -264,6 +263,7 @@ _(none)_
 
 ## Recently Shipped (last 10)
 
+- 2026-07-19 — [c4-diagrams-stale-vs-cdk-stacks](backlog/c4-diagrams-stale-vs-cdk-stacks.md) [doc] — C4 D2 diagrams under docs/architecture are stale vs the CDK stacks (dashboard-bff Ingress event count, two advisory-to-investor cross-domain event counts).
 - 2026-07-19 — [create-mfe-skill-stale-file-references](backlog/create-mfe-skill-stale-file-references.md) [doc] — create-mfe skill references two files that no longer exist on disk (Host GraphQL provider path, AppSync config path).
 - 2026-07-19 — [e2e-jest-timeout-convention-drift](backlog/e2e-jest-timeout-convention-drift.md) [doc] — audit-e2e-test skill's documented testTimeout convention (300_000) is stale vs jest.config.js's actual 600_000.
 - 2026-07-18 — [dashboard-bff-awaiting-confirmation-activity-gap](backlog/dashboard-bff-awaiting-confirmation-activity-gap.md) [bug] — dashboard-bff recent-activity may be missing an 'awaiting confirmation' feed item. The dead USER_CONFIRMATION_REQUESTED handler (removed by incident-escalation-path-b 2026-06-15) was its only producer; since the Task-1.5 taskToken redesign no event fires, so an L2 decision entering AWAITING_CONFIRMATION may not surface in the activity feed. Surfaced 2026-06-15. `[epic:bff-read-model-semantic-gaps · core]`
@@ -273,4 +273,3 @@ _(none)_
 - 2026-07-10 — [backlog-lint-no-element-shape-validation](backlog/backlog-lint-no-element-shape-validation.md) [tooling] — backlog-lint passes on element-shape-corrupt frontmatter (object inside out_of_scope) and the index render silently drops the item. `[epic:backlog-item-frontmatter-integrity · core]`
 - 2026-07-10 — [from-intake-join-theme-cannot-express-epic-role](backlog/from-intake-join-theme-cannot-express-epic-role.md) [bug] `[epic:backlog-item-frontmatter-integrity · core]`
 - 2026-07-10 — [runtime-epic-gate-unmapped-audit-integration-test-procedure](backlog/runtime-epic-gate-unmapped-audit-integration-test-procedure.md) [bug]
-- 2026-07-10 — [runtime-epic-pre-done-scope-hardcoded-star](backlog/runtime-epic-pre-done-scope-hardcoded-star.md) [bug]

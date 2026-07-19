@@ -1,7 +1,7 @@
 ---
 id: c4-diagrams-stale-vs-cdk-stacks
-status: queued
-rank: 5
+status: shipped
+closed: 2026-07-19
 type: doc
 notes: "C4 D2 diagrams under docs/architecture are stale vs the CDK stacks (dashboard-bff Ingress event count, two advisory-to-investor cross-domain event counts)."
 references: []
@@ -9,7 +9,7 @@ out_of_scope: []
 spec: null
 plan: null
 topic_memory: []
-validation_gate: null
+validation_gate: "Regenerated via generate-c4-diagrams Stage 1+2 (commit 7ae256bb, pushed to origin/main): dashboard-bff.d2 Ingress rule 13->14 events; nestfolio.d2 advisory-to-investor and advisory-to-investor-adpt 5->6 Events (+DECISION_PACKET_UPDATED); investor-adpt-to-dashboard-bff 10->11 Events. SVGs recompiled (c3-dashboard-bff.svg, c2-investor/index.svg, index.svg). Doc-layer lane, no deploy, no affected tests."
 ---
 
 # C4 diagrams stale vs CDK stacks
