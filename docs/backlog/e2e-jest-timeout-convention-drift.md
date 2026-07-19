@@ -1,6 +1,7 @@
 ---
 id: e2e-jest-timeout-convention-drift
-status: parking
+status: queued
+rank: 4
 type: doc
 notes: "audit-e2e-test skill's documented testTimeout convention (300_000) is stale vs jest.config.js's actual 600_000."
 references: []

@@ -220,7 +220,7 @@ rollup: core 0/3 done · captured 0/0 done
 - core · parking · [portfolio-drift-detected-registry-collision](backlog/portfolio-drift-detected-registry-collision.md)
 - core · parking · [weight-drift-detector](backlog/weight-drift-detector.md)
 
-**Parking health:** 31 theme epic(s), 27 orphan(s) — drive orphans → 0 with `/backlog-themes`
+**Parking health:** 31 theme epic(s), 26 orphan(s) — drive orphans → 0 with `/backlog-themes`
 
 ## ACTIVE
 
@@ -232,6 +232,7 @@ _(none)_
 1. [e2e-live-suite-exceeds-bedrock-daily-token-budget](backlog/e2e-live-suite-exceeds-bedrock-daily-token-budget.md) [infra] — One full live-AgentCore e2e run (~7.2k Bedrock invocations) exhausts the dev account daily token-per-day quota mid-suite, so the suite self-throttles and cannot go fully green in a single pass.
 2. [e2e-fixtures-test-stale-detail-envelope-assertion](backlog/e2e-fixtures-test-stale-detail-envelope-assertion.md) [bug] — apps/e2e-feature-tests fixtures.test.ts asserts the old flat detail:{} EB envelope, but the fixtures now emit the DRY {context, subject} envelope — 2 stale-assertion failures unrelated to any service.
 3. [circuit-breaker-lifecycle-e2e-breaker-stuck-open](backlog/circuit-breaker-lifecycle-e2e-breaker-stuck-open.md) [bug] — scenario 14 circuit-breaker-lifecycle e2e: initiateDeposit returns SERVICE_TEMPORARILY_UNAVAILABLE (breaker OPEN) when the test expects it closed — root cause unconfirmed (state-leak vs throttle-storm collateral).
+4. [e2e-jest-timeout-convention-drift](backlog/e2e-jest-timeout-convention-drift.md) [doc] — audit-e2e-test skill's documented testTimeout convention (300_000) is stale vs jest.config.js's actual 600_000.
 
 ## LATER
 
@@ -247,7 +248,6 @@ _(none)_
 - [e2e-ddb-read-missing-graphql-justification-comment](backlog/e2e-ddb-read-missing-graphql-justification-comment.md) [bug] — E2E convention check #5 (hard fail): several e2e scenario tests assert via direct DDB reads with no comment justifying why BFF GraphQL is insufficient.
 - [e2e-feature-tests-hand-rolled-polling-not-using-poll-helper](backlog/e2e-feature-tests-hand-rolled-polling-not-using-poll-helper.md) [refactor] — 5 e2e-feature-tests scenario files hand-roll Date.now()+N polling while-loops instead of using the shared poll() helper exported from src/index.ts.
 - [e2e-feature-tests-index-barrel-missing-helper-exports](backlog/e2e-feature-tests-index-barrel-missing-helper-exports.md) [tooling] — apps/e2e-feature-tests/src/index.ts barrel omits 3 helpers that exist in src/helpers/ (contract-assert, event-subject-trap, graphql-types); consumers reach them via ad-hoc relative paths instead.
-- [e2e-jest-timeout-convention-drift](backlog/e2e-jest-timeout-convention-drift.md) [doc] — audit-e2e-test skill's documented testTimeout convention (300_000) is stale vs jest.config.js's actual 600_000.
 - [from-audit-e2e-test](backlog/from-audit-e2e-test.md) [bug]
 - [from-e2elb-remeasure-2026-07-18-dns-enotfound](backlog/from-e2elb-remeasure-2026-07-18-dns-enotfound.md) [bug]
 - [from-e2elb-remeasure-2026-07-18-withprofilesnapshot-timeout](backlog/from-e2elb-remeasure-2026-07-18-withprofilesnapshot-timeout.md) [bug]
