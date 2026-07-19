@@ -863,3 +863,175 @@ Continuity engine.
   within standing SD-001 rules.
   Week 1 runs through 2026-07-25T19:39:42Z; no weekly-boundary entry
   required this session.
+
+## Entry 31 — Resumption sample (6/15) and work-continuation: circuit-breaker-lifecycle-e2e-breaker-stuck-open, judgment phase
+
+- Entry written (machine-captured UTC): 2026-07-19T10:58:19.000Z
+- Session: `1bec9be1-7293-4347-a3af-8bed09205756` (launched on
+  `claude-fable-5` at `--effort high` per Entry 30's escalation
+  recommendation and the workspace model policy).
+- This is a genuine fresh session continuing `circuit-breaker-lifecycle-
+  e2e-breaker-stuck-open` from repository state (same rule Entry 29
+  applied: mid-item continuation driven by pinned SHAs and the ledger,
+  not by chat memory) → resumption sample **6/15**.
+- Starting revisions confirmed exactly as pinned in the session prompt:
+  nestfolio HEAD `11ac42891ed6861efd9b98e1b73a7b01411e5f61` clean on
+  `main`, in sync with `origin/main`; continuity-lab HEAD
+  `893e1767553841105f60606886be883d57199c87` clean on `main` (the
+  DR-0026 process-only publication from the immediately preceding
+  session, anticipated by the prompt — no contradiction); workspace
+  clean on `main`.
+- Source of next action: repository artifacts — Entries 22-30 re-read
+  from the ledger; Entry 30's findings treated as verified fact per the
+  session prompt. No scripted-evidence step re-run.
+- Material-loss / duplicated-effect / silently-skipped-step check: none
+  observed; the engine park is expected to persist and will be
+  re-confirmed before judgment work begins.
+- Work-continuation: judgment phase — trace investor-bff
+  `broadcast-listener` queue/DLQ redelivery semantics to confirm or
+  refute the stale-event-redelivery mechanism (Entry 30's sole surviving
+  hypothesis), then decide and implement the smallest in-scope fix, or
+  stop with full reasoning if irreducibly ambiguous.
+
+## Entry 32 — Root cause CONFIRMED with forensic evidence: reordered late BROKER_CIRCUIT_OPEN delivery vs an unguarded last-writer-wins flag write; freshness-guard fix implemented (TDD), committed, deployed to dev
+
+- Entry written (machine-captured UTC): 2026-07-19T11:51:16.000Z
+- Session: `1bec9be1-7293-4347-a3af-8bed09205756`
+- Engine re-invoked first: identical
+  `execute:circuit-breaker-lifecycle-e2e-breaker-stuck-open` park
+  confirmed (exit 3), no engine repo write.
+- (4a) Queue/consumer semantics established from code:
+  `BroadcastIngress` (libs/cdk-constructs/src/core/ingress.ts) is a
+  standard (non-FIFO, reorderable) SQS queue, visibility timeout 180s
+  (6× the 30s default Lambda timeout), `maxReceiveCount 10`, DLQ
+  terminal (14d retention, no auto-redrive);
+  `broadcastFromQueue` (libs/event-processor) applies
+  BROKER_CIRCUIT_OPEN/CLOSED **unconditionally** — no idempotency, no
+  ordering, no freshness guard (`mapPayload` ignored the payload
+  entirely). The event path is multi-hop: broker-alpaca-adpt DDB
+  NormalizedEvent row → CDC Egress Lambda (24h stream retention) →
+  execution-bus → bus-to-bus EB rule (investor-adpt
+  `InvestorIngress-FromExecution`, per-target retry up to 24h) →
+  investor-bus → BroadcastIngress SQS → listener. Every hop is
+  at-least-once with independent delay; ordering is nowhere guaranteed.
+- (4b) CONFIRMED — not merely plausible — via read-only forensics of
+  the original E6 failure (2026-06-26, within CloudWatch 5-min/90-day
+  log retention):
+  - Account-wide Lambda throttle storm 16:40–17:15 UTC (~17k throttles
+    in 5-min buckets — the Bedrock daily-quota retry amplification).
+  - broadcast-listener log group (90d retention): exactly 7
+    BROKER_CIRCUIT_* deliveries all day, each processed once (3
+    mutations per event, same trace id; no SQS redelivery at the final
+    hop — received==sent, age ≤12s).
+  - DDB NormalizedEvent rows (persist; sk carries emission time) vs
+    delivery log: tenant `e2e-…-7a5365cf`'s OPEN was EMITTED
+    17:16:23.159, its heal-SM CLOSEDs emitted 17:16:24.9/25.4 — but
+    DELIVERY order was inverted: CLOSEDs at 17:16:26/28, the OPEN **22
+    seconds late at 17:16:45**, after its own CLOSEDs. Flags left
+    disabled with the breaker row already healed.
+  - The final test attempt (fresh tenant `e2e-…-b1801141` created
+    17:16:28.9, beforeEach `resetFeatureFlags()` ≈17:16:30) ran
+    Phase-1 `initiateDeposit` inside the disabled window
+    (17:16:45→17:17:26) → the recorded
+    `SERVICE_TEMPORARILY_UNAVAILABLE` at line 69; its afterEach CLOSED
+    emission at 17:17:04 matches to the second (delivered 17:17:26,
+    same ~22s lag, re-enabling the flags).
+  - Entry 30's mechanism is thus confirmed in substance (a stale OPEN
+    delivered after a flag reset), refined in kind: an intra-run
+    ~22s reorder under the throttle storm, not a crashed-prior-run
+    message hours old. Secondary contributing race re-observed, NOT
+    fixed here (distinct root cause, deferred to filing): the fixture's
+    heal-rule EB Disable did not propagate in time, so the heal SM
+    closed the fixture-opened breaker within ~2s twice that day (and
+    again on 2026-07-18 per Entry 30's snapshot openedAt/closedAt 2s
+    apart), shrinking Phase-2's disabled window to ~2s.
+  - Production impact is real, not test-only: the same reorder in
+    production leaves all 3 gated FeatureFlags disabled indefinitely
+    while the breaker is healed (no later event corrects them until the
+    next breaker cycle).
+- (4c/4e) Fix implemented — the session prompt's own suggested shape
+  (idempotent flag writes gated on event freshness), smallest change
+  that removes the failure class without weakening breaker semantics:
+  - `updateFeatureFlag` (investor-bff schema + js resolver) gains an
+    optional `eventTimestamp`; when present the PutItem is conditional
+    (`attribute_not_exists(lastEventAt) OR lastEventAt < :et`) and
+    stamps `lastEventAt`; when absent (manual/ops) it writes
+    unconditionally with `lastEventAt = now` (manual always outranks
+    older events). Strict `<` makes duplicate redeliveries no-ops.
+  - `broadcast-listener` passes the event emission timestamp.
+  - e2e `resetFeatureFlags()` stamps `lastEventAt`, so any
+    BROKER_CIRCUIT_* event emitted before the reset is structurally
+    rejected — the observed flake instance becomes impossible.
+  - Stale rejections surface as GraphQL `ConditionalCheckFailedException`
+    errors, which `postAppSyncMutation` logs WITHOUT failing the record
+    (its documented non-fatal broadcast contract, verified) — no lib
+    change, no retry storm, no DLQ noise, and no stale value is ever
+    broadcast to `onFeatureFlagUpdate` subscribers (errored mutations
+    do not publish).
+  - TDD: new `update-feature-flag.test.ts` + updated
+    `broadcast-listener.test.ts` written first (5 red), then green
+    (8/8); full investor-bff suite 110/110; lint clean (0 errors).
+  - Commit `e290fbe9c382519a46e943b1003f7c63c2758a8e` ("Gate
+    updateFeatureFlag on event freshness so reordered BROKER_CIRCUIT
+    deliveries cannot override newer state"). The commit-hook
+    `typed-subjects` gate blocked on the 2 PRE-EXISTING parked
+    broker-ctrl subject-suffix violations (whole-scan check; debt
+    already filed as `broker-ctrl-sim-funding-subject-suffix-rename`,
+    acknowledged by the check's own comment) — surfaced via
+    AskUserQuestion; owner chose the journaled `RUNTIME_GATE_SKIP=1`
+    escape (adjudicated at ship-recheck), no push-through of the gate
+    content itself.
+
+## Entry 33 — Failure-visibility event: pre-ship deploy-gate blocked on pre-existing whole-scope debt + an environmental Docker blocker; Entry-25-class disposition, filing deferred
+
+- Entry written (machine-captured UTC): 2026-07-19T11:51:16.000Z
+- Session: `1bec9be1-7293-4347-a3af-8bed09205756`
+- Engine fulfil (`--fulfil execute:… --value TaskResult`) ran the
+  pre-ship deploy-gate batch: **failed, 20 findings — none from this
+  item's diff** (the diff's own services deployed clean and no finding
+  targets the change):
+  - 6 already filed (audit-e2e-test#0 = `from-audit-e2e-test`;
+    #1/#2 = Entry 26 manual filings; audit-domain#0 +
+    audit-service#0/#1 = parked
+    `broker-ctrl-sim-funding-subject-suffix-rename`). NOT re-filed.
+  - ~13 apparently new: 7 domain-level orphan/dead-code findings
+    (dead-consumer DECISION_FEEDBACK, unconsumed
+    ALPHA_VANTAGE_ECONOMIC_INDICATOR_UPDATED, producer-less
+    ALPACA_ORDER_CANCEL_REQUESTED / ALPACA_ACCOUNT_CHECK, MonthlyReport
+    dead-end read model, 5 stale investor-adpt forwards, undocumented
+    ledger simulation branch), 5 doc/diagram drift findings (stale C4,
+    2 broken create-mfe skill refs, missing flow specs, orphan
+    ORDER_STAGED forward), 1 e2e jest-timeout convention drift.
+  - deploy-gate#0: the actual dev deploy ran — 26/27 stacks ✅
+    including dev-investor-bff (the fix IS live on dev) and
+    dev-broker-alpaca-adpt; the single failure is environmental and
+    unrelated: onboarding-bff's OnboardingAgent container asset needs
+    Docker and the daemon was not running on this machine.
+- Owner disposition via AskUserQuestion (two decisions): (i)
+  Entry-25-class block — item treated as blocked on ship-gate closure
+  only; its fix is real, verified, committed and deployed to dev; no
+  gate push-through, no scope expansion; (ii) filing of the
+  genuinely-new findings DEFERRED to a dedicated mechanical session —
+  full findings preserved as committed evidence at
+  `continuity/evidence/sd-001/pre-ship-findings-2026-07-19-circuit-breaker-item.json`
+  (deploy log evidence truncated to salient lines; dedup against
+  docs/backlog required before filing; `run-intake.mjs` still barred by
+  the open filename-collision item).
+- `docs/backlog/circuit-breaker-lifecycle-e2e-breaker-stuck-open.md`
+  frontmatter left at `status: queued` (unchanged), matching the
+  Entry 24/25 precedent. Open threads for later adjudication: the
+  journaled typed-subjects RUNTIME_GATE_SKIP (ship-recheck), the
+  Docker-daemon environmental blocker, and the deferred filings.
+- Standing rules audit for this session: no byte changed under
+  `runtime/continuity/**`; hooks/settings untouched; no published suite
+  edited; no immutable record mutated; no Skills/Packs/bindings change;
+  no SD-002 claim; engine Guards honored (park → fulfil → gate verdict
+  respected; the only skip is the journaled commit-hook escape chosen
+  by the owner at the floor).
+- Counters: WI 2/20 → **3/20** (parity with the second item's
+  counting: fix landed + disposition recorded, ship-closure blocked);
+  weeks 1/6 unchanged; resumptions 6/15 (Entry 31). Week 1 runs
+  through 2026-07-25T19:39:42Z; no weekly-boundary entry required.
+- Recommended next operation: a `claude-sonnet-5` mechanical session to
+  dedup + manually file the deferred findings from the evidence JSON
+  and refresh docs/BACKLOG.md via backlog-lint --fix.

@@ -1,0 +1,240 @@
+{
+  "saved_by_session": "1bec9be1-7293-4347-a3af-8bed09205756",
+  "saved_at": "2026-07-19T11:47:00Z",
+  "source": "pre-ship deploy-gate batch for item circuit-breaker-lifecycle-e2e-breaker-stuck-open at nestfolio HEAD e290fbe9",
+  "disposition": "Entry-25-class block (owner-confirmed): all 20 findings pre-existing/environmental, none from the item diff. Filing of genuinely-new findings DEFERRED to a dedicated session; dedup against docs/backlog required before filing. Already filed (do NOT re-file): audit-e2e-test#0 (from-audit-e2e-test), #1/#2 (Entry 26 manual filings), audit-domain#0 + audit-service#0/#1 (broker-ctrl-sim-funding-subject-suffix-rename, parked). deploy-gate#0 root cause: Docker daemon not running on the dev machine (onboarding-bff OnboardingAgent container asset); investor-bff and broker-alpaca-adpt deployed clean.",
+  "findings": [
+    {
+      "id": "audit-domain#0",
+      "check": "audit-domain",
+      "kind": "inconsistency",
+      "scope": [
+        "services/execution/broker-ctrl/src/domain/contracts.ts"
+      ],
+      "detail": "Typed-subject convention violation (subject-suffix): two contracts use a `Subject` suffix instead of a clean domain/event concept name",
+      "evidence": "pnpm nx run event-processor:typed-subject-drift \u2192 FAIL; services/execution/broker-ctrl/src/domain/contracts.ts:76 (SimDepositInitiatedSubjectSchema), :85 (SimWithdrawalRequestedSubjectSchema)",
+      "raised_at": "2026-07-19T11:31:39.432Z"
+    },
+    {
+      "id": "audit-domain#1",
+      "check": "audit-domain",
+      "kind": "inconsistency",
+      "scope": [
+        "services/advisory/advisory-narrative-ctrl/**",
+        "services/advisory/advisory-bff/**"
+      ],
+      "detail": "Consumer subscribes to an event no producer emits: advisory-narrative-ctrl Ingress + live event-listener/feedback-correlator handle DECISION_FEEDBACK, but no service, AppSync mutation, or Step Function emits it anywhere in the repo (advisory-bff resolvers never publish it).",
+      "evidence": "services/advisory/advisory-narrative-ctrl/src/service.stack.ts:41 + handlers/event-listener.ts:171; grep DECISION_FEEDBACK finds only decision-workflow-ctrl/src/domain/events.ts:10 (def) + narrative consumer",
+      "raised_at": "2026-07-19T11:31:39.432Z"
+    },
+    {
+      "id": "audit-domain#2",
+      "check": "audit-domain",
+      "kind": "inconsistency",
+      "scope": [
+        "services/advisory/alpha-vantage-adpt/**",
+        "services/advisory/market-intelligence-ctrl/**"
+      ],
+      "detail": "Producer emits an event no one consumes: alpha-vantage-adpt CDC-emits ALPHA_VANTAGE_ECONOMIC_INDICATOR_UPDATED (EconomicIndicator table, insert+modify) but no service subscribes; market-intelligence-ctrl (only plausible consumer) subscribes to ALPHA_VANTAGE_NEWS_UPDATED only.",
+      "evidence": "services/advisory/alpha-vantage-adpt/src/service.stack.ts:77-78; market-intelligence-ctrl/src/service.stack.ts:45-51",
+      "raised_at": "2026-07-19T11:31:39.432Z"
+    },
+    {
+      "id": "audit-domain#3",
+      "check": "audit-domain",
+      "kind": "inconsistency",
+      "scope": [
+        "services/execution/broker-alpaca-adpt/src/**",
+        "services/execution/broker-ctrl/src/**"
+      ],
+      "detail": "Consumer subscribes to an event no producer emits: broker-alpaca-adpt Ingress + processCancelRequested handle ALPACA_ORDER_CANCEL_REQUESTED, but no producer emits it \u2014 the OrderWorkflow SF has zero PutEvents and the designed EmitCancel state was never wired. Order-cancel path is dead.",
+      "evidence": "services/execution/broker-alpaca-adpt/src/service.stack.ts:25 + handlers/event-listener.ts:315; grep finds only consumer + type defs",
+      "raised_at": "2026-07-19T11:31:39.432Z"
+    },
+    {
+      "id": "audit-domain#4",
+      "check": "audit-domain",
+      "kind": "inconsistency",
+      "scope": [
+        "services/execution/broker-alpaca-adpt/src/**",
+        "services/execution/broker-ctrl/src/**"
+      ],
+      "detail": "Consumer subscribes to an event no production producer emits: broker-alpaca-adpt Ingress + processAccountCheck handle ALPACA_ACCOUNT_CHECK, but the circuit-breaker heal SF does its health check via direct HTTP:Invoke to Alpaca /v2/account, not by emitting the event; only tests emit it. Wiring gap.",
+      "evidence": "services/execution/broker-alpaca-adpt/src/service.stack.ts:27 + handlers/event-listener.ts:317; heal SF HTTP:Invoke at service.stack.ts:124-130",
+      "raised_at": "2026-07-19T11:31:39.432Z"
+    },
+    {
+      "id": "audit-domain#5",
+      "check": "audit-domain",
+      "kind": "inconsistency",
+      "scope": [
+        "services/investor/investor-ctrl/**"
+      ],
+      "detail": "Dead-end read model: investor-ctrl writes MonthlyReport rows on ORDER_FILLED and CDC-emits MONTHLY_REPORT_CREATED/UPDATED, but no service subscribes and no GraphQL query reads MonthlyReport. MONTHLY_REPORT_GENERATED is a declared-but-unemitted dead constant.",
+      "evidence": "services/investor/investor-ctrl/src/service.stack.ts:42-45; grep MonthlyReport over services/investor/**/*.{graphql,vtl,js,ts} finds no BFF reader",
+      "raised_at": "2026-07-19T11:31:39.432Z"
+    },
+    {
+      "id": "audit-domain#6",
+      "check": "audit-domain",
+      "kind": "inconsistency",
+      "scope": [
+        "services/investor/investor-adpt/**"
+      ],
+      "detail": "Stale adapter forwards: investor-adpt forwards 5 cross-domain events onto InvestorBus that no investor service consumes (they land and die): EXPLANATION_GENERATED, ORDER_STAGED, ORDER_CANCELLED, LEDGER_PROCESSING_FAILED, PORTFOLIO_DRIFT_DETECTED. dashboard-bff removed ORDER_*/PORTFOLIO_DRIFT_DETECTED from its Ingress (WS-3), leaving the adapter forwards stale.",
+      "evidence": "services/investor/investor-adpt/src/service.stack.ts:41,64,67,102,103; none appear in Ingress eventTypes of investor-ctrl/investor-bff/dashboard-bff",
+      "raised_at": "2026-07-19T11:31:39.432Z"
+    },
+    {
+      "id": "audit-domain#7",
+      "check": "audit-domain",
+      "kind": "inconsistency",
+      "scope": [
+        "services/ledger/ledger-ctrl/**",
+        "flows/advisory-cycle.flow.yaml"
+      ],
+      "detail": "Undocumented flow branch (warning): ledger-ctrl subscribes to DECISION_PACKET_CREATED and processSimulationEvent writes 'simulated' LedgerEntry rows, but no flow documents this ledger-side simulation; advisory-cycle.flow.yaml mischaracterizes the ledger-adpt consumption as 'audit' rather than simulation.",
+      "evidence": "services/ledger/ledger-ctrl/src/handlers/event-listener.ts:157-210 vs flows/advisory-cycle.flow.yaml:372-376,407",
+      "raised_at": "2026-07-19T11:31:39.432Z"
+    },
+    {
+      "id": "audit-e2e-test#0",
+      "check": "audit-e2e-test",
+      "kind": "gap",
+      "scope": [
+        "apps/e2e-feature-tests/src/**"
+      ],
+      "detail": "Convention check #8 (hard fail: no imports from @nestfolio/integration-testing) is violated \u2014 two E2E test bodies import EventBusTrap from the integration-testing harness, and two shared helpers do as well.",
+      "evidence": "src/profile/revoke-mandate.e2e.test.ts:5 and src/profile/update-operating-mode.e2e.test.ts:5: `import { EventBusTrap } from '@nestfolio/integration-testing';` (also src/helpers/agent-trace-trap.ts:1, src/helpers/event-subject-trap.ts:1)",
+      "raised_at": "2026-07-19T11:34:08.266Z"
+    },
+    {
+      "id": "audit-e2e-test#1",
+      "check": "audit-e2e-test",
+      "kind": "gap",
+      "scope": [
+        "apps/e2e-feature-tests/src/index.ts",
+        "apps/e2e-feature-tests/src/helpers/**"
+      ],
+      "detail": "src/index.ts barrel (config check #5) omits three helpers that are imported across many test files via relative paths: event-subject-trap (armEventSubjectTrap), contract-assert (expectContractMatch), and graphql-types (response types). freshTenant/waitForGraphQL/poll/bffClient/fixtures/alpacaPaperReset/AgentTraceTrap are exported, so the barrel is inconsistent about which helpers are the public surface.",
+      "evidence": "src/index.ts exports 8 helper modules but not event-subject-trap/contract-assert/graphql-types; e.g. src/account/go-live-switch.e2e.test.ts:11 `import { armEventSubjectTrap } from '../helpers/event-subject-trap'`, src/advisory/advisory-contract-emission.e2e.test.ts:113 `import { expectContractMatch } from '../helpers/contract-assert'`, src/funding/fund-account.e2e.test.ts:13 `import type { RecentActivityResponse } from '../helpers/graphql-types'`",
+      "raised_at": "2026-07-19T11:34:08.266Z"
+    },
+    {
+      "id": "audit-e2e-test#2",
+      "check": "audit-e2e-test",
+      "kind": "gap",
+      "scope": [
+        "apps/e2e-feature-tests/src/account/go-live-switch.e2e.test.ts",
+        "apps/e2e-feature-tests/src/advisory/operating-mode-authority.e2e.test.ts",
+        "apps/e2e-feature-tests/src/profile/update-operating-mode.e2e.test.ts",
+        "apps/e2e-feature-tests/src/advisory/reconciliation-correction.e2e.test.ts"
+      ],
+      "detail": "Convention check #5 requires DDB reads in test bodies to carry a comment explaining why GraphQL is insufficient. Several assertion-path DDB reads lack that justification comment. The compliance-ctrl polls (no BFF, so GraphQL genuinely unavailable) are justified in principle but never state it; go-live-switch reads investor-bff's own InvestorProfile row directly (a table that is a BFF read model reachable via GraphQL) with no justification.",
+      "evidence": "src/account/go-live-switch.e2e.test.ts:57 GetCommand on investor-bff InvestorProfile (BFF read model); src/advisory/operating-mode-authority.e2e.test.ts:60/79 and src/profile/update-operating-mode.e2e.test.ts:54/78 (compliance-ctrl reads, comment only says 'Set up DDB client for compliance-ctrl reads'); src/advisory/reconciliation-correction.e2e.test.ts:64/93",
+      "raised_at": "2026-07-19T11:34:08.266Z"
+    },
+    {
+      "id": "audit-e2e-test#3",
+      "check": "audit-e2e-test",
+      "kind": "gap",
+      "scope": [
+        "apps/e2e-feature-tests/jest.config.js"
+      ],
+      "detail": "Config check #1 specifies testTimeout: 300_000, but jest.config.js sets 600_000. The code raise is documented (comment cites agentcore-invocation-resilience 360s poll), so the audit-e2e-test skill's stated convention value is stale relative to code \u2014 drift between the documented convention and the surface.",
+      "evidence": "apps/e2e-feature-tests/jest.config.js: `testTimeout: 600_000,` vs skill check #1 `testTimeout: 300_000`",
+      "raised_at": "2026-07-19T11:34:08.266Z"
+    },
+    {
+      "id": "audit-service#0",
+      "check": "audit-service",
+      "kind": "staleness",
+      "scope": [
+        "services/execution/broker-ctrl/src/domain/contracts.ts"
+      ],
+      "detail": "Contract `SimDepositInitiatedSubjectSchema` uses a forbidden `Subject` suffix (typed-subject convention 4). It should be named after the clean domain/event concept (e.g. `SimDepositInitiatedSchema`). Not present in runtime/content/exclusions/typed-subject-exclusions.json, so it is an unjustified violation flagged by `event-processor:typed-subject-drift`.",
+      "evidence": "services/execution/broker-ctrl/src/domain/contracts.ts:76 \u2014 `node tools/check-typed-subjects.mjs` \u2192 [subject-suffix]",
+      "raised_at": "2026-07-19T11:35:02.877Z"
+    },
+    {
+      "id": "audit-service#1",
+      "check": "audit-service",
+      "kind": "staleness",
+      "scope": [
+        "services/execution/broker-ctrl/src/domain/contracts.ts"
+      ],
+      "detail": "Contract `SimWithdrawalRequestedSubjectSchema` uses a forbidden `Subject` suffix (typed-subject convention 4). It should be named after the clean domain/event concept (e.g. `SimWithdrawalRequestedSchema`). Not present in the typed-subject exclusions file, so it is an unjustified violation flagged by `event-processor:typed-subject-drift`.",
+      "evidence": "services/execution/broker-ctrl/src/domain/contracts.ts:85 \u2014 `node tools/check-typed-subjects.mjs` \u2192 [subject-suffix]",
+      "raised_at": "2026-07-19T11:35:02.877Z"
+    },
+    {
+      "id": "audit-system-arch-docs#0",
+      "check": "audit-system-arch-docs",
+      "kind": "inconsistency",
+      "scope": [
+        "docs/architecture/**"
+      ],
+      "detail": "C4 D2 diagrams are stale vs the CDK stacks. Regenerating Stage 1 produces a diff: dashboard-bff Ingress rule label shows [13 events] but the stack now subscribes to 14; the advisory\u2192investor cross-domain flow shows '5 Events' but is now 6 (DECISION_PACKET_UPDATED added to the forward); investor-adpt\u2192dashboard-bff shows '10 Events' but is now 11.",
+      "evidence": "`node tools/generate-c4-sources.mjs` then `git diff`: docs/architecture/c3/dashboard-bff.d2:17 (13\u219214 events); docs/architecture/nestfolio.d2:251 (advisory-to-investor 5\u21926 Events, +DECISION_PACKET_UPDATED), :538 (advisory-to-investor-adpt 5\u21926), :549 (investor-adpt-to-dashboard-bff 10\u219211)",
+      "raised_at": "2026-07-19T11:39:28.647Z"
+    },
+    {
+      "id": "audit-system-arch-docs#1",
+      "check": "audit-system-arch-docs",
+      "kind": "inconsistency",
+      "scope": [
+        ".claude/skills/**"
+      ],
+      "detail": "create-mfe skill lists a Host GraphQL provider reference file that does not exist on disk (no renamed equivalent at that location; closest real file is libs/shell/src/graphql/provide-mfe-graphql.ts).",
+      "evidence": ".claude/skills/create-mfe/SKILL.md:106 \u2192 `apps/nestfolio-host/src/app/provide-graphql.ts` (ls: No such file or directory; apps/nestfolio-host/src/app/ has no graphql-provider file)",
+      "raised_at": "2026-07-19T11:39:28.647Z"
+    },
+    {
+      "id": "audit-system-arch-docs#2",
+      "check": "audit-system-arch-docs",
+      "kind": "inconsistency",
+      "scope": [
+        ".claude/skills/**"
+      ],
+      "detail": "create-mfe skill lists an AppSync config reference file that does not exist on disk.",
+      "evidence": ".claude/skills/create-mfe/SKILL.md:110 \u2192 `libs/shell/src/graphql/appsync.config.ts` (ls: No such file or directory; dir contains create-apollo-client.ts, graphql.service.ts, provide-mfe-graphql.ts, no appsync.config.ts)",
+      "raised_at": "2026-07-19T11:39:28.647Z"
+    },
+    {
+      "id": "audit-system-arch-docs#3",
+      "check": "audit-system-arch-docs",
+      "kind": "inconsistency",
+      "scope": [
+        "services/**"
+      ],
+      "detail": "Five cross-domain events forwarded by investor-adpt have real investor-domain consumers but no flow spec documents the adapter forwarding hop: ADVISORY_STATUS_UPDATED and DECISION_PACKET_UPDATED (consumed by dashboard-bff), and DEPOSIT_REQUESTED/DEPOSIT_SETTLED/DEPOSIT_FAILED (consumed by investor-bff deposit-lifecycle transform). deposit.flow.yaml traces only DEPOSIT_DETECTED\u2192dashboard-bff and DEPOSIT_SETTLED\u2192ledger; the entire deposit-failure branch is undocumented.",
+      "evidence": "services/investor/investor-adpt/src/service.stack.ts:40,44,68,70,71; consumers services/investor/dashboard-bff/src/handlers/event-listener.ts:40,46 and services/investor/investor-bff/src/handlers/event-listener.ts:26,30,32; no cross_domain block for these in flows/deposit.flow.yaml or flows/advisory-cycle.flow.yaml",
+      "raised_at": "2026-07-19T11:39:28.647Z"
+    },
+    {
+      "id": "audit-system-arch-docs#4",
+      "check": "audit-system-arch-docs",
+      "kind": "inconsistency",
+      "scope": [
+        "services/**"
+      ],
+      "detail": "investor-adpt forwards ORDER_STAGED from ExecutionBus\u2192InvestorBus but no investor-domain service subscribes to it and no flow documents the hop \u2014 an orphan forwarding rule.",
+      "evidence": "services/investor/investor-adpt/src/service.stack.ts:64 (no matching consumer subscription in investor domain; order-execution.flow.yaml documents ORDER_STAGED only as an execution-ctrl emission, not a cross-domain hop)",
+      "raised_at": "2026-07-19T11:39:28.647Z"
+    },
+    {
+      "id": "deploy-gate#0",
+      "check": "deploy-gate",
+      "kind": "gap",
+      "scope": [
+        "services/**",
+        "libs/**",
+        "apps/**",
+        "infrastructure/**"
+      ],
+      "detail": "A code/infra-touching item's branch delta deploys cleanly to the dev sandbox and its affected integration + involved e2e tests pass, before the runtime worker offers the ship floor decision.\n",
+      "evidence": "[TRUNCATED from 121KB deploy log; salient lines only. Full log in session 1bec9be1 journal.]   Deploying onboarding-bff (us-east-1)...\nERROR: Cannot connect to the Docker daemon at unix:///Users/fabiovitali/.docker/run/docker.sock. Is the docker daemon running?\ndev-onboarding-bff: fail: docker build --tag cdkasset-0eac8a5ff6eaee3186a25ed65ef5ccd6754d01806d5042698d59a680a5384934 . exited with error code 1: ERROR: Cannot connect to the Docker daemon at unix:///Users/fabiovitali/.docker/run/docker.sock. Is the docker daemon running?\nERROR: One or more parallel deploys failed in Phase 3.\n[deploy-gate] deploy failed (code 1)",
+      "raised_at": "2026-07-19T11:41:53.620Z"
+    }
+  ]
+}
