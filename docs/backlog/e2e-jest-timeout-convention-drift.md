@@ -1,7 +1,7 @@
 ---
 id: e2e-jest-timeout-convention-drift
-status: queued
-rank: 4
+status: shipped
+closed: 2026-07-19
 type: doc
 notes: "audit-e2e-test skill's documented testTimeout convention (300_000) is stale vs jest.config.js's actual 600_000."
 references: []
@@ -9,7 +9,7 @@ out_of_scope: []
 spec: null
 plan: null
 topic_memory: []
-validation_gate: null
+validation_gate: "Fixed in commit 0f6185f7 — .claude/skills/audit-e2e-test/SKILL.md check #1 testTimeout 300_000 -> 600_000, matching apps/e2e-feature-tests/jest.config.js:12. Grep confirmed no other stale 300_000 convention reference remains outside dated historical plan/spec snapshots."
 ---
 
 # e2e-feature-tests jest testTimeout convention drift

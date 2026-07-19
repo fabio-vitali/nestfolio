@@ -232,7 +232,6 @@ _(none)_
 1. [e2e-live-suite-exceeds-bedrock-daily-token-budget](backlog/e2e-live-suite-exceeds-bedrock-daily-token-budget.md) [infra] — One full live-AgentCore e2e run (~7.2k Bedrock invocations) exhausts the dev account daily token-per-day quota mid-suite, so the suite self-throttles and cannot go fully green in a single pass.
 2. [e2e-fixtures-test-stale-detail-envelope-assertion](backlog/e2e-fixtures-test-stale-detail-envelope-assertion.md) [bug] — apps/e2e-feature-tests fixtures.test.ts asserts the old flat detail:{} EB envelope, but the fixtures now emit the DRY {context, subject} envelope — 2 stale-assertion failures unrelated to any service.
 3. [circuit-breaker-lifecycle-e2e-breaker-stuck-open](backlog/circuit-breaker-lifecycle-e2e-breaker-stuck-open.md) [bug] — scenario 14 circuit-breaker-lifecycle e2e: initiateDeposit returns SERVICE_TEMPORARILY_UNAVAILABLE (breaker OPEN) when the test expects it closed — root cause unconfirmed (state-leak vs throttle-storm collateral).
-4. [e2e-jest-timeout-convention-drift](backlog/e2e-jest-timeout-convention-drift.md) [doc] — audit-e2e-test skill's documented testTimeout convention (300_000) is stale vs jest.config.js's actual 600_000.
 
 ## LATER
 
@@ -266,6 +265,7 @@ _(none)_
 ## Recently Shipped (last 10)
 
 - 2026-07-19 — [create-mfe-skill-stale-file-references](backlog/create-mfe-skill-stale-file-references.md) [doc] — create-mfe skill references two files that no longer exist on disk (Host GraphQL provider path, AppSync config path).
+- 2026-07-19 — [e2e-jest-timeout-convention-drift](backlog/e2e-jest-timeout-convention-drift.md) [doc] — audit-e2e-test skill's documented testTimeout convention (300_000) is stale vs jest.config.js's actual 600_000.
 - 2026-07-18 — [dashboard-bff-awaiting-confirmation-activity-gap](backlog/dashboard-bff-awaiting-confirmation-activity-gap.md) [bug] — dashboard-bff recent-activity may be missing an 'awaiting confirmation' feed item. The dead USER_CONFIRMATION_REQUESTED handler (removed by incident-escalation-path-b 2026-06-15) was its only producer; since the Task-1.5 taskToken redesign no event fires, so an L2 decision entering AWAITING_CONFIRMATION may not surface in the activity feed. Surfaced 2026-06-15. `[epic:bff-read-model-semantic-gaps · core]`
 - 2026-07-13 — [continuity-vs001-resumable-agent-work-session](backlog/continuity-vs001-resumable-agent-work-session.md) [implementation] — Authorized architecture-validation slice from continuity-lab TA-002. Proves one bounded resumable Claude Code-oriented agent work session; not a broad runtime migration.
 - 2026-07-13 — [continuity-vs001a-claude-code-session-confirmation](backlog/continuity-vs001a-claude-code-session-confirmation.md) [implementation] — Corrective validation slice authorized by continuity-lab VS-001A. Closes the VS-001 executor-provenance evidence gap (acceptance criteria 4, 7, 8) with two genuine Claude Code Sessions driven by project-local SessionStart/SessionEnd hooks; no architecture expansion, no rerun of run-vs001.
@@ -274,4 +274,3 @@ _(none)_
 - 2026-07-10 — [from-intake-join-theme-cannot-express-epic-role](backlog/from-intake-join-theme-cannot-express-epic-role.md) [bug] `[epic:backlog-item-frontmatter-integrity · core]`
 - 2026-07-10 — [runtime-epic-gate-unmapped-audit-integration-test-procedure](backlog/runtime-epic-gate-unmapped-audit-integration-test-procedure.md) [bug]
 - 2026-07-10 — [runtime-epic-pre-done-scope-hardcoded-star](backlog/runtime-epic-pre-done-scope-hardcoded-star.md) [bug]
-- 2026-07-10 — [runtime-guide-path-to-live-section-stale](backlog/runtime-guide-path-to-live-section-stale.md) [tooling] — SHIPPED (resolved) 2026-07-10 by runtime-legacy-retirement (P6, merge acd44767): runtime/GUIDE.md was rewritten wholesale to the runtime-only world. The stale §7 'path to live' section no longer exists — verified absent are the phrases 'path to live', 'augments them', 'does not replace them yet', and the parked-operational-surface framing; §7 is now 'Testing & regression protection'. The item's work survived (the GUIDE is fresh), so it is terminal-as-resolved. `[epic:runtime-operationalization · captured]`
