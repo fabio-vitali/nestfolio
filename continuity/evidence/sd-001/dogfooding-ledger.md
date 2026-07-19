@@ -1156,3 +1156,94 @@ Continuity engine.
 - Counters: WI 3/20 unchanged (pending this session's selection); weeks
   1/6 unchanged; resumptions **8/15**. Week 1 runs through
   2026-07-25T19:39:42Z; no weekly-boundary entry required.
+
+## Entry 37 — Work-selection: all 3 QUEUED items found blocked; owner promoted a LATER item (criterion 5 input)
+
+- Entry written (machine-captured UTC): 2026-07-19T12:21:03.000Z
+- Session: this session (resumption 8/15, Entry 36).
+- `/backlog-next`'s default Step-1 pick (no ACTIVE non-epic item → top-
+  ranked QUEUED, rank 1) resolves to `e2e-live-suite-exceeds-bedrock-
+  daily-token-budget` — but all three current QUEUED items were found
+  blocked/prohibited before selecting: rank 1 carries the Entry 20
+  blocked/deferred disposition (revisit only on a real throttle or
+  priority shift, neither observed); rank 2
+  (`e2e-fixtures-test-stale-detail-envelope-assertion`) has its fix
+  landed+pushed (Entry 24) but remains ship-gate blocked by the same
+  whole-scope-debt pattern (Entry 25/33) that would very likely
+  reproduce on a bare retry; rank 3
+  (`circuit-breaker-lifecycle-e2e-breaker-stuck-open`) is explicitly
+  prohibited from reopening by this session's own prompt.
+- Presented to the owner via `AskUserQuestion` (three options: promote a
+  LATER item to QUEUED / retry rank 2 hoping the gate now passes / no
+  Work Item this session). Owner selected the recommended option:
+  promote a LATER item.
+- Selected for promotion: `create-mfe-skill-stale-file-references`
+  (`type: doc`, `status: parking`→`queued rank: 4`) — a self-contained,
+  mechanical stale-file-reference fix confined to one skill doc
+  (`.claude/skills/create-mfe/SKILL.md`), carrying no unmet-trigger
+  language (rule 8), no deploy dependency, and no overlap with the
+  `apps/e2e-feature-tests/**` scope that produced the whole-scope-debt
+  block on ranks 2/3 — chosen specifically to avoid repeating that
+  pattern. Promotion committed (`b8283a3e`) and pushed before selection,
+  per `backlog-lint --fix` (481 files, all 11 rules green).
+- Selected via `/backlog-next create-mfe-skill-stale-file-references`
+  (Step-1 "with `<id>` argument" / `queued` → proceed regardless of
+  rank).
+- Classification: engine lane `doc-layer` (the pinned `run-next.mjs`
+  classifier's own read of the committed diff — a single `.md` file
+  under `.claude/skills/`); worked directly on `main`, no worktree.
+
+## Entry 38 — Work Item shipped clean through the engine, no ship-gate block (criteria 4/5/6 input)
+
+- Entry written (machine-captured UTC): 2026-07-19T12:21:25.000Z
+- Session: this session (resumption 8/15, Entry 36-37).
+- Fix: two stale file references in `.claude/skills/create-mfe/SKILL.md`
+  corrected against the real files on disk — Host GraphQL provider
+  `apps/nestfolio-host/src/app/provide-graphql.ts` (did not exist) →
+  `libs/shell/src/graphql/provide-mfe-graphql.ts`; AppSync config
+  `libs/shell/src/graphql/appsync.config.ts` (did not exist) → replaced
+  with the real Apollo client factory
+  `libs/shell/src/graphql/create-apollo-client.ts`. No other stale
+  reference to either old path remained in the file (verified by grep).
+  Committed `b145a354e65887207fbd42ab29c907326a13de01` on `main`.
+- Driven through the pinned engine:
+  `node runtime/adapters/claude-code/run-next.mjs
+  create-mfe-skill-stale-file-references` parked at
+  `execute:<id>` → fulfilled with a `done` TaskResult citing the commit
+  → engine advanced directly to the ship floor (doc-layer lane skips the
+  pre-ship deploy-gate batch entirely and the 6.4b backward-edge ritual
+  is doc-layer-exempt by the skill's own text) → fulfilled
+  `ship-create-mfe-skill-stale-file-references` with `"ship"` → engine
+  returned `status: "done"`, exit 0. No pre-ship block encountered this
+  time — unlike Entries 24/25/33, this item's diff never touched
+  `apps/e2e-feature-tests/**`, so the whole-scope-debt gate was never
+  invoked.
+- `detect-doc-derivation.mjs`: exit 10, no derivation needed.
+  `tools/affected-projects.mjs --base=origin/main`: empty (no nx
+  project depends on a skill markdown file) — no test/lint run required.
+- `docs/backlog/create-mfe-skill-stale-file-references.md` →
+  `status: shipped`, `closed: 2026-07-19`, `validation_gate:` filled with
+  the commit SHA and engine-approval evidence. `backlog-lint --fix`: 481
+  files, all 11 rules green, `docs/BACKLOG.md` regenerated. Committed
+  (`b99067f1`) and pushed.
+- Postflight: `node .claude/skills/backlog-next/postflight.mjs
+  --lane=doc-layer --id=create-mfe-skill-stale-file-references` →
+  passed (tree clean, backlog checks green).
+- Standing rules audit for this session: no byte changed under
+  `runtime/continuity/**`; hooks/settings untouched; no published suite
+  edited; no immutable record mutated; no Skills/Packs/bindings change;
+  no SD-002 claim; `circuit-breaker-lifecycle-e2e-breaker-stuck-open`
+  NOT reopened (its ship-gate blocker did not clear); engine Guards
+  honored throughout (execute park → fulfil → ship-floor park → fulfil,
+  no skip).
+- Counters: WI 3/20 → **4/20** (first fully clean ship this SD-001
+  period — no ship-gate block, no deferred disposition); weeks 1/6
+  unchanged; resumptions 8/15 (Entry 36) unchanged this entry. Week 1
+  runs through 2026-07-25T19:39:42Z; no weekly-boundary entry required.
+- Recommended next operation: a fresh `/backlog-next` work selection for
+  the next Work Item — QUEUED still holds the same three blocked/
+  prohibited items (ranks 1-3), so the next session will face the same
+  promote-from-LATER decision point unless one of their blockers clears
+  first (e2elb: real throttle or priority shift; e2e-fixtures /
+  circuit-breaker: the systemic whole-scope-debt gate, tracked under the
+  parking `runtime-gate-baseline-debt` epic).
