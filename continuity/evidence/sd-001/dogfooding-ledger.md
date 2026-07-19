@@ -690,3 +690,61 @@ Continuity engine.
   would need redoing. Recommended next operation: a fresh session
   launched with `claude-fable-5` to select and execute this item (or the
   next-ranked alternative if priorities have shifted).
+
+## Entry 28 — Work-selection: circuit-breaker-lifecycle-e2e-breaker-stuck-open selected and started; session interrupted early at owner request (budget), diagnostic evidence preserved
+
+- Entry written (machine-captured UTC): 2026-07-19T10:29:11.000Z
+- Session: `a35b469b-da36-4b9d-b7ec-1b29ed4108f0` (launched on
+  `claude-fable-5` per Entry 27's escalation note)
+- Starting revisions confirmed (nestfolio `a7a7c65e` clean/in-sync, lab
+  `52c5b2e1` clean, workspace clean). Continuity Level 1 preflight green
+  (doctor+verify: pack `nestfolio.level-1@1.0.1`, procedure
+  `nestfolio.backlog-next@1.0.1`, 19/19 locked assets verified).
+  `/backlog-next circuit-breaker-lifecycle-e2e-breaker-stuck-open`
+  invoked with explicit id (rank 1/2 still blocked per Entries 20/25;
+  BACKLOG.md re-checked fresh — no new rank-1-eligible item).
+  Skill preflight green. Item is `queued`, type bug, no epic pointer →
+  proceed. Engine started: `run-next.mjs` parked (exit 3) at
+  `execute:circuit-breaker-lifecycle-e2e-breaker-stuck-open` awaiting a
+  session-executor TaskResult; no repo write from the engine.
+- Diagnostic evidence gathered (static, no live-AWS spend yet):
+  (1) enforcement point found — AppSync pipeline fn
+  `investor-bff/src/graphql/js-function/check-feature-flag.fn.js` reads
+  `FeatureFlag#SYSTEM/FeatureFlag#<mutation>` and throws exactly the
+  observed `SERVICE_TEMPORARILY_UNAVAILABLE` / "This action is
+  temporarily paused" when `enabled === false` → the Phase-1 failure
+  means the flag row was false at that instant, despite the test's
+  `beforeEach` `resetFeatureFlags()` writing true before the
+  minutes-long fixture chain; (2) the flag writer is
+  `investor-bff/src/handlers/broadcast-listener.ts` consuming
+  BROKER_CIRCUIT_OPEN/CLOSED from a queue (at-least-once, reorderable
+  under backlog) → AppSync `updateFeatureFlag`; (3) breaker state is a
+  single GLOBAL row `CircuitBreaker#alpaca` in broker-alpaca-adpt;
+  (4) `withBreakerOpen()` DISABLES the heal-SM EB rule
+  (`dev-broker-alpaca-adpt-HealStateMachine*` on
+  `dev-execution-event-bus`) before opening; `closeBreakerFixture()`
+  re-enables it only BEST-EFFORT and the whole test `afterEach` is
+  best-effort → an interrupted/crashed run can leak breaker-row OPEN
+  with the production auto-heal rule still disabled ("stuck open"
+  literal); (5) `CircuitBreakerRepository.writeBreakerOpenEvent` exists
+  as a re-emission primitive — whether adapter handlers re-emit
+  BROKER_CIRCUIT_OPEN on traffic arriving while the row is already OPEN
+  is the pivotal unresolved question (if yes, a leaked OPEN row +
+  `beforeEach` fixture traffic re-disables the flags after the reset,
+  fully explaining the Phase-1 failure and unifying both hypotheses:
+  throttle-storm as original crash cause, state-leak as the standing
+  mechanism).
+- Session interrupted at owner request (subscription budget at 93%)
+  before the judgment phase. Nothing lost: evidence above + next
+  diagnostic steps saved to the next-session handoff prompt. Engine park
+  persists and is resumable. Counters unchanged: WI 2/20 (this item
+  selected+started, not completed) · weeks 1/6 · resumptions 4/15 (this
+  session is the planned session of its own handoff prompt, not a
+  resumption sample; the NEXT fresh session continuing this item
+  qualifies as sample 5/15).
+- Model note: `claude-fable-5` was the right tier for this session's
+  planned judgment work, but the session was cut before judgment; the
+  remaining next chunk is scripted evidence collection with a documented
+  decision tree, adequate for `claude-sonnet-5` with an explicit
+  escalation guard (ambiguous verdict → stop and hand back to
+  `claude-fable-5`).
