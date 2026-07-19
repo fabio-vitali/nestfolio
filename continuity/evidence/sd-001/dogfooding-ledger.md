@@ -1870,3 +1870,128 @@ Continuity engine.
   `[tooling]`/`[refactor]` LATER items are the next scouting pool, one
   of which — `benchmark-agents-skill-simplification` — was already
   scouted and screened clean this session as a fallback candidate).
+
+## Entry 52 — Resumption sample (14/15) and work-continuation: dedicated mechanical filing/dedup session for deferred pre-ship findings
+
+- Entry written (machine-captured UTC): 2026-07-19T17:09:24Z.
+- Session launched on `claude-sonnet-5` at `--effort medium` per Entry
+  51's recommended next operation and the workspace model policy
+  (mechanical dedup + templated filing, no adversarial judgment).
+- This is a genuine fresh session continuing from repository state (same
+  rule Entries 29/31/34/36/39/42/44/46/49 applied) → resumption sample
+  **14/15**.
+- Starting revisions confirmed exactly as pinned in the session prompt:
+  nestfolio HEAD `7f2a6edbd36640369a9a235849ec1efee50fab94` clean on
+  `main`, in sync with `origin/main`; continuity-lab HEAD
+  `dbd5664438c053531bdd3de38998ff7b9a90f3f0` unchanged; workspace clean
+  on `main`.
+- **Premise correction**: the session prompt assumed the 12+1 findings
+  from Entries 34-35 were "still unfiled" (never actually filed despite
+  the Entry 33 deferral). Verified false — Entry 35 already filed all 13
+  as backlog items; confirmed by `ls docs/backlog/*.md` for all 13 slugs
+  named in Entry 35, all present. No re-filing needed for that batch;
+  treated as dedup-as-existing.
+- **Replay-cost contradiction**: re-running `node
+  runtime/adapters/claude-code/run-next.mjs
+  test-support-typecheck-put-event-type-test-drift` per the prompt's
+  step 2 did NOT cheaply replay the Entry 51 41-finding payload as
+  anticipated. Because the item's own fix (`a07019ba`) is now merged
+  into `main` and `main` == `origin/main`, `branchDelta('origin/main')`
+  returns an empty diff, which changes lane classification and skips
+  straight to the `ship`/`hold` decision — the audit-batch step did not
+  re-run. Additionally, unlike Entry 34 (which had a persisted
+  `pre-ship-findings-*.json` snapshot), Entry 51 never persisted a JSON
+  artifact of the 41-finding payload — only category-level prose
+  summaries. Exact per-finding detail for the ~40 non-duplicate findings
+  was therefore unrecoverable via cheap replay.
+- Presented the recovery options to the owner via `AskUserQuestion`;
+  owner selected the recommended option: re-run the full `audit-domain`
+  (all 4 domains) and `audit-system-arch-docs` (E2E/C4/flow-spec/
+  arch-doc, items 2-6, item 1 skipped to avoid duplicating the parallel
+  audit-domain pass) checks in full via two parallel read-only
+  sub-agents (no remediation, no file writes) to regenerate the exact
+  finding payload with file/line precision, accepting the extra token
+  cost over the cheap-replay path assumed by the prompt.
+- Two parallel read-only sub-agents ran the full checks: `audit-domain`
+  (all 4 domains) returned 21 new findings (advisory 2, execution 6,
+  investor 6, ledger 7) plus reconfirmed the known duplicate
+  (`broker-ctrl-sim-funding-subject-suffix-rename`, surfaced again via
+  the `typed-subject-drift` gate, not re-filed); `audit-system-arch-docs`
+  (items 2-6, item 1 skipped to avoid duplicating the parallel
+  audit-domain pass) returned 40 new findings (E2E 12, C4 0, flow-spec
+  7, arch-doc/CLAUDE.md 21). Grand total: 61 new candidate findings,
+  larger than Entry 51's original partial 41 — expected, since these are
+  judgment-tier checks re-run in full rather than a cheap replay, and
+  system state has moved on since Entry 51.
+- Dedup pass against `docs/backlog/*.md` (grep by event name / file /
+  topic, cross-checked by reading the candidate existing files) found
+  10 exact duplicates of already-filed items: `broker-alpaca-adpt-
+  alpaca-account-check-no-producer` = `alpaca-account-check-event-
+  unwired`; `execution-ctrl-unused-execution-paused-resumed-events` =
+  `execution-ctrl-pause-resume-events-unwired`; `investor-adpt-order-
+  staged-unconsumed-forward` = already listed in `investor-adpt-stale-
+  cross-domain-forwards`; the arch-docs `dangling-cancel-order-event-
+  no-flow-no-producer` (`ALPACA_ORDER_CANCEL_REQUESTED`) = `alpaca-
+  order-cancel-requested-dead-path`; `e2e-barrel-omits-three-helpers` =
+  `e2e-feature-tests-index-barrel-missing-helper-exports`; `e2e-
+  integration-testing-import-config-conflict` = `from-audit-e2e-test`
+  (same convention-check-8 issue, larger file span — not re-filed as a
+  separate item); and 4 `e2e-ddb-*-unjustified` findings (go-live-
+  switch, operating-mode-authority, update-operating-mode,
+  reconciliation-correction) all already covered by `e2e-ddb-read-
+  missing-graphql-justification-comment`'s file list. None of these 10
+  were re-filed.
+- Remaining 51 candidates were filed as **28 new backlog items** (10 as
+  `epic_role: core` members of the parking theme epic `event-name-
+  integrity`; 18 as plain orphans), grouping per the session prompt's
+  "batch similar findings" instruction where the underlying facts were
+  genuinely homogeneous: 17 CLAUDE.md staleness findings (missing test
+  enumerations / omitted DDB entities, warning-only) folded into one
+  systemic item `claude-md-service-cards-stale-test-enumerations`
+  (flagged as likely a shared card-generator gap, not 17 independent
+  edits); 5 investor-bff mutation flow-spec gaps folded into
+  `investor-bff-missing-flow-specs-mutations`; 3 investor/onboarding-bff
+  E2E coverage gaps folded into `investor-bff-e2e-coverage-gaps`; and
+  one exact cross-check duplicate — the audit-domain
+  `onboarding-bff-claude-md-inbound-event-drift` fact and the
+  arch-docs `F17` fact both independently surfaced the same onboarding-
+  bff CLAUDE.md `ONBOARDING_STARTED` fabrication — merged into one item
+  `onboarding-bff-claude-md-drift` (mirrors the Entry 35
+  `investor-adpt-stale-cross-domain-forwards` cross-check-merge
+  precedent). 4 hard-fail findings were kept individually visible
+  rather than folded into the staleness batch:
+  `service-inventory-fabricated-event-names`,
+  `market-intelligence-ctrl-kbingestion-unwired-claude-md`,
+  `investor-bff-claude-md-fabricated-deposit-withdrawal-events`, and
+  `onboarding-bff-claude-md-drift` itself.
+- **Premise-correction reconciliation**: the 12+1 Entries 34-35 findings
+  were confirmed already filed (see the premise-correction note above);
+  0 of those were re-filed this session. Combined with this session's
+  61 Entry-51-re-audit candidates, the full compounding backlog named in
+  this session's prompt is now fully processed: 13 (Entries 34-35,
+  pre-existing) + 61 (this session) = 74 total findings accounted for
+  across the two batches; 10 + 10 = 20 exact duplicates; 51 genuinely
+  new, filed as 28 backlog items this session.
+- `node .claude/skills/backlog-lint/lint.mjs --fix`: clean on first run
+  — 509 backlog files (481 pre-session + 28 new), all 11 rules pass;
+  `docs/BACKLOG.md` regenerated.
+- No code, hooks, settings, published suites, or immutable records
+  touched; no Skills/Packs/bindings changed; no SD-002 claim; none of
+  the four standing blocked QUEUED items reopened;
+  `test-support-typecheck-put-event-type-test-drift` status left
+  untouched at `queued rank: 5` (its own ship-gate disposition remains
+  explicitly out of scope for this filing session — the `run-next.mjs`
+  replay-cost contradiction noted above did not attempt to fulfil its
+  `ship`/`hold` decision).
+- Counters: WI 8/20 unchanged (filing is not shipping, per the session
+  prompt's own instruction — this session does not by itself advance
+  the WI counter); weeks 1/6 unchanged; resumptions **14/15** (Entry
+  52).
+- Recommended next operation: a fresh `/backlog-next` session in a
+  genuinely NEW Claude Code chat to restore the resumption-sampling
+  cadence and advance the WI counter (14/15 resumptions leaves exactly
+  one more resumption sample before the SD-001 15-sample target; QUEUED
+  still holds the four standing blocked items, so expect another
+  promote-from-LATER decision point, now with a substantially enlarged
+  LATER pool — 28 new parking items plus 10 new `event-name-integrity`
+  epic members — unless a QUEUED blocker clears in the interim).

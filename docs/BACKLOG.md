@@ -82,13 +82,23 @@ rollup: core 0/4 done · captured 0/0 done
 
 ### [event-name-integrity](backlog/event-name-integrity.md) `[epic · parking]` — Event-name declarations have no integrity gate, so names drift from reality — declared-but-unwired dead constants AND cross-domain re-declarations that don't break on a producer rename. Theme epic, 3 members.
 done_when: An event-name integrity check exists so a declared event name cannot survive without a producer+consumer wiring AND cross-domain names are re-exported from the producer (a rename is a single-source compile/check error, not a silent stale literal); each in-scope name is wired, deleted, or re-exported. All members shipped or dropped.
-rollup: core 0/6 done · captured 0/0 done
+rollup: core 0/16 done · captured 0/0 done
 - core · parking · [account-closure-requested-never-emitted](backlog/account-closure-requested-never-emitted.md)
 - core · parking · [adapter-event-name-redeclare-vs-reexport](backlog/adapter-event-name-redeclare-vs-reexport.md)
+- core · parking · [advisory-adpt-cross-domain-event-types-missing-decision-packet-updated](backlog/advisory-adpt-cross-domain-event-types-missing-decision-packet-updated.md)
 - core · parking · [advisory-narrative-ctrl-decision-feedback-dead-consumer](backlog/advisory-narrative-ctrl-decision-feedback-dead-consumer.md)
 - core · parking · [alpha-vantage-economic-indicator-unconsumed](backlog/alpha-vantage-economic-indicator-unconsumed.md)
+- core · parking · [broker-sim-adpt-dead-execution-adpt-event-types](backlog/broker-sim-adpt-dead-execution-adpt-event-types.md)
+- core · parking · [execution-adpt-cross-domain-registry-missing-funding-events](backlog/execution-adpt-cross-domain-registry-missing-funding-events.md)
+- core · parking · [execution-ctrl-orphaned-order-lifecycle-egress-events](backlog/execution-ctrl-orphaned-order-lifecycle-egress-events.md)
 - core · parking · [execution-ctrl-pause-resume-events-unwired](backlog/execution-ctrl-pause-resume-events-unwired.md)
+- core · parking · [investor-bff-dead-gdpr-event-types](backlog/investor-bff-dead-gdpr-event-types.md)
+- core · parking · [investor-ctrl-dead-notification-report-event-types](backlog/investor-ctrl-dead-notification-report-event-types.md)
 - core · parking · [investor-ctrl-monthlyreport-dead-end-read-model](backlog/investor-ctrl-monthlyreport-dead-end-read-model.md)
+- core · parking · [ledger-ctrl-modify-events-undocumented](backlog/ledger-ctrl-modify-events-undocumented.md)
+- core · parking · [ledger-simulation-failed-dead-constant](backlog/ledger-simulation-failed-dead-constant.md)
+- core · parking · [onboarding-bff-onboarding-started-no-producer-no-ingress](backlog/onboarding-bff-onboarding-started-no-producer-no-ingress.md)
+- core · parking · [reconciliation-corporate-action-applied-namespace-collision](backlog/reconciliation-corporate-action-applied-namespace-collision.md)
 
 ### [event-processor-api-hardening](backlog/event-processor-api-hardening.md) `[epic · parking]` — event-processor public types/APIs are loose — stringly-typed IntentResult._tag + a silent event-id idempotency default — causing downstream narrowing loss and at-least-once misuse. Theme epic, 3 members.
 done_when: event-processor's IntentResult is a discriminated union (handler returns narrow), the idempotency choice is explicit at the call site, and the advisory handler return-type narrowing debt it causes is cleared; all members shipped or dropped.
@@ -220,7 +230,7 @@ rollup: core 0/3 done · captured 0/0 done
 - core · parking · [portfolio-drift-detected-registry-collision](backlog/portfolio-drift-detected-registry-collision.md)
 - core · parking · [weight-drift-detector](backlog/weight-drift-detector.md)
 
-**Parking health:** 31 theme epic(s), 21 orphan(s) — drive orphans → 0 with `/backlog-themes`
+**Parking health:** 31 theme epic(s), 39 orphan(s) — drive orphans → 0 with `/backlog-themes`
 
 ## ACTIVE
 
@@ -237,25 +247,43 @@ _(none)_
 
 ## LATER
 
+- [advisory-bff-record-explanation-view-no-flow-spec](backlog/advisory-bff-record-explanation-view-no-flow-spec.md) [doc] — advisory-bff recordExplanationView is a telemetry-only write with no CDC emission and is unmentioned in any flow spec.
+- [advisory-cycle-flow-audit-artifact-stale-cdc-claim](backlog/advisory-cycle-flow-audit-artifact-stale-cdc-claim.md) [doc] — flows/advisory-cycle.flow.yaml:265 claims compliance-ctrl emits AUDIT_ARTIFACT via CDC, but that egress mapping was removed 2026-06-11.
 - [alpaca-account-check-event-unwired](backlog/alpaca-account-check-event-unwired.md) [bug] — broker-alpaca-adpt consumes ALPACA_ACCOUNT_CHECK but no production producer emits it — the circuit-breaker heal SF checks health via direct HTTP:Invoke instead.
 - [alpaca-order-cancel-requested-dead-path](backlog/alpaca-order-cancel-requested-dead-path.md) [bug] — broker-alpaca-adpt consumes ALPACA_ORDER_CANCEL_REQUESTED but no producer emits it — order-cancel path is dead (designed EmitCancel state never wired).
 - [backlog-next-epic-oversized-epic-splitting](backlog/backlog-next-epic-oversized-epic-splitting.md) [tooling] — backlog-next-epic can't run phased/soak-gated epics; evolve the family: split oversized epics (agile-style), declare/honor a draining mode.
 - [bef-next-auto-finishing-pr-stop-rubricgate-red](backlog/bef-next-auto-finishing-pr-stop-rubricgate-red.md) [bug] — Surfaced by the parity oracle's live bring-up (2026-07-06): legacy next-auto-finishing-pr-stop failed its own rubricGate:4 in 2/2 independent runs (judge 2/5 then 1/5 — 'auto-resolved decisions recorded in the workstream file on the branch' judged missing). Either the legacy --auto decision-log behavior regressed since the 2026-06-27 baseline, or the judge is miscalibrated on this rubric, or the committed bef baseline row for this scenario is stale.
 - [benchmark-agents-skill-simplification](backlog/benchmark-agents-skill-simplification.md) [refactor] — benchmark-agents SKILL.md (§5/§6) prescribes report templates inline; relocate to run.ts+templates.
+- [broker-sim-adpt-error-event-type-naming-drift](backlog/broker-sim-adpt-error-event-type-naming-drift.md) [tooling] — broker-sim-adpt event-listener.ts uses errorEventType 'EXECUTION_ADPT_FAILED' instead of the repo convention BROKER_SIM_ADPT_FAILED.
 - [bump-tsconfig-es2022-to-es2023](backlog/bump-tsconfig-es2022-to-es2023.md) [tooling] — Enable .toSpliced/.toReversed/.with workspace-wide; promote on second use case.
 - [circuit-breaker-heal-rule-disable-propagation-race](backlog/circuit-breaker-heal-rule-disable-propagation-race.md) [bug] — e2e fixture's heal-rule EB Disable doesn't propagate before the breaker-OPEN write, so the heal SM auto-closes the fixture-opened breaker in ~2s — distinct root cause from the fixed 22s reorder bug.
+- [claude-md-service-cards-stale-test-enumerations](backlog/claude-md-service-cards-stale-test-enumerations.md) [tooling] — 17 service CLAUDE.md cards have stale test-file enumerations / omitted DDB entities — a shared card-generator gap, not 17 independent edits.
+- [decision-packet-simulation-loop-back-into-dwc-ledger-snapshot](backlog/decision-packet-simulation-loop-back-into-dwc-ledger-snapshot.md) [bug] — Traced complete cycle: DWC simulation write -> unfiltered PORTFOLIO_UPDATED -> advisory-adpt -> DWC's own next-cycle snapshot projector consumes it.
+- [e2e-ddb-contract-emission-family-weak-justification](backlog/e2e-ddb-contract-emission-family-weak-justification.md) [tooling] — 4 *-contract-emission.e2e.test.ts files (~40 DDB calls) carry weak/generic justification comments for direct DDB reads, not the specific GraphQL-insufficiency reasoning the convention requires.
 - [e2e-ddb-read-missing-graphql-justification-comment](backlog/e2e-ddb-read-missing-graphql-justification-comment.md) [bug] — E2E convention check #5 (hard fail): several e2e scenario tests assert via direct DDB reads with no comment justifying why BFF GraphQL is insufficient.
 - [e2e-feature-tests-hand-rolled-polling-not-using-poll-helper](backlog/e2e-feature-tests-hand-rolled-polling-not-using-poll-helper.md) [refactor] — 5 e2e-feature-tests scenario files hand-roll Date.now()+N polling while-loops instead of using the shared poll() helper exported from src/index.ts.
 - [e2e-feature-tests-index-barrel-missing-helper-exports](backlog/e2e-feature-tests-index-barrel-missing-helper-exports.md) [tooling] — apps/e2e-feature-tests/src/index.ts barrel omits 3 helpers that exist in src/helpers/ (contract-assert, event-subject-trap, graphql-types); consumers reach them via ad-hoc relative paths instead.
+- [e2e-project-json-missing-node-options](backlog/e2e-project-json-missing-node-options.md) [tooling] — apps/e2e-feature-tests/project.json test-e2e-features target has no env block; a documented NODE_OPTIONS convention requirement is unmet.
+- [e2e-timeout-hierarchy-violation-investor-contract-emission](backlog/e2e-timeout-hierarchy-violation-investor-contract-emission.md) [tooling] — investor-contract-emission.e2e.test.ts beforeEach hook sets a 30s timeout, below the documented 120s floor for this hook.
 - [from-audit-e2e-test](backlog/from-audit-e2e-test.md) [bug]
 - [from-e2elb-remeasure-2026-07-18-dns-enotfound](backlog/from-e2elb-remeasure-2026-07-18-dns-enotfound.md) [bug]
 - [from-e2elb-remeasure-2026-07-18-withprofilesnapshot-timeout](backlog/from-e2elb-remeasure-2026-07-18-withprofilesnapshot-timeout.md) [bug]
 - [integration-suite-lever-5-cdk-bundling](backlog/integration-suite-lever-5-cdk-bundling.md) [refactor] — cdk-constructs:test bundles 57 assets in 32s as it synthesizes per-construct stacks in tests. This sits in the unit suite, not integration. Dossier called out as out-of-scope for integration slowness but worth tracking if unit wall-clock becomes a concern.
 - [investor-adpt-stale-cross-domain-forwards](backlog/investor-adpt-stale-cross-domain-forwards.md) [bug] — investor-adpt forwards 5 cross-domain events onto InvestorBus that no investor service consumes anymore, stale since dashboard-bff's WS-3 Ingress trim.
+- [investor-bff-claude-md-fabricated-deposit-withdrawal-events](backlog/investor-bff-claude-md-fabricated-deposit-withdrawal-events.md) [doc] — investor-bff CLAUDE.md claims DEPOSIT_UPDATED/WITHDRAWAL_UPDATED events that don't exist, omits the real MANDATE_REAFFIRMED, and undercounts tests by 7.
+- [investor-bff-e2e-coverage-gaps](backlog/investor-bff-e2e-coverage-gaps.md) [tooling] — Three investor-bff/onboarding-bff mutations have no E2E coverage driving them live: onboarding flow, updateRiskProfile, updateFeatureFlag.
+- [investor-bff-missing-flow-specs-mutations](backlog/investor-bff-missing-flow-specs-mutations.md) [doc] — 5 investor-bff mutations (updateGoal, markNotificationRead, updateRiskProfile, revokeMandate, updateOperatingMode) produce/consume events with no corresponding flow spec step.
+- [investor-ctrl-orphaned-notification-lifecycle-service](backlog/investor-ctrl-orphaned-notification-lifecycle-service.md) [refactor] — NotificationLifecycleService / NotificationDeliveryService / NotificationRepository in investor-ctrl are unreferenced dead code, already diverged from the live handler.
+- [ledger-snapshot-publisher-failed-raw-string-literal](backlog/ledger-snapshot-publisher-failed-raw-string-literal.md) [tooling] — snapshot-publisher.ts uses a raw string 'LEDGER_SNAPSHOT_PUBLISHER_FAILED' instead of a typed constant, inconsistent with sibling LEDGER_PROCESSING_FAILED.
+- [market-intelligence-ctrl-kbingestion-unwired-claude-md](backlog/market-intelligence-ctrl-kbingestion-unwired-claude-md.md) [doc] — market-intelligence-ctrl CLAUDE.md documents KBIngestion Lambda as event-triggered, but it has zero Ingress wiring in service.stack.ts — dead/unwired.
+- [onboarding-bff-claude-md-drift](backlog/onboarding-bff-claude-md-drift.md) [doc] — onboarding-bff CLAUDE.md fabricates an ONBOARDING_STARTED Ingress subscription that doesn't exist (service has zero Ingress construct), omits agent.ts, undercounts 4 test files.
 - [rebalance-planner-mode-awareness](backlog/rebalance-planner-mode-awareness.md) [refactor] — rebalance-planner stays mode-blind; promote on mode-correlated gap.
 - [rename-nestfolio-integ-prefix-to-prefix](backlog/rename-nestfolio-integ-prefix-to-prefix.md) [refactor] — Verbose NESTFOLIO_INTEG_ namespace is friction; rename atomically + sweep docs.
 - [run-intake-orphan-route-filename-collision](backlog/run-intake-orphan-route-filename-collision.md) [bug] — run-intake.mjs's orphan route derives the written filename from the check id alone (from-<check>.md), not the finding id; a second finding from the same check silently overwrites the first finding's already-filed backlog item.
 - [sd001-ship-gate-environmental-open-threads](backlog/sd001-ship-gate-environmental-open-threads.md) [infra] — Two environmental open threads from the 2026-07-19 pre-ship deploy-gate: Docker daemon required for onboarding-bff's container asset, and a journaled typed-subjects RUNTIME_GATE_SKIP awaiting ship-recheck adjudication.
+- [service-inventory-fabricated-event-names](backlog/service-inventory-fabricated-event-names.md) [doc] — SERVICE-INVENTORY.md and SYSTEM-ARCHITECTURE.md cite fabricated event names that don't exist in code (POSITION_OPENED/CLOSED/UPDATED, LEDGER_PORTFOLIO_DRIFT_DETECTED, CORPORATE_ACTION_PROCESSED).
+- [simulated-portfolio-corrupts-real-balance-readmodel](backlog/simulated-portfolio-corrupts-real-balance-readmodel.md) [bug] — ledger-bff balance-updated.ts/portfolio-updated.ts project BALANCE_UPDATED/PORTFOLIO_UPDATED into the canonical Portfolio row regardless of streamType, so advisory simulations can overwrite a real user's displayed balance.
+- [simulated-portfolio-poisons-reconciliation-intent-cache](backlog/simulated-portfolio-poisons-reconciliation-intent-cache.md) [bug] — reconciliation-ctrl caches every PORTFOLIO_UPDATED as reconciliation intent with no streamType guard, risking spurious drift detection off simulated data.
 - [unified-ingress-refactoring](backlog/unified-ingress-refactoring.md) [refactor] — Single event-listener with ResumeIntent + PublishIntent (planned, not started).
 - [worktree-missing-per-package-node-modules-symlink](backlog/worktree-missing-per-package-node-modules-symlink.md) [tooling] — backlog-next(-epic) worktree setup symlinks only ROOT node_modules, not per-package libs/*/node_modules. pnpm puts a package's DIRECT deps under its own node_modules, so affected test+lint for event-processor/agent-orchestrator/cdk-constructs FALSE-REDs in a worktree (resolves on main). Surfaced + worked around in the deploy-tooling-integrity epic.
 
