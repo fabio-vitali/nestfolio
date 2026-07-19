@@ -373,6 +373,12 @@ steps:
     from: AdvisoryBus
     to: LedgerBus
     via: ledger-adpt EB rule (LedgerIngress-FromAdvisory)
+    receives: ledger-ctrl (processSimulationEvent, event-listener.ts:157-210)
+    state_change: >
+      For each proposedTrades entry, shadowFill.simulateFill derives a fill price/quantity and
+      putLedgerEntry writes a streamType='simulated' LedgerEntry row (ORDER_FILLED payload,
+      decisionId=decisionPacketId). This is a simulation write, not an audit trail — no 'actual'
+      LedgerEntry is written from this hop.
 
   - cross_domain: DECISION_PACKET_CREATED
     from: AdvisoryBus
@@ -404,7 +410,7 @@ success_criteria:
   - InvestorProfileSnapshot + MarketSnapshot projections exist in DWC-local DDB before the cycle begins (continuously materialised). Absent MarketSnapshot is tolerated — SF Branch B routes via Choice on isPresent($.marketSnapshotResponse.Item): ExtractMarketSnapshot on hit, HandleMissingMarketSnapshot (empty agentOutput default) on miss; PE+AN degrade gracefully.
   - SF resolves all three snapshots (InvestorProfile + Market + Ledger) via Direct DDB GetItem (no IP/MI agent invocation per cycle)
   - PE + AN agents return via materializeToTable AgentCompletion CDC within their windows; PORTFOLIO_COMPLETED / NARRATIVE_COMPLETED reach DWC's CallbackIngress and SendTaskSuccess resumes the SF
-  - AssemblePacket writes a DecisionPacket row; CDC emits DECISION_PACKET_CREATED reaching advisory-bff (UI), ledger-adpt (audit, via cross-domain hop), and dashboard-bff (investor-domain decision history, via the InvestorIngress-FromAdvisory cross-domain hop)
+  - AssemblePacket writes a DecisionPacket row; CDC emits DECISION_PACKET_CREATED reaching advisory-bff (UI), ledger-ctrl (simulated LedgerEntry write via ledger-adpt cross-domain hop, not audit), and dashboard-bff (investor-domain decision history, via the InvestorIngress-FromAdvisory cross-domain hop)
   - compliance-ctrl emits exactly one of DECISION_APPROVED / DECISION_BLOCKED
   - For L1 approved DecisionPacket.status='APPROVED' and DECISION_APPROVED reaches ExecutionBus
   - For L2 approved confirmDecision/rejectDecision mutation lands within 72h; USER_CONFIRMED causes DECISION_APPROVED propagation; USER_REJECTED ends the cycle with no execution

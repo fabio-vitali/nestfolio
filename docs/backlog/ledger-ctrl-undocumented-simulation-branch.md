@@ -1,14 +1,17 @@
 ---
 id: ledger-ctrl-undocumented-simulation-branch
-status: parking
+status: shipped
 type: doc
 notes: "ledger-ctrl's DECISION_PACKET_CREATED simulation-write branch is undocumented; advisory-cycle.flow.yaml mischaracterizes it as 'audit'."
-references: []
-out_of_scope: []
+references:
+  - flows/advisory-cycle.flow.yaml
+out_of_scope:
+  - Reconciling processSimulationEvent's decisionPacketId read-typing (subject.eventId vs subject.decisionId) — noted in the code as an intentional WS-3 scope boundary, unrelated to this doc fix.
 spec: null
 plan: null
 topic_memory: []
-validation_gate: null
+closed: 2026-07-19
+validation_gate: "flows/advisory-cycle.flow.yaml: cross_domain DECISION_PACKET_CREATED->LedgerBus hop now documents ledger-ctrl's processSimulationEvent (simulated LedgerEntry write, not audit), evidenced against services/ledger/ledger-ctrl/src/handlers/event-listener.ts:157-210; success_criteria line corrected from 'ledger-adpt (audit, via cross-domain hop)' to 'ledger-ctrl (simulated LedgerEntry write via ledger-adpt cross-domain hop, not audit)'. Doc-layer lane, no code changed, no deploy/e2e gate. Committed on main."
 ---
 
 # Undocumented ledger-ctrl simulation branch
