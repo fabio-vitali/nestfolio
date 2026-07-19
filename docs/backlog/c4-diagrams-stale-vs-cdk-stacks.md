@@ -1,6 +1,7 @@
 ---
 id: c4-diagrams-stale-vs-cdk-stacks
-status: parking
+status: queued
+rank: 5
 type: doc
 notes: "C4 D2 diagrams under docs/architecture are stale vs the CDK stacks (dashboard-bff Ingress event count, two advisory-to-investor cross-domain event counts)."
 references: []

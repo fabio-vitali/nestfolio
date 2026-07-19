@@ -220,7 +220,7 @@ rollup: core 0/3 done · captured 0/0 done
 - core · parking · [portfolio-drift-detected-registry-collision](backlog/portfolio-drift-detected-registry-collision.md)
 - core · parking · [weight-drift-detector](backlog/weight-drift-detector.md)
 
-**Parking health:** 31 theme epic(s), 25 orphan(s) — drive orphans → 0 with `/backlog-themes`
+**Parking health:** 31 theme epic(s), 24 orphan(s) — drive orphans → 0 with `/backlog-themes`
 
 ## ACTIVE
 
@@ -233,6 +233,7 @@ _(none)_
 2. [e2e-fixtures-test-stale-detail-envelope-assertion](backlog/e2e-fixtures-test-stale-detail-envelope-assertion.md) [bug] — apps/e2e-feature-tests fixtures.test.ts asserts the old flat detail:{} EB envelope, but the fixtures now emit the DRY {context, subject} envelope — 2 stale-assertion failures unrelated to any service.
 3. [circuit-breaker-lifecycle-e2e-breaker-stuck-open](backlog/circuit-breaker-lifecycle-e2e-breaker-stuck-open.md) [bug] — scenario 14 circuit-breaker-lifecycle e2e: initiateDeposit returns SERVICE_TEMPORARILY_UNAVAILABLE (breaker OPEN) when the test expects it closed — root cause unconfirmed (state-leak vs throttle-storm collateral).
 4. [decision-log-utc-date-stamp](backlog/decision-log-utc-date-stamp.md) [bug] — decision-log.mjs stamps the UTC date — evening-CET appends land under yesterday's date in an append-only audit log
+5. [c4-diagrams-stale-vs-cdk-stacks](backlog/c4-diagrams-stale-vs-cdk-stacks.md) [doc] — C4 D2 diagrams under docs/architecture are stale vs the CDK stacks (dashboard-bff Ingress event count, two advisory-to-investor cross-domain event counts).
 
 ## LATER
 
@@ -242,7 +243,6 @@ _(none)_
 - [bef-next-auto-finishing-pr-stop-rubricgate-red](backlog/bef-next-auto-finishing-pr-stop-rubricgate-red.md) [bug] — Surfaced by the parity oracle's live bring-up (2026-07-06): legacy next-auto-finishing-pr-stop failed its own rubricGate:4 in 2/2 independent runs (judge 2/5 then 1/5 — 'auto-resolved decisions recorded in the workstream file on the branch' judged missing). Either the legacy --auto decision-log behavior regressed since the 2026-06-27 baseline, or the judge is miscalibrated on this rubric, or the committed bef baseline row for this scenario is stale.
 - [benchmark-agents-skill-simplification](backlog/benchmark-agents-skill-simplification.md) [refactor] — benchmark-agents SKILL.md (§5/§6) prescribes report templates inline; relocate to run.ts+templates.
 - [bump-tsconfig-es2022-to-es2023](backlog/bump-tsconfig-es2022-to-es2023.md) [tooling] — Enable .toSpliced/.toReversed/.with workspace-wide; promote on second use case.
-- [c4-diagrams-stale-vs-cdk-stacks](backlog/c4-diagrams-stale-vs-cdk-stacks.md) [doc] — C4 D2 diagrams under docs/architecture are stale vs the CDK stacks (dashboard-bff Ingress event count, two advisory-to-investor cross-domain event counts).
 - [circuit-breaker-heal-rule-disable-propagation-race](backlog/circuit-breaker-heal-rule-disable-propagation-race.md) [bug] — e2e fixture's heal-rule EB Disable doesn't propagate before the breaker-OPEN write, so the heal SM auto-closes the fixture-opened breaker in ~2s — distinct root cause from the fixed 22s reorder bug.
 - [e2e-ddb-read-missing-graphql-justification-comment](backlog/e2e-ddb-read-missing-graphql-justification-comment.md) [bug] — E2E convention check #5 (hard fail): several e2e scenario tests assert via direct DDB reads with no comment justifying why BFF GraphQL is insufficient.
 - [e2e-feature-tests-hand-rolled-polling-not-using-poll-helper](backlog/e2e-feature-tests-hand-rolled-polling-not-using-poll-helper.md) [refactor] — 5 e2e-feature-tests scenario files hand-roll Date.now()+N polling while-loops instead of using the shared poll() helper exported from src/index.ts.
