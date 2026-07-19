@@ -1,15 +1,16 @@
 ---
 id: create-mfe-skill-stale-file-references
-status: queued
+status: shipped
 type: doc
 rank: 4
+closed: 2026-07-19
 notes: "create-mfe skill references two files that no longer exist on disk (Host GraphQL provider path, AppSync config path)."
 references: []
 out_of_scope: []
 spec: null
 plan: null
 topic_memory: []
-validation_gate: null
+validation_gate: "Fixed on main, commit b145a354e65887207fbd42ab29c907326a13de01. Both stale paths corrected: Host GraphQL provider -> libs/shell/src/graphql/provide-mfe-graphql.ts; AppSync config entry replaced with the real Apollo client factory libs/shell/src/graphql/create-apollo-client.ts. No affected nx projects (skill doc only); detect-doc-derivation.mjs reported no derivation needed; runtime engine ship-floor approved (run-next.mjs, lane doc-layer)."
 ---
 
 # create-mfe skill has two stale file references
