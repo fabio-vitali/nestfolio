@@ -1622,3 +1622,101 @@ Continuity engine.
   (not yet promoted): `investor-domain-missing-flow-specs-adapter-hops`
   (touches `flows/deposit.flow.yaml` + `flows/advisory-cycle.flow.yaml`,
   5 hops, same clean profile).
+
+## Entry 48 — Work Item shipped clean, no ship-gate block (criteria 4/5/6 input); continuation note
+
+- Entry written (machine-captured UTC): 2026-07-19T16:15:58.000Z
+- Session: the SAME Claude Code chat as Entries 46-47 (the owner pasted
+  the Entry-46-handoff launch command into this chat instead of a new
+  terminal; confirmed with the owner via `AskUserQuestion` to continue
+  in-session rather than actually spawn a separate process). Per the
+  standing resumption-sample criterion this does NOT count as a fresh
+  resumption (no loss of chat memory of Entries 46-47) — resumptions
+  counter stays **12/15**, unchanged.
+- Starting-revision re-check surfaced a genuine contradiction against
+  the handoff's pinned expectation: continuity-lab HEAD had advanced
+  from `54ddae7f8c98d5365ec15d21e337bac192a6c2e4` to
+  `dbd5664438c053531bdd3de38998ff7b9a90f3f0` (one commit, "Add
+  non-normative integration guide with Nestfolio examples and register
+  it in the artifact index", doc-only, clean, already pushed) — a
+  separate concurrent continuity-lab session's work, unrelated to
+  SD-001/nestfolio. Investigated and reported to the owner before
+  proceeding; does not affect this session's nestfolio-only scope.
+  Nestfolio HEAD confirmed exactly as expected
+  (`b45641870b622967c17d39ed028cf69e7795b435`).
+- `/backlog-next`'s default Step-1 pick again resolved to rank 1
+  `e2e-live-suite-exceeds-bedrock-daily-token-budget` — all four QUEUED
+  items re-confirmed blocked, unchanged from Entries 40/43/45/47.
+- Presented to the owner via `AskUserQuestion` (promote the last
+  remaining scouted doc-layer LATER candidate,
+  `investor-domain-missing-flow-specs-adapter-hops`, or no Work Item).
+  Owner chose to promote it.
+- Selected for promotion: `investor-domain-missing-flow-specs-adapter-hops`
+  (`type: doc`, `status: parking`→worked directly, ship-stamped) — five
+  real `investor-adpt` cross-domain forwards had live consumers but no
+  flow spec documented the hop: `DECISION_PACKET_UPDATED` and
+  `ADVISORY_STATUS_UPDATED` (both consumed by `dashboard-bff`), and
+  `DEPOSIT_REQUESTED`/`DEPOSIT_SETTLED`/`DEPOSIT_FAILED` (consumed by
+  `investor-bff`'s `depositLifecycle` versioned-projection transform).
+  While tracing the deposit hops, also found and documented a SIXTH
+  previously-undocumented hop in the same area:
+  `DEPOSIT_DETECTED`→`investor-bff` (the dashboard-bff branch for
+  `DEPOSIT_DETECTED` was already documented; investor-bff's parallel
+  consumption of the same event was not) — included for consistency
+  since it is the exact same code path being edited, not a scope
+  expansion.
+- Classification: Doc-layer (only touches `flows/deposit.flow.yaml` +
+  `flows/advisory-cycle.flow.yaml` + `docs/backlog/**`); worked directly
+  on `main`, no worktree. Verified against
+  `services/investor/investor-adpt/src/service.stack.ts:40,44,68,70,71`,
+  `services/investor/dashboard-bff/src/handlers/event-listener.ts:40,46`,
+  `services/investor/investor-bff/src/handlers/event-listener.ts:26,30,32`,
+  `services/investor/investor-bff/src/transforms/deposit-lifecycle.ts`,
+  and `services/execution/broker-ctrl/src/handlers/deposit-withdrawal-router.ts`
+  + `deposit-withdrawal-normalizer.ts` before editing (Step 2 reference
+  re-read). `detect-doc-derivation.mjs` confirmed `derivation=false`
+  (exit 10) — no generated-doc regen owed by these flow-spec text edits.
+- Execution: added two `cross_domain` blocks to
+  `flows/advisory-cycle.flow.yaml` (`DECISION_PACKET_UPDATED` and
+  `ADVISORY_STATUS_UPDATED` → InvestorBus, each with the dashboard-bff
+  consumer + transform documented). Added the `DEPOSIT_REQUESTED` emission
+  step + its cross-domain hop to investor-bff, the previously-undocumented
+  `DEPOSIT_FAILED` emission step (Alpaca live-path terminal failure,
+  broker-ctrl's `alpacaTransferFailed`), and the `DEPOSIT_DETECTED` /
+  `DEPOSIT_SETTLED` / `DEPOSIT_FAILED` → investor-bff hops to
+  `flows/deposit.flow.yaml`, plus one `success_criteria` line covering
+  the investor-bff Deposit read model's version progression. Doc-layer
+  lane exempts the 6.4b backward-edge ritual and the 6.4 deploy/e2e gate;
+  no affected-project test/lint run was needed (no code changed).
+- Shipped: `docs/backlog/investor-domain-missing-flow-specs-adapter-hops.md`
+  → `status: shipped`, `closed: 2026-07-19`, `validation_gate` filled
+  with the concrete diff evidence. `backlog-lint --fix` regenerated
+  `docs/BACKLOG.md` in the same commit (`acdfcbf3`), pushed. Postflight
+  (`--lane=doc-layer`) passed: tree clean, backlog checks green.
+- **Fourth consecutive clean ship this period with zero ship-gate
+  block** (after `create-mfe-skill-stale-file-references` at Entry 41,
+  `c4-diagrams-stale-vs-cdk-stacks` at Entry 45, and
+  `ledger-ctrl-undocumented-simulation-branch` at Entry 47).
+- Standing rules audit: no byte changed under `runtime/continuity/**`;
+  hooks/settings untouched; no published suite edited; no immutable
+  record mutated; no Skills/Packs/bindings touched (verified — this item
+  only touched `flows/deposit.flow.yaml`, `flows/advisory-cycle.flow.yaml`,
+  and `docs/backlog/**`, confirmed not locked-pack assets); no SD-002
+  claim; none of the four standing blocked QUEUED items reopened or
+  ship-pushed; continuity-lab was NOT touched by this session (its
+  advanced HEAD was a different session's independent work, read-only
+  observed here).
+- Final Nestfolio HEAD this session: `acdfcbf387f9dafcdfa9d78e7d38c8945acc97b9`,
+  clean on `main`, in sync with `origin/main`. continuity-lab HEAD
+  observed at `dbd5664438c053531bdd3de38998ff7b9a90f3f0` (not modified by
+  this session; see the contradiction note above).
+- Counters: WI 7/20 → **8/20**. Weeks 1/6 unchanged; resumptions 12/15
+  unchanged this entry (see continuation note above — this was not a
+  fresh-session resumption sample).
+- Recommended next operation: a fresh `/backlog-next` work selection in
+  a genuinely NEW Claude Code chat (to restore the resumption-sampling
+  cadence). QUEUED still holds the four standing blocked items
+  (ranks 1-4) — the next session will again face a promote-from-LATER
+  decision point. The doc-layer LATER shortlist scouted across Entries
+  45/47/48 is now exhausted; the next session will need to scout fresh
+  candidates from the LATER list in `docs/BACKLOG.md`.
