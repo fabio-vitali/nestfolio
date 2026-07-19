@@ -16,7 +16,7 @@ type Mutation {
   requestWithdrawal(input: WithdrawalInput!): WithdrawalRequest!
   requestAccountClosure: ClosureRequest!
   markNotificationRead(notificationId: ID!): Notification!
-  updateFeatureFlag(name: String!, enabled: Boolean!, reason: String): FeatureFlag!
+  updateFeatureFlag(name: String!, enabled: Boolean!, reason: String, eventTimestamp: String): FeatureFlag!
     @aws_iam
   publishDepositUpdate(
     depositId: ID!

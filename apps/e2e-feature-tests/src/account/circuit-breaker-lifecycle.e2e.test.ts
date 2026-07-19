@@ -36,10 +36,14 @@ describe('scenario 14 — circuit breaker lifecycle', () => {
     const flagTable = await ctx.ssm.tableName('investor-bff');
     const flagDdb = DynamoDBDocumentClient.from(new DynamoDBClient({ region: ctx.region }));
     const flags = ['confirmDecision', 'initiateDeposit', 'requestWithdrawal'];
+    // lastEventAt makes the reset win over any BROKER_CIRCUIT_* event emitted
+    // before it — the resolver's freshness condition rejects late/reordered
+    // deliveries from a previous phase or run.
+    const now = new Date().toISOString();
     await Promise.all(flags.map(name =>
       flagDdb.send(new PutCommand({
         TableName: flagTable,
-        Item: { pk: 'FeatureFlag#SYSTEM', sk: `FeatureFlag#${name}`, __typename: 'FeatureFlag', name, enabled: true, reason: null },
+        Item: { pk: 'FeatureFlag#SYSTEM', sk: `FeatureFlag#${name}`, __typename: 'FeatureFlag', name, enabled: true, reason: null, lastEventAt: now },
       })),
     ));
     flagDdb.destroy();

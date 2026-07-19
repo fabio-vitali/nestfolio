@@ -2,8 +2,8 @@ import { broadcastFromQueue } from '@nestfolio/event-processor';
 import { InvestorBffEventTypes } from '../domain/events';
 
 const UPDATE_FEATURE_FLAG = `
-  mutation UpdateFeatureFlag($name: String!, $enabled: Boolean!, $reason: String) {
-    updateFeatureFlag(name: $name, enabled: $enabled, reason: $reason) {
+  mutation UpdateFeatureFlag($name: String!, $enabled: Boolean!, $reason: String, $eventTimestamp: String) {
+    updateFeatureFlag(name: $name, enabled: $enabled, reason: $reason, eventTimestamp: $eventTimestamp) {
       name
       enabled
       reason
@@ -25,19 +25,21 @@ export const handler = broadcastFromQueue({
   broadcasts: {
     [InvestorBffEventTypes.BROKER_CIRCUIT_OPEN]: {
       mutation: UPDATE_FEATURE_FLAG,
-      mapPayload: () =>
+      mapPayload: (payload) =>
         GATED_FLAGS.map((name) => ({
           name,
           enabled: false,
           reason: 'Broker connectivity issue',
+          eventTimestamp: payload.timestamp,
         })),
     },
     [InvestorBffEventTypes.BROKER_CIRCUIT_CLOSED]: {
       mutation: UPDATE_FEATURE_FLAG,
-      mapPayload: () =>
+      mapPayload: (payload) =>
         GATED_FLAGS.map((name) => ({
           name,
           enabled: true,
+          eventTimestamp: payload.timestamp,
         })),
     },
   },

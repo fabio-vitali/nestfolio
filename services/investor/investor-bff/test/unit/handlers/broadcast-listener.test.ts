@@ -41,9 +41,9 @@ describe('broadcast-listener', () => {
     expect(postAppSyncMutation).toHaveBeenCalledTimes(3);
     const flags = (postAppSyncMutation as jest.Mock).mock.calls.map((c) => c[0].variables);
     expect(flags).toEqual([
-      { name: 'confirmDecision', enabled: false, reason: 'Broker connectivity issue' },
-      { name: 'initiateDeposit', enabled: false, reason: 'Broker connectivity issue' },
-      { name: 'requestWithdrawal', enabled: false, reason: 'Broker connectivity issue' },
+      { name: 'confirmDecision', enabled: false, reason: 'Broker connectivity issue', eventTimestamp: '2026-05-02T00:00:00Z' },
+      { name: 'initiateDeposit', enabled: false, reason: 'Broker connectivity issue', eventTimestamp: '2026-05-02T00:00:00Z' },
+      { name: 'requestWithdrawal', enabled: false, reason: 'Broker connectivity issue', eventTimestamp: '2026-05-02T00:00:00Z' },
     ]);
   });
 
@@ -52,9 +52,9 @@ describe('broadcast-listener', () => {
     expect(postAppSyncMutation).toHaveBeenCalledTimes(3);
     const flags = (postAppSyncMutation as jest.Mock).mock.calls.map((c) => c[0].variables);
     expect(flags).toEqual([
-      { name: 'confirmDecision', enabled: true },
-      { name: 'initiateDeposit', enabled: true },
-      { name: 'requestWithdrawal', enabled: true },
+      { name: 'confirmDecision', enabled: true, eventTimestamp: '2026-05-02T00:00:00Z' },
+      { name: 'initiateDeposit', enabled: true, eventTimestamp: '2026-05-02T00:00:00Z' },
+      { name: 'requestWithdrawal', enabled: true, eventTimestamp: '2026-05-02T00:00:00Z' },
     ]);
   });
 
