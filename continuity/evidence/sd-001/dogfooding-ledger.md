@@ -748,3 +748,118 @@ Continuity engine.
   decision tree, adequate for `claude-sonnet-5` with an explicit
   escalation guard (ambiguous verdict → stop and hand back to
   `claude-fable-5`).
+
+## Entry 29 — Resumption sample (5/15) and work-continuation: circuit-breaker-lifecycle-e2e-breaker-stuck-open, scripted evidence phase
+
+- Entry written (machine-captured UTC): 2026-07-19T10:38:16.000Z
+- Session: `cfca3ac2-f281-4f21-9d77-645ce3b2b765` (launched on
+  `claude-sonnet-5` per Entry 28's model note)
+- This is a genuine fresh session continuing `circuit-breaker-lifecycle-
+  e2e-breaker-stuck-open` from repository state (not the planned session
+  of its own handoff prompt) → resumption sample 5/15.
+- Starting revisions confirmed exactly as pinned in the session prompt:
+  nestfolio HEAD `81d6c80b735ad9bb36e6eec94d635e15be9c2b25` clean on
+  `main`, in sync with `origin/main`; continuity-lab HEAD
+  `52c5b2e124580b09dc3dd4279054ceb9c9aad9a5` clean on `main`; workspace
+  clean on `main`.
+- Work-continuation: re-invoking the engine to confirm the same
+  `execute:circuit-breaker-lifecycle-e2e-breaker-stuck-open` park, then
+  running the scripted evidence-collection steps (pivotal re-emission
+  question, fixture-traffic reachability, live-but-read-only dev-state
+  snapshot) per the session prompt's pre-authorized decision tree.
+
+## Entry 30 — Scripted evidence resolves the pivotal question NO; mechanism refuted, evidence ambiguous, escalating to `claude-fable-5` per the decision-tree guard
+
+- Entry written (machine-captured UTC): 2026-07-19T10:41:02.000Z
+- Session: `cfca3ac2-f281-4f21-9d77-645ce3b2b765`
+- Engine re-invoked: `run-next.mjs circuit-breaker-lifecycle-e2e-breaker-
+  stuck-open` parked again at the identical
+  `execute:circuit-breaker-lifecycle-e2e-breaker-stuck-open` key, no
+  repo write from the engine (`git status` showed only the ledger diff).
+- (4a) Pivotal question — answered **NO**, with file:line evidence.
+  `services/execution/broker-alpaca-adpt/src/handlers/event-listener.ts`:
+  every handler (`processOrderRequested` L120-124,
+  `processCancelRequested` L158-162, `processTransferRequested` L209-213,
+  `processAccountCheck` L264-267) calls `checkBreaker()` first and, if
+  already `OPEN`, returns immediately via a `rejectXAsBrokerUnavailable`
+  helper — it never reaches `handleApiFailure`/`open()`/
+  `writeBreakerOpenEvent()`. `handleApiFailure` (L25-36) — the only
+  caller of `open()`/`writeBreakerOpenEvent()` — is invoked exclusively
+  from each handler's `catch` block, i.e. only when `checkBreaker()` was
+  `false` and the live API call then threw. Additionally
+  `circuit-breaker.repository.ts`'s `open()` (L28-56) uses
+  `ConditionExpression: 'attribute_not_exists(pk) OR #st <> :open'` — a
+  second `open()` call while the row is already `OPEN` throws
+  `ConditionalCheckFailedException`, is caught, and returns `false`;
+  `writeBreakerOpenEvent()` is gated on `if (opened)` (L28-32) so it is
+  never called on an already-open row. **There is no code path that
+  re-emits `BROKER_CIRCUIT_OPEN` for traffic arriving while the breaker
+  row is already `OPEN`.** This refutes the Entry 28 point-5 hypothesis
+  as literally stated.
+- (4b) Fixture-traffic reachability — checked
+  `apps/e2e-feature-tests/src/helpers/fixtures.ts`: `onboarded()`
+  (L65-113) emits `USER_REGISTERED` and `ONBOARDING_COMPLETED`, both
+  `targetService: 'investor-bff'`; `funded()` (L162-214) emits
+  `BALANCE_UPDATED`, also `targetService: 'investor-bff'`. **Neither
+  fixture emits any event routed to `broker-alpaca-adpt`** — the
+  `beforeEach` chain never invokes `checkBreaker()`/`open()` in that
+  service at all, so it cannot be the trigger for any breaker-side
+  state change during the reset window.
+- (4c) Live dev-state snapshot (read-only, `AWS_PROFILE=nestfolio-dev`,
+  account `771924376645`), recorded verbatim:
+  - `CircuitBreaker#alpaca` row (table
+    `dev-broker-alpaca-adpt-StateTable962DE04C-1DLYVT1905HSK`): `state:
+    CLOSED`, `openedAt: 2026-07-18T21:28:13.195Z`, `closedAt:
+    2026-07-18T21:28:15.517Z`, `reason: "E2E test — simulated failure"`.
+  - Heal rule
+    `dev-broker-alpaca-adpt-HealStateMachineBROKERCIRCUI-BvHeRXVNpPj7` on
+    `dev-execution-event-bus`: `State: ENABLED`.
+  - `FeatureFlag#SYSTEM` rows (table
+    `dev-investor-bff-StateTable962DE04C-53QYFNIE3Q6B`), all 3 present:
+    `confirmDecision: enabled=true`, `initiateDeposit: enabled=true`,
+    `requestWithdrawal: enabled=true` (all `reason: null`).
+  - Current live state shows no leaked/stuck condition at all — fully
+    healed. Neither confirms nor refutes an intermittent leak; it only
+    establishes the environment is not stuck right now.
+- (4d) Statically confirmed `apps/e2e-feature-tests/src/account/
+  circuit-breaker-lifecycle.e2e.test.ts` (scenario 14's file) traverses
+  no Bedrock/advisory (AgentCore) hop. Given (4a)-(4c) already force the
+  escalation branch below, the live-AWS solo run of scenario 14 was
+  **not executed** this session — it would not change the decision, and
+  skipping it avoids unnecessary live-AWS spend (cost-gate honored by
+  omission, not by use).
+- **Decision (per the session prompt's step-5 guard): evidence is
+  ambiguous/contradictory relative to the Entry-28 hypothesis, not
+  confined to `apps/e2e-feature-tests`.** The state-leak-via-
+  re-emission mechanism is refuted (4a) and the fixture chain cannot
+  even reach the breaker (4b). The only mechanism still consistent with
+  every fact gathered across Entries 28 and this one — a stale
+  `BROKER_CIRCUIT_OPEN` event from the ORIGINAL crashed run sitting
+  in an at-least-once/reorderable queue and being delivered to
+  `investor-bff`'s `broadcast-listener` AFTER the next test's
+  `beforeEach` `resetFeatureFlags()` — is a queue-timing/redelivery
+  question, not a test-isolation preflight a scoped
+  `apps/e2e-feature-tests` fix can address; confirming it needs reading
+  the actual queue/DLQ redrive behavior and possibly investor-bff's
+  consumer idempotency, which is judgment work outside this session's
+  scripted mandate. Per instruction, **STOPPING before any verdict or
+  fix.** No engine fulfil, no code change, no ship. Not re-litigating
+  the two already-blocked queued items; not expanding scope.
+- No pre-existing whole-scope gate was hit (nothing shipped this
+  session). No new backlog findings surfaced. No byte changed under
+  `runtime/continuity/**`; no hook/settings edits; no Skills/Packs
+  mutation; no SD-002 claim. Continuity-lab left untouched (HEAD
+  unchanged `52c5b2e1`).
+- Counters: WI 2/20 unchanged (item still selected+started, not
+  completed — evidence-only session, handed to judgment); weeks 1/6
+  unchanged; resumptions **5/15** (this entry's own resumption sample,
+  confirmed at Entry 29). Recommended next operation: a fresh
+  `claude-fable-5` session (per the workspace model policy — this is
+  now confirmed hard judgment/debugging work, not scripted routing) to
+  either (a) trace the investor-bff broadcast-listener queue/DLQ
+  redelivery semantics and confirm or refute the stale-event-redelivery
+  mechanism, or (b) determine the item is a service-side bug requiring
+  a different, larger fix than originally scoped, and act accordingly
+  within standing SD-001 rules.
+  Week 1 runs through 2026-07-25T19:39:42Z; no weekly-boundary entry
+  required this session.
