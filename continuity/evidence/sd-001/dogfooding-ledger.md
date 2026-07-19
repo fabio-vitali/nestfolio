@@ -1995,3 +1995,77 @@ Continuity engine.
   promote-from-LATER decision point, now with a substantially enlarged
   LATER pool — 28 new parking items plus 10 new `event-name-integrity`
   epic members — unless a QUEUED blocker clears in the interim).
+
+## Entry 53 — Backlog-themes cold-path clustering: 39 orphans → 20
+
+- Entry written (machine-captured UTC): 2026-07-19T19:53:54Z.
+- Session: same chat as Entry 52 (continuation, not a fresh resumption
+  sample — resumption counter stays 14/15, unchanged from Entry 52).
+- User-invoked `/backlog-themes` directly (not from a saved handoff
+  prompt) immediately after Entry 52's filing pass. Starting state:
+  Nestfolio HEAD `24dbd0dcf3aa7cfd3e34e36241c9d0af809b02cf` clean on
+  main, in sync with origin/main (confirmed before any write).
+- Gathered the parking surface per the skill procedure: 39 orphans, 31
+  parking theme epics. All 4 `*-leftovers` buckets on disk were already
+  `status: dropped` from prior runs — zero live leftovers buckets to
+  dissolve this run (the hard invariant was already satisfied coming
+  in).
+- Clustered by shared root cause (not symptom/service) and presented
+  the full plan via `AskUserQuestion`; owner approved the recommended
+  option (approve all) in full. Minted 6 new theme epics:
+  `broker-alpaca-adpt-missing-producer-emissions` (2 members: the two
+  broker-alpaca-adpt Ingress handlers with no production emitter
+  anywhere — explicitly the class `event-name-integrity` excludes),
+  `flow-spec-documentation-drift` (3 members: missing + stale
+  `flows/*.flow.yaml` hops), `claude-md-arch-doc-drift` (5 members: 4
+  hard-fail fabricated-wiring-claim CLAUDE.md/SERVICE-INVENTORY items +
+  1 grouped 17-service staleness item, all from Entry 52's own filing),
+  `error-event-name-string-literal-drift` (2 members: raw-string
+  error-event names instead of the typed `<SERVICE>_FAILED`
+  convention), `simulation-streamtype-guard-gap` (3 members: the
+  Entry-52-filed ledger-domain simulation-data-corruption cluster,
+  cross-referenced in their own bodies at filing time), and
+  `e2e-ddb-justification-convention-gap` (2 members: missing vs weak
+  DDB-read justification comments, same E2E convention check #5).
+  Repointed 2 further orphans into existing theme epics as
+  `epic_role: core`:
+  `e2e-feature-tests-hand-rolled-polling-not-using-poll-helper` →
+  `test-uses-divergent-copy-not-canonical` (same "canonical helper
+  exists, test bypasses it" shape); `circuit-breaker-heal-rule-
+  disable-propagation-race` → `integration-test-timing-fragility`
+  (same EB-rule-propagation mechanism as an existing member,
+  `broker-alpaca-adpt-resilience-trap-collapse`; broadened that epic's
+  scope prose to explicitly cover e2e fixtures exhibiting the identical
+  mechanism, not just integration tests).
+- Deliberately left 20 orphans un-clustered as genuinely heterogeneous
+  residue — notably did NOT force `from-e2elb-remeasure-2026-07-18-
+  dns-enotfound` and `-withprofilesnapshot-timeout` together despite
+  one hypothesizing the other as a possible cause, because that
+  causation is explicitly recorded as "undetermined" in both files; a
+  hypothesis is not a confirmed shared root cause.
+- `node .claude/skills/backlog-lint/lint.mjs --fix`: clean on first run
+  — 515 backlog files (509 + 6 new epics), all 11 rules pass;
+  `docs/BACKLOG.md` regenerated. Parking health line confirms the
+  target exactly: **37 theme epic(s), 20 orphan(s)** (was 31/39).
+- Committed `docs(backlog): cluster parking into theme epics (39
+  orphans -> 20)` and pushed — Nestfolio HEAD now
+  `8a2d3867a1737b46a785e72b3195e5e29dbe5db5`.
+- Standing rules audit: no byte changed under `runtime/continuity/**`;
+  hooks/settings untouched; no published suite edited; no immutable
+  record mutated; no delivery epic promoted to `active` (only theme
+  epics, `status: parking`, were minted/extended — rule 11 single-
+  active-epic untouched); no Skills/Packs/bindings changed; no SD-002
+  claim.
+- Counters: WI 8/20 unchanged (organizing the backlog is not shipping a
+  Work Item); weeks 1/6 unchanged; resumptions 14/15 unchanged (same
+  chat as Entry 52, not a fresh session).
+- Recommended next operation: unchanged from Entry 52 — a fresh
+  `/backlog-next` session in a genuinely NEW Claude Code chat via
+  `~/continuity-handoffs/sd001-backlog-next-session-14-prompt.txt`,
+  which completes the SD-001 15-sample resumption target (14/15 →
+  15/15) and advances the WI counter. That prompt's LATER-pool
+  description is now slightly stale (it predates this clustering pass)
+  but remains directionally correct — the 4 standing blocked QUEUED
+  items are unchanged, and the LATER pool is now organized under 37
+  theme epics / 20 orphans instead of 31/39, which if anything makes
+  candidate selection easier, not harder.
