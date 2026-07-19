@@ -1266,3 +1266,98 @@ Continuity engine.
 - Counters: resumptions 8/15 → **9/15**. WI 4/20 unchanged (pending this
   session's selection); weeks 1/6 unchanged. Week 1 runs through
   2026-07-25T19:39:42Z; no weekly-boundary entry required.
+
+## Entry 40 — Work-selection: all 3 QUEUED items again found blocked; owner promoted a LATER item, declined to re-park blocked QUEUED items (criteria 5/8 input)
+
+- Entry written (machine-captured UTC): 2026-07-19T12:36:44.000Z
+- Session: this session (resumption 9/15, Entry 39).
+- `/backlog-next`'s default Step-1 pick (no ACTIVE non-epic item → top-
+  ranked QUEUED, rank 1) again resolves to `e2e-live-suite-exceeds-
+  bedrock-daily-token-budget` — all three current QUEUED items were
+  re-confirmed blocked/prohibited before selecting, unchanged from Entry
+  37: rank 1 owner BLOCKED/DEFERRED (Entry 20, no throttle/priority-shift
+  observed); rank 2 (`e2e-fixtures-test-stale-detail-envelope-
+  assertion`) fix landed+pushed (Entry 24) but ship-gate blocked by the
+  whole-scope-debt pattern (Entry 25/33); rank 3
+  (`circuit-breaker-lifecycle-e2e-breaker-stuck-open`) fixed (e290fbe9)
+  but likewise ship-gate blocked (Entry 33) and explicitly prohibited
+  from reopening by this session's own prompt.
+- Presented to the owner via `AskUserQuestion` (three options: promote a
+  LATER item / retry rank 2 hoping the gate now passes / no Work Item
+  this session). Owner raised a side question first — whether the three
+  blocked QUEUED items should be moved to `status: parking` so they
+  needn't be re-remembered each session — then confirmed the recommended
+  path.
+- Side-question disposition: declined moving the three blocked QUEUED
+  items to `parking`. Rule 8 (`parking` requires genuine unmet-trigger
+  language) and the standing convention `[[feedback-e2e-gaps-queued-not-
+  parking]]` (`.claude/skills/backlog-next/SKILL.md` Common mistakes)
+  both hold that e2e-related gaps stay `QUEUED`, never `parking` —
+  parking would let them silently drop out of the rank-pick surface each
+  session re-derives from `docs/BACKLOG.md`, defeating the point of the
+  explicit re-evaluation this ledger records each time (Entries 20, 25,
+  33, 37 and now this entry). Left ranks 1-3 unchanged in `QUEUED`.
+- Selected for promotion: `e2e-jest-timeout-convention-drift`
+  (`type: doc`, `status: parking`→`queued rank: 4`, no `epic:` pointer) —
+  a self-contained, mechanical doc-vs-code convention-drift fix confined
+  to one skill doc (`.claude/skills/audit-e2e-test/SKILL.md`), carrying
+  no unmet-trigger language, no deploy dependency, and no touch of
+  `apps/e2e-feature-tests/**` (only reads `jest.config.js` as evidence) —
+  chosen for the same reason as Entry 37's pick, to avoid the whole-
+  scope-debt ship-gate pattern. Promotion committed (`402d6a67`) and
+  pushed before selection, per `backlog-lint --fix` (481 files, all 11
+  rules green).
+- Classification: engine lane `doc-layer` (single `.md` skill file
+  edit); worked directly on `main`, no worktree, per this skill's
+  procedure (not driven through `run-next.mjs` this session — same
+  direct-doc-layer path as Entry 37/38).
+
+## Entry 41 — Work Item shipped clean, no ship-gate block (criteria 4/5/6 input)
+
+- Entry written (machine-captured UTC): 2026-07-19T12:36:44.000Z
+- Session: this session (resumption 9/15, Entry 39-40).
+- Fix: `.claude/skills/audit-e2e-test/SKILL.md` check #1 corrected —
+  `testTimeout: 300_000` → `testTimeout: 600_000`, matching
+  `apps/e2e-feature-tests/jest.config.js:12` (the actual 600s ceiling,
+  commented there as the `agentcore-invocation-resilience` 360s-poll
+  raise). Committed `0f6185f7` on `main`. Grep confirmed no other stale
+  `testTimeout: 300_000` convention reference remains outside dated
+  historical plan/spec snapshots (`docs/superpowers/plans/2026-04-11-
+  e2e-feature-tests.md`, `docs/superpowers/specs/2026-04-11-e2e-feature-
+  tests-design.md`), which are point-in-time records, not live
+  conventions, and were correctly left unchanged.
+- `detect-doc-derivation.mjs`: exit 10, `derivation=false`, no source
+  changes require derived-doc regen.
+- Doc-layer lane: no `run-next.mjs` drive, no deploy-gate batch, 6.4b
+  backward-edge ritual exempt per the skill's own text.
+- `docs/backlog/e2e-jest-timeout-convention-drift.md` →
+  `status: shipped`, `closed: 2026-07-19`, `validation_gate:` filled
+  citing commit `0f6185f7` and the grep confirmation. `backlog-lint
+  --fix`: 481 files, all 11 rules green, `docs/BACKLOG.md` regenerated.
+  Committed (`1e9b1993`) and pushed.
+- Postflight: `node .claude/skills/backlog-next/postflight.mjs
+  --lane=doc-layer --id=e2e-jest-timeout-convention-drift` → passed
+  (tree clean, backlog checks green).
+- Standing rules audit for this session: no byte changed under
+  `runtime/continuity/**`; hooks/settings untouched; no published suite
+  edited; no immutable record mutated; no Skills/Packs/bindings change
+  (the Continuity Level-1 `backlog-next` pack-lock's 19 locked assets
+  were read-only this session, none modified — `audit-e2e-test` is a
+  separate, unlocked skill); no SD-002 claim; none of the three
+  prohibited QUEUED items reopened or ship-pushed.
+- Counters: WI 4/20 → **5/20** (second fully clean ship this SD-001
+  period, same doc-layer pattern as Entries 37-38); weeks 1/6 unchanged;
+  resumptions 9/15 (Entry 39) unchanged this entry. Week 1 runs through
+  2026-07-25T19:39:42Z; no weekly-boundary entry required.
+- Final Nestfolio HEAD this session: `1e9b1993fa1b2ef4d3aa08c336732d00aca030b6`,
+  clean on `main`, in sync with `origin/main`. continuity-lab HEAD
+  unchanged at `54ddae7f8c98d5365ec15d21e337bac192a6c2e4`.
+- Recommended next operation: a fresh `/backlog-next` work selection for
+  the next Work Item — QUEUED still holds the same three blocked/
+  prohibited items (ranks 1-3, deliberately kept QUEUED rather than
+  parked per this entry's side-question disposition), so the next
+  session will again face the same promote-from-LATER decision point
+  unless one of their blockers clears first (e2elb: real throttle or
+  priority shift; e2e-fixtures / circuit-breaker: the systemic whole-
+  scope-debt gate, tracked under the parking `runtime-gate-baseline-
+  debt` epic).
