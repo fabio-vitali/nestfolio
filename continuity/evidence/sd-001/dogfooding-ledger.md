@@ -1474,3 +1474,66 @@ Continuity engine.
 - Counters: resumptions 10/15 → **11/15**. WI 5/20 unchanged (pending
   this session's selection); weeks 1/6 unchanged. Week 1 runs through
   2026-07-25T19:39:42Z; no weekly-boundary entry required.
+
+## Entry 45 — Work Item shipped clean, no ship-gate block (criteria 4/5/6 input)
+
+- Entry written (machine-captured UTC): 2026-07-19T15:20:56.000Z
+- Session: this session (resumption 11/15, Entry 44).
+- `/backlog-next`'s default Step-1 pick again resolved to rank 1
+  `e2e-live-suite-exceeds-bedrock-daily-token-budget` — all four QUEUED
+  items re-confirmed blocked, unchanged from Entries 40/43 (ranks 1-3
+  standing blockers; rank 4 `decision-log-utc-date-stamp` locked-pack
+  blocked per Entry 43, correctly NOT re-attempted this session).
+- Presented to the owner via `AskUserQuestion` (promote one of three
+  LATER candidates satisfying the tightened profile — no `epic:`
+  pointer, no deploy dependency, not touching `apps/e2e-feature-tests/**`,
+  not touching any `continuity/level-1/pack-lock.json` asset — or no
+  Work Item). Owner chose the recommended candidate.
+- Selected for promotion: `c4-diagrams-stale-vs-cdk-stacks` (`type:
+  doc`, `status: parking`→`queued rank: 5`) — C4 D2 diagrams under
+  `docs/architecture` were stale vs the CDK stacks (dashboard-bff
+  Ingress event count 13→14; two advisory-to-investor cross-domain
+  event counts 5→6, `DECISION_PACKET_UPDATED` added). Promotion
+  committed `081f4f8d` and pushed.
+- Classification: Doc-layer (only touches `docs/architecture/**`
+  generated sources + SVGs); worked directly on `main`, no worktree.
+- Execution: routed to the `generate-c4-diagrams` skill. Stage 1
+  (`node tools/generate-c4-sources.mjs`) reproduced exactly the diff
+  the backlog item predicted (`dashboard-bff.d2` 13→14; `nestfolio.d2`
+  advisory-to-investor / advisory-to-investor-adpt 5→6 with
+  `DECISION_PACKET_UPDATED`; investor-adpt-to-dashboard-bff 10→11).
+  Stage 2 (`node tools/generate-c4-diagrams.mjs`) recompiled the
+  affected SVGs (`c3-dashboard-bff.svg`, `c2-investor/index.svg`,
+  `index.svg`). Source + derived committed together `7ae256bb`, pushed.
+  Doc-layer lane exempts the 6.4b backward-edge ritual and the 6.4
+  deploy/e2e gate; no affected-project test/lint run was needed (no
+  code changed).
+- Shipped: `docs/backlog/c4-diagrams-stale-vs-cdk-stacks.md` →
+  `status: shipped`, `closed: 2026-07-19`, `validation_gate` filled with
+  the commit SHAs and the concrete diff evidence. Commit `486a0d90`,
+  pushed. `backlog-lint --fix` regenerated `docs/BACKLOG.md` in the same
+  commit. Postflight (`--lane=doc-layer`) passed: tree clean, backlog
+  checks green.
+- **First clean ship this period with zero ship-gate block** (the prior
+  clean ship, `create-mfe-skill-stale-file-references` at Entry 41, was
+  also doc-layer/unblocked — this is the second such clean ship, and the
+  first since the tightened LATER-candidate profile that also screens
+  for locked-pack paths).
+- Standing rules audit: no byte changed under `runtime/continuity/**`;
+  hooks/settings untouched; no published suite edited; no immutable
+  record mutated; no Skills/Packs/bindings touched (verified — this item
+  only touched `docs/architecture/**` and `docs/backlog/**`); no SD-002
+  claim; none of the four standing blocked QUEUED items reopened or
+  ship-pushed.
+- Final Nestfolio HEAD this session:
+  `486a0d90ff5346056998a602f04c1c8d5f937d7b`, clean on `main`, in sync
+  with `origin/main`. continuity-lab HEAD unchanged at
+  `54ddae7f8c98d5365ec15d21e337bac192a6c2e4`.
+- Counters: WI 5/20 → **6/20**. Weeks 1/6 unchanged; resumptions 11/15
+  (Entry 44) unchanged this entry.
+- Recommended next operation: a fresh `/backlog-next` work selection.
+  QUEUED still holds the four standing blocked items (ranks 1-4) — the
+  next session will again face a promote-from-LATER decision point.
+  Remaining low-risk doc-layer LATER candidates from this session's
+  shortlist (not yet promoted): `investor-domain-missing-flow-specs-adapter-hops`,
+  `ledger-ctrl-undocumented-simulation-branch`.
