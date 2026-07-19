@@ -103,11 +103,11 @@ Key conventions:
 
 ## Reference Files
 - Host routes: `apps/nestfolio-host/src/app/app.routes.ts`
-- Host GraphQL provider: `apps/nestfolio-host/src/app/provide-graphql.ts`
+- Host GraphQL provider: `libs/shell/src/graphql/provide-mfe-graphql.ts`
 - Example MFE (most complete): `apps/investor-mfe/src/app/`
 - Federation config pattern: `apps/investor-mfe/federation.config.js`
 - GraphqlService: `libs/shell/src/graphql/graphql.service.ts`
-- AppSync config: `libs/shell/src/graphql/appsync.config.ts`
+- Apollo client factory: `libs/shell/src/graphql/create-apollo-client.ts`
 - Auth guards: `libs/shell/src/auth/auth.guard.ts`, `onboarding.guard.ts`
 - Shared stores: `libs/shell/src/stores/` (auth, tenant, notification, ui)
 - Shell features: `libs/shell/src/features/` (withCallState, withDevtools, withLogoutReset)
