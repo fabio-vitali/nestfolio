@@ -37,10 +37,10 @@ use(eb.putEvent({
 }));
 
 // --- unknown event name is a compile error ---
+// @ts-expect-error — NOT_A_REAL_EVENT is not a RegisteredEventName, rejected by both overloads
 use(eb.putEvent({
   bus: 'advisory',
   targetService: 'compliance-ctrl',
   detailType: 'NOT_A_REAL_EVENT',
-  // @ts-expect-error — NOT_A_REAL_EVENT is not a RegisteredEventName, so subject is rejected by both overloads
   subject: { anything: true },
 }));
