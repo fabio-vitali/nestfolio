@@ -1,6 +1,7 @@
 ---
 id: test-support-typecheck-put-event-type-test-drift
-status: parking
+status: queued
+rank: 5
 type: tooling
 notes: "test-support:typecheck red on main — put-event.type-test @ts-expect-error drifted off the now-relocated overload error (false-red, not a masked real error)"
 references: []
