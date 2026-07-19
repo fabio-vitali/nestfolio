@@ -217,7 +217,7 @@ rollup: core 0/3 done · captured 0/0 done
 - core · parking · [portfolio-drift-detected-registry-collision](backlog/portfolio-drift-detected-registry-collision.md)
 - core · parking · [weight-drift-detector](backlog/weight-drift-detector.md)
 
-**Parking health:** 31 theme epic(s), 14 orphan(s) — drive orphans → 0 with `/backlog-themes`
+**Parking health:** 31 theme epic(s), 18 orphan(s) — drive orphans → 0 with `/backlog-themes`
 
 ## ACTIVE
 
@@ -237,12 +237,16 @@ _(none)_
 - [benchmark-agents-skill-simplification](backlog/benchmark-agents-skill-simplification.md) [refactor] — benchmark-agents SKILL.md (§5/§6) prescribes report templates inline; relocate to run.ts+templates.
 - [bump-tsconfig-es2022-to-es2023](backlog/bump-tsconfig-es2022-to-es2023.md) [tooling] — Enable .toSpliced/.toReversed/.with workspace-wide; promote on second use case.
 - [decision-log-utc-date-stamp](backlog/decision-log-utc-date-stamp.md) [bug] — decision-log.mjs stamps the UTC date — evening-CET appends land under yesterday's date in an append-only audit log
+- [e2e-ddb-read-missing-graphql-justification-comment](backlog/e2e-ddb-read-missing-graphql-justification-comment.md) [bug] — E2E convention check #5 (hard fail): several e2e scenario tests assert via direct DDB reads with no comment justifying why BFF GraphQL is insufficient.
+- [e2e-feature-tests-hand-rolled-polling-not-using-poll-helper](backlog/e2e-feature-tests-hand-rolled-polling-not-using-poll-helper.md) [refactor] — 5 e2e-feature-tests scenario files hand-roll Date.now()+N polling while-loops instead of using the shared poll() helper exported from src/index.ts.
+- [e2e-feature-tests-index-barrel-missing-helper-exports](backlog/e2e-feature-tests-index-barrel-missing-helper-exports.md) [tooling] — apps/e2e-feature-tests/src/index.ts barrel omits 3 helpers that exist in src/helpers/ (contract-assert, event-subject-trap, graphql-types); consumers reach them via ad-hoc relative paths instead.
 - [from-audit-e2e-test](backlog/from-audit-e2e-test.md) [bug]
 - [from-e2elb-remeasure-2026-07-18-dns-enotfound](backlog/from-e2elb-remeasure-2026-07-18-dns-enotfound.md) [bug]
 - [from-e2elb-remeasure-2026-07-18-withprofilesnapshot-timeout](backlog/from-e2elb-remeasure-2026-07-18-withprofilesnapshot-timeout.md) [bug]
 - [integration-suite-lever-5-cdk-bundling](backlog/integration-suite-lever-5-cdk-bundling.md) [refactor] — cdk-constructs:test bundles 57 assets in 32s as it synthesizes per-construct stacks in tests. This sits in the unit suite, not integration. Dossier called out as out-of-scope for integration slowness but worth tracking if unit wall-clock becomes a concern.
 - [rebalance-planner-mode-awareness](backlog/rebalance-planner-mode-awareness.md) [refactor] — rebalance-planner stays mode-blind; promote on mode-correlated gap.
 - [rename-nestfolio-integ-prefix-to-prefix](backlog/rename-nestfolio-integ-prefix-to-prefix.md) [refactor] — Verbose NESTFOLIO_INTEG_ namespace is friction; rename atomically + sweep docs.
+- [run-intake-orphan-route-filename-collision](backlog/run-intake-orphan-route-filename-collision.md) [bug] — run-intake.mjs's orphan route derives the written filename from the check id alone (from-<check>.md), not the finding id; a second finding from the same check silently overwrites the first finding's already-filed backlog item.
 - [test-support-typecheck-put-event-type-test-drift](backlog/test-support-typecheck-put-event-type-test-drift.md) [tooling] — test-support:typecheck red on main — put-event.type-test @ts-expect-error drifted off the now-relocated overload error (false-red, not a masked real error)
 - [unified-ingress-refactoring](backlog/unified-ingress-refactoring.md) [refactor] — Single event-listener with ResumeIntent + PublishIntent (planned, not started).
 - [worktree-missing-per-package-node-modules-symlink](backlog/worktree-missing-per-package-node-modules-symlink.md) [tooling] — backlog-next(-epic) worktree setup symlinks only ROOT node_modules, not per-package libs/*/node_modules. pnpm puts a package's DIRECT deps under its own node_modules, so affected test+lint for event-processor/agent-orchestrator/cdk-constructs FALSE-REDs in a worktree (resolves on main). Surfaced + worked around in the deploy-tooling-integrity epic.
