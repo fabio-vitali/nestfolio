@@ -9,6 +9,8 @@ spec: null
 plan: null
 topic_memory: []
 validation_gate: null
+epic: flow-spec-documentation-drift
+epic_role: core
 ---
 
 # advisory-bff recordExplanationView has no flow spec coverage

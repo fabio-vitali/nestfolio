@@ -9,6 +9,8 @@ spec: null
 plan: null
 topic_memory: []
 validation_gate: null
+epic: simulation-streamtype-guard-gap
+epic_role: core
 ---
 
 # Decision packet simulation loops back into DWC's own next-cycle ledger snapshot

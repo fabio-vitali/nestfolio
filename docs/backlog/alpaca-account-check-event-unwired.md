@@ -9,6 +9,8 @@ spec: null
 plan: null
 topic_memory: []
 validation_gate: null
+epic: broker-alpaca-adpt-missing-producer-emissions
+epic_role: core
 ---
 
 # ALPACA_ACCOUNT_CHECK has no production producer

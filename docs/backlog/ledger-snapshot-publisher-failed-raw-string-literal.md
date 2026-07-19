@@ -9,6 +9,8 @@ spec: null
 plan: null
 topic_memory: []
 validation_gate: null
+epic: error-event-name-string-literal-drift
+epic_role: core
 ---
 
 # ledger-ctrl snapshot-publisher uses a raw string literal instead of a typed constant

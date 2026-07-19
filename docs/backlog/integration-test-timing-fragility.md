@@ -2,9 +2,9 @@
 id: integration-test-timing-fragility
 status: parking
 type: epic
-notes: "Integration tests race AWS eventual-consistency / cold-start without robust synchronization → flakes; the polling audit is the systemic poll→subscribe direction. Theme epic, 4 members."
-done_when: "Each in-scope integration-test timing fragility is removed — cold-start-tail / EB-rule-propagation / cross-test-seed races are eliminated by robust wait/synchronization (warm-up, subscription-based waits, or explicit per-test guards) rather than longer timeouts, and the OrphanReaper VM-teardown race is fixed; all members shipped or dropped."
-scope: "Integration tests that assert on eventually-consistent async state (Lambda cold-start tail, EventBridge rule-propagation, cross-test CDC seed lag) through fragile polling/wait mechanisms, so timing variance flakes them; plus the systemic poll→subscribe direction for the test-infra wait primitives."
+notes: "Integration (and, by the same EB-propagation mechanism, e2e-fixture) tests race AWS eventual-consistency / cold-start without robust synchronization → flakes; the polling audit is the systemic poll→subscribe direction. Theme epic, 5 members."
+done_when: "Each in-scope timing fragility is removed — cold-start-tail / EB-rule-propagation / cross-test-seed races are eliminated by robust wait/synchronization (warm-up, subscription-based waits, or explicit per-test guards) rather than longer timeouts, and the OrphanReaper VM-teardown race is fixed; all 5 members shipped or dropped."
+scope: "Integration tests (and e2e fixtures exhibiting the identical EventBridge-rule-propagation mechanism) that assert on eventually-consistent async state (Lambda cold-start tail, EventBridge rule-propagation, cross-test CDC seed lag) through fragile polling/wait mechanisms, so timing variance flakes them; plus the systemic poll→subscribe direction for the test-infra wait primitives."
 out_of_scope:
   - "Test-isolation / contamination leaks (integration-test-isolation-leaks) — wrong DATA bleeding across the test/prod or cross-test boundary, not a timing flake"
   - "Warm-cache SSM override isolation (ssm-override-warm-cache-test-isolation) — a distinct isolation cause (Parameters-and-Secrets cache TTL)"
@@ -25,3 +25,4 @@ Members (derived from `epic:` pointers):
 - `investor-bff-updateoperatingmode-integration-seed-flake` (fires updateOperatingMode with no wait for the prior test's eventually-consistent Mandate seed → InvalidState; body explicitly asks to cluster here)
 - `broker-alpaca-adpt-resilience-trap-collapse` (2 EventBusTrap rules in beforeAll → EB-rule-propagation anti-pattern; pre-emptive collapse to 1 trap / 2 detailTypes)
 - `test-infrastructure-polling-audit` (systemic audit: app code clean; 12 polls should become subscriptions + a WSS test harness — the poll→subscribe direction for the wait primitives)
+- `circuit-breaker-heal-rule-disable-propagation-race` (e2e fixture `withBreakerOpen()`: heal-rule EB Disable doesn't propagate before the breaker-OPEN write, same EB-rule-propagation mechanism as `broker-alpaca-adpt-resilience-trap-collapse`; added 2026-07-19 by `backlog-themes`)

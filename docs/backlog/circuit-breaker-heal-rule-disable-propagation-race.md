@@ -9,6 +9,8 @@ spec: null
 plan: null
 topic_memory: []
 validation_gate: null
+epic: integration-test-timing-fragility
+epic_role: core
 ---
 
 # withBreakerOpen() fixture: heal-rule Disable propagation race

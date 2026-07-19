@@ -9,6 +9,8 @@ spec: null
 plan: null
 topic_memory: []
 validation_gate: null
+epic: flow-spec-documentation-drift
+epic_role: core
 ---
 
 # advisory-cycle flow spec claims stale AUDIT_ARTIFACT CDC emission

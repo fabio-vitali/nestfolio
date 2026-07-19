@@ -9,6 +9,8 @@ spec: null
 plan: null
 topic_memory: []
 validation_gate: null
+epic: error-event-name-string-literal-drift
+epic_role: core
 ---
 
 # broker-sim-adpt error event type naming drift

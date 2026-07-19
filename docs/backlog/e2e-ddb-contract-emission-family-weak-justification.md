@@ -9,6 +9,8 @@ spec: null
 plan: null
 topic_memory: []
 validation_gate: null
+epic: e2e-ddb-justification-convention-gap
+epic_role: core
 ---
 
 # *-contract-emission E2E family has weak DDB-read justification comments

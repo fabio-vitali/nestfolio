@@ -9,6 +9,8 @@ spec: null
 plan: null
 topic_memory: []
 validation_gate: null
+epic: claude-md-arch-doc-drift
+epic_role: core
 ---
 
 # onboarding-bff CLAUDE.md drift: fabricated Ingress, omitted agent.ts, undercounted tests

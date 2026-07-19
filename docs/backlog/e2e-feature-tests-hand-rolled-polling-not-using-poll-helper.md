@@ -9,6 +9,8 @@ spec: null
 plan: null
 topic_memory: []
 validation_gate: null
+epic: test-uses-divergent-copy-not-canonical
+epic_role: core
 ---
 
 # e2e-feature-tests: 5 scenario files hand-roll polling instead of using the shared poll() helper

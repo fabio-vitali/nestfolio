@@ -9,6 +9,8 @@ spec: null
 plan: null
 topic_memory: []
 validation_gate: null
+epic: claude-md-arch-doc-drift
+epic_role: core
 ---
 
 # Service CLAUDE.md cards have stale test-file enumerations across 17 services
