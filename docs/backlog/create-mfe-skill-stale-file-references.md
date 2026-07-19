@@ -1,7 +1,8 @@
 ---
 id: create-mfe-skill-stale-file-references
-status: parking
+status: queued
 type: doc
+rank: 4
 notes: "create-mfe skill references two files that no longer exist on disk (Host GraphQL provider path, AppSync config path)."
 references: []
 out_of_scope: []
