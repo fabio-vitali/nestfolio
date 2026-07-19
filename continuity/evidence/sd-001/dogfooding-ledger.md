@@ -1457,3 +1457,20 @@ Continuity engine.
   will again face a promote-from-LATER decision point, and should avoid
   re-selecting `decision-log-utc-date-stamp` (locked-pack blocker, see
   above) in addition to the standing exclusions for ranks 1-3.
+
+## Entry 44 — Resumption sample: fresh Claude Code session continuing from repository state (criterion 12 input)
+
+- Entry written (machine-captured UTC): 2026-07-19T15:17:56.000Z
+- Session: this session — a genuinely new Claude Code chat launched from
+  the Entry 43 handoff prompt (`~/continuity-handoffs/`), with no chat
+  memory of Entries 42-43, resumed entirely from repository state
+  (`docs/BACKLOG.md`, the ledger, the pinned starting-revision check).
+  Same fresh-session rule as Entries 29/31/34/36/39/42.
+- Starting revisions confirmed exactly as pinned: Nestfolio HEAD
+  `f9ec67973300d14b7960b9c8b84970bb9d519e45` clean on `main`, in sync
+  with `origin/main`; continuity-lab HEAD
+  `54ddae7f8c98d5365ec15d21e337bac192a6c2e4` clean, unchanged;
+  continuity-workspace clean on `main`.
+- Counters: resumptions 10/15 → **11/15**. WI 5/20 unchanged (pending
+  this session's selection); weeks 1/6 unchanged. Week 1 runs through
+  2026-07-25T19:39:42Z; no weekly-boundary entry required.
