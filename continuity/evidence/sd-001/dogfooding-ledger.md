@@ -1537,3 +1537,88 @@ Continuity engine.
   Remaining low-risk doc-layer LATER candidates from this session's
   shortlist (not yet promoted): `investor-domain-missing-flow-specs-adapter-hops`,
   `ledger-ctrl-undocumented-simulation-branch`.
+
+## Entry 46 — Resumption sample: fresh Claude Code session continuing from repository state (criterion 12 input)
+
+- Entry written (machine-captured UTC): 2026-07-19T15:23:59.000Z
+- Session: this session — a genuinely new Claude Code chat launched from
+  the Entry 45 handoff prompt (`~/continuity-handoffs/`), with no chat
+  memory of Entries 44-45, resumed entirely from repository state
+  (`docs/BACKLOG.md`, the ledger, the pinned starting-revision check).
+  Same fresh-session rule as Entries 29/31/34/36/39/42/44.
+- Starting revisions confirmed exactly as pinned: Nestfolio HEAD
+  `4c8433c357f0423fa1dc3d505d51233ea9d35d1f` clean on `main`, in sync
+  with `origin/main`; continuity-lab HEAD
+  `54ddae7f8c98d5365ec15d21e337bac192a6c2e4` clean, unchanged;
+  continuity-workspace clean on `main`.
+- Counters: resumptions 11/15 → **12/15**. WI 6/20 unchanged (pending
+  this session's selection); weeks 1/6 unchanged. Week 1 runs through
+  2026-07-25T19:39:42Z; no weekly-boundary entry required.
+
+## Entry 47 — Work Item shipped clean, no ship-gate block (criteria 4/5/6 input)
+
+- Entry written (machine-captured UTC): 2026-07-19T15:40:36.000Z
+- Session: this session (resumption 12/15, Entry 46).
+- `continuity:doctor`/`continuity:verify` confirmed Level 1 activation
+  (`nestfolio.level-1@1.0.1` Pack + `nestfolio.backlog-next@1.0.1`
+  Procedure, all 19 locked assets verified, `failures: []`).
+  `backlog-next/preflight.mjs` passed clean.
+- `/backlog-next`'s default Step-1 pick again resolved to rank 1
+  `e2e-live-suite-exceeds-bedrock-daily-token-budget` — all four QUEUED
+  items re-confirmed blocked, unchanged from Entries 40/43/45.
+- Presented to the owner via `AskUserQuestion` (promote one of the two
+  remaining scouted doc-layer LATER candidates from Entry 45's shortlist
+  — `investor-domain-missing-flow-specs-adapter-hops` or
+  `ledger-ctrl-undocumented-simulation-branch` — or no Work Item). Owner
+  chose the recommended, narrower-scope candidate.
+- Selected for promotion: `ledger-ctrl-undocumented-simulation-branch`
+  (`type: doc`, `status: parking`→worked directly, ship-stamped) —
+  `ledger-ctrl`'s `DECISION_PACKET_CREATED` handler
+  (`processSimulationEvent`, `event-listener.ts:157-210`) writes a
+  `streamType: 'simulated'` `LedgerEntry` row per proposed trade via
+  `shadowFill.simulateFill`, but `flows/advisory-cycle.flow.yaml`
+  mischaracterized the ledger-adpt cross-domain hop as `'audit'` in both
+  the `cross_domain: DECISION_PACKET_CREATED -> LedgerBus` block and the
+  `success_criteria` list.
+- Classification: Doc-layer (only touches
+  `flows/advisory-cycle.flow.yaml` + `docs/backlog/**`); worked directly
+  on `main`, no worktree. Verified against
+  `services/ledger/ledger-ctrl/src/handlers/event-listener.ts:157-210`
+  before editing (Step 2 reference re-read).
+  `detect-doc-derivation.mjs` confirmed `derivation=false` (exit 10) —
+  no generated-doc regen owed by this flow-spec text edit.
+- Execution: added a `receives`/`state_change` annotation to the
+  `cross_domain: DECISION_PACKET_CREATED` block documenting the
+  simulated-write behavior, and corrected the `success_criteria` line
+  from `'ledger-adpt (audit, via cross-domain hop)'` to `'ledger-ctrl
+  (simulated LedgerEntry write via ledger-adpt cross-domain hop, not
+  audit)'`. Doc-layer lane exempts the 6.4b backward-edge ritual and the
+  6.4 deploy/e2e gate; no affected-project test/lint run was needed (no
+  code changed).
+- Shipped: `docs/backlog/ledger-ctrl-undocumented-simulation-branch.md`
+  → `status: shipped`, `closed: 2026-07-19`, `validation_gate` filled
+  with the concrete diff evidence. `backlog-lint --fix` regenerated
+  `docs/BACKLOG.md` in the same commit (`07389e16`), pushed. Postflight
+  (`--lane=doc-layer`) passed: tree clean, backlog checks green.
+- **Third clean ship this period with zero ship-gate block** (after
+  `create-mfe-skill-stale-file-references` at Entry 41 and
+  `c4-diagrams-stale-vs-cdk-stacks` at Entry 45 — both also doc-layer).
+- Standing rules audit: no byte changed under `runtime/continuity/**`;
+  hooks/settings untouched; no published suite edited; no immutable
+  record mutated; no Skills/Packs/bindings touched (verified — this item
+  only touched `flows/advisory-cycle.flow.yaml` and `docs/backlog/**`,
+  confirmed not a locked-pack asset via
+  `continuity/level-1/pack-lock.json`); no SD-002 claim; none of the
+  four standing blocked QUEUED items reopened or ship-pushed.
+- Final Nestfolio HEAD this session: `07389e16413eb8497f97af3bfe419d8f6cf40a96`,
+  clean on `main`, in sync with `origin/main`. continuity-lab HEAD
+  unchanged at `54ddae7f8c98d5365ec15d21e337bac192a6c2e4`.
+- Counters: WI 6/20 → **7/20**. Weeks 1/6 unchanged; resumptions 12/15
+  (Entry 46) unchanged this entry.
+- Recommended next operation: a fresh `/backlog-next` work selection.
+  QUEUED still holds the four standing blocked items (ranks 1-4) — the
+  next session will again face a promote-from-LATER decision point. The
+  last scouted doc-layer LATER candidate from the Entry 45 shortlist
+  (not yet promoted): `investor-domain-missing-flow-specs-adapter-hops`
+  (touches `flows/deposit.flow.yaml` + `flows/advisory-cycle.flow.yaml`,
+  5 hops, same clean profile).
