@@ -90,11 +90,10 @@ describe('fixtures — funded', () => {
       bus: 'investor',
       targetService: 'investor-bff',
       detailType: 'BALANCE_UPDATED',
-      detail: expect.objectContaining({
-        tenantId: 't-2',
-        userId: 'u-2',
+      subject: expect.objectContaining({
         cashBalanceCents: 2_500_000,
       }),
+      context: expect.objectContaining({ tenantId: 't-2', userId: 'u-2' }),
     }));
   });
 });
@@ -116,11 +115,11 @@ describe('fixtures — withDecision', () => {
       bus: 'advisory',
       targetService: 'advisory-bff',
       detailType: 'DECISION_PACKET_CREATED',
-      detail: expect.objectContaining({
-        tenantId: 't-3',
+      subject: expect.objectContaining({
         trigger: 'INITIAL_ALLOCATION',
         confirmationRequired: true,
       }),
+      context: expect.objectContaining({ tenantId: 't-3' }),
     }));
     expect(typeof result.decisionId).toBe('string');
     expect((result.decisionId as string).startsWith('e2e-decision-')).toBe(true);
