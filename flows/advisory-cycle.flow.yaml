@@ -390,6 +390,26 @@ steps:
     to: InvestorBus
     via: investor-adpt EB rule (InvestorIngress-FromAdvisory)
 
+  - cross_domain: DECISION_PACKET_UPDATED
+    from: AdvisoryBus
+    to: InvestorBus
+    via: investor-adpt EB rule (InvestorIngress-FromAdvisory)
+    receives: dashboard-bff (awaitingConfirmationActivity transform, event-listener.ts:46)
+    state_change: >
+      Status-filtered awaiting-confirmation Activity projection — writes one Activity row
+      per decision entering AWAITING_CONFIRMATION, sourced from the forwarded DecisionPacket
+      row's status field (never the removed dead USER_CONFIRMATION_REQUESTED event).
+
+  - cross_domain: ADVISORY_STATUS_UPDATED
+    from: AdvisoryBus
+    to: InvestorBus
+    via: investor-adpt EB rule (InvestorIngress-FromAdvisory)
+    receives: dashboard-bff (advisoryStatus transform, event-listener.ts:40)
+    state_change: >
+      Projects the forwarded AdvisoryStatus aggregate (inFlightCount / generatingCount /
+      failedCount / oldestGeneratingAt) into dashboard-bff's own read model. advisory-bff
+      remains the authoritative owner; dashboard-bff only mirrors the announced aggregate.
+
   - cross_domain: EXPLANATION_GENERATED
     from: AdvisoryBus
     to: InvestorBus

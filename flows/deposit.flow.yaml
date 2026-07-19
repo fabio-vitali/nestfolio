@@ -27,8 +27,21 @@ steps:
   - service: broker-ctrl
     receives: DEPOSIT_INITIATED
     via: ExecutionBus → SQS → broker-ctrl-deposit-withdrawal-ingress
-    state_change: None (stateless routing). deposit-withdrawal-router reads ExecutionMode from DDB, emits SIM_DEPOSIT_INITIATED (simulation) or ALPACA_TRANSFER_REQUESTED with direction=INCOMING (live) via explicit EventBridge PutEvents
-    emits: SIM_DEPOSIT_INITIATED or ALPACA_TRANSFER_REQUESTED (explicit)
+    state_change: None (stateless routing). deposit-withdrawal-router reads ExecutionMode from DDB, emits SIM_DEPOSIT_INITIATED (simulation) or ALPACA_TRANSFER_REQUESTED with direction=INCOMING (live) via explicit EventBridge PutEvents. Also writes a FundingEvent record (sk=DEPOSIT_REQUESTED status=requested, __version=1) via fundingCarrier — the carry-forward source for the later DEPOSIT_DETECTED/SETTLED/FAILED snapshots.
+    emits: SIM_DEPOSIT_INITIATED or ALPACA_TRANSFER_REQUESTED (explicit); DEPOSIT_REQUESTED (CDC, FundingEvent:insert)
+    idempotent: true
+
+  # === Deposit-lifecycle read-model branch (DEPOSIT_REQUESTED → investor domain) ===
+  - cross_domain: DEPOSIT_REQUESTED
+    from: ExecutionBus
+    to: InvestorBus
+    via: investor-adpt EB rule (InvestorIngress-FromExecution)
+
+  - service: investor-bff
+    receives: DEPOSIT_REQUESTED
+    via: InvestorBus → SQS → investor-bff-ingress
+    state_change: depositLifecycle transform (deposit-lifecycle.ts) projects a versioned Deposit record (pk=InvestorProfile#tenantId#userId, sk=Deposit#transferId, __version=1 status=REQUESTED) via projectVersioned — broker-ctrl is the single writer of the funding lifecycle; investor-bff only projects the read model.
+    emits: none (read model projection)
     idempotent: true
 
   # === Simulation path ===
@@ -58,8 +71,16 @@ steps:
   - service: broker-ctrl
     receives: SIM_DEPOSIT_COMPLETED | ALPACA_TRANSFER_COMPLETED
     via: ExecutionBus → SQS → broker-ctrl-deposit-withdrawal-normalizer-ingress
-    state_change: deposit-withdrawal-normalizer writes TWO FundingEvent records (sk=DEPOSIT_DETECTED status=detected, sk=DEPOSIT_SETTLED status=settled) via fundingCarrier
+    state_change: deposit-withdrawal-normalizer writes TWO FundingEvent records (sk=DEPOSIT_DETECTED status=detected, sk=DEPOSIT_SETTLED status=settled) via fundingCarrier, carrying forward amountCents/currency/userId/initiatedAt from the DEPOSIT_REQUESTED FundingEvent
     emits: DEPOSIT_DETECTED, DEPOSIT_SETTLED (CDC, FundingEvent:insert, passthrough on sk field)
+    idempotent: true
+
+  # === Live-path failure branch (Alpaca ACH transfer terminal FAILED) ===
+  - service: broker-ctrl
+    receives: ALPACA_TRANSFER_FAILED
+    via: ExecutionBus → SQS → broker-ctrl-deposit-withdrawal-normalizer-ingress
+    state_change: deposit-withdrawal-normalizer writes ONE FundingEvent record (sk=DEPOSIT_FAILED status=failed, __version=3) via fundingCarrier, carrying forward the same fields from DEPOSIT_REQUESTED. Live path only — the simulation path has no failure branch in this flow.
+    emits: DEPOSIT_FAILED (CDC, FundingEvent:insert)
     idempotent: true
 
   # === Dashboard activity branch (DEPOSIT_DETECTED → investor domain; this is the path the deposit e2e asserts) ===
@@ -72,6 +93,38 @@ steps:
     receives: DEPOSIT_DETECTED
     via: InvestorBus → SQS → dashboard-bff-ingress
     state_change: recentActivity transform writes Activity record (activityType=DEPOSIT_DETECTED)
+    emits: none (read model projection)
+    idempotent: true
+
+  # === Deposit-lifecycle read-model branch (DEPOSIT_DETECTED/SETTLED/FAILED → investor-bff, same versioned P1 row as DEPOSIT_REQUESTED above) ===
+  - service: investor-bff
+    receives: DEPOSIT_DETECTED
+    via: InvestorBus → SQS → investor-bff-ingress
+    state_change: depositLifecycle transform projects the Deposit row to __version=2 status=DETECTED (projectVersioned drops this if a higher-version SETTLED/FAILED already landed)
+    emits: none (read model projection)
+    idempotent: true
+
+  - cross_domain: DEPOSIT_SETTLED
+    from: ExecutionBus
+    to: InvestorBus
+    via: investor-adpt EB rule (InvestorIngress-FromExecution)
+
+  - service: investor-bff
+    receives: DEPOSIT_SETTLED
+    via: InvestorBus → SQS → investor-bff-ingress
+    state_change: depositLifecycle transform projects the Deposit row to __version=3 status=SETTLED, settledAt set — terminal state
+    emits: none (read model projection)
+    idempotent: true
+
+  - cross_domain: DEPOSIT_FAILED
+    from: ExecutionBus
+    to: InvestorBus
+    via: investor-adpt EB rule (InvestorIngress-FromExecution)
+
+  - service: investor-bff
+    receives: DEPOSIT_FAILED
+    via: InvestorBus → SQS → investor-bff-ingress
+    state_change: depositLifecycle transform projects the Deposit row to __version=3 status=FAILED, failedAt+reason set — terminal state, mutually exclusive with SETTLED (both carry __version=3; whichever CDC snapshot lands wins)
     emits: none (read model projection)
     idempotent: true
 
@@ -114,6 +167,7 @@ success_criteria:
   - LEDGER_ENTRY_RECORDED event persists audit trail
   - investor-ctrl creates notifications for both DEPOSIT_INITIATED and BALANCE_UPDATED
   - dashboard-bff getRecentActivity surfaces a DEPOSIT_DETECTED activity entry
+  - investor-bff Deposit read model reaches __version=3 (SETTLED on the happy path, FAILED on an Alpaca live-path terminal failure), passing through REQUESTED (v1) and DETECTED (v2) via projectVersioned's monotonic guard
 
 failure_modes:
   - step 2 (cross_domain) fails: execution-adpt FromInvestorDLQ captures undelivered event; deposit not routed to execution domain
