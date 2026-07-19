@@ -82,10 +82,13 @@ rollup: core 0/4 done · captured 0/0 done
 
 ### [event-name-integrity](backlog/event-name-integrity.md) `[epic · parking]` — Event-name declarations have no integrity gate, so names drift from reality — declared-but-unwired dead constants AND cross-domain re-declarations that don't break on a producer rename. Theme epic, 3 members.
 done_when: An event-name integrity check exists so a declared event name cannot survive without a producer+consumer wiring AND cross-domain names are re-exported from the producer (a rename is a single-source compile/check error, not a silent stale literal); each in-scope name is wired, deleted, or re-exported. All members shipped or dropped.
-rollup: core 0/3 done · captured 0/0 done
+rollup: core 0/6 done · captured 0/0 done
 - core · parking · [account-closure-requested-never-emitted](backlog/account-closure-requested-never-emitted.md)
 - core · parking · [adapter-event-name-redeclare-vs-reexport](backlog/adapter-event-name-redeclare-vs-reexport.md)
+- core · parking · [advisory-narrative-ctrl-decision-feedback-dead-consumer](backlog/advisory-narrative-ctrl-decision-feedback-dead-consumer.md)
+- core · parking · [alpha-vantage-economic-indicator-unconsumed](backlog/alpha-vantage-economic-indicator-unconsumed.md)
 - core · parking · [execution-ctrl-pause-resume-events-unwired](backlog/execution-ctrl-pause-resume-events-unwired.md)
+- core · parking · [investor-ctrl-monthlyreport-dead-end-read-model](backlog/investor-ctrl-monthlyreport-dead-end-read-model.md)
 
 ### [event-processor-api-hardening](backlog/event-processor-api-hardening.md) `[epic · parking]` — event-processor public types/APIs are loose — stringly-typed IntentResult._tag + a silent event-id idempotency default — causing downstream narrowing loss and at-least-once misuse. Theme epic, 3 members.
 done_when: event-processor's IntentResult is a discriminated union (handler returns narrow), the idempotency choice is explicit at the call site, and the advisory handler return-type narrowing debt it causes is cleared; all members shipped or dropped.
@@ -217,7 +220,7 @@ rollup: core 0/3 done · captured 0/0 done
 - core · parking · [portfolio-drift-detected-registry-collision](backlog/portfolio-drift-detected-registry-collision.md)
 - core · parking · [weight-drift-detector](backlog/weight-drift-detector.md)
 
-**Parking health:** 31 theme epic(s), 18 orphan(s) — drive orphans → 0 with `/backlog-themes`
+**Parking health:** 31 theme epic(s), 28 orphan(s) — drive orphans → 0 with `/backlog-themes`
 
 ## ACTIVE
 
@@ -232,21 +235,31 @@ _(none)_
 
 ## LATER
 
+- [alpaca-account-check-event-unwired](backlog/alpaca-account-check-event-unwired.md) [bug] — broker-alpaca-adpt consumes ALPACA_ACCOUNT_CHECK but no production producer emits it — the circuit-breaker heal SF checks health via direct HTTP:Invoke instead.
+- [alpaca-order-cancel-requested-dead-path](backlog/alpaca-order-cancel-requested-dead-path.md) [bug] — broker-alpaca-adpt consumes ALPACA_ORDER_CANCEL_REQUESTED but no producer emits it — order-cancel path is dead (designed EmitCancel state never wired).
 - [backlog-next-epic-oversized-epic-splitting](backlog/backlog-next-epic-oversized-epic-splitting.md) [tooling] — backlog-next-epic can't run phased/soak-gated epics; evolve the family: split oversized epics (agile-style), declare/honor a draining mode.
 - [bef-next-auto-finishing-pr-stop-rubricgate-red](backlog/bef-next-auto-finishing-pr-stop-rubricgate-red.md) [bug] — Surfaced by the parity oracle's live bring-up (2026-07-06): legacy next-auto-finishing-pr-stop failed its own rubricGate:4 in 2/2 independent runs (judge 2/5 then 1/5 — 'auto-resolved decisions recorded in the workstream file on the branch' judged missing). Either the legacy --auto decision-log behavior regressed since the 2026-06-27 baseline, or the judge is miscalibrated on this rubric, or the committed bef baseline row for this scenario is stale.
 - [benchmark-agents-skill-simplification](backlog/benchmark-agents-skill-simplification.md) [refactor] — benchmark-agents SKILL.md (§5/§6) prescribes report templates inline; relocate to run.ts+templates.
 - [bump-tsconfig-es2022-to-es2023](backlog/bump-tsconfig-es2022-to-es2023.md) [tooling] — Enable .toSpliced/.toReversed/.with workspace-wide; promote on second use case.
+- [c4-diagrams-stale-vs-cdk-stacks](backlog/c4-diagrams-stale-vs-cdk-stacks.md) [doc] — C4 D2 diagrams under docs/architecture are stale vs the CDK stacks (dashboard-bff Ingress event count, two advisory-to-investor cross-domain event counts).
+- [circuit-breaker-heal-rule-disable-propagation-race](backlog/circuit-breaker-heal-rule-disable-propagation-race.md) [bug] — e2e fixture's heal-rule EB Disable doesn't propagate before the breaker-OPEN write, so the heal SM auto-closes the fixture-opened breaker in ~2s — distinct root cause from the fixed 22s reorder bug.
+- [create-mfe-skill-stale-file-references](backlog/create-mfe-skill-stale-file-references.md) [doc] — create-mfe skill references two files that no longer exist on disk (Host GraphQL provider path, AppSync config path).
 - [decision-log-utc-date-stamp](backlog/decision-log-utc-date-stamp.md) [bug] — decision-log.mjs stamps the UTC date — evening-CET appends land under yesterday's date in an append-only audit log
 - [e2e-ddb-read-missing-graphql-justification-comment](backlog/e2e-ddb-read-missing-graphql-justification-comment.md) [bug] — E2E convention check #5 (hard fail): several e2e scenario tests assert via direct DDB reads with no comment justifying why BFF GraphQL is insufficient.
 - [e2e-feature-tests-hand-rolled-polling-not-using-poll-helper](backlog/e2e-feature-tests-hand-rolled-polling-not-using-poll-helper.md) [refactor] — 5 e2e-feature-tests scenario files hand-roll Date.now()+N polling while-loops instead of using the shared poll() helper exported from src/index.ts.
 - [e2e-feature-tests-index-barrel-missing-helper-exports](backlog/e2e-feature-tests-index-barrel-missing-helper-exports.md) [tooling] — apps/e2e-feature-tests/src/index.ts barrel omits 3 helpers that exist in src/helpers/ (contract-assert, event-subject-trap, graphql-types); consumers reach them via ad-hoc relative paths instead.
+- [e2e-jest-timeout-convention-drift](backlog/e2e-jest-timeout-convention-drift.md) [doc] — audit-e2e-test skill's documented testTimeout convention (300_000) is stale vs jest.config.js's actual 600_000.
 - [from-audit-e2e-test](backlog/from-audit-e2e-test.md) [bug]
 - [from-e2elb-remeasure-2026-07-18-dns-enotfound](backlog/from-e2elb-remeasure-2026-07-18-dns-enotfound.md) [bug]
 - [from-e2elb-remeasure-2026-07-18-withprofilesnapshot-timeout](backlog/from-e2elb-remeasure-2026-07-18-withprofilesnapshot-timeout.md) [bug]
 - [integration-suite-lever-5-cdk-bundling](backlog/integration-suite-lever-5-cdk-bundling.md) [refactor] — cdk-constructs:test bundles 57 assets in 32s as it synthesizes per-construct stacks in tests. This sits in the unit suite, not integration. Dossier called out as out-of-scope for integration slowness but worth tracking if unit wall-clock becomes a concern.
+- [investor-adpt-stale-cross-domain-forwards](backlog/investor-adpt-stale-cross-domain-forwards.md) [bug] — investor-adpt forwards 5 cross-domain events onto InvestorBus that no investor service consumes anymore, stale since dashboard-bff's WS-3 Ingress trim.
+- [investor-domain-missing-flow-specs-adapter-hops](backlog/investor-domain-missing-flow-specs-adapter-hops.md) [doc] — Five real investor-adpt cross-domain forwards (ADVISORY_STATUS_UPDATED, DECISION_PACKET_UPDATED, DEPOSIT_REQUESTED/SETTLED/FAILED) have live consumers but no flow spec documents the hop.
+- [ledger-ctrl-undocumented-simulation-branch](backlog/ledger-ctrl-undocumented-simulation-branch.md) [doc] — ledger-ctrl's DECISION_PACKET_CREATED simulation-write branch is undocumented; advisory-cycle.flow.yaml mischaracterizes it as 'audit'.
 - [rebalance-planner-mode-awareness](backlog/rebalance-planner-mode-awareness.md) [refactor] — rebalance-planner stays mode-blind; promote on mode-correlated gap.
 - [rename-nestfolio-integ-prefix-to-prefix](backlog/rename-nestfolio-integ-prefix-to-prefix.md) [refactor] — Verbose NESTFOLIO_INTEG_ namespace is friction; rename atomically + sweep docs.
 - [run-intake-orphan-route-filename-collision](backlog/run-intake-orphan-route-filename-collision.md) [bug] — run-intake.mjs's orphan route derives the written filename from the check id alone (from-<check>.md), not the finding id; a second finding from the same check silently overwrites the first finding's already-filed backlog item.
+- [sd001-ship-gate-environmental-open-threads](backlog/sd001-ship-gate-environmental-open-threads.md) [infra] — Two environmental open threads from the 2026-07-19 pre-ship deploy-gate: Docker daemon required for onboarding-bff's container asset, and a journaled typed-subjects RUNTIME_GATE_SKIP awaiting ship-recheck adjudication.
 - [test-support-typecheck-put-event-type-test-drift](backlog/test-support-typecheck-put-event-type-test-drift.md) [tooling] — test-support:typecheck red on main — put-event.type-test @ts-expect-error drifted off the now-relocated overload error (false-red, not a masked real error)
 - [unified-ingress-refactoring](backlog/unified-ingress-refactoring.md) [refactor] — Single event-listener with ResumeIntent + PublishIntent (planned, not started).
 - [worktree-missing-per-package-node-modules-symlink](backlog/worktree-missing-per-package-node-modules-symlink.md) [tooling] — backlog-next(-epic) worktree setup symlinks only ROOT node_modules, not per-package libs/*/node_modules. pnpm puts a package's DIRECT deps under its own node_modules, so affected test+lint for event-processor/agent-orchestrator/cdk-constructs FALSE-REDs in a worktree (resolves on main). Surfaced + worked around in the deploy-tooling-integrity epic.

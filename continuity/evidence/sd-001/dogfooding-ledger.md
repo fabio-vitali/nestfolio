@@ -1035,3 +1035,100 @@ Continuity engine.
 - Recommended next operation: a `claude-sonnet-5` mechanical session to
   dedup + manually file the deferred findings from the evidence JSON
   and refresh docs/BACKLOG.md via backlog-lint --fix.
+
+## Entry 34 — Resumption sample (7/15) and work-continuation: mechanical backlog-filing session for the deferred pre-ship findings
+
+- Entry written (machine-captured UTC): 2026-07-19T12:15:31.000Z
+- Session launched on `claude-sonnet-5` at `--effort medium` per Entry
+  33's recommended next operation and the workspace model policy
+  (mechanical dedup + templated filing, no adversarial judgment).
+- This is a genuine fresh session continuing from repository state (same
+  rule Entries 29/31 applied) → resumption sample **7/15**.
+- Starting revisions confirmed exactly as pinned in the session prompt:
+  nestfolio HEAD `0813afc51503f555560dc36065502b63128ad413` clean on
+  `main`, in sync with `origin/main`; continuity-lab HEAD
+  `54ddae7f8c98d5365ec15d21e337bac192a6c2e4` clean on `main` (the
+  intervening documentation-only developer-guide addition, anticipated
+  by the prompt — no contradiction); workspace clean on `main`.
+- Source of next action: repository artifacts — ledger Entries 31-33 and
+  `continuity/evidence/sd-001/pre-ship-findings-2026-07-19-circuit-breaker-item.json`
+  re-read per the session prompt. No scripted-evidence step re-run.
+- Work-continuation: dedup the 13 genuinely-new findings (audit-domain#1-7,
+  audit-e2e-test#3, audit-system-arch-docs#0-4) plus Entry 32's secondary
+  heal-rule-disable-propagation-race finding against `docs/backlog/`, then
+  file whatever survives dedup manually (the `run-intake.mjs` orphan route
+  stays barred by the open filename-collision item).
+
+## Entry 35 — Backlog filing event: 13 deferred pre-ship findings dedup'd and filed (criteria 6/9 input)
+
+- Entry written (machine-captured UTC): 2026-07-19T12:15:31.000Z
+- Session: this session (resumption 7/15, Entry 34).
+- Dedup pass against `docs/backlog/*.md` (grep by event name / file /
+  topic) found no exact duplicate of any of the 13 findings or the
+  secondary race finding; all were genuinely new.
+- Epic-match check: the active epic (`runtime-self-hosting-debt`, runtime
+  self-hosting internal-quality debt) does not match any of these
+  findings — none touch `runtime/`. Checked every parking theme epic by
+  root cause; the shipped/closed `dead-code-cleanup` epic was
+  deliberately NOT reopened despite superficial "dead code" resemblance
+  (its `done_when` is fully drained and it is terminal). 3 findings
+  (audit-domain#1 DECISION_FEEDBACK dead consumer, audit-domain#2
+  ALPHA_VANTAGE_ECONOMIC_INDICATOR_UPDATED unconsumed, audit-domain#5
+  MonthlyReport dead-end read model + MONTHLY_REPORT_GENERATED dead
+  constant) matched the parking `event-name-integrity` theme epic's scope
+  (declared event names with no producer+consumer wiring) and were filed
+  as `epic_role: core` members. audit-domain#3
+  (ALPACA_ORDER_CANCEL_REQUESTED) and #4 (ALPACA_ACCOUNT_CHECK) were
+  explicitly OUT of that epic's scope (its own out-of-scope example is
+  the analogous broker-sim case: a missing emission on a real functional
+  path is a flow gap, not a name-integrity finding) → filed as plain
+  orphans instead.
+- One real dedup caught mid-session: `audit-system-arch-docs#4` (orphan
+  `ORDER_STAGED` forward, no flow doc) and the `ORDER_STAGED` leg of
+  `audit-domain#6` (5 stale investor-adpt forwards) point at the exact
+  same fact (`investor-adpt/src/service.stack.ts:64`), independently
+  surfaced by two different checks. Filed once, under
+  `investor-adpt-stale-cross-domain-forwards`, with a cross-reference
+  note; `audit-system-arch-docs#4` was NOT filed as a separate item. The
+  two `create-mfe` skill stale-reference findings
+  (`audit-system-arch-docs#1`/`#2`, same file, same defect class) were
+  filed as one item rather than two.
+- 12 new backlog items filed (11 plain-orphan/epic-member findings + the
+  Entry-32 secondary heal-rule-disable-propagation-race finding, which is
+  not in the JSON but was explicitly named in the session prompt) plus
+  one small ops-note orphan for the two environmental open threads
+  (Docker daemon, journaled typed-subjects RUNTIME_GATE_SKIP), since no
+  better existing home was found for either:
+  `advisory-narrative-ctrl-decision-feedback-dead-consumer`,
+  `alpha-vantage-economic-indicator-unconsumed`,
+  `alpaca-order-cancel-requested-dead-path`,
+  `alpaca-account-check-event-unwired`,
+  `investor-ctrl-monthlyreport-dead-end-read-model`,
+  `investor-adpt-stale-cross-domain-forwards`,
+  `ledger-ctrl-undocumented-simulation-branch`,
+  `e2e-jest-timeout-convention-drift`, `c4-diagrams-stale-vs-cdk-stacks`,
+  `create-mfe-skill-stale-file-references`,
+  `investor-domain-missing-flow-specs-adapter-hops`,
+  `circuit-breaker-heal-rule-disable-propagation-race`,
+  `sd001-ship-gate-environmental-open-threads`.
+- `docs/backlog/circuit-breaker-lifecycle-e2e-breaker-stuck-open.md` left
+  untouched (frontmatter `status: queued`, body unchanged) — this
+  session's scope is the deferred-findings filing only, not that item's
+  re-opening.
+- `node .claude/skills/backlog-lint/lint.mjs --fix`: one violation on
+  first run (`ledger-ctrl-undocumented-simulation-branch` filed as
+  `type: design`, which requires non-empty `references:`); corrected to
+  `type: doc`. Second run: 481 backlog files, all 11 rules pass;
+  `docs/BACKLOG.md` regenerated.
+- Standing rules audit for this session: no byte changed under
+  `runtime/continuity/**`; hooks/settings untouched; no published suite
+  edited; no immutable record mutated; no Skills/Packs/bindings change;
+  no SD-002 claim; no Work Item re-opened; engine Guards not invoked
+  (manual filing per the session prompt's explicit ban on the
+  `run-intake.mjs` orphan route).
+- Counters: WI 3/20 unchanged (bookkeeping session, not a Work Item);
+  weeks 1/6 unchanged; resumptions 7/15 (Entry 34). Week 1 runs through
+  2026-07-25T19:39:42Z; no weekly-boundary entry required.
+- Recommended next operation: a fresh `/backlog-next` work selection —
+  rank candidates have shifted after this filing (12 new parking items,
+  3 folded into `event-name-integrity`).
