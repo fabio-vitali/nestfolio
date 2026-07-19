@@ -1,6 +1,7 @@
 ---
 id: decision-log-utc-date-stamp
-status: parking
+status: queued
+rank: 4
 type: bug
 notes: "decision-log.mjs stamps the UTC date — evening-CET appends land under yesterday's date in an append-only audit log"
 references: []
