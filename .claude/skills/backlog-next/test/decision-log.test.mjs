@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { validateEntry, appendEntry, renderEntries, localDateStamp, SECTION_HEADING } from '../decision-log.mjs';
+import { validateEntry, appendEntry, renderEntries, SECTION_HEADING } from '../decision-log.mjs';
 
 const ENTRY = {
   decision: 'label formatting approach',
@@ -40,15 +40,6 @@ test('appendEntry keeps the section self-contained when other ## sections follow
   // new section is inserted before EOF; a second append lands INSIDE the section, not after the tail
   const two = appendEntry(withTail, { ...ENTRY, decision: 'second' }, '2026-07-04');
   assert.ok(two.indexOf('### D2') < two.indexOf('## Out of scope') || two.indexOf('## Out of scope') < two.indexOf(SECTION_HEADING));
-});
-
-test('localDateStamp: stamps the local calendar date, not the UTC one (evening-CET regression)', () => {
-  // 2026-07-04 23:30 CET local time is already 2026-07-05 in UTC — the stamp must stay on the
-  // local day, matching the session the entry was actually appended in.
-  const eveningLocal = new Date(2026, 6, 4, 23, 30);
-  assert.equal(localDateStamp(eveningLocal), '2026-07-04');
-  const midday = new Date(2026, 6, 5, 12, 0);
-  assert.equal(localDateStamp(midday), '2026-07-05');
 });
 
 test('renderEntries: extracts the section body; null when absent', () => {

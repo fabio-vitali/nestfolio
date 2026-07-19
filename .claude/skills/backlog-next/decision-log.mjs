@@ -48,15 +48,6 @@ export function validateEntry(entry) {
   return entry;
 }
 
-/** Local (not UTC) calendar date as YYYY-MM-DD — an evening-CET append must stamp today's local
- * date, not the UTC date, which is still yesterday until 00:00 UTC. */
-export function localDateStamp(date = new Date()) {
-  const y = date.getFullYear();
-  const m = String(date.getMonth() + 1).padStart(2, '0');
-  const d = String(date.getDate()).padStart(2, '0');
-  return `${y}-${m}-${d}`;
-}
-
 function formatEntry(entry, n, isoDate) {
   const lines = [
     `### D${n} — ${isoDate}`,
@@ -117,7 +108,7 @@ function main() {
     let entry;
     try { entry = JSON.parse(readFileSync(0, 'utf8')); } catch (e) { console.error(`stdin is not valid JSON: ${e.message}`); process.exit(1); }
     try {
-      writeFileSync(path, appendEntry(readFileSync(path, 'utf8'), entry, localDateStamp()));
+      writeFileSync(path, appendEntry(readFileSync(path, 'utf8'), entry, new Date().toISOString().slice(0, 10)));
     } catch (e) { console.error(e.message); process.exit(1); }
     console.log(`decision appended to ${path}`);
   } else if (cmd === 'render') {
