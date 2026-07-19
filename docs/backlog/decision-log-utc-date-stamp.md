@@ -1,7 +1,7 @@
 ---
 id: decision-log-utc-date-stamp
-status: shipped
-closed: 2026-07-19
+status: queued
+rank: 4
 type: bug
 notes: "decision-log.mjs stamps the UTC date — evening-CET appends land under yesterday's date in an append-only audit log"
 references: []
@@ -9,7 +9,7 @@ out_of_scope: []
 spec: null
 plan: null
 topic_memory: []
-validation_gate: "Fixed via localDateStamp() helper (local Y/M/D instead of toISOString().slice(0,10)) in .claude/skills/backlog-next/decision-log.mjs, commit 6508eb64. Regression test added (decision-log.test.mjs: 'localDateStamp: stamps the local calendar date, not the UTC one'), full suite 69/69 pass. No deploy/derivation needed (Tier 0 tooling change). ship-recheck: clean on origin/main..HEAD, journaled ship:decision-log-utc-date-stamp:gate-clean."
+validation_gate: null
 ---
 
 # decision-log.mjs stamps UTC dates in Decision-log headings
