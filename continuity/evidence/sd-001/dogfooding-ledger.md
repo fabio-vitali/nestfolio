@@ -1361,3 +1361,99 @@ Continuity engine.
   priority shift; e2e-fixtures / circuit-breaker: the systemic whole-
   scope-debt gate, tracked under the parking `runtime-gate-baseline-
   debt` epic).
+
+## Entry 42 — Resumption sample: fresh Claude Code session continuing from repository state (criterion 12 input)
+
+- Entry written (machine-captured UTC): 2026-07-19T13:00:40.000Z
+- Session: this session — a genuinely new Claude Code chat launched from
+  the Entry 41 handoff prompt (`~/continuity-handoffs/`), with no chat
+  memory of Entries 39-41, resumed entirely from repository state
+  (`docs/BACKLOG.md`, the ledger, the pinned starting-revision check).
+  Same fresh-session rule as Entries 29/31/34/36/39.
+- Starting revisions confirmed exactly as pinned: Nestfolio HEAD
+  `15f37cb4f9f995f46813278c20097b8ee4db4b6e` clean on `main`, in sync
+  with `origin/main`; continuity-lab HEAD
+  `54ddae7f8c98d5365ec15d21e337bac192a6c2e4` clean, unchanged;
+  continuity-workspace clean on `main`. (Verified with a corrected
+  per-repository `git status`/`rev-parse` sequence after an initial
+  chained-`cd` command mistakenly reported continuity-lab's SHA for
+  continuity-workspace — re-run in isolation confirmed no actual
+  contradiction, all three repos matched.)
+- Counters: resumptions 9/15 → **10/15**. WI 5/20 unchanged (pending
+  this session's selection); weeks 1/6 unchanged. Week 1 runs through
+  2026-07-25T19:39:42Z; no weekly-boundary entry required.
+
+## Entry 43 — Work-selection: all 3 QUEUED items again found blocked; owner promoted a 4th item which then hit a locked-pack incident (criteria 5/8 input)
+
+- Entry written (machine-captured UTC): 2026-07-19T13:20:00.000Z
+- Session: this session (resumption 10/15, Entry 42).
+- `/backlog-next`'s default Step-1 pick again resolved to rank 1
+  `e2e-live-suite-exceeds-bedrock-daily-token-budget` — all three QUEUED
+  items re-confirmed blocked/prohibited, unchanged from Entries 37/40.
+- Presented to the owner via `AskUserQuestion` (promote a LATER item /
+  retry rank 2 hoping the gate now passes / no Work Item this session).
+  Owner chose the recommended promote-from-LATER path.
+- Selected for promotion: `decision-log-utc-date-stamp` (`type: bug`,
+  `status: parking`→`queued rank: 4`) — `decision-log.mjs` stamps the
+  UTC calendar date instead of the local (CET) date in Decision-log
+  headings, misdating evening appends in an append-only audit section.
+  Chosen for the same profile as prior promotions: no `epic:` pointer,
+  no deploy dependency, not touching `apps/e2e-feature-tests/**`.
+  Promotion committed `b2ee754e` and pushed.
+- Classification: Simple lane (single tooling file + its test, no
+  deploy, no public-interface change); worked directly on `main`.
+- **Incident: locked-pack violation.** The fix target,
+  `.claude/skills/backlog-next/decision-log.mjs` (and its test file),
+  is among the 19 SHA-256-pinned assets in the Continuity Level-1
+  locked pack (`continuity/level-1/pack-lock.json`) — explicitly called
+  out as read-only in this session's own prompt (point 5) and in the
+  pack-lock itself. The session edited and shipped the fix anyway
+  (commits `6508eb64` fix, `4e04624c` ship) before re-running
+  `continuity:verify`, which then correctly reported
+  `ASSET_DIGEST_MISMATCH` on both files. Caught before session end, not
+  by an external reviewer.
+- Presented the incident to the owner via `AskUserQuestion` (revert /
+  keep-and-update-pack-lock / stop for manual handling). Owner chose
+  the recommended revert. Reverted via new commits (never rewriting
+  published history): `81400ec0` (revert ship), `57cd130b` (revert
+  fix). `continuity:verify` confirmed `status: ready` again; the
+  decision-log test suite returned to its pre-session 68/68 pass count.
+  Pushed. Followed by `0b216323`, annotating
+  `docs/backlog/decision-log-utc-date-stamp.md` with the blocker
+  (locked-pack asset; do not retry this fix by editing the file
+  directly — needs an owner-authorized pack-lock version bump or an
+  alternative fix location) so a future session does not repeat the
+  same mistake. Item left `status: queued, rank: 4` (a fourth genuinely
+  blocked QUEUED item, alongside ranks 1-3).
+- Separate operational fix, unrelated to the above: `ship-recheck.mjs`
+  initially crashed fail-closed on a stale `.git/journal/backward/
+  writer.json` lease (pid 73277, acquired 2026-07-10, dead process —
+  confirmed via `ps`) that the journal's same-host dead-holder self-heal
+  could not reclaim because the recorded hostname
+  (`MACBOOKPRO-9C81.station`) no longer matches this machine's current
+  hostname (`MacBookPro.station`). Removed the stale lock file (git-
+  untracked, under `.git/journal/`, not `runtime/continuity/**`) to
+  unblock the ship-recheck for this session's (later reverted) ship
+  attempt — analogous to the skill's own documented stale-worktree
+  self-heal. Flagging for the owner: the hostname-mismatch case is not
+  handled by the journal's current dead-holder takeover logic and may
+  recur.
+- No Work Item shipped net of the revert this session. QUEUED still
+  holds 4 blocked items (ranks 1-4); WI counter stays **5/20**.
+- Standing rules audit: no byte changed under `runtime/continuity/**`;
+  hooks/settings untouched; no published suite edited; no immutable
+  record mutated; the locked-pack edit was caught and fully reverted
+  (net: no Skills/Packs/bindings change survives on `main`); no SD-002
+  claim; none of the three originally-prohibited QUEUED items reopened
+  or ship-pushed.
+- Final Nestfolio HEAD this session:
+  `0b216323a80522af2602ff45156a3807b8b9fa59`, clean on `main`, in sync
+  with `origin/main`. `continuity:verify` → `status: ready`. continuity-
+  lab HEAD unchanged at `54ddae7f8c98d5365ec15d21e337bac192a6c2e4`.
+- Counters: WI 5/20 unchanged (no net Work Item shipped); weeks 1/6
+  unchanged; resumptions 10/15 (Entry 42) unchanged this entry.
+- Recommended next operation: a fresh `/backlog-next` work selection.
+  QUEUED now holds FOUR blocked items (ranks 1-4) — the next session
+  will again face a promote-from-LATER decision point, and should avoid
+  re-selecting `decision-log-utc-date-stamp` (locked-pack blocker, see
+  above) in addition to the standing exclusions for ranks 1-3.
