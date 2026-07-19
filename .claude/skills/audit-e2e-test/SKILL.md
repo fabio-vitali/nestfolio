@@ -13,7 +13,7 @@ description: Verify E2E feature test coverage, convention compliance, and config
 
 | # | Check | Severity | How to Check |
 |---|-------|----------|-------------|
-| 1 | `jest.config.js` exists with correct `testMatch`, `testTimeout: 300_000`, `maxWorkers: 1` | Hard fail | Read `apps/e2e-feature-tests/jest.config.js` |
+| 1 | `jest.config.js` exists with correct `testMatch`, `testTimeout: 600_000`, `maxWorkers: 1` | Hard fail | Read `apps/e2e-feature-tests/jest.config.js` |
 | 2 | `test-e2e-features` target exists in `project.json` with `NODE_OPTIONS: --experimental-vm-modules` | Hard fail | Read `apps/e2e-feature-tests/project.json` |
 | 3 | `globalTeardown` points to `jest.global-teardown.ts` | Warning | Check `jest.config.js` |
 | 4 | `moduleNameMapper` covers all service event imports used in test files | Hard fail | Grep `*.e2e.test.ts` and `helpers/fixtures.ts` for `@nestfolio/*/events` imports; verify each has a mapper entry |
