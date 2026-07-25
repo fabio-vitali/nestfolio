@@ -30,7 +30,8 @@
     "continuity:pack:verify": "node continuity/level-2/cli.mjs pack-verify",
     "continuity:procedure:compare": "node continuity/level-2/cli.mjs procedure-compare",
     "continuity:procedure:run": "node continuity/level-2/cli.mjs procedure-run",
-    "test:continuity-level1": "node --test tests/continuity-level-1.test.mjs"
+    "test:continuity-level1": "node --test tests/continuity-level-1.test.mjs",
+    "test:continuity-level1:tap": "node --test --test-reporter=tap tests/continuity-level-1.test.mjs"
   },
   "dependencies": {
     "@ag-ui/client": "^0.0.47",
