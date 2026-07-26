@@ -1,0 +1,23 @@
+{
+  "schema_version": "0.1.0",
+  "procedure_id": "project.verify-declared-level1-tests",
+  "version": "1.0.0",
+  "title": "Run the bound level-1 suite and judge each declared assertion",
+  "provenance": "project",
+  "mutating": false,
+  "steps": [
+    {
+      "step_id": "run-level1-suite",
+      "title": "Run the bound level-1 suite",
+      "executor": "command",
+      "command_ref": "test"
+    },
+    {
+      "step_id": "evaluate-declared-tests",
+      "title": "Evaluate the declared-test Check",
+      "executor": "check",
+      "check_id": "official.declared-test-passes",
+      "check_version": "1.0.0"
+    }
+  ]
+}

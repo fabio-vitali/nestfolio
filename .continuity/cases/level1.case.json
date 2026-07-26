@@ -1,0 +1,188 @@
+{
+  "title": "Every declared assertion of the real level-1 continuity suite is verified",
+  "intended_outcome": "Each named assertion of the declared level-1 continuity suite passes with Proof, judged by the test Check reading the TAP evidence the consumer’s own declared variant script emits. Exit code zero is not completion: a report that cannot be read blocks this Case.",
+  "completion_conditions": [
+    {
+      "condition_id": "level1-test-01",
+      "statement": "The declared assertion \"C1/C2/C4/C6: inspect exposes one Level 1 Procedure and a complete exact lock\" passes.",
+      "checks": [
+        {
+          "check_id": "official.declared-test-passes",
+          "version": "1.0.0",
+          "params": {
+            "test_name": "C1/C2/C4/C6: inspect exposes one Level 1 Procedure and a complete exact lock"
+          }
+        }
+      ]
+    },
+    {
+      "condition_id": "level1-test-02",
+      "statement": "The declared assertion \"C1/C6: invoke returns bounded Claude Code delegation and non-canonical provenance\" passes.",
+      "checks": [
+        {
+          "check_id": "official.declared-test-passes",
+          "version": "1.0.0",
+          "params": {
+            "test_name": "C1/C6: invoke returns bounded Claude Code delegation and non-canonical provenance"
+          }
+        }
+      ]
+    },
+    {
+      "condition_id": "level1-test-03",
+      "statement": "The declared assertion \"missing primary Skill asset fails closed\" passes.",
+      "checks": [
+        {
+          "check_id": "official.declared-test-passes",
+          "version": "1.0.0",
+          "params": {
+            "test_name": "missing primary Skill asset fails closed"
+          }
+        }
+      ]
+    },
+    {
+      "condition_id": "level1-test-04",
+      "statement": "The declared assertion \"locked asset digest mismatch fails before delegation\" passes.",
+      "checks": [
+        {
+          "check_id": "official.declared-test-passes",
+          "version": "1.0.0",
+          "params": {
+            "test_name": "locked asset digest mismatch fails before delegation"
+          }
+        }
+      ]
+    },
+    {
+      "condition_id": "level1-test-05",
+      "statement": "The declared assertion \"missing declared prerequisite fails with remediation\" passes.",
+      "checks": [
+        {
+          "check_id": "official.declared-test-passes",
+          "version": "1.0.0",
+          "params": {
+            "test_name": "missing declared prerequisite fails with remediation"
+          }
+        }
+      ]
+    },
+    {
+      "condition_id": "level1-test-06",
+      "statement": "The declared assertion \"duplicate Procedure id/version fails activation preflight\" passes.",
+      "checks": [
+        {
+          "check_id": "official.declared-test-passes",
+          "version": "1.0.0",
+          "params": {
+            "test_name": "duplicate Procedure id/version fails activation preflight"
+          }
+        }
+      ]
+    },
+    {
+      "condition_id": "level1-test-07",
+      "statement": "The declared assertion \"duplicate asset source fails activation preflight\" passes.",
+      "checks": [
+        {
+          "check_id": "official.declared-test-passes",
+          "version": "1.0.0",
+          "params": {
+            "test_name": "duplicate asset source fails activation preflight"
+          }
+        }
+      ]
+    },
+    {
+      "condition_id": "level1-test-08",
+      "statement": "The declared assertion \"mixed 1.0.0 and 1.0.1 identity fails closed\" passes.",
+      "checks": [
+        {
+          "check_id": "official.declared-test-passes",
+          "version": "1.0.0",
+          "params": {
+            "test_name": "mixed 1.0.0 and 1.0.1 identity fails closed"
+          }
+        }
+      ]
+    },
+    {
+      "condition_id": "level1-test-09",
+      "statement": "The declared assertion \"locked byte-size mismatch fails closed even with a coherent aggregate digest\" passes.",
+      "checks": [
+        {
+          "check_id": "official.declared-test-passes",
+          "version": "1.0.0",
+          "params": {
+            "test_name": "locked byte-size mismatch fails closed even with a coherent aggregate digest"
+          }
+        }
+      ]
+    },
+    {
+      "condition_id": "level1-test-10",
+      "statement": "The declared assertion \"an unenumerated file under the Skill root fails closed\" passes.",
+      "checks": [
+        {
+          "check_id": "official.declared-test-passes",
+          "version": "1.0.0",
+          "params": {
+            "test_name": "an unenumerated file under the Skill root fails closed"
+          }
+        }
+      ]
+    },
+    {
+      "condition_id": "level1-test-11",
+      "statement": "The declared assertion \"tampered aggregate lock digest fails closed\" passes.",
+      "checks": [
+        {
+          "check_id": "official.declared-test-passes",
+          "version": "1.0.0",
+          "params": {
+            "test_name": "tampered aggregate lock digest fails closed"
+          }
+        }
+      ]
+    },
+    {
+      "condition_id": "level1-test-12",
+      "statement": "The declared assertion \"representative Level 2-6 authority and completion claims are rejected\" passes.",
+      "checks": [
+        {
+          "check_id": "official.declared-test-passes",
+          "version": "1.0.0",
+          "params": {
+            "test_name": "representative Level 2-6 authority and completion claims are rejected"
+          }
+        }
+      ]
+    },
+    {
+      "condition_id": "level1-test-13",
+      "statement": "The declared assertion \"corrupt lock fails closed\" passes.",
+      "checks": [
+        {
+          "check_id": "official.declared-test-passes",
+          "version": "1.0.0",
+          "params": {
+            "test_name": "corrupt lock fails closed"
+          }
+        }
+      ]
+    },
+    {
+      "condition_id": "level1-test-14",
+      "statement": "The declared assertion \"C3/C7: disable leaves direct current Skill discoverable and target removable\" passes.",
+      "checks": [
+        {
+          "check_id": "official.declared-test-passes",
+          "version": "1.0.0",
+          "params": {
+            "test_name": "C3/C7: disable leaves direct current Skill discoverable and target removable"
+          }
+        }
+      ]
+    }
+  ]
+}
