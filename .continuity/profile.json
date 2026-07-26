@@ -1,0 +1,84 @@
+{
+  "schema_version": "0.1.0",
+  "profile_id": "prof-a61cd108f529",
+  "project_name": "@nestfolio/source",
+  "mode": "observe",
+  "facts": [
+    {
+      "fact_id": "fact-5636841f65de",
+      "kind": "module-system",
+      "value": "commonjs",
+      "source": "package.json#type (absent, Node default)",
+      "confidence": 0.8,
+      "method": "deterministic"
+    },
+    {
+      "fact_id": "fact-01f173c1160e",
+      "kind": "node-version",
+      "value": "24",
+      "source": ".node-version",
+      "confidence": 1,
+      "method": "deterministic"
+    },
+    {
+      "fact_id": "fact-57dd615b4173",
+      "kind": "package-manager",
+      "value": "pnpm",
+      "source": "package.json#packageManager",
+      "confidence": 1,
+      "method": "deterministic"
+    },
+    {
+      "fact_id": "fact-fbb53cfe945f",
+      "kind": "project-name",
+      "value": "@nestfolio/source",
+      "source": "package.json#name",
+      "confidence": 1,
+      "method": "deterministic"
+    },
+    {
+      "fact_id": "fact-6f9f8b194898",
+      "kind": "test-command",
+      "value": "nx run-many -t test",
+      "source": "package.json#scripts.test",
+      "confidence": 1,
+      "method": "deterministic"
+    },
+    {
+      "fact_id": "fact-ebcb26a336b4",
+      "kind": "test-command",
+      "value": "node --test --test-reporter=tap tests/continuity-level-1.test.mjs",
+      "source": "package.json#scripts.test:continuity-level1:tap",
+      "confidence": 1,
+      "method": "deterministic"
+    },
+    {
+      "fact_id": "fact-08c0b6d64a5e",
+      "kind": "version-control",
+      "value": "git",
+      "source": ".git",
+      "confidence": 1,
+      "method": "deterministic"
+    }
+  ],
+  "commands": {
+    "test": {
+      "argv": [
+        "pnpm",
+        "run",
+        "--silent",
+        "test:continuity-level1:tap"
+      ],
+      "timeout_ms": 120000,
+      "max_output_bytes": 1048576,
+      "env_allowlist": [
+        "PATH",
+        "HOME",
+        "LANG"
+      ]
+    }
+  },
+  "accepted_at": "2026-07-26T11:33:06.372Z",
+  "accepted_by": "human:fabiovitali",
+  "decision_id": "dec-d5a399dfb77e"
+}

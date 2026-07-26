@@ -1,0 +1,6 @@
+# Written by Continuity on `continuity init --accept`.
+# Portable truth — the reviewed Project Profile and the accepted-event ledger —
+# is committed. Everything below is local, rebuildable, or expiring.
+evidence/
+diagnostics/
+lock
