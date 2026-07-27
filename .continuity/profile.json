@@ -1,9 +1,17 @@
 {
   "schema_version": "0.1.0",
-  "profile_id": "prof-a61cd108f529",
+  "profile_id": "prof-82900ded811e",
   "project_name": "@nestfolio/source",
   "mode": "observe",
   "facts": [
+    {
+      "fact_id": "fact-02b622f87019",
+      "kind": "bound-command",
+      "value": "USER=$(id -un) claude -p --permission-mode acceptEdits --model sonnet",
+      "source": "package.json#scripts.delegated-worker",
+      "confidence": 1,
+      "method": "deterministic"
+    },
     {
       "fact_id": "fact-5636841f65de",
       "kind": "module-system",
@@ -76,9 +84,24 @@
         "HOME",
         "LANG"
       ]
+    },
+    "delegated-worker": {
+      "argv": [
+        "pnpm",
+        "run",
+        "--silent",
+        "delegated-worker"
+      ],
+      "timeout_ms": 120000,
+      "max_output_bytes": 1048576,
+      "env_allowlist": [
+        "PATH",
+        "HOME",
+        "LANG"
+      ]
     }
   },
-  "accepted_at": "2026-07-26T11:33:06.372Z",
+  "accepted_at": "2026-07-27T20:32:31.412Z",
   "accepted_by": "human:fabiovitali",
-  "decision_id": "dec-d5a399dfb77e"
+  "decision_id": "dec-57c9de04dffe"
 }
