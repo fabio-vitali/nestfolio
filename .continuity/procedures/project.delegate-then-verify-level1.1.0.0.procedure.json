@@ -1,0 +1,33 @@
+{
+  "schema_version": "0.4.0",
+  "procedure_id": "project.delegate-then-verify-level1",
+  "version": "1.0.0",
+  "title": "Delegate a bounded level-1 change, then verify it with the declared suite",
+  "provenance": "project",
+  "mutating": false,
+  "steps": [
+    {
+      "step_id": "delegate-the-change",
+      "title": "Delegate the change to the declared worker",
+      "executor": "delegation",
+      "worker_ref": "delegated-worker",
+      "brief_ref": {
+        "brief_id": "project.document-level1-core",
+        "version": "1.0.0"
+      }
+    },
+    {
+      "step_id": "run-level1-suite",
+      "title": "Run the bound level-1 suite",
+      "executor": "command",
+      "command_ref": "test"
+    },
+    {
+      "step_id": "evaluate-declared-tests",
+      "title": "Evaluate the declared-test Check",
+      "executor": "check",
+      "check_id": "official.declared-test-passes",
+      "check_version": "1.0.0"
+    }
+  ]
+}
