@@ -8,6 +8,9 @@
       "executor": "nx:run-commands",
       "options": {
         "command": "node tools/run-jest.mjs apps/e2e-feature-tests/jest.config.js --runInBand",
+        "env": {
+          "NODE_OPTIONS": "--experimental-vm-modules"
+        },
         "color": true
       }
     },
