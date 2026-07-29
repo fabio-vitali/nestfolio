@@ -15,7 +15,7 @@ const WORKSPACE_ROOT = resolve(__dirname, '../..');
 // index.html and the browser hits "Unexpected token '<'" on every Apollo
 // query/mutation/subscription. Only port 4200 (host) needs the proxy —
 // the MFE bundle servers on 4201–4205 don't see API traffic.
-const PREFIX = process.env.NESTFOLIO_INTEG_PREFIX ?? 'dev';
+const PREFIX = process.env.PREFIX ?? 'dev';
 const REGION = process.env.AWS_REGION ?? 'us-east-1';
 const PROXY_TARGET = (() => {
   if (process.env.NF_E2E_PROXY_TARGET) return process.env.NF_E2E_PROXY_TARGET;

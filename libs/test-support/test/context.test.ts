@@ -9,7 +9,7 @@ describe('createTestContext', () => {
 
   describe('prefix resolution', () => {
     it('defaults to "dev" when no option and no env var', async () => {
-      delete process.env.NESTFOLIO_INTEG_PREFIX;
+      delete process.env.PREFIX;
       delete process.env.CI;
 
       const ctx = await createTestContext();
@@ -19,7 +19,7 @@ describe('createTestContext', () => {
     });
 
     it('prefers options.prefix over env var and default', async () => {
-      process.env.NESTFOLIO_INTEG_PREFIX = 'sandbox-pr-99';
+      process.env.PREFIX = 'sandbox-pr-99';
       delete process.env.CI;
 
       const ctx = await createTestContext({ prefix: 'explicit' });
@@ -28,8 +28,8 @@ describe('createTestContext', () => {
       await ctx.cleanup.runAll();
     });
 
-    it('uses NESTFOLIO_INTEG_PREFIX when option omitted', async () => {
-      process.env.NESTFOLIO_INTEG_PREFIX = 'sandbox-pr-42';
+    it('uses PREFIX when option omitted', async () => {
+      process.env.PREFIX = 'sandbox-pr-42';
       delete process.env.CI;
 
       const ctx = await createTestContext();
@@ -42,16 +42,16 @@ describe('createTestContext', () => {
   describe('CI misconfiguration guard', () => {
     it('throws when CI=true and no prefix option and no env var', async () => {
       process.env.CI = 'true';
-      delete process.env.NESTFOLIO_INTEG_PREFIX;
+      delete process.env.PREFIX;
 
       await expect(createTestContext()).rejects.toThrow(
-        /NESTFOLIO_INTEG_PREFIX/,
+        /PREFIX/,
       );
     });
 
     it('does not throw when CI=true and env var is set', async () => {
       process.env.CI = 'true';
-      process.env.NESTFOLIO_INTEG_PREFIX = 'sandbox-pr-1';
+      process.env.PREFIX = 'sandbox-pr-1';
 
       const ctx = await createTestContext();
 
@@ -61,7 +61,7 @@ describe('createTestContext', () => {
 
     it('does not throw when CI=true and explicit prefix option is provided', async () => {
       process.env.CI = 'true';
-      delete process.env.NESTFOLIO_INTEG_PREFIX;
+      delete process.env.PREFIX;
 
       const ctx = await createTestContext({ prefix: 'explicit' });
 
@@ -71,7 +71,7 @@ describe('createTestContext', () => {
 
     it('does not throw when CI is unset even if no prefix provided', async () => {
       delete process.env.CI;
-      delete process.env.NESTFOLIO_INTEG_PREFIX;
+      delete process.env.PREFIX;
 
       const ctx = await createTestContext();
 

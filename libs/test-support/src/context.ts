@@ -44,15 +44,15 @@ export async function createTestContext(options?: {
   if (
     process.env.CI === 'true' &&
     !options?.prefix &&
-    !process.env.NESTFOLIO_INTEG_PREFIX
+    !process.env.PREFIX
   ) {
     throw new Error(
-      'createTestContext: running in CI (CI=true) but NESTFOLIO_INTEG_PREFIX is unset. ' +
+      'createTestContext: running in CI (CI=true) but PREFIX is unset. ' +
         'Refusing to fall back to the shared "dev" prefix. ' +
-        'Set NESTFOLIO_INTEG_PREFIX in the CI job env (e.g. sandbox-pr-${PR_NUMBER}) or pass options.prefix explicitly.',
+        'Set PREFIX in the CI job env (e.g. sandbox-pr-${PR_NUMBER}) or pass options.prefix explicitly.',
     );
   }
-  const prefix = options?.prefix ?? process.env.NESTFOLIO_INTEG_PREFIX ?? 'dev';
+  const prefix = options?.prefix ?? process.env.PREFIX ?? 'dev';
   const region = options?.region ?? 'us-east-1';
   const timestamp = Date.now();
   // Date.now() alone collides under --parallel=N when two test workers create a

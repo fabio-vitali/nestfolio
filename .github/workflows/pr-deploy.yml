@@ -115,7 +115,7 @@ jobs:
       id-token: write
       contents: read
     env:
-      NESTFOLIO_INTEG_PREFIX: sandbox-pr-${{ github.event.pull_request.number }}
+      PREFIX: sandbox-pr-${{ github.event.pull_request.number }}
     steps:
       - uses: actions/checkout@v4
         with: { fetch-depth: 0 }
