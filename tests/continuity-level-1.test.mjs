@@ -196,3 +196,28 @@ test('the e2e-feature-tests test target declares the NODE_OPTIONS convention', a
   const target = project.targets['test-e2e-features'];
   assert.equal(target.options.env?.NODE_OPTIONS, '--experimental-vm-modules');
 });
+
+test('the integration prefix is read as PREFIX in every code and configuration file', async () => {
+  // The six paths are read BY PATH, so this assertion never scans its own
+  // source, and the old name is assembled from fragments for the same reason: a
+  // literal here would itself be an occurrence, and the assertion would then be
+  // asserting something about this file.
+  //
+  // Six, not the four the tracker issue enumerates. The two GitHub workflows
+  // SET the variable rather than reading it, which is exactly why a list written
+  // from the issue's prose would leave CI setting a name nothing reads.
+  const OLD = ['NESTFOLIO', 'INTEG', 'PREFIX'].join('_');
+  const paths = [
+    'libs/test-support/src/context.ts',
+    'libs/test-support/test/context.test.ts',
+    'apps/nestfolio-e2e/playwright.config.ts',
+    'apps/e2e-feature-tests/jest.global-teardown.ts',
+    '.github/workflows/nestfolio-e2e.yml',
+    '.github/workflows/pr-deploy.yml',
+  ];
+  for (const path of paths) {
+    const content = await readFile(join(REPO, path), 'utf8');
+    assert.equal(content.includes(OLD), false, `${path} still names ${OLD}`);
+    assert.match(content, /\bPREFIX\b/, `${path} does not name PREFIX`);
+  }
+});

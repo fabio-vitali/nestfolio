@@ -1,0 +1,40 @@
+{
+  "title": "The integration prefix is read as PREFIX in code and configuration (part of issue #43)",
+  "intended_outcome": "No code or configuration file in this repository reads or sets NESTFOLIO_INTEG_PREFIX: the six files that do are renamed to PREFIX, keeping their defaults and fallbacks. Two conditions say different things. The first says the rename is complete across those six files. The second says where the change landed, and nothing about whether it is well written.\n\nThis Case answers PART of issue #43, and the bound is stated rather than implied. The issue asks for the docs to be swept in the same pull request, and roughly ninety-seven markdown files mention the old name; a change touching about a hundred and three paths exceeds the fifty-path limit of what Continuity can observe about a change, and a scope condition it could not read whole would fail rather than pass. The plan and backlog documents are also a record of what was true when they were written. So the part a person declared done here is the code and the configuration, and the documentation is deliberately left alone.\n\nOne more bound, stated because it is a real limit and not an oversight: the declared suite is the level-1 suite alone. It checks that the rename is complete in all six files, and it does not run this repository's own unit tests for libs/test-support. Nothing here claims those still pass.",
+  "completion_conditions": [
+    {
+      "condition_id": "answers-issue-43-in-code",
+      "statement": "The declared assertion \"the integration prefix is read as PREFIX in every code and configuration file\" passes. It fails at the revision this Case was opened against, so it can only pass if the work was done — in all six files, including the two GitHub workflows the issue's own enumeration does not name.",
+      "checks": [
+        {
+          "check_id": "official.declared-test-passes",
+          "version": "1.0.0",
+          "params": {
+            "test_name": "the integration prefix is read as PREFIX in every code and configuration file"
+          }
+        }
+      ]
+    },
+    {
+      "condition_id": "declared-scope",
+      "statement": "The delegated change touched those six files and nothing outside them — in particular not the suite that judges it, which the worker may read and may not change, and not the ninety-seven documents this Case deliberately leaves alone.",
+      "checks": [
+        {
+          "check_id": "official.change-matches-declared-scope",
+          "version": "1.0.0",
+          "params": {
+            "must_change": [
+              "libs/test-support/src/context.ts",
+              "libs/test-support/test/context.test.ts",
+              "apps/nestfolio-e2e/playwright.config.ts",
+              "apps/e2e-feature-tests/jest.global-teardown.ts",
+              ".github/workflows/nestfolio-e2e.yml",
+              ".github/workflows/pr-deploy.yml"
+            ],
+            "may_change": []
+          }
+        }
+      ]
+    }
+  ]
+}
