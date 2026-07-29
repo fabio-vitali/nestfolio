@@ -1,7 +1,7 @@
 import { alpacaPaperReset } from './src/helpers/alpaca-paper-reset';
 
 export default async function globalTeardown(): Promise<void> {
-  const prefix = process.env.NESTFOLIO_INTEG_PREFIX ?? 'dev';
+  const prefix = process.env.PREFIX ?? 'dev';
   try {
     await alpacaPaperReset(prefix);
     // eslint-disable-next-line no-console

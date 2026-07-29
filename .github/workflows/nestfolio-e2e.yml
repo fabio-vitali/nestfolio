@@ -28,7 +28,7 @@ jobs:
       contents: read
       actions: read
     env:
-      NESTFOLIO_INTEG_PREFIX: dev
+      PREFIX: dev
       AWS_REGION: us-east-1
       CI: 'true'
     steps:
