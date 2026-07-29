@@ -188,3 +188,11 @@ test('C3/C7: disable leaves direct current Skill discoverable and target removab
   assert.equal(existsSync(join(root, '.claude/skills/backlog-next/SKILL.md')), true);
   assert.equal(existsSync(join(root, 'docs/BACKLOG.md')), true);
 });
+
+test('the e2e-feature-tests test target declares the NODE_OPTIONS convention', async () => {
+  const project = JSON.parse(
+    await readFile(join(REPO, 'apps', 'e2e-feature-tests', 'project.json'), 'utf8'),
+  );
+  const target = project.targets['test-e2e-features'];
+  assert.equal(target.options.env?.NODE_OPTIONS, '--experimental-vm-modules');
+});

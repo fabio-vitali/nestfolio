@@ -1,0 +1,45 @@
+{
+  "schema_version": "0.4.0",
+  "procedure_id": "project.delegate-verify-scope-publish",
+  "version": "1.0.0",
+  "title": "Delegate a bounded change, verify it, judge where it landed, then publish the candidate",
+  "provenance": "project",
+  "mutating": true,
+  "steps": [
+    {
+      "step_id": "delegate-the-change",
+      "title": "Delegate the change to the declared worker",
+      "executor": "delegation",
+      "worker_ref": "delegated-worker",
+      "brief_ref": {
+        "brief_id": "project.fix-e2e-node-options",
+        "version": "1.0.0"
+      }
+    },
+    {
+      "step_id": "run-level1-suite",
+      "title": "Run the bound level-1 suite",
+      "executor": "command",
+      "command_ref": "test"
+    },
+    {
+      "step_id": "evaluate-declared-tests",
+      "title": "Evaluate the declared-test Check",
+      "executor": "check",
+      "check_id": "official.declared-test-passes",
+      "check_version": "1.0.0"
+    },
+    {
+      "step_id": "evaluate-change-scope",
+      "title": "Evaluate the scope Check over what the runner observed changing",
+      "executor": "check",
+      "check_id": "official.change-matches-declared-scope",
+      "check_version": "1.0.0"
+    },
+    {
+      "step_id": "publish-the-candidate",
+      "title": "Publish the candidate branch and open the pull request",
+      "executor": "publish"
+    }
+  ]
+}

@@ -1,0 +1,33 @@
+{
+  "title": "The e2e-feature-tests test target declares the NODE_OPTIONS convention (issue #42)",
+  "intended_outcome": "The declared level-1 suite's assertion about the e2e-feature-tests NODE_OPTIONS convention passes with Proof, and the runner's own observation of the delegated change shows it landed in apps/e2e-feature-tests/project.json and nowhere else. The two conditions say different things: the first says the convention is now declared, the second says where the change was made. Neither says the change is well written, and nothing here claims it does.",
+  "completion_conditions": [
+    {
+      "condition_id": "answers-issue-42",
+      "statement": "The declared assertion \"the e2e-feature-tests test target declares the NODE_OPTIONS convention\" passes. It fails at the revision this Case was opened against, so it can only pass if the work was done.",
+      "checks": [
+        {
+          "check_id": "official.declared-test-passes",
+          "version": "1.0.0",
+          "params": {
+            "test_name": "the e2e-feature-tests test target declares the NODE_OPTIONS convention"
+          }
+        }
+      ]
+    },
+    {
+      "condition_id": "declared-scope",
+      "statement": "The delegated change touched apps/e2e-feature-tests/project.json and nothing outside it — in particular not the suite that judges it, which the worker may read and may not change.",
+      "checks": [
+        {
+          "check_id": "official.change-matches-declared-scope",
+          "version": "1.0.0",
+          "params": {
+            "must_change": ["apps/e2e-feature-tests/project.json"],
+            "may_change": []
+          }
+        }
+      ]
+    }
+  ]
+}
