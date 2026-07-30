@@ -1,6 +1,6 @@
 {
   "schema_version": "0.1.0",
-  "profile_id": "prof-b8cc6c97b28d",
+  "profile_id": "prof-522e96a08811",
   "project_name": "@nestfolio/source",
   "mode": "observe",
   "facts": [
@@ -53,10 +53,10 @@
       "method": "deterministic"
     },
     {
-      "fact_id": "fact-ebcb26a336b4",
+      "fact_id": "fact-bf123fe486bd",
       "kind": "test-command",
       "value": "node --test --test-reporter=tap tests/continuity-level-1.test.mjs",
-      "source": "package.json#scripts.test:continuity-level1:tap",
+      "source": "package.json#scripts.test:continuity:tap",
       "confidence": 1,
       "method": "deterministic"
     },
@@ -75,7 +75,7 @@
         "pnpm",
         "run",
         "--silent",
-        "test:continuity-level1:tap"
+        "test:continuity:tap"
       ],
       "timeout_ms": 120000,
       "max_output_bytes": 1048576,
@@ -102,7 +102,7 @@
       ]
     }
   },
-  "accepted_at": "2026-07-27T22:08:51.902Z",
+  "accepted_at": "2026-07-30T00:13:31.831Z",
   "accepted_by": "human:fabiovitali",
-  "decision_id": "dec-3775af6431ab"
+  "decision_id": "dec-eac730727ee8"
 }
