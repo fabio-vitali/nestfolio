@@ -221,3 +221,28 @@ test('the integration prefix is read as PREFIX in every code and configuration f
     assert.match(content, /\bPREFIX\b/, `${path} does not name PREFIX`);
   }
 });
+
+test('the dead ExecutionAdptEventTypes block is gone from broker-sim-adpt', async () => {
+  // Read BY PATH, so this assertion never scans its own source, and the symbol
+  // is assembled from fragments for the same reason: a literal here would be an
+  // occurrence, and the assertion would then be asserting something about this
+  // file.
+  //
+  // Two paths, not the one the tracker issue's backlog note names. The domain
+  // barrel re-exports the symbol, so removing the block alone would not compile.
+  const DEAD = ['Execution', 'Adpt', 'EventTypes'].join('');
+  for (const path of [
+    'services/execution/broker-sim-adpt/src/domain/events.ts',
+    'services/execution/broker-sim-adpt/src/domain/index.ts',
+  ]) {
+    const content = await readFile(join(REPO, path), 'utf8');
+    assert.equal(content.includes(DEAD), false, `${path} still names ${DEAD}`);
+  }
+  // And the live sibling stayed: this is a deletion of dead code, not of the
+  // block beside it that the service actually emits.
+  const events = await readFile(
+    join(REPO, 'services/execution/broker-sim-adpt/src/domain/events.ts'),
+    'utf8',
+  );
+  assert.match(events, /BrokerSimEventTypes/);
+});
